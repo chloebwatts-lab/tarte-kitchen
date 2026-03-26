@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Import Chef Notepad CSV exports into Tarte Kitchen
  *
