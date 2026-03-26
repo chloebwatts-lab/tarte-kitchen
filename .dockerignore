@@ -5,3 +5,4 @@ node_modules
 .env.*
 *.md
 scripts/
+prisma/seed.ts
