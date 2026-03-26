@@ -1,0 +1,279 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  email          String    @unique
+  hashedPassword String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// ============================================================
+// SUPPLIERS
+// ============================================================
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  contact   String?
+  phone     String?
+  email     String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ingredients    Ingredient[]
+  supplierPrices SupplierPrice[]
+}
+
+// ============================================================
+// INGREDIENTS (Layer 1 — raw purchased items)
+// ============================================================
+
+enum BaseUnitType {
+  WEIGHT // stored as grams
+  VOLUME // stored as milliliters
+  COUNT  // stored as "each"
+}
+
+enum IngredientCategory {
+  MEAT
+  SEAFOOD
+  DAIRY
+  CHEESE
+  VEGETABLE
+  FRUIT
+  HERB
+  MUSHROOM
+  SPICE
+  DRY_GOOD
+  GRAIN
+  FLOUR
+  OIL
+  VINEGAR
+  BREAD
+  BAKERY
+  EGG
+  CONDIMENT
+  FROZEN
+  SALAD
+  OTHER
+}
+
+model Ingredient {
+  id                   String             @id @default(cuid())
+  name                 String
+  category             IngredientCategory @default(OTHER)
+  baseUnitType         BaseUnitType       // WEIGHT, VOLUME, or COUNT
+
+  // Purchase info
+  supplierId           String?
+  supplier             Supplier?          @relation(fields: [supplierId], references: [id])
+  supplierProductCode  String?
+  purchaseQuantity     Decimal            // e.g. 15 (dozen), 2350 (grams), 1 (kg)
+  purchaseUnit         String             // e.g. "dozen", "g", "kg", "carton", "ea"
+  purchasePrice        Decimal            // price in dollars (stored as cents-safe decimal)
+
+  // Conversion to base units
+  // For WEIGHT: how many grams in one purchaseUnit × purchaseQuantity
+  // For VOLUME: how many ml in one purchaseUnit × purchaseQuantity
+  // For COUNT: how many "each" in one purchaseUnit × purchaseQuantity
+  baseUnitsPerPurchase Decimal            // e.g. eggs: 180 (15 dozen = 180 ea), bacon: 1000 (1kg = 1000g)
+
+  // Waste / trim
+  wastePercentage      Decimal            @default(0) // 0–100, e.g. 38 for striploin
+
+  // Par level for ordering
+  parLevel             Decimal?
+  parUnit              String?
+
+  notes                String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  // Relations
+  priceHistory         PriceHistory[]
+  supplierPrices       SupplierPrice[]
+  preparationItems     PreparationItem[]
+  dishComponents       DishComponent[]
+
+  @@unique([name, supplierId])
+}
+
+// Track every price change
+model PriceHistory {
+  id           String     @id @default(cuid())
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  oldPrice     Decimal
+  newPrice     Decimal
+  oldUnit      String?
+  oldQuantity  Decimal?
+  changedAt    DateTime   @default(now())
+}
+
+// Multiple supplier prices per ingredient
+model SupplierPrice {
+  id           String     @id @default(cuid())
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  supplierId   String
+  supplier     Supplier   @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  price        Decimal
+  quantity     Decimal
+  unit         String
+  notes        String?
+  updatedAt    DateTime   @updatedAt
+  createdAt    DateTime   @default(now())
+
+  @@unique([ingredientId, supplierId])
+}
+
+// ============================================================
+// PREPARATIONS / SUB-RECIPES (Layer 2)
+// ============================================================
+
+enum PreparationCategory {
+  SAUCE
+  DRESSING
+  MIX
+  BASE
+  PRESERVED
+  PASTRY
+  BREAD
+  COMPONENT
+  GARNISH
+  OTHER
+}
+
+model Preparation {
+  id               String              @id @default(cuid())
+  name             String              @unique
+  category         PreparationCategory @default(OTHER)
+  method           String?             // rich text instructions
+
+  // Yield
+  yieldQuantity    Decimal             // e.g. 76 (serves) or 750 (grams)
+  yieldUnit        String              // e.g. "serves", "g", "ml"
+  yieldWeightGrams Decimal             // ALWAYS store total batch weight in grams
+
+  // Auto-calculated costs (cached, updated on ingredient price changes)
+  batchCost        Decimal             @default(0)
+  costPerGram      Decimal             @default(0)
+  costPerServe     Decimal             @default(0)
+
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  // Relations
+  items            PreparationItem[]
+  dishComponents   DishComponent[]
+  // Self-referential: a preparation can be used in other preparations
+  usedInItems      PreparationItem[]   @relation("SubPreparation")
+}
+
+model PreparationItem {
+  id              String       @id @default(cuid())
+  preparationId   String
+  preparation     Preparation  @relation(fields: [preparationId], references: [id], onDelete: Cascade)
+  sortOrder       Int          @default(0)
+
+  // Either an ingredient or another preparation (sub-recipe)
+  ingredientId    String?
+  ingredient      Ingredient?  @relation(fields: [ingredientId], references: [id])
+  subPreparationId String?
+  subPreparation  Preparation? @relation("SubPreparation", fields: [subPreparationId], references: [id])
+
+  quantity        Decimal      // amount used
+  unit            String       // g, kg, ml, l, ea, serve
+
+  // Cached cost for this line item
+  lineCost        Decimal      @default(0)
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+// ============================================================
+// MENU ITEMS / DISHES (Layer 3 — what gets sold)
+// ============================================================
+
+enum MenuCategory {
+  BREAKFAST
+  LUNCH
+  SIDES
+  DRINKS
+  KIDS
+  DESSERT
+  SPECIAL
+  OTHER
+}
+
+enum Venue {
+  BURLEIGH
+  CURRUMBIN
+  BOTH
+}
+
+model Dish {
+  id                 String       @id @default(cuid())
+  name               String
+  menuCategory       MenuCategory @default(OTHER)
+  venue              Venue        @default(BOTH)
+
+  // Pricing
+  sellingPrice       Decimal      // inc GST
+  sellingPriceExGst  Decimal      // auto: sellingPrice / 1.1
+
+  // Auto-calculated
+  totalCost          Decimal      @default(0)
+  foodCostPercentage Decimal      @default(0) // (totalCost / sellingPriceExGst) × 100
+  grossProfit        Decimal      @default(0) // sellingPriceExGst - totalCost
+
+  // Menu engineering
+  popularity         Int          @default(0) // number sold (manual or POS)
+
+  notes              String?
+  isActive           Boolean      @default(true)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  // Relations
+  components         DishComponent[]
+
+  @@unique([name, venue])
+}
+
+model DishComponent {
+  id              String       @id @default(cuid())
+  dishId          String
+  dish            Dish         @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  sortOrder       Int          @default(0)
+
+  // Either an ingredient or a preparation
+  ingredientId    String?
+  ingredient      Ingredient?  @relation(fields: [ingredientId], references: [id])
+  preparationId   String?
+  preparation     Preparation? @relation(fields: [preparationId], references: [id])
+
+  quantity        Decimal
+  unit            String       // g, kg, ml, l, ea, serve
+
+  // Cached cost for this line item
+  lineCost        Decimal      @default(0)
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}

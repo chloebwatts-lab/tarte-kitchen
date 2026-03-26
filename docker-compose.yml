@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: tarte
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: tarte_kitchen
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tarte -d tarte_kitchen"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://tarte:${DB_PASSWORD}@db:5432/tarte_kitchen
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: https://${DOMAIN}
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN}
+      BASIC_AUTH_HASH: ${BASIC_AUTH_HASH}
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
