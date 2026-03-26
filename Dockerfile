@@ -14,7 +14,8 @@ COPY . .
 # Remove files not needed for build
 RUN rm -f prisma/seed.ts
 
-# Generate Prisma client
+# Generate Prisma client (dummy URL — generate doesn't connect)
+ENV DATABASE_URL="postgres://dummy:dummy@localhost:5432/dummy"
 RUN npx prisma generate
 
 # Build Next.js (standalone output)
