@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 import { getDishes } from "@/lib/actions/dishes"
 import { DishesTable } from "@/components/dishes-table"
 import { DishForm } from "@/components/dish-form"

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 import { getSuppliers } from "@/lib/actions/suppliers"
 import { SuppliersContent } from "@/components/suppliers-content"
 

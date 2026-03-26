@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 import { getIngredients } from "@/lib/actions/ingredients"
 import { getSuppliers } from "@/lib/actions/suppliers"
 import { IngredientsTable } from "@/components/ingredients-table"

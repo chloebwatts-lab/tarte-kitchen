@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 import { getPreparations } from "@/lib/actions/preparations"
 import { PreparationsGrid } from "@/components/preparations-grid"
 import { PreparationForm } from "@/components/preparation-form"

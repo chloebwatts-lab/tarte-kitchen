@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 import { getDashboardStats } from "@/lib/actions/dashboard"
 import { DashboardContent } from "@/components/dashboard-content"
 
