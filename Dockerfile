@@ -11,6 +11,9 @@ COPY package.json package-lock.json* ./
 RUN npm ci
 COPY . .
 
+# Remove files not needed for build
+RUN rm -f prisma/seed.ts
+
 # Generate Prisma client
 RUN npx prisma generate
 
