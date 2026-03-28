@@ -118,17 +118,18 @@ export function ingredientLineCost(
 ): Decimal {
   const unitDef = UNIT_DEFINITIONS[unit.toLowerCase()]
 
-  // Cross-unit: COUNT ingredient measured in WEIGHT units in the recipe
+  // Cross-unit: COUNT ingredient measured in WEIGHT or VOLUME units in the recipe
   // e.g. 20g of cos lettuce (purchased by the ea, 300g per head)
+  // e.g. 30ml of BBQ sauce (purchased by bottle, 400ml per bottle)
   if (
     costInfo.baseUnitType === "COUNT" &&
-    unitDef?.type === "WEIGHT" &&
+    (unitDef?.type === "WEIGHT" || unitDef?.type === "VOLUME") &&
     costInfo.gramsPerUnit &&
     !costInfo.gramsPerUnit.isZero()
   ) {
-    const gramsInRecipe = toBaseUnits(quantity, unit)               // e.g. 20g
-    const easUsed = gramsInRecipe.div(costInfo.gramsPerUnit)         // 20 / 300 = 0.0667 ea
-    return easUsed.mul(costPerBaseUnit(costInfo))                    // 0.0667 × $2.10 = $0.14
+    const baseInRecipe = toBaseUnits(quantity, unit)                 // e.g. 20g or 30ml
+    const unitsUsed = baseInRecipe.div(costInfo.gramsPerUnit)        // 20/300 = 0.0667 ea
+    return unitsUsed.mul(costPerBaseUnit(costInfo))                  // 0.0667 × $2.10 = $0.14
   }
 
   // Standard path: recipe and purchase share the same unit type
@@ -157,14 +158,19 @@ export function preparationLineCost(
   const yieldGrams = new Decimal(yieldWeightGrams)
 
   const unitLower = unit.toLowerCase()
+  const yieldUnitLower = yieldUnit.toLowerCase()
 
-  // If using "serve" units, calculate as fraction of yield quantity
-  if (unitLower === "serve") {
-    if (yieldQty.isZero()) return new Decimal(0)
-    return q.div(yieldQty).mul(batch)
+  // COUNT → COUNT: e.g. "1 ea cookie" from a "70 ea" batch, or "2 serve" from a "180 serve" batch
+  const unitIsCount = unitLower === "serve" || unitLower === "ea" || unitLower === "dozen"
+  const yieldIsCount = yieldUnitLower === "serve" || yieldUnitLower === "ea"
+  if (unitIsCount && yieldIsCount) {
+    const baseQ = toBaseUnits(q, unitLower)           // ea→1, dozen→12, serve→1
+    const baseYield = toBaseUnits(yieldQty, yieldUnitLower)
+    if (baseYield.isZero()) return new Decimal(0)
+    return baseQ.div(baseYield).mul(batch)
   }
 
-  // For weight/volume units, convert to grams and calculate fraction
+  // For weight/volume units, convert to grams/ml and calculate fraction of total yield weight
   const baseQty = toBaseUnits(q, unitLower)
   if (yieldGrams.isZero()) return new Decimal(0)
   return baseQty.div(yieldGrams).mul(batch)
