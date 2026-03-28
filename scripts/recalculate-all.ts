@@ -15,6 +15,8 @@ const UNIT_MULT: Record<string, number> = {
   g: 1, kg: 1000, ml: 1, l: 1000, ea: 1, dozen: 12, oz: 28.3495, lb: 453.592,
 }
 const WEIGHT_UNITS = new Set(["g", "kg", "oz", "lb"])
+const VOLUME_UNITS = new Set(["ml", "l", "cl"])
+const COUNT_UNITS = new Set(["ea", "dozen", "serve"])
 
 function calcIngredientLineCost(
   quantity: number,
@@ -31,14 +33,41 @@ function calcIngredientLineCost(
   const cpbu = purchasePrice.div(usable)
 
   const u = unit.toLowerCase()
-  if (baseUnitType === "COUNT" && WEIGHT_UNITS.has(u) && gramsPerUnit && !gramsPerUnit.isZero()) {
-    const gramsInRecipe = new Decimal(quantity).mul(UNIT_MULT[u] ?? 1)
-    const easUsed = gramsInRecipe.div(gramsPerUnit)
-    return easUsed.mul(cpbu)
+  // COUNT ingredient used by WEIGHT or VOLUME in recipe (e.g. 20g cos lettuce, 30ml BBQ sauce)
+  if (baseUnitType === "COUNT" && (WEIGHT_UNITS.has(u) || VOLUME_UNITS.has(u)) && gramsPerUnit && !gramsPerUnit.isZero()) {
+    const baseInRecipe = new Decimal(quantity).mul(UNIT_MULT[u] ?? 1)
+    const unitsUsed = baseInRecipe.div(gramsPerUnit)
+    return unitsUsed.mul(cpbu)
   }
 
   const baseQty = new Decimal(quantity).mul(UNIT_MULT[u] ?? 1)
   return baseQty.mul(cpbu)
+}
+
+function calcPrepLineCost(
+  quantity: number,
+  unit: string,
+  batchCost: Decimal,
+  yieldQuantity: Decimal,
+  yieldUnit: string,
+  yieldWeightGrams: Decimal
+): Decimal {
+  const q = new Decimal(quantity)
+  const u = unit.toLowerCase()
+  const yu = yieldUnit.toLowerCase()
+
+  // COUNT → COUNT: "1 ea" from "70 ea" batch, or "2 serve" from "180 serve" batch
+  const unitIsCount = COUNT_UNITS.has(u)
+  const yieldIsCount = yu === "serve" || yu === "ea"
+  if (unitIsCount && yieldIsCount) {
+    const baseQ = q.mul(UNIT_MULT[u] ?? 1)      // ea→1, dozen→12, serve→1
+    const baseY = yieldQuantity.mul(UNIT_MULT[yu] ?? 1)
+    return baseY.gt(0) ? baseQ.div(baseY).mul(batchCost) : new Decimal(0)
+  }
+
+  // WEIGHT/VOLUME → use yieldWeightGrams
+  const baseQty = q.mul(UNIT_MULT[u] ?? 1)
+  return yieldWeightGrams.gt(0) ? baseQty.div(yieldWeightGrams).mul(batchCost) : new Decimal(0)
 }
 
 async function main() {
@@ -71,16 +100,13 @@ async function main() {
         ).toDecimalPlaces(4)
       } else if (item.subPreparation) {
         const sub = item.subPreparation
-        const q = new Decimal(String(item.quantity))
-        const batch = new Decimal(String(sub.batchCost))
-        if (item.unit.toLowerCase() === "serve") {
-          const yieldQty = new Decimal(String(sub.yieldQuantity))
-          lineCost = yieldQty.gt(0) ? q.div(yieldQty).mul(batch).toDecimalPlaces(4) : new Decimal(0)
-        } else {
-          const baseQty = q.mul(UNIT_MULT[item.unit.toLowerCase()] ?? 1)
-          const yieldGrams = new Decimal(String(sub.yieldWeightGrams))
-          lineCost = yieldGrams.gt(0) ? baseQty.div(yieldGrams).mul(batch).toDecimalPlaces(4) : new Decimal(0)
-        }
+        lineCost = calcPrepLineCost(
+          Number(item.quantity), item.unit,
+          new Decimal(String(sub.batchCost)),
+          new Decimal(String(sub.yieldQuantity)),
+          sub.yieldUnit,
+          new Decimal(String(sub.yieldWeightGrams))
+        ).toDecimalPlaces(4)
       }
 
       batchCost = batchCost.plus(lineCost)
@@ -104,7 +130,7 @@ async function main() {
   }
 
   // Need fresh prep data (batchCost just updated) for dish calculation
-  const freshPreps = await db.preparation.findMany({ select: { id: true, batchCost: true, yieldQuantity: true, yieldWeightGrams: true } })
+  const freshPreps = await db.preparation.findMany({ select: { id: true, batchCost: true, yieldQuantity: true, yieldUnit: true, yieldWeightGrams: true } })
   const prepMap = new Map(freshPreps.map((p) => [p.id, p]))
 
   // ── 2. Recalculate all dishes ───────────────────────────────────────────
@@ -133,16 +159,13 @@ async function main() {
       } else if (comp.preparation) {
         const prep = prepMap.get(comp.preparationId!)
         if (prep) {
-          const q = new Decimal(String(comp.quantity))
-          const batch = new Decimal(String(prep.batchCost))
-          if (comp.unit.toLowerCase() === "serve") {
-            const yieldQty = new Decimal(String(prep.yieldQuantity))
-            lineCost = yieldQty.gt(0) ? q.div(yieldQty).mul(batch).toDecimalPlaces(4) : new Decimal(0)
-          } else {
-            const baseQty = q.mul(UNIT_MULT[comp.unit.toLowerCase()] ?? 1)
-            const yieldGrams = new Decimal(String(prep.yieldWeightGrams))
-            lineCost = yieldGrams.gt(0) ? baseQty.div(yieldGrams).mul(batch).toDecimalPlaces(4) : new Decimal(0)
-          }
+          lineCost = calcPrepLineCost(
+            Number(comp.quantity), comp.unit,
+            new Decimal(String(prep.batchCost)),
+            new Decimal(String(prep.yieldQuantity)),
+            prep.yieldUnit,
+            new Decimal(String(prep.yieldWeightGrams))
+          ).toDecimalPlaces(4)
         }
       }
 
