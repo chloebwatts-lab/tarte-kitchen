@@ -138,9 +138,9 @@ async function main() {
 
   if (DRY_RUN) console.log("🔍  DRY RUN — no DB writes\n")
 
-  const cnRecipes: CNRecipe[] = JSON.parse(
-    readFileSync(resolve("/Users/chris/Downloads/chefnotepad-recipes.json"), "utf-8")
-  )
+  const jsonPath = process.env.RECIPES_JSON
+    ?? resolve(process.cwd(), "chefnotepad-recipes.json")
+  const cnRecipes: CNRecipe[] = JSON.parse(readFileSync(jsonPath, "utf-8"))
   console.log(`📂  Loaded ${cnRecipes.length} recipes from Chef Notepad\n`)
 
   // Pre-load all DB entities
