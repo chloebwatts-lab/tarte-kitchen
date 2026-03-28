@@ -4,12 +4,12 @@ import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import Decimal from "decimal.js"
 import {
-  costPerBaseUnit,
-  toBaseUnits,
+  ingredientLineCost,
   preparationLineCost as calcPrepLineCost,
   exGst,
   foodCostPercentage,
 } from "@/lib/units"
+import type { BaseUnitType } from "@/lib/units"
 import type { Dish, DishComponent, Ingredient, Preparation } from "@/generated/prisma/client"
 
 type DishComponentWithRefs = DishComponent & {
@@ -132,13 +132,13 @@ function computeComponentCosts(
     if (comp.ingredientId) {
       const ing = ingredientMap.get(comp.ingredientId)
       if (ing) {
-        const cpbu = costPerBaseUnit({
+        lineCost = ingredientLineCost(comp.quantity, comp.unit, {
           purchasePrice: new Decimal(String(ing.purchasePrice)),
           baseUnitsPerPurchase: new Decimal(String(ing.baseUnitsPerPurchase)),
           wastePercentage: new Decimal(String(ing.wastePercentage)),
-        })
-        const baseQty = toBaseUnits(comp.quantity, comp.unit)
-        lineCost = baseQty.mul(cpbu).toDecimalPlaces(4)
+          baseUnitType: ing.baseUnitType as BaseUnitType,
+          gramsPerUnit: ing.gramsPerUnit ? new Decimal(String(ing.gramsPerUnit)) : null,
+        }).toDecimalPlaces(4)
       }
     } else if (comp.preparationId) {
       const prep = prepMap.get(comp.preparationId)

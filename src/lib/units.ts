@@ -84,6 +84,8 @@ export interface IngredientCostInfo {
   purchasePrice: Decimal
   baseUnitsPerPurchase: Decimal // total grams/ml/ea per purchase
   wastePercentage: Decimal     // 0-100
+  baseUnitType: BaseUnitType   // WEIGHT | VOLUME | COUNT
+  gramsPerUnit?: Decimal | null // For COUNT ingredients used by weight: grams per single ea/bunch/etc.
 }
 
 /**
@@ -103,7 +105,10 @@ export function costPerBaseUnit(info: IngredientCostInfo): Decimal {
 /**
  * Calculate the cost of using a quantity of an ingredient in a recipe.
  *
- * Example: "60g smoked salmon" where salmon is $42/kg (= $0.042/g)
+ * Handles cross-unit conversion for COUNT ingredients used by weight:
+ *   e.g. "20g cos lettuce" (1 ea = 300g, $2.10/ea) → (20/300) × $2.10 = $0.14
+ *
+ * Standard example: "60g smoked salmon" where salmon is $42/kg (= $0.042/g)
  *   lineCost = 60 × 0.042 = $2.52
  */
 export function ingredientLineCost(
@@ -111,9 +116,24 @@ export function ingredientLineCost(
   unit: string,
   costInfo: IngredientCostInfo
 ): Decimal {
+  const unitDef = UNIT_DEFINITIONS[unit.toLowerCase()]
+
+  // Cross-unit: COUNT ingredient measured in WEIGHT units in the recipe
+  // e.g. 20g of cos lettuce (purchased by the ea, 300g per head)
+  if (
+    costInfo.baseUnitType === "COUNT" &&
+    unitDef?.type === "WEIGHT" &&
+    costInfo.gramsPerUnit &&
+    !costInfo.gramsPerUnit.isZero()
+  ) {
+    const gramsInRecipe = toBaseUnits(quantity, unit)               // e.g. 20g
+    const easUsed = gramsInRecipe.div(costInfo.gramsPerUnit)         // 20 / 300 = 0.0667 ea
+    return easUsed.mul(costPerBaseUnit(costInfo))                    // 0.0667 × $2.10 = $0.14
+  }
+
+  // Standard path: recipe and purchase share the same unit type
   const baseQty = toBaseUnits(quantity, unit)
-  const perUnit = costPerBaseUnit(costInfo)
-  return baseQty.mul(perUnit)
+  return baseQty.mul(costPerBaseUnit(costInfo))
 }
 
 /**

@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import { getDishes } from "@/lib/actions/dishes"
 import { DishesTable } from "@/components/dishes-table"
 import { DishForm } from "@/components/dish-form"
+import { RecalculateButton } from "@/components/recalculate-button"
 
 export default async function DishesPage({
   searchParams,
@@ -26,7 +27,10 @@ export default async function DishesPage({
             {dishes.length} dish{dishes.length !== 1 ? "es" : ""} on your menu
           </p>
         </div>
-        <DishForm />
+        <div className="flex items-center gap-2">
+          <RecalculateButton />
+          <DishForm />
+        </div>
       </div>
 
       <DishesTable

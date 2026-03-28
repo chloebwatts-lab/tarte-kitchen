@@ -92,6 +92,10 @@ model Ingredient {
   // For COUNT: how many "each" in one purchaseUnit × purchaseQuantity
   baseUnitsPerPurchase Decimal            // e.g. eggs: 180 (15 dozen = 180 ea), bacon: 1000 (1kg = 1000g)
 
+  // Cross-unit conversion (COUNT ingredients used in WEIGHT recipes)
+  // e.g. avocado: 1 ea ≈ 200g → set to 200. Null for WEIGHT/VOLUME ingredients.
+  gramsPerUnit         Decimal?           // grams (or ml for VOLUME) per single ea/bunch/etc.
+
   // Waste / trim
   wastePercentage      Decimal            @default(0) // 0–100, e.g. 38 for striploin
 

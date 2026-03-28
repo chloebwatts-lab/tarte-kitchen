@@ -4,10 +4,10 @@ import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import Decimal from "decimal.js"
 import {
-  costPerBaseUnit,
-  toBaseUnits,
+  ingredientLineCost,
   preparationLineCost as calcPrepLineCost,
 } from "@/lib/units"
+import type { BaseUnitType } from "@/lib/units"
 import type { Preparation, PreparationItem, Ingredient } from "@/generated/prisma/client"
 
 type PrepItemWithRefs = PreparationItem & {
@@ -181,13 +181,13 @@ export async function createPreparation(data: {
     if (item.ingredientId) {
       const ing = ingredientMap.get(item.ingredientId)
       if (ing) {
-        const cpbu = costPerBaseUnit({
+        lineCost = ingredientLineCost(item.quantity, item.unit, {
           purchasePrice: new Decimal(String(ing.purchasePrice)),
           baseUnitsPerPurchase: new Decimal(String(ing.baseUnitsPerPurchase)),
           wastePercentage: new Decimal(String(ing.wastePercentage)),
-        })
-        const baseQty = toBaseUnits(item.quantity, item.unit)
-        lineCost = baseQty.mul(cpbu).toDecimalPlaces(4)
+          baseUnitType: ing.baseUnitType as BaseUnitType,
+          gramsPerUnit: ing.gramsPerUnit ? new Decimal(String(ing.gramsPerUnit)) : null,
+        }).toDecimalPlaces(4)
       }
     } else if (item.subPreparationId) {
       const prep = prepMap.get(item.subPreparationId)
@@ -285,13 +285,13 @@ export async function updatePreparation(
     if (item.ingredientId) {
       const ing = ingredientMap.get(item.ingredientId)
       if (ing) {
-        const cpbu = costPerBaseUnit({
+        lineCost = ingredientLineCost(item.quantity, item.unit, {
           purchasePrice: new Decimal(String(ing.purchasePrice)),
           baseUnitsPerPurchase: new Decimal(String(ing.baseUnitsPerPurchase)),
           wastePercentage: new Decimal(String(ing.wastePercentage)),
-        })
-        const baseQty = toBaseUnits(item.quantity, item.unit)
-        lineCost = baseQty.mul(cpbu).toDecimalPlaces(4)
+          baseUnitType: ing.baseUnitType as BaseUnitType,
+          gramsPerUnit: ing.gramsPerUnit ? new Decimal(String(ing.gramsPerUnit)) : null,
+        }).toDecimalPlaces(4)
       }
     } else if (item.subPreparationId) {
       const prep = prepMap.get(item.subPreparationId)

@@ -37,6 +37,7 @@ export async function getIngredients(filters?: {
     purchaseQuantity: Number(i.purchaseQuantity),
     purchasePrice: Number(i.purchasePrice),
     baseUnitsPerPurchase: Number(i.baseUnitsPerPurchase),
+    gramsPerUnit: i.gramsPerUnit ? Number(i.gramsPerUnit) : null,
     wastePercentage: Number(i.wastePercentage),
     parLevel: i.parLevel ? Number(i.parLevel) : null,
   }))
@@ -58,6 +59,7 @@ export async function getIngredient(id: string) {
     purchaseQuantity: Number(i.purchaseQuantity),
     purchasePrice: Number(i.purchasePrice),
     baseUnitsPerPurchase: Number(i.baseUnitsPerPurchase),
+    gramsPerUnit: i.gramsPerUnit ? Number(i.gramsPerUnit) : null,
     wastePercentage: Number(i.wastePercentage),
     parLevel: i.parLevel ? Number(i.parLevel) : null,
     priceHistory: i.priceHistory.map((ph: PriceHistory) => ({
@@ -84,6 +86,7 @@ export async function createIngredient(data: {
   purchaseUnit: string
   purchasePrice: number
   baseUnitsPerPurchase: number
+  gramsPerUnit?: number | null
   wastePercentage?: number
   parLevel?: number | null
   parUnit?: string | null
@@ -100,6 +103,7 @@ export async function createIngredient(data: {
       purchaseUnit: data.purchaseUnit,
       purchasePrice: data.purchasePrice,
       baseUnitsPerPurchase: data.baseUnitsPerPurchase,
+      gramsPerUnit: data.gramsPerUnit ?? null,
       wastePercentage: data.wastePercentage ?? 0,
       parLevel: data.parLevel ?? null,
       parUnit: data.parUnit || null,
@@ -124,6 +128,7 @@ export async function updateIngredient(
     purchaseUnit: string
     purchasePrice: number
     baseUnitsPerPurchase: number
+    gramsPerUnit?: number | null
     wastePercentage?: number
     parLevel?: number | null
     parUnit?: string | null
@@ -160,6 +165,7 @@ export async function updateIngredient(
       purchaseUnit: data.purchaseUnit,
       purchasePrice: data.purchasePrice,
       baseUnitsPerPurchase: data.baseUnitsPerPurchase,
+      gramsPerUnit: data.gramsPerUnit ?? null,
       wastePercentage: data.wastePercentage ?? 0,
       parLevel: data.parLevel ?? null,
       parUnit: data.parUnit || null,
@@ -251,7 +257,8 @@ async function recalculateCascade(ingredientId: string) {
   }
 }
 
-const UNIT_MULT: Record<string, number> = { g: 1, kg: 1000, ml: 1, l: 1000, ea: 1, dozen: 12 }
+const UNIT_MULT: Record<string, number> = { g: 1, kg: 1000, ml: 1, l: 1000, ea: 1, dozen: 12, oz: 28.3495, lb: 453.592 }
+const WEIGHT_UNITS = new Set(["g", "kg", "oz", "lb"])
 
 type PrepWithItems = Preparation & {
   items: (PreparationItem & { ingredient: Ingredient | null; subPreparation: Preparation | null })[]
@@ -276,8 +283,16 @@ async function recalculatePreparationCost(prepId: string) {
       const wasteFactor = new Decimal(1).minus(new Decimal(String(ing.wastePercentage)).div(100))
       const usable = new Decimal(String(ing.baseUnitsPerPurchase)).mul(wasteFactor)
       const cpbu = usable.gt(0) ? new Decimal(String(ing.purchasePrice)).div(usable) : new Decimal(0)
-      const baseQty = new Decimal(String(item.quantity)).mul(UNIT_MULT[item.unit.toLowerCase()] ?? 1)
-      lineCost = baseQty.mul(cpbu)
+      const unit = item.unit.toLowerCase()
+      // Cross-unit: COUNT ingredient (ea/bunch) used by weight (g/kg) in the recipe
+      if (ing.baseUnitType === "COUNT" && WEIGHT_UNITS.has(unit) && ing.gramsPerUnit) {
+        const gramsInRecipe = new Decimal(String(item.quantity)).mul(UNIT_MULT[unit] ?? 1)
+        const easUsed = gramsInRecipe.div(new Decimal(String(ing.gramsPerUnit)))
+        lineCost = easUsed.mul(cpbu)
+      } else {
+        const baseQty = new Decimal(String(item.quantity)).mul(UNIT_MULT[unit] ?? 1)
+        lineCost = baseQty.mul(cpbu)
+      }
     } else if (item.subPreparationId && item.subPreparation) {
       const sub = item.subPreparation
       const q = new Decimal(String(item.quantity))
@@ -340,8 +355,16 @@ async function recalculateDishCost(dishId: string) {
       const wasteFactor = new Decimal(1).minus(new Decimal(String(ing.wastePercentage)).div(100))
       const usable = new Decimal(String(ing.baseUnitsPerPurchase)).mul(wasteFactor)
       const cpbu = usable.gt(0) ? new Decimal(String(ing.purchasePrice)).div(usable) : new Decimal(0)
-      const baseQty = new Decimal(String(comp.quantity)).mul(UNIT_MULT[comp.unit.toLowerCase()] ?? 1)
-      lineCost = baseQty.mul(cpbu)
+      const unit = comp.unit.toLowerCase()
+      // Cross-unit: COUNT ingredient (ea/bunch) used by weight (g/kg) in the recipe
+      if (ing.baseUnitType === "COUNT" && WEIGHT_UNITS.has(unit) && ing.gramsPerUnit) {
+        const gramsInRecipe = new Decimal(String(comp.quantity)).mul(UNIT_MULT[unit] ?? 1)
+        const easUsed = gramsInRecipe.div(new Decimal(String(ing.gramsPerUnit)))
+        lineCost = easUsed.mul(cpbu)
+      } else {
+        const baseQty = new Decimal(String(comp.quantity)).mul(UNIT_MULT[unit] ?? 1)
+        lineCost = baseQty.mul(cpbu)
+      }
     } else if (comp.preparationId && comp.preparation) {
       const prep = comp.preparation
       const q = new Decimal(String(comp.quantity))
@@ -378,4 +401,25 @@ async function recalculateDishCost(dishId: string) {
       grossProfit: Number(gp.toDecimalPlaces(2)),
     },
   })
+}
+
+/**
+ * Recalculate costs for every preparation and dish in the database.
+ * Run this after setting gramsPerUnit values on COUNT ingredients to
+ * propagate the corrected costs through all recipes.
+ */
+export async function recalculateAll() {
+  const preps = await db.preparation.findMany({ select: { id: true } })
+  for (const prep of preps) {
+    await recalculatePreparationCost(prep.id)
+  }
+
+  const dishes = await db.dish.findMany({ select: { id: true } })
+  for (const dish of dishes) {
+    await recalculateDishCost(dish.id)
+  }
+
+  revalidatePath("/preparations")
+  revalidatePath("/dishes")
+  revalidatePath("/dashboard")
 }

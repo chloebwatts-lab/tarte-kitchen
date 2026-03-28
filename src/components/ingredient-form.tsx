@@ -50,6 +50,7 @@ interface Ingredient {
   purchaseUnit: string
   purchasePrice: number
   baseUnitsPerPurchase: number
+  gramsPerUnit: number | null
   wastePercentage: number
   parLevel: number | null
   parUnit: string | null
@@ -182,6 +183,7 @@ export function IngredientForm({ ingredient, suppliers, onSuccess }: IngredientF
   const [purchasePrice, setPurchasePrice] = useState("")
   const [baseUnitsPerPurchase, setBaseUnitsPerPurchase] = useState("")
   const [baseUnitsManuallySet, setBaseUnitsManuallySet] = useState(false)
+  const [gramsPerUnit, setGramsPerUnit] = useState("")
   const [wastePercentage, setWastePercentage] = useState("")
   const [notes, setNotes] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -200,6 +202,7 @@ export function IngredientForm({ ingredient, suppliers, onSuccess }: IngredientF
         setPurchasePrice(String(ingredient.purchasePrice))
         setBaseUnitsPerPurchase(String(ingredient.baseUnitsPerPurchase))
         setBaseUnitsManuallySet(true)
+        setGramsPerUnit(ingredient.gramsPerUnit != null ? String(ingredient.gramsPerUnit) : "")
         setWastePercentage(String(ingredient.wastePercentage))
         setNotes(ingredient.notes || "")
       } else {
@@ -213,6 +216,7 @@ export function IngredientForm({ ingredient, suppliers, onSuccess }: IngredientF
         setPurchasePrice("")
         setBaseUnitsPerPurchase("")
         setBaseUnitsManuallySet(false)
+        setGramsPerUnit("")
         setWastePercentage("")
         setNotes("")
       }
@@ -294,6 +298,7 @@ export function IngredientForm({ ingredient, suppliers, onSuccess }: IngredientF
       purchaseUnit,
       purchasePrice: Number(purchasePrice),
       baseUnitsPerPurchase: Number(baseUnitsPerPurchase),
+      gramsPerUnit: gramsPerUnit && Number(gramsPerUnit) > 0 ? Number(gramsPerUnit) : null,
       wastePercentage: Number(wastePercentage) || 0,
       notes: notes.trim() || null,
     }
@@ -315,7 +320,7 @@ export function IngredientForm({ ingredient, suppliers, onSuccess }: IngredientF
   }, [
     name, category, baseUnitType, supplierId, supplierProductCode,
     purchaseQuantity, purchaseUnit, purchasePrice, baseUnitsPerPurchase,
-    wastePercentage, notes, isEditing, ingredient, router, onSuccess,
+    gramsPerUnit, wastePercentage, notes, isEditing, ingredient, router, onSuccess,
   ])
 
   const purchaseUnits = PURCHASE_UNITS_BY_TYPE[baseUnitType] || PURCHASE_UNITS_BY_TYPE.WEIGHT
@@ -514,6 +519,30 @@ export function IngredientForm({ ingredient, suppliers, onSuccess }: IngredientF
               {baseUnitType === "COUNT" && " e.g. 1 dozen = 12ea"}
             </p>
           </div>
+
+          {/* Grams per unit — COUNT ingredients only */}
+          {baseUnitType === "COUNT" && (
+            <div className="space-y-2">
+              <Label htmlFor="ing-gpu">
+                Grams per unit
+                <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">(optional)</span>
+              </Label>
+              <Input
+                id="ing-gpu"
+                type="number"
+                min="0"
+                step="any"
+                placeholder="e.g. 200 for avocado, 300 for cos lettuce"
+                value={gramsPerUnit}
+                onChange={(e) => setGramsPerUnit(e.target.value)}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Set this when recipes measure this ingredient by weight (g/kg). Enables correct
+                cost calculation — e.g. avocado 1&nbsp;ea&nbsp;≈&nbsp;200g means 180g costs
+                (180÷200)&nbsp;×&nbsp;price instead of 180&nbsp;×&nbsp;price.
+              </p>
+            </div>
+          )}
 
           {/* Waste */}
           <div className="space-y-2">
