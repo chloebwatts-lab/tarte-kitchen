@@ -12,6 +12,8 @@ import {
   BarChart3,
   PanelLeftClose,
   PanelLeft,
+  Trash2,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +23,9 @@ const navItems = [
   { label: "Preparations", href: "/preparations", icon: ChefHat },
   { label: "Menu Items", href: "/dishes", icon: UtensilsCrossed },
   { label: "Suppliers", href: "/suppliers", icon: Truck },
+  { label: "Wastage", href: "/wastage", icon: Trash2 },
   { label: "Reports", href: "/reports", icon: BarChart3 },
+  { label: "Settings", href: "/settings/integrations", icon: Settings },
 ];
 
 export function Sidebar() {

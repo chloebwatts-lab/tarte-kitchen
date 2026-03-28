@@ -112,6 +112,8 @@ model Ingredient {
   supplierPrices       SupplierPrice[]
   preparationItems     PreparationItem[]
   dishComponents       DishComponent[]
+  wasteEntries         WasteEntry[]
+  theoreticalUsages    TheoreticalUsage[]
 
   @@unique([name, supplierId])
 }
@@ -257,6 +259,8 @@ model Dish {
 
   // Relations
   components         DishComponent[]
+  dailySales         DailySales[]
+  wasteEntries       WasteEntry[]
 
   @@unique([name, venue])
 }
@@ -281,4 +285,113 @@ model DishComponent {
 
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+}
+
+// ============================================================
+// LIGHTSPEED POS INTEGRATION
+// ============================================================
+
+model LightspeedConnection {
+  id                String   @id @default(cuid())
+  accessToken       String   // Encrypted at rest via TOKEN_ENCRYPTION_KEY
+  refreshToken      String   // Encrypted at rest
+  tokenExpiresAt    DateTime
+  businessId        String?
+  businessLocations Json?    // Array of {id, name, venue} for multi-site
+  connectedAt       DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// ============================================================
+// DAILY SALES (synced from Lightspeed)
+// ============================================================
+
+model DailySales {
+  id              String   @id @default(cuid())
+  date            DateTime @db.Date
+  venue           Venue    // BURLEIGH or CURRUMBIN
+  menuItemName    String
+  menuItemId      String?  // Lightspeed item ID
+  dishId          String?
+  dish            Dish?    @relation(fields: [dishId], references: [id])
+  quantitySold    Int
+  revenue         Decimal  @db.Decimal(12, 2) // inc GST
+  revenueExGst    Decimal  @db.Decimal(12, 2)
+  voids           Int      @default(0)
+  comps           Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  @@unique([date, venue, menuItemName])
+  @@index([date, venue])
+  @@index([dishId])
+}
+
+model DailySalesSummary {
+  id                String   @id @default(cuid())
+  date              DateTime @db.Date
+  venue             Venue
+  totalRevenue      Decimal  @db.Decimal(12, 2)
+  totalRevenueExGst Decimal  @db.Decimal(12, 2)
+  totalCovers       Int
+  averageSpend      Decimal  @db.Decimal(8, 2)
+  totalVoids        Int
+  totalComps        Int
+  theoreticalCogs   Decimal? @db.Decimal(12, 2) // sales x recipe costs
+  createdAt         DateTime @default(now())
+
+  @@unique([date, venue])
+}
+
+// ============================================================
+// WASTAGE TRACKING
+// ============================================================
+
+enum WasteReason {
+  OVERPRODUCTION
+  SPOILAGE
+  EXPIRED
+  DROPPED
+  STAFF_MEAL
+  CUSTOMER_RETURN
+  QUALITY_ISSUE
+  OTHER
+}
+
+model WasteEntry {
+  id            String      @id @default(cuid())
+  date          DateTime    @db.Date
+  venue         Venue
+  dishId        String?
+  dish          Dish?       @relation(fields: [dishId], references: [id])
+  ingredientId  String?
+  ingredient    Ingredient? @relation(fields: [ingredientId], references: [id])
+  itemName      String      // Human-readable name (in case dish/ingredient not linked)
+  quantity      Decimal     @db.Decimal(10, 3)
+  unit          String
+  reason        WasteReason
+  estimatedCost Decimal     @db.Decimal(10, 2)
+  notes         String?
+  recordedBy    String?
+  createdAt     DateTime    @default(now())
+
+  @@index([date, venue])
+  @@index([reason])
+}
+
+// ============================================================
+// THEORETICAL USAGE (calculated from sales x recipes)
+// ============================================================
+
+model TheoreticalUsage {
+  id              String     @id @default(cuid())
+  date            DateTime   @db.Date
+  venue           Venue
+  ingredientId    String
+  ingredient      Ingredient @relation(fields: [ingredientId], references: [id])
+  theoreticalQty  Decimal    @db.Decimal(12, 3)
+  unit            String
+  theoreticalCost Decimal    @db.Decimal(12, 2)
+  createdAt       DateTime   @default(now())
+
+  @@unique([date, venue, ingredientId])
 }

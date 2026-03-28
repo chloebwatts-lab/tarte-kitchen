@@ -20,6 +20,8 @@ export const config = {
     "/preparations/:path*",
     "/dishes/:path*",
     "/suppliers/:path*",
+    "/wastage/:path*",
+    "/settings/:path*",
     "/reports/:path*",
   ],
 }
