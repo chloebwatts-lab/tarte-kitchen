@@ -221,6 +221,7 @@ enum MenuCategory {
   DRINKS
   KIDS
   DESSERT
+  PASTRY
   SPECIAL
   OTHER
 }

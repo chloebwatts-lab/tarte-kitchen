@@ -34,6 +34,7 @@ interface Ingredient {
   purchaseUnit: string
   purchasePrice: number
   baseUnitsPerPurchase: number
+  gramsPerUnit: number | null
   wastePercentage: number
   parLevel: number | null
   parUnit: string | null

@@ -131,6 +131,7 @@ function calcIngredientLineCost(ing: IngredientRef, quantity: number, unit: stri
       purchasePrice: new Decimal(ing.purchasePrice),
       baseUnitsPerPurchase: new Decimal(ing.baseUnitsPerPurchase),
       wastePercentage: new Decimal(ing.wastePercentage),
+      baseUnitType: ing.baseUnitType as BaseUnitType,
     })
     const baseQty = toBaseUnits(quantity, unit)
     return Number(baseQty.mul(cpbu).toDecimalPlaces(4))

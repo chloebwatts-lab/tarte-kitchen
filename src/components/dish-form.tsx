@@ -113,6 +113,7 @@ const MENU_CATEGORIES = [
   { value: "DRINKS", label: "Drinks" },
   { value: "KIDS", label: "Kids" },
   { value: "DESSERT", label: "Dessert" },
+  { value: "PASTRY", label: "Pastry" },
   { value: "SPECIAL", label: "Special" },
   { value: "OTHER", label: "Other" },
 ]
@@ -133,6 +134,7 @@ function calcIngredientLineCost(ing: IngredientRef, quantity: number, unit: stri
       purchasePrice: new Decimal(ing.purchasePrice),
       baseUnitsPerPurchase: new Decimal(ing.baseUnitsPerPurchase),
       wastePercentage: new Decimal(ing.wastePercentage),
+      baseUnitType: ing.baseUnitType as BaseUnitType,
     })
     const baseQty = toBaseUnits(quantity, unit)
     return Number(baseQty.mul(cpbu).toDecimalPlaces(4))

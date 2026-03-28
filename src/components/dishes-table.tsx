@@ -69,6 +69,7 @@ const MENU_CATEGORIES = [
   "DRINKS",
   "KIDS",
   "DESSERT",
+  "PASTRY",
   "SPECIAL",
   "OTHER",
 ] as const
@@ -81,6 +82,7 @@ const MENU_CATEGORY_LABELS: Record<string, string> = {
   DRINKS: "Drinks",
   KIDS: "Kids",
   DESSERT: "Dessert",
+  PASTRY: "Pastry",
   SPECIAL: "Special",
   OTHER: "Other",
 }
