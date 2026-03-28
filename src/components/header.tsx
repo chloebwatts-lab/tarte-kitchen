@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { LogOut } from "lucide-react";
+import { LogOut, Search } from "lucide-react";
 
 interface HeaderProps {
   title: string;
@@ -30,9 +30,10 @@ export function Header({ title, children }: HeaderProps) {
               new KeyboardEvent("keydown", { key: "k", metaKey: true })
             )
           }
-          className="hidden items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted sm:flex"
+          className="hidden items-center justify-center rounded-lg border border-border p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex"
+          title="Search (⌘K)"
         >
-          <kbd className="font-sans">⌘K</kbd>
+          <Search className="h-4 w-4" />
         </button>
         {/* User info + sign out */}
         {session?.user && (

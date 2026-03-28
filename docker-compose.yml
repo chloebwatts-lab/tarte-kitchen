@@ -27,6 +27,19 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
 
+  migrate:
+    build:
+      context: .
+      target: builder
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://tarte:${DB_PASSWORD}@db:5432/tarte_kitchen
+    command: npx prisma migrate deploy
+    profiles:
+      - tools
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
