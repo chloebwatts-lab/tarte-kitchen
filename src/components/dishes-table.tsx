@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { Search, ChevronDown, ChevronUp, ArrowUpDown } from "lucide-react"
+import { useState, useMemo, useTransition, useRef, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
+import { Search, ChevronDown, ChevronUp, ArrowUpDown, Check, X, Calculator, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -12,8 +13,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { DishForm } from "@/components/dish-form"
 import { cn } from "@/lib/utils"
+import { updateDishQuick } from "@/lib/actions/dishes"
 
 // ---------- Types ----------
 
@@ -122,7 +125,283 @@ function getCostBadge(pct: number): { variant: "green" | "amber" | "red"; label:
   return { variant: "red", label: `${pct.toFixed(1)}%` }
 }
 
-// ---------- Component ----------
+function calcExGst(price: number): number {
+  return price / 1.1
+}
+
+function calcFcPct(totalCost: number, sellingPrice: number): number {
+  const exGst = sellingPrice / 1.1
+  if (exGst === 0) return 0
+  return (totalCost / exGst) * 100
+}
+
+function calcGrossProfit(totalCost: number, sellingPrice: number): number {
+  return sellingPrice / 1.1 - totalCost
+}
+
+// ---------- Inline Edit Helpers ----------
+
+function InlinePrice({
+  value,
+  dishId,
+  totalCost,
+  onSaved,
+}: {
+  value: number
+  dishId: string
+  totalCost: number
+  onSaved: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value.toFixed(2))
+  const [isPending, startTransition] = useTransition()
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.select()
+    }
+  }, [editing])
+
+  const save = () => {
+    const num = parseFloat(draft)
+    if (isNaN(num) || num < 0) {
+      setDraft(value.toFixed(2))
+      setEditing(false)
+      return
+    }
+    if (num === value) {
+      setEditing(false)
+      return
+    }
+    startTransition(async () => {
+      await updateDishQuick(dishId, { sellingPrice: num })
+      onSaved()
+      setEditing(false)
+    })
+  }
+
+  const cancel = () => {
+    setDraft(value.toFixed(2))
+    setEditing(false)
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <span className="text-sm text-muted-foreground">$</span>
+        <Input
+          ref={inputRef}
+          type="number"
+          step="0.50"
+          min="0"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") save()
+            if (e.key === "Escape") cancel()
+          }}
+          onBlur={save}
+          className="h-7 w-20 px-1 text-sm text-right"
+          disabled={isPending}
+        />
+        {isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+      </div>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      className="group/price text-left"
+      onClick={(e) => {
+        e.stopPropagation()
+        setEditing(true)
+      }}
+    >
+      <p className="text-sm font-semibold text-foreground group-hover/price:text-primary group-hover/price:underline decoration-dashed underline-offset-2">
+        {formatCurrency(value)}
+      </p>
+      <p className="text-[10px] text-muted-foreground">
+        ex GST {formatCurrency(calcExGst(value))}
+      </p>
+    </button>
+  )
+}
+
+function InlineVenue({
+  value,
+  dishId,
+  onSaved,
+}: {
+  value: string
+  dishId: string
+  onSaved: () => void
+}) {
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <div onClick={(e) => e.stopPropagation()}>
+      <Select
+        value={value}
+        onValueChange={(v) => {
+          startTransition(async () => {
+            await updateDishQuick(dishId, { venue: v })
+            onSaved()
+          })
+        }}
+        disabled={isPending}
+      >
+        <SelectTrigger className="h-6 w-auto min-w-0 border-0 bg-transparent px-0 py-0 shadow-none text-[10px] font-medium hover:bg-muted/50 focus:ring-0 [&>svg]:h-3 [&>svg]:w-3">
+          <Badge
+            className={cn(
+              "border-0 text-[10px] cursor-pointer",
+              VENUE_BADGE[value]?.className ?? VENUE_BADGE.BOTH.className,
+              isPending && "opacity-50"
+            )}
+          >
+            {VENUE_BADGE[value]?.label ?? "Both"}
+            {isPending && <Loader2 className="ml-1 h-2 w-2 animate-spin" />}
+          </Badge>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="BURLEIGH">Burleigh</SelectItem>
+          <SelectItem value="CURRUMBIN">Currumbin</SelectItem>
+          <SelectItem value="BOTH">Both</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
+function InlineCategory({
+  value,
+  dishId,
+  onSaved,
+}: {
+  value: string
+  dishId: string
+  onSaved: () => void
+}) {
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <div onClick={(e) => e.stopPropagation()}>
+      <Select
+        value={value}
+        onValueChange={(v) => {
+          startTransition(async () => {
+            await updateDishQuick(dishId, { menuCategory: v })
+            onSaved()
+          })
+        }}
+        disabled={isPending}
+      >
+        <SelectTrigger className="h-5 w-auto min-w-0 border-0 bg-transparent px-0 py-0 shadow-none text-xs text-muted-foreground hover:text-foreground focus:ring-0 [&>svg]:h-3 [&>svg]:w-3">
+          <span className={isPending ? "opacity-50" : ""}>
+            {MENU_CATEGORY_LABELS[value] ?? value}
+          </span>
+        </SelectTrigger>
+        <SelectContent>
+          {MENU_CATEGORIES.filter((c) => c !== "ALL").map((cat) => (
+            <SelectItem key={cat} value={cat}>
+              {MENU_CATEGORY_LABELS[cat]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
+function InlineActive({
+  value,
+  dishId,
+  onSaved,
+}: {
+  value: boolean
+  dishId: string
+  onSaved: () => void
+}) {
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-1.5">
+      <Switch
+        checked={value}
+        onCheckedChange={(checked) => {
+          startTransition(async () => {
+            await updateDishQuick(dishId, { isActive: checked })
+            onSaved()
+          })
+        }}
+        disabled={isPending}
+        className="scale-75"
+      />
+      <span className={cn("text-[10px]", value ? "text-green-600" : "text-muted-foreground")}>
+        {value ? "Active" : "Inactive"}
+      </span>
+    </div>
+  )
+}
+
+// ---------- Price Simulator ----------
+
+function PriceSimulator({ dish }: { dish: Dish }) {
+  const [simPrice, setSimPrice] = useState("")
+
+  const simResult = useMemo(() => {
+    const price = parseFloat(simPrice)
+    if (!simPrice || isNaN(price) || price <= 0) return null
+    const fcPct = calcFcPct(dish.totalCost, price)
+    const gp = calcGrossProfit(dish.totalCost, price)
+    const badge = getCostBadge(fcPct)
+    return { price, fcPct, gp, badge, exGst: calcExGst(price) }
+  }, [simPrice, dish.totalCost])
+
+  return (
+    <div className="mt-4 rounded-lg border border-dashed border-border bg-card p-3" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center gap-2 mb-2">
+        <Calculator className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Price Simulator
+        </span>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1">
+          <span className="text-sm text-muted-foreground">$</span>
+          <Input
+            type="number"
+            step="0.50"
+            min="0"
+            placeholder={dish.sellingPrice.toFixed(2)}
+            value={simPrice}
+            onChange={(e) => setSimPrice(e.target.value)}
+            className="h-8 w-24 text-sm"
+          />
+        </div>
+        {simResult && (
+          <div className="flex items-center gap-4 text-sm">
+            <Badge variant={simResult.badge.variant} className="px-2 py-0.5 text-xs font-bold">
+              {simResult.badge.label}
+            </Badge>
+            <span className="text-muted-foreground">
+              GP: <span className="font-semibold text-green-700 dark:text-green-400">{formatCurrency(simResult.gp)}</span>
+            </span>
+            <span className="text-muted-foreground text-xs">
+              ex GST {formatCurrency(simResult.exGst)}
+            </span>
+          </div>
+        )}
+        {!simResult && simPrice && (
+          <span className="text-xs text-muted-foreground">Enter a valid price</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ---------- Main Component ----------
 
 interface DishesTableProps {
   dishes: Dish[]
@@ -137,6 +416,7 @@ export function DishesTable({
   initialCategory,
   initialVenue,
 }: DishesTableProps) {
+  const router = useRouter()
   const [search, setSearch] = useState(initialSearch)
   const [category, setCategory] = useState(initialCategory)
   const [venue, setVenue] = useState(initialVenue)
@@ -144,6 +424,10 @@ export function DishesTable({
   const [sortDir, setSortDir] = useState<SortDir>("asc")
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [editingDish, setEditingDish] = useState<Dish | null>(null)
+
+  const handleSaved = useCallback(() => {
+    router.refresh()
+  }, [router])
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -282,16 +566,15 @@ export function DishesTable({
             {filtered.map((dish) => {
               const costBadge = getCostBadge(dish.foodCostPercentage)
               const isExpanded = expandedId === dish.id
-              const venueBadge = VENUE_BADGE[dish.venue] || VENUE_BADGE.BOTH
 
               return (
-                <div key={dish.id}>
+                <div key={dish.id} className={cn(!dish.isActive && "opacity-50")}>
                   {/* Main row */}
                   <div
                     className="group cursor-pointer px-4 py-3 transition-colors hover:bg-muted/30 sm:grid sm:grid-cols-12 sm:items-center sm:gap-4"
                     onClick={() => setExpandedId(isExpanded ? null : dish.id)}
                   >
-                    {/* Name */}
+                    {/* Name + Category + Active */}
                     <div className="col-span-4 flex items-center gap-3">
                       <ChevronDown
                         className={cn(
@@ -299,31 +582,28 @@ export function DishesTable({
                           isExpanded && "rotate-180"
                         )}
                       />
-                      <div>
-                        <p className="font-medium text-foreground">{dish.name}</p>
-                        <p className="text-xs text-muted-foreground sm:hidden">
-                          {MENU_CATEGORY_LABELS[dish.menuCategory]}
-                        </p>
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground truncate">{dish.name}</p>
+                        <div className="flex items-center gap-2">
+                          <InlineCategory value={dish.menuCategory} dishId={dish.id} onSaved={handleSaved} />
+                          <InlineActive value={dish.isActive} dishId={dish.id} onSaved={handleSaved} />
+                        </div>
                       </div>
                     </div>
 
                     {/* Venue */}
                     <div className="col-span-1 mt-2 flex justify-center sm:mt-0">
-                      <Badge
-                        className={cn("border-0 text-[10px]", venueBadge.className)}
-                      >
-                        {venueBadge.label}
-                      </Badge>
+                      <InlineVenue value={dish.venue} dishId={dish.id} onSaved={handleSaved} />
                     </div>
 
-                    {/* Selling price */}
+                    {/* Selling price — click to edit */}
                     <div className="col-span-2 mt-1 text-right sm:mt-0">
-                      <p className="text-sm font-semibold text-foreground">
-                        {formatCurrency(dish.sellingPrice)}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        ex GST {formatCurrency(dish.sellingPriceExGst)}
-                      </p>
+                      <InlinePrice
+                        value={dish.sellingPrice}
+                        dishId={dish.id}
+                        totalCost={dish.totalCost}
+                        onSaved={handleSaved}
+                      />
                     </div>
 
                     {/* Food cost */}
@@ -406,6 +686,9 @@ export function DishesTable({
                           {dish.notes}
                         </p>
                       )}
+
+                      {/* Price Simulator */}
+                      <PriceSimulator dish={dish} />
                     </div>
                   )}
                 </div>

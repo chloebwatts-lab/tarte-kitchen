@@ -7,7 +7,7 @@ type DishSelect = Pick<Dish, "id" | "name" | "menuCategory" | "venue" | "selling
 type PriceChangeWithIngredient = PriceHistory & { ingredient: Pick<Ingredient, "id" | "name"> }
 
 export async function getDashboardStats() {
-  const [dishes, priceChanges, prepCount] = await Promise.all([
+  const [dishes, priceChanges, prepCount, invoiceAlertCount, recentInvoices] = await Promise.all([
     db.dish.findMany({
       where: { isActive: true },
       select: {
@@ -31,6 +31,14 @@ export async function getDashboardStats() {
       take: 20,
     }) as Promise<PriceChangeWithIngredient[]>,
     db.preparation.count(),
+    db.invoiceLineItem.count({
+      where: { priceChanged: true, acknowledged: false },
+    }),
+    db.invoice.findMany({
+      include: { supplier: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
   ])
 
   const totalMenuItems = dishes.length
@@ -66,6 +74,18 @@ export async function getDashboardStats() {
     }
   })
 
+  // Full dish list for client-side filtering on dashboard
+  const allDishes = dishes.map((d: DishSelect) => ({
+    id: d.id,
+    name: d.name,
+    menuCategory: d.menuCategory,
+    venue: d.venue,
+    sellingPrice: Number(d.sellingPrice),
+    totalCost: Number(d.totalCost),
+    foodCostPercentage: Number(d.foodCostPercentage),
+    grossProfit: Number(d.grossProfit),
+  }))
+
   return {
     totalMenuItems,
     totalPreparations,
@@ -89,6 +109,16 @@ export async function getDashboardStats() {
       foodCostPercentage: Number(d.foodCostPercentage),
       totalCost: Number(d.totalCost),
     })),
+    allDishes,
     alerts,
+    invoiceAlertCount,
+    recentInvoices: recentInvoices.map((inv) => ({
+      id: inv.id,
+      supplierName: inv.supplier.name,
+      invoiceNumber: inv.invoiceNumber,
+      totalAmount: inv.totalAmount ? Number(inv.totalAmount) : null,
+      status: inv.status,
+      createdAt: inv.createdAt.toISOString(),
+    })),
   }
 }

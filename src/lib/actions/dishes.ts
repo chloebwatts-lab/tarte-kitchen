@@ -282,6 +282,50 @@ export async function updateDish(
   return id
 }
 
+/**
+ * Lightweight update for inline editing — updates metadata fields
+ * and recalculates derived fields without touching components.
+ */
+export async function updateDishQuick(
+  id: string,
+  data: {
+    name?: string
+    menuCategory?: string
+    venue?: string
+    sellingPrice?: number
+    isActive?: boolean
+  }
+) {
+  const existing = await db.dish.findUnique({ where: { id } })
+  if (!existing) throw new Error("Dish not found")
+
+  const updateData: Record<string, unknown> = {}
+
+  if (data.name !== undefined) updateData.name = data.name
+  if (data.menuCategory !== undefined) updateData.menuCategory = data.menuCategory
+  if (data.venue !== undefined) updateData.venue = data.venue
+  if (data.isActive !== undefined) updateData.isActive = data.isActive
+
+  // If selling price changed, recalculate derived fields
+  if (data.sellingPrice !== undefined) {
+    const totalCost = new Decimal(String(existing.totalCost))
+    const newSellingPriceExGst = exGst(data.sellingPrice)
+    const newFcPct = foodCostPercentage(totalCost, data.sellingPrice)
+    const newGp = newSellingPriceExGst.minus(totalCost)
+
+    updateData.sellingPrice = data.sellingPrice
+    updateData.sellingPriceExGst = Number(newSellingPriceExGst.toDecimalPlaces(2))
+    updateData.foodCostPercentage = Number(newFcPct.toDecimalPlaces(1))
+    updateData.grossProfit = Number(newGp.toDecimalPlaces(2))
+  }
+
+  await db.dish.update({ where: { id }, data: updateData })
+
+  revalidatePath("/dishes")
+  revalidatePath("/dashboard")
+  return id
+}
+
 export async function deleteDish(id: string) {
   await db.dish.delete({ where: { id } })
   revalidatePath("/dishes")
