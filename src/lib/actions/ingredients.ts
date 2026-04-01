@@ -313,8 +313,9 @@ async function recalculateCascade(ingredientId: string) {
   }
 }
 
-const UNIT_MULT: Record<string, number> = { g: 1, kg: 1000, ml: 1, l: 1000, ea: 1, dozen: 12, oz: 28.3495, lb: 453.592 }
+const UNIT_MULT: Record<string, number> = { g: 1, kg: 1000, ml: 1, l: 1000, cl: 10, ea: 1, dozen: 12, oz: 28.3495, lb: 453.592 }
 const WEIGHT_UNITS = new Set(["g", "kg", "oz", "lb"])
+const VOLUME_UNITS = new Set(["ml", "l", "cl"])
 
 type PrepWithItems = Preparation & {
   items: (PreparationItem & { ingredient: Ingredient | null; subPreparation: Preparation | null })[]
@@ -340,8 +341,8 @@ async function recalculatePreparationCost(prepId: string) {
       const usable = new Decimal(String(ing.baseUnitsPerPurchase)).mul(wasteFactor)
       const cpbu = usable.gt(0) ? new Decimal(String(ing.purchasePrice)).div(usable) : new Decimal(0)
       const unit = item.unit.toLowerCase()
-      // Cross-unit: COUNT ingredient (ea/bunch) used by weight (g/kg) in the recipe
-      if (ing.baseUnitType === "COUNT" && WEIGHT_UNITS.has(unit) && ing.gramsPerUnit) {
+      // Cross-unit: COUNT ingredient (ea/bunch) used by weight or volume in the recipe
+      if (ing.baseUnitType === "COUNT" && (WEIGHT_UNITS.has(unit) || VOLUME_UNITS.has(unit)) && ing.gramsPerUnit) {
         const gramsInRecipe = new Decimal(String(item.quantity)).mul(UNIT_MULT[unit] ?? 1)
         const easUsed = gramsInRecipe.div(new Decimal(String(ing.gramsPerUnit)))
         lineCost = easUsed.mul(cpbu)
@@ -412,8 +413,8 @@ async function recalculateDishCost(dishId: string) {
       const usable = new Decimal(String(ing.baseUnitsPerPurchase)).mul(wasteFactor)
       const cpbu = usable.gt(0) ? new Decimal(String(ing.purchasePrice)).div(usable) : new Decimal(0)
       const unit = comp.unit.toLowerCase()
-      // Cross-unit: COUNT ingredient (ea/bunch) used by weight (g/kg) in the recipe
-      if (ing.baseUnitType === "COUNT" && WEIGHT_UNITS.has(unit) && ing.gramsPerUnit) {
+      // Cross-unit: COUNT ingredient (ea/bunch) used by weight or volume in the recipe
+      if (ing.baseUnitType === "COUNT" && (WEIGHT_UNITS.has(unit) || VOLUME_UNITS.has(unit)) && ing.gramsPerUnit) {
         const gramsInRecipe = new Decimal(String(comp.quantity)).mul(UNIT_MULT[unit] ?? 1)
         const easUsed = gramsInRecipe.div(new Decimal(String(ing.gramsPerUnit)))
         lineCost = easUsed.mul(cpbu)
