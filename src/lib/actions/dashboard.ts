@@ -7,7 +7,7 @@ type DishSelect = Pick<Dish, "id" | "name" | "menuCategory" | "venue" | "selling
 type PriceChangeWithIngredient = PriceHistory & { ingredient: Pick<Ingredient, "id" | "name"> }
 
 export async function getDashboardStats() {
-  const [dishes, priceChanges, prepCount, invoiceAlertCount, recentInvoices] = await Promise.all([
+  const [dishes, priceChanges, prepCount] = await Promise.all([
     db.dish.findMany({
       where: { isActive: true },
       select: {
@@ -31,15 +31,23 @@ export async function getDashboardStats() {
       take: 20,
     }) as Promise<PriceChangeWithIngredient[]>,
     db.preparation.count(),
-    db.invoiceLineItem.count({
+  ])
+
+  // Invoice tables may not exist yet — guard against missing tables
+  let invoiceAlertCount = 0
+  let recentInvoices: Array<{ id: string; supplier: { name: string }; invoiceNumber: string | null; totalAmount: unknown; status: string; createdAt: Date }> = []
+  try {
+    invoiceAlertCount = await db.invoiceLineItem.count({
       where: { priceChanged: true, acknowledged: false },
-    }),
-    db.invoice.findMany({
+    })
+    recentInvoices = await db.invoice.findMany({
       include: { supplier: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
       take: 5,
-    }),
-  ])
+    })
+  } catch {
+    // Invoice tables not yet migrated — skip
+  }
 
   const totalMenuItems = dishes.length
   const totalPreparations = prepCount
