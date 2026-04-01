@@ -349,6 +349,92 @@ export async function updatePreparation(
   return id
 }
 
+/**
+ * Lightweight update for yield fields — recalculates costPerGram/costPerServe
+ * and cascades to downstream dishes.
+ */
+export async function updatePreparationQuick(
+  id: string,
+  data: {
+    yieldQuantity?: number
+    yieldUnit?: string
+    yieldWeightGrams?: number
+  }
+) {
+  const current = await db.preparation.findUnique({ where: { id } })
+  if (!current) throw new Error("Preparation not found")
+
+  const updateData: Record<string, unknown> = {}
+  const batchCost = new Decimal(String(current.batchCost))
+
+  const yieldQty = data.yieldQuantity !== undefined ? data.yieldQuantity : Number(current.yieldQuantity)
+  const yieldGrams = data.yieldWeightGrams !== undefined ? data.yieldWeightGrams : Number(current.yieldWeightGrams)
+
+  if (data.yieldQuantity !== undefined) updateData.yieldQuantity = data.yieldQuantity
+  if (data.yieldUnit !== undefined) updateData.yieldUnit = data.yieldUnit
+  if (data.yieldWeightGrams !== undefined) updateData.yieldWeightGrams = data.yieldWeightGrams
+
+  // Recalculate derived fields
+  const costPerGram = yieldGrams > 0 ? batchCost.div(yieldGrams) : new Decimal(0)
+  const costPerServe = yieldQty > 0 ? batchCost.div(yieldQty) : new Decimal(0)
+  updateData.costPerGram = Number(costPerGram.toDecimalPlaces(4))
+  updateData.costPerServe = Number(costPerServe.toDecimalPlaces(2))
+
+  await db.preparation.update({ where: { id }, data: updateData })
+
+  // Cascade to dishes using this preparation
+  const dishComps = await db.dishComponent.findMany({
+    where: { preparationId: id },
+    include: { dish: true },
+  })
+
+  for (const dc of dishComps) {
+    const q = new Decimal(String(dc.quantity))
+    const unitLower = dc.unit.toLowerCase()
+    let lineCost: Decimal
+
+    if (unitLower === "serve" || unitLower === "ea") {
+      lineCost = yieldQty > 0 ? q.div(yieldQty).mul(batchCost) : new Decimal(0)
+    } else if (unitLower === "dozen") {
+      lineCost = yieldQty > 0 ? q.mul(12).div(yieldQty).mul(batchCost) : new Decimal(0)
+    } else {
+      const mult: Record<string, number> = { g: 1, kg: 1000, ml: 1, l: 1000 }
+      const baseQty = q.mul(mult[unitLower] ?? 1)
+      lineCost = yieldGrams > 0 ? baseQty.div(yieldGrams).mul(batchCost) : new Decimal(0)
+    }
+
+    await db.dishComponent.update({
+      where: { id: dc.id },
+      data: { lineCost: Number(lineCost.toDecimalPlaces(4)) },
+    })
+  }
+
+  // Recalculate dish totals
+  const dishIds = [...new Set(dishComps.map((dc) => dc.dishId))]
+  for (const dishId of dishIds) {
+    const comps = await db.dishComponent.findMany({ where: { dishId } })
+    const total = comps.reduce((sum, c) => sum.plus(new Decimal(String(c.lineCost))), new Decimal(0))
+    const dish = await db.dish.findUnique({ where: { id: dishId } })
+    if (!dish) continue
+    const exGst = new Decimal(String(dish.sellingPrice)).div(1.1)
+    const fcPct = exGst.gt(0) ? total.div(exGst).mul(100) : new Decimal(0)
+    const gp = exGst.minus(total)
+    await db.dish.update({
+      where: { id: dishId },
+      data: {
+        totalCost: Number(total.toDecimalPlaces(2)),
+        foodCostPercentage: Number(fcPct.toDecimalPlaces(1)),
+        grossProfit: Number(gp.toDecimalPlaces(2)),
+      },
+    })
+  }
+
+  revalidatePath("/preparations")
+  revalidatePath("/dishes")
+  revalidatePath("/dashboard")
+  return id
+}
+
 export async function deletePreparation(id: string) {
   await db.preparation.delete({ where: { id } })
   revalidatePath("/preparations")

@@ -1,13 +1,14 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useTransition, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Search } from "lucide-react"
+import { Search, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PreparationForm } from "@/components/preparation-form"
+import { updatePreparationQuick } from "@/lib/actions/preparations"
 import { cn } from "@/lib/utils"
 
 type Preparation = {
@@ -92,6 +93,95 @@ function formatCurrency(value: number): string {
   return `$${value.toFixed(2)}`
 }
 
+// Inline editable numeric field for prep cards
+function InlinePrepField({
+  value,
+  suffix,
+  prefix,
+  step,
+  prepId,
+  field,
+  onSaved,
+}: {
+  value: number
+  suffix?: string
+  prefix?: string
+  step?: string
+  prepId: string
+  field: "yieldQuantity" | "yieldWeightGrams"
+  onSaved: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(String(value))
+  const [isPending, startTransition] = useTransition()
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (editing) inputRef.current?.select()
+  }, [editing])
+
+  const save = () => {
+    const num = parseFloat(draft)
+    if (isNaN(num) || num < 0) {
+      setDraft(String(value))
+      setEditing(false)
+      return
+    }
+    if (num === value) {
+      setEditing(false)
+      return
+    }
+    startTransition(async () => {
+      await updatePreparationQuick(prepId, { [field]: num })
+      onSaved()
+      setEditing(false)
+    })
+  }
+
+  const cancel = () => {
+    setDraft(String(value))
+    setEditing(false)
+  }
+
+  if (editing) {
+    return (
+      <span className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        {prefix}
+        <Input
+          ref={inputRef}
+          type="number"
+          step={step || "1"}
+          min="0"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") save()
+            if (e.key === "Escape") cancel()
+          }}
+          onBlur={save}
+          className="h-6 w-20 px-1 text-xs"
+          disabled={isPending}
+        />
+        {suffix}
+        {isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+      </span>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      className="hover:text-primary hover:underline decoration-dashed underline-offset-2"
+      onClick={(e) => {
+        e.stopPropagation()
+        setEditing(true)
+      }}
+    >
+      {prefix}{value.toLocaleString()}{suffix}
+    </button>
+  )
+}
+
 interface PreparationsGridProps {
   preparations: Preparation[]
   initialSearch: string
@@ -103,9 +193,12 @@ export function PreparationsGrid({
   initialSearch,
   initialCategory,
 }: PreparationsGridProps) {
+  const router = useRouter()
   const [search, setSearch] = useState(initialSearch)
   const [category, setCategory] = useState(initialCategory)
   const [editingPrep, setEditingPrep] = useState<Preparation | null>(null)
+
+  const handleSaved = () => router.refresh()
 
   const filtered = useMemo(() => {
     let result = preparations
@@ -177,8 +270,27 @@ export function PreparationsGrid({
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Makes {prep.yieldQuantity} {prep.yieldUnit}
-                  {prep.yieldWeightGrams > 0 && ` (${prep.yieldWeightGrams.toLocaleString()}g)`}
+                  Makes{" "}
+                  <InlinePrepField
+                    value={prep.yieldQuantity}
+                    suffix={` ${prep.yieldUnit}`}
+                    prepId={prep.id}
+                    field="yieldQuantity"
+                    onSaved={handleSaved}
+                  />
+                  {prep.yieldWeightGrams > 0 && (
+                    <>
+                      {" ("}
+                      <InlinePrepField
+                        value={prep.yieldWeightGrams}
+                        suffix="g"
+                        prepId={prep.id}
+                        field="yieldWeightGrams"
+                        onSaved={handleSaved}
+                      />
+                      {")"}
+                    </>
+                  )}
                 </p>
               </CardHeader>
               <CardContent className="pt-0">

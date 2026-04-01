@@ -182,6 +182,62 @@ export async function updateIngredient(
   return id
 }
 
+/**
+ * Lightweight inline update for individual fields.
+ * Recalculates cascade for price/BUP/waste/GPU changes.
+ */
+export async function updateIngredientQuick(
+  id: string,
+  data: {
+    purchasePrice?: number
+    baseUnitsPerPurchase?: number
+    wastePercentage?: number
+    gramsPerUnit?: number | null
+  }
+) {
+  const current = await db.ingredient.findUnique({ where: { id } })
+  if (!current) throw new Error("Ingredient not found")
+
+  const updateData: Record<string, unknown> = {}
+
+  if (data.purchasePrice !== undefined) {
+    const oldPrice = Number(current.purchasePrice)
+    if (oldPrice !== data.purchasePrice) {
+      await db.priceHistory.create({
+        data: {
+          ingredientId: id,
+          oldPrice: oldPrice,
+          newPrice: data.purchasePrice,
+          oldUnit: current.purchaseUnit,
+          oldQuantity: Number(current.purchaseQuantity),
+        },
+      })
+    }
+    updateData.purchasePrice = data.purchasePrice
+  }
+
+  if (data.baseUnitsPerPurchase !== undefined) {
+    updateData.baseUnitsPerPurchase = data.baseUnitsPerPurchase
+  }
+
+  if (data.wastePercentage !== undefined) {
+    updateData.wastePercentage = data.wastePercentage
+  }
+
+  if (data.gramsPerUnit !== undefined) {
+    updateData.gramsPerUnit = data.gramsPerUnit
+  }
+
+  await db.ingredient.update({ where: { id }, data: updateData })
+  await recalculateCascade(id)
+
+  revalidatePath("/ingredients")
+  revalidatePath("/preparations")
+  revalidatePath("/dishes")
+  revalidatePath("/dashboard")
+  return id
+}
+
 export async function deleteIngredient(id: string) {
   await db.ingredient.delete({ where: { id } })
   revalidatePath("/ingredients")

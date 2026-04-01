@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useMemo, useCallback, useTransition } from "react"
+import { useState, useMemo, useCallback, useTransition, useRef, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Search, SlidersHorizontal, Pencil, Trash2, ChevronDown, ChevronRight } from "lucide-react"
+import { Search, SlidersHorizontal, Pencil, Trash2, ChevronDown, ChevronRight, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { IngredientForm } from "@/components/ingredient-form"
-import { bulkUpdatePrices, deleteIngredient } from "@/lib/actions/ingredients"
+import { bulkUpdatePrices, deleteIngredient, updateIngredientQuick } from "@/lib/actions/ingredients"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -148,6 +148,116 @@ function formatDate(dateStr: string | Date): string {
     month: "short",
     year: "numeric",
   })
+}
+
+// ---------------------------------------------------------------------------
+// Inline Editable Field
+// ---------------------------------------------------------------------------
+
+function InlineField({
+  label,
+  value,
+  suffix,
+  prefix,
+  step,
+  ingredientId,
+  field,
+  onSaved,
+  allowNull,
+}: {
+  label: string
+  value: number | null
+  suffix?: string
+  prefix?: string
+  step?: string
+  ingredientId: string
+  field: "purchasePrice" | "baseUnitsPerPurchase" | "wastePercentage" | "gramsPerUnit"
+  onSaved: () => void
+  allowNull?: boolean
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value !== null ? String(value) : "")
+  const [isPending, startTransition] = useTransition()
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (editing) inputRef.current?.select()
+  }, [editing])
+
+  const save = () => {
+    if (draft === "" && allowNull) {
+      startTransition(async () => {
+        await updateIngredientQuick(ingredientId, { [field]: null })
+        onSaved()
+        setEditing(false)
+      })
+      return
+    }
+    const num = parseFloat(draft)
+    if (isNaN(num) || num < 0) {
+      setDraft(value !== null ? String(value) : "")
+      setEditing(false)
+      return
+    }
+    if (num === value) {
+      setEditing(false)
+      return
+    }
+    startTransition(async () => {
+      await updateIngredientQuick(ingredientId, { [field]: num })
+      onSaved()
+      setEditing(false)
+    })
+  }
+
+  const cancel = () => {
+    setDraft(value !== null ? String(value) : "")
+    setEditing(false)
+  }
+
+  if (editing) {
+    return (
+      <div onClick={(e) => e.stopPropagation()}>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <div className="flex items-center gap-1 mt-0.5">
+          {prefix && <span className="text-sm text-muted-foreground">{prefix}</span>}
+          <Input
+            ref={inputRef}
+            type="number"
+            step={step || "0.01"}
+            min="0"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") save()
+              if (e.key === "Escape") cancel()
+            }}
+            onBlur={save}
+            className="h-7 w-24 px-1 text-sm"
+            disabled={isPending}
+          />
+          {suffix && <span className="text-sm text-muted-foreground">{suffix}</span>}
+          {isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <button
+        type="button"
+        className="font-medium tabular-nums hover:text-primary hover:underline decoration-dashed underline-offset-2"
+        onClick={(e) => {
+          e.stopPropagation()
+          setEditing(true)
+        }}
+      >
+        {prefix}{value !== null ? value : "—"}{suffix}
+      </button>
+    </div>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -558,7 +668,7 @@ function TableRow({
       {isExpanded && (
         <tr className="bg-muted/10">
           <td colSpan={9} className="px-4 py-4">
-            <ExpandedDetails ingredient={ingredient} />
+            <ExpandedDetails ingredient={ingredient} onRefresh={onRefresh} />
           </td>
         </tr>
       )}
@@ -570,25 +680,51 @@ function TableRow({
 // Expanded Details
 // ---------------------------------------------------------------------------
 
-function ExpandedDetails({ ingredient }: { ingredient: Ingredient }) {
+function ExpandedDetails({ ingredient, onRefresh }: { ingredient: Ingredient; onRefresh: () => void }) {
   const cpb = costPerBaseUnit(ingredient)
   const cpu = costPerUsableUnit(ingredient)
   const unitLabel = BASE_UNIT_LABELS[ingredient.baseUnitType] || "unit"
 
   return (
     <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm sm:grid-cols-4">
-      <div>
-        <p className="text-xs text-muted-foreground">Purchase</p>
-        <p className="font-medium">
-          {ingredient.purchaseQuantity} {ingredient.purchaseUnit} @ {formatCurrency(ingredient.purchasePrice)}
-        </p>
-      </div>
-      <div>
-        <p className="text-xs text-muted-foreground">Base Units per Purchase</p>
-        <p className="font-medium">
-          {ingredient.baseUnitsPerPurchase.toLocaleString()} {unitLabel}
-        </p>
-      </div>
+      <InlineField
+        label={`Price per ${ingredient.purchaseQuantity}${ingredient.purchaseUnit}`}
+        value={ingredient.purchasePrice}
+        prefix="$"
+        ingredientId={ingredient.id}
+        field="purchasePrice"
+        onSaved={onRefresh}
+      />
+      <InlineField
+        label="Base Units per Purchase"
+        value={ingredient.baseUnitsPerPurchase}
+        suffix={` ${unitLabel}`}
+        step="1"
+        ingredientId={ingredient.id}
+        field="baseUnitsPerPurchase"
+        onSaved={onRefresh}
+      />
+      <InlineField
+        label="Waste %"
+        value={ingredient.wastePercentage}
+        suffix="%"
+        step="0.5"
+        ingredientId={ingredient.id}
+        field="wastePercentage"
+        onSaved={onRefresh}
+      />
+      {ingredient.baseUnitType === "COUNT" && (
+        <InlineField
+          label="Grams per Unit"
+          value={ingredient.gramsPerUnit}
+          suffix="g"
+          step="1"
+          ingredientId={ingredient.id}
+          field="gramsPerUnit"
+          onSaved={onRefresh}
+          allowNull
+        />
+      )}
       <div>
         <p className="text-xs text-muted-foreground">Cost per {unitLabel}</p>
         <p className="font-medium tabular-nums">{formatCostPerUnit(cpb, ingredient.baseUnitType)}</p>
@@ -674,7 +810,7 @@ function MobileCard({
         <>
           <Separator />
           <div className="p-4 space-y-3">
-            <ExpandedDetails ingredient={ingredient} />
+            <ExpandedDetails ingredient={ingredient} onRefresh={onRefresh} />
             <Separator />
             <div className="flex items-center gap-2 pt-1">
               <IngredientForm ingredient={ingredient} suppliers={suppliers} onSuccess={onRefresh} />
