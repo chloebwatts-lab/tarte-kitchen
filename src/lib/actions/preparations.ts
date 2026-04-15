@@ -231,11 +231,14 @@ export async function createPreparation(data: {
       batchCost: Number(batchCost.toDecimalPlaces(2)),
       costPerGram: Number(costPerGram.toDecimalPlaces(4)),
       costPerServe: Number(costPerServe.toDecimalPlaces(2)),
-      items: {
-        create: itemsWithCost,
-      },
     },
   })
+
+  if (itemsWithCost.length > 0) {
+    await db.preparationItem.createMany({
+      data: itemsWithCost.map((item) => ({ ...item, preparationId: preparation.id })),
+    })
+  }
 
   revalidatePath("/preparations")
   revalidatePath("/dashboard")
@@ -337,11 +340,12 @@ export async function updatePreparation(
       batchCost: Number(batchCost.toDecimalPlaces(2)),
       costPerGram: Number(cPerGram.toDecimalPlaces(4)),
       costPerServe: Number(cPerServe.toDecimalPlaces(2)),
-      items: {
-        create: itemsWithCost,
-      },
     },
   })
+
+  if (itemsWithCost.length > 0) {
+    await db.preparationItem.createMany({ data: itemsWithCost })
+  }
 
   revalidatePath("/preparations")
   revalidatePath("/dishes")

@@ -220,11 +220,14 @@ export async function createDish(data: {
       foodCostPercentage: Number(fcPct.toDecimalPlaces(1)),
       grossProfit: Number(gp.toDecimalPlaces(2)),
       notes: data.notes || null,
-      components: {
-        create: compsWithCost,
-      },
     },
   })
+
+  if (compsWithCost.length > 0) {
+    await db.dishComponent.createMany({
+      data: compsWithCost.map((c) => ({ ...c, dishId: dish.id })),
+    })
+  }
 
   revalidatePath("/dishes")
   revalidatePath("/dashboard")
@@ -271,11 +274,12 @@ export async function updateDish(
       foodCostPercentage: Number(fcPct.toDecimalPlaces(1)),
       grossProfit: Number(gp.toDecimalPlaces(2)),
       notes: data.notes || null,
-      components: {
-        create: compsWithDishId,
-      },
     },
   })
+
+  if (compsWithDishId.length > 0) {
+    await db.dishComponent.createMany({ data: compsWithDishId })
+  }
 
   revalidatePath("/dishes")
   revalidatePath("/dashboard")
