@@ -1,3 +1,59 @@
+# Tarte Kitchen
+
+Recipe costing, daily sales, wastage tracking, and supplier invoice ingest
+for Tarte Bakery (Burleigh), Tarte Beach House (Currumbin), and Tarte Tea
+Garden (Currumbin).
+
+## Operations
+
+### Deploy a new version to production
+
+On the production droplet, from the repo directory:
+
+```bash
+./scripts/deploy.sh
+```
+
+That pulls `origin/main`, rebuilds the app image, runs any pending
+Prisma migrations, and restarts the app + Caddy. Safe to re-run.
+
+### Enable Gmail invoice scanning
+
+1. Make sure Gmail OAuth env vars are set in `.env` on the droplet:
+   `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GMAIL_REDIRECT_URI`.
+2. Visit **Settings → Integrations → Gmail** and click Connect.
+   The OAuth flow stores encrypted tokens in `GmailConnection`.
+3. For each supplier whose invoices you want scanned, add the sender
+   email. Either edit the supplier in the Suppliers UI (fills the
+   `Supplier.email` fallback) or add rows via `SupplierEmail` if a
+   supplier sends from multiple addresses.
+4. The hourly cron at `/api/cron/check-invoices` then searches Gmail
+   for messages `from:(supplier1 OR supplier2 …) has:attachment filename:pdf`
+   since the last scan. Matches are parsed by Claude and written to
+   the Invoice table.
+
+### Enable Lightspeed end-of-day email ingest
+
+1. Gmail must be connected (see above) on an inbox that receives the
+   Lightspeed EOD reports (typically `accounts@tarte.com.au`).
+2. Open **Settings → Integrations → Lightspeed**, connect via OAuth,
+   then map each Lightspeed location to Tarte Bakery / Beach House /
+   Tea Garden.
+3. The daily cron at `/api/cron/sync-lightspeed-reports` (08:00 AEST)
+   will parse incoming EOD emails and upsert revenue + best-sellers
+   per venue. The API-based `/api/cron/sync-sales` runs earlier as a
+   fallback.
+
+### Applying migrations manually
+
+If you need to run migrations outside of a deploy:
+
+```bash
+docker compose --profile tools run --rm migrate
+```
+
+---
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
