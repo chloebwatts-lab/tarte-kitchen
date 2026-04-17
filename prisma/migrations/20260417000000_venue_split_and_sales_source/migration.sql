@@ -2,7 +2,9 @@
 -- add LightspeedReportImport, add source columns to DailySales(Summary).
 --
 -- Legacy CURRUMBIN data is remapped to BEACH_HOUSE; Tea Garden is a brand-new
--- venue with no historical rows.
+-- venue with no historical rows. The Invoice.venue column is conditionally
+-- altered because the live production DB has a drift where the column doesn't
+-- exist yet; we re-type it when present and skip otherwise.
 
 -- 1. New Venue enum (swap strategy — cannot ADD VALUE and use it in the same txn)
 CREATE TYPE "Venue_new" AS ENUM ('BURLEIGH', 'BEACH_HOUSE', 'TEA_GARDEN', 'BOTH');
@@ -10,48 +12,26 @@ CREATE TYPE "Venue_new" AS ENUM ('BURLEIGH', 'BEACH_HOUSE', 'TEA_GARDEN', 'BOTH'
 -- 2. Drop column default that references the old enum type
 ALTER TABLE "Dish" ALTER COLUMN "venue" DROP DEFAULT;
 
--- 3. Re-type every venue column, remapping CURRUMBIN → BEACH_HOUSE
-ALTER TABLE "Dish"
-  ALTER COLUMN "venue" TYPE "Venue_new"
-  USING (CASE "venue"::text
-           WHEN 'CURRUMBIN' THEN 'BEACH_HOUSE'::"Venue_new"
-           ELSE "venue"::text::"Venue_new"
-         END);
-
-ALTER TABLE "DailySales"
-  ALTER COLUMN "venue" TYPE "Venue_new"
-  USING (CASE "venue"::text
-           WHEN 'CURRUMBIN' THEN 'BEACH_HOUSE'::"Venue_new"
-           ELSE "venue"::text::"Venue_new"
-         END);
-
-ALTER TABLE "DailySalesSummary"
-  ALTER COLUMN "venue" TYPE "Venue_new"
-  USING (CASE "venue"::text
-           WHEN 'CURRUMBIN' THEN 'BEACH_HOUSE'::"Venue_new"
-           ELSE "venue"::text::"Venue_new"
-         END);
-
-ALTER TABLE "WasteEntry"
-  ALTER COLUMN "venue" TYPE "Venue_new"
-  USING (CASE "venue"::text
-           WHEN 'CURRUMBIN' THEN 'BEACH_HOUSE'::"Venue_new"
-           ELSE "venue"::text::"Venue_new"
-         END);
-
-ALTER TABLE "TheoreticalUsage"
-  ALTER COLUMN "venue" TYPE "Venue_new"
-  USING (CASE "venue"::text
-           WHEN 'CURRUMBIN' THEN 'BEACH_HOUSE'::"Venue_new"
-           ELSE "venue"::text::"Venue_new"
-         END);
-
-ALTER TABLE "Invoice"
-  ALTER COLUMN "venue" TYPE "Venue_new"
-  USING (CASE "venue"::text
-           WHEN 'CURRUMBIN' THEN 'BEACH_HOUSE'::"Venue_new"
-           ELSE "venue"::text::"Venue_new"
-         END);
+-- 3. Re-type every venue column that exists, remapping CURRUMBIN → BEACH_HOUSE
+DO $$
+DECLARE
+  tbl text;
+BEGIN
+  FOREACH tbl IN ARRAY ARRAY['Dish', 'DailySales', 'DailySalesSummary', 'WasteEntry', 'TheoreticalUsage', 'Invoice']
+  LOOP
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = tbl
+        AND column_name = 'venue'
+    ) THEN
+      EXECUTE format(
+        'ALTER TABLE %I ALTER COLUMN "venue" TYPE "Venue_new" USING (CASE "venue"::text WHEN ''CURRUMBIN'' THEN ''BEACH_HOUSE''::"Venue_new" ELSE "venue"::text::"Venue_new" END)',
+        tbl
+      );
+    END IF;
+  END LOOP;
+END $$;
 
 -- 4. Swap type names and restore the default
 DROP TYPE "Venue";
