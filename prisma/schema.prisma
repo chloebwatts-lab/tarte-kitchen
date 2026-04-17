@@ -34,8 +34,22 @@ model Supplier {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  ingredients    Ingredient[]
-  supplierPrices SupplierPrice[]
+  ingredients        Ingredient[]
+  supplierPrices     SupplierPrice[]
+  invoices           Invoice[]
+  itemMappings       SupplierItemMapping[]
+  emailAddresses     SupplierEmail[]
+}
+
+model SupplierEmail {
+  id         String   @id @default(cuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  email      String   // e.g. "messaging-service@post.xero.com", "orders@fresho.com"
+  createdAt  DateTime @default(now())
+
+  @@unique([supplierId, email])
+  @@index([email])
 }
 
 // ============================================================
@@ -114,6 +128,8 @@ model Ingredient {
   dishComponents       DishComponent[]
   wasteEntries         WasteEntry[]
   theoreticalUsages    TheoreticalUsage[]
+  invoiceLineItems     InvoiceLineItem[]
+  supplierMappings     SupplierItemMapping[]
 
   @@unique([name, supplierId])
 }
@@ -394,4 +410,137 @@ model TheoreticalUsage {
   createdAt       DateTime   @default(now())
 
   @@unique([date, venue, ingredientId])
+}
+
+// ============================================================
+// GMAIL INTEGRATION
+// ============================================================
+
+model GmailConnection {
+  id            String    @id @default(cuid())
+  accessToken   String    // Encrypted at rest via TOKEN_ENCRYPTION_KEY
+  refreshToken  String    // Encrypted at rest
+  tokenExpiry   DateTime
+  email         String    // The authenticated Gmail address
+  lastScanAt    DateTime? // Watermark for polling — only fetch messages after this
+  scanFrequency Int       @default(60)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model XeroConnection {
+  id               String    @id @default(cuid())
+  accessToken      String    // Encrypted at rest via TOKEN_ENCRYPTION_KEY
+  refreshToken     String    // Encrypted at rest
+  tokenExpiresAt   DateTime
+  tenantId         String    // Xero organisation tenant ID
+  organisationName String?
+  connectedAt      DateTime  @default(now())
+  lastSyncedAt     DateTime?
+  updatedAt        DateTime  @updatedAt
+}
+
+model WeeklyLabourCost {
+  id          String   @id @default(cuid())
+  weekStart   DateTime // Monday of the week (midnight UTC)
+  grossWages  Decimal  @db.Decimal(10, 2)
+  superAmount Decimal  @db.Decimal(10, 2)
+  totalCost   Decimal  @db.Decimal(10, 2) // grossWages + superAmount
+  headcount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([weekStart])
+  @@index([weekStart])
+}
+
+// ============================================================
+// INVOICE MONITORING
+// ============================================================
+
+enum InvoiceStatus {
+  PENDING
+  PROCESSING
+  EXTRACTED
+  MATCHED
+  APPROVED
+  REJECTED
+  ERROR
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  gmailMessageId  String        @unique
+  gmailThreadId   String?
+  supplierName    String
+  supplierId      String?
+  supplier        Supplier?     @relation(fields: [supplierId], references: [id])
+  venue           Venue?
+  invoiceNumber   String?
+  invoiceDate     DateTime?     @db.Date
+  dueDate         DateTime?     @db.Date
+  subtotal        Decimal?      @db.Decimal(12, 2)
+  gst             Decimal?      @db.Decimal(12, 2)
+  total           Decimal?      @db.Decimal(12, 2)
+  status          InvoiceStatus @default(PENDING)
+  pdfUrl          String?
+  pdfFilename     String?
+  rawEmailSubject String?
+  rawEmailFrom    String?
+  rawEmailDate    DateTime?
+  extractedData   Json?
+  errorMessage    String?
+  processedAt     DateTime?
+  approvedAt      DateTime?
+  approvedBy      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  lineItems       InvoiceLineItem[]
+
+  @@index([status])
+  @@index([supplierName])
+  @@index([invoiceDate])
+  @@index([venue])
+}
+
+model InvoiceLineItem {
+  id              String      @id @default(cuid())
+  invoiceId       String
+  invoice         Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description     String
+  quantity        Decimal?    @db.Decimal(12, 3)
+  unit            String?
+  unitPrice       Decimal?    @db.Decimal(12, 4)
+  lineTotal       Decimal?    @db.Decimal(12, 2)
+  ingredientId    String?
+  ingredient      Ingredient? @relation(fields: [ingredientId], references: [id])
+  mappingId       String?
+  matchConfidence String?
+  matchedName     String?
+  currentPrice    Decimal?    @db.Decimal(12, 4)
+  priceChanged    Boolean     @default(false)
+  priceApproved   Boolean?
+  sortOrder       Int         @default(0)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([invoiceId])
+  @@index([ingredientId])
+}
+
+model SupplierItemMapping {
+  id                 String     @id @default(cuid())
+  supplierId         String
+  supplier           Supplier   @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  invoiceDescription String
+  ingredientId      String
+  ingredient         Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  invoiceUnit        String?
+  conversionFactor   Decimal?   @db.Decimal(12, 6)
+  lastUsed           DateTime   @default(now())
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@unique([supplierId, invoiceDescription])
+  @@index([ingredientId])
 }
