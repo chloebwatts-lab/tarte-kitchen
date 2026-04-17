@@ -3,11 +3,11 @@ export const dynamic = "force-dynamic"
 import { getGmailRedirectUri } from "@/lib/gmail/client"
 
 export async function POST() {
-  const clientId = process.env.GOOGLE_CLIENT_ID
+  const clientId = process.env.GMAIL_CLIENT_ID
 
   if (!clientId) {
     return Response.json(
-      { error: "Google OAuth is not configured" },
+      { error: "Gmail OAuth is not configured" },
       { status: 500 }
     )
   }

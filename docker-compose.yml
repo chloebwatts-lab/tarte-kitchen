@@ -24,6 +24,24 @@ services:
       DATABASE_URL: postgres://tarte:${DB_PASSWORD}@db:5432/tarte_kitchen
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: https://${DOMAIN}
+      # Secrets used at runtime — sourced from the droplet's .env via docker compose
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY}
+      CRON_SECRET: ${CRON_SECRET}
+      # Gmail OAuth + invoice parsing
+      GMAIL_CLIENT_ID: ${GMAIL_CLIENT_ID}
+      GMAIL_CLIENT_SECRET: ${GMAIL_CLIENT_SECRET}
+      GMAIL_REDIRECT_URI: ${GMAIL_REDIRECT_URI}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # Sheets wastage ingest
+      WASTAGE_SHEET_ID: ${WASTAGE_SHEET_ID}
+      # Xero (accounting / labour)
+      XERO_CLIENT_ID: ${XERO_CLIENT_ID}
+      XERO_CLIENT_SECRET: ${XERO_CLIENT_SECRET}
+      XERO_REDIRECT_URI: ${XERO_REDIRECT_URI}
+      # Lightspeed POS (optional, currently unused for OAuth in prod)
+      LIGHTSPEED_CLIENT_ID: ${LIGHTSPEED_CLIENT_ID:-}
+      LIGHTSPEED_CLIENT_SECRET: ${LIGHTSPEED_CLIENT_SECRET:-}
+      LIGHTSPEED_REDIRECT_URI: ${LIGHTSPEED_REDIRECT_URI:-}
     ports:
       - "127.0.0.1:3000:3000"
 
