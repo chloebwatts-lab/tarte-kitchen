@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db"
 import { getConnectionStatus, type ConnectionStatus } from "@/lib/lightspeed/token"
+export type { ConnectionStatus } from "@/lib/lightspeed/token"
 import { revalidatePath } from "next/cache"
 
 export async function getLightspeedStatus(): Promise<ConnectionStatus> {

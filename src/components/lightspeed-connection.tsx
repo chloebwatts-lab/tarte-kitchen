@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge"
 import { Zap, Unplug, ExternalLink, CheckCircle2, AlertTriangle, XCircle } from "lucide-react"
 import { disconnectLightspeed, updateLocationVenueMapping, type ConnectionStatus } from "@/lib/actions/lightspeed"
 import type { ConnectionStatus as ConnStatus } from "@/lib/lightspeed/token"
+import { VENUE_LABEL, SINGLE_VENUES } from "@/lib/venues"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface Props {
   status: ConnStatus
@@ -50,8 +52,8 @@ export function LightspeedConnection({ status }: Props) {
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
             Connect your Lightspeed POS to automatically sync daily sales data
-            for both venues. This enables theoretical COGS tracking and waste
-            analysis.
+            across Tarte Bakery, Beach House, and Tea Garden. This enables
+            theoretical COGS tracking and waste analysis.
           </p>
 
           <div className="rounded-lg border border-border bg-muted/50 p-4 text-sm space-y-2">
@@ -124,15 +126,43 @@ export function LightspeedConnection({ status }: Props) {
       <CardContent className="space-y-4">
         {status.locations && status.locations.length > 0 && (
           <div>
-            <p className="text-sm font-medium mb-2">Venues</p>
+            <p className="text-sm font-medium mb-2">
+              Location → Venue mapping
+            </p>
+            <p className="text-xs text-muted-foreground mb-3">
+              Map each Lightspeed location to one of the three venues. Sales
+              ingested by email or API will be tagged with the mapped venue.
+            </p>
             <div className="space-y-2">
               {status.locations.map((loc) => (
                 <div
                   key={loc.id}
-                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm"
                 >
-                  <span>{loc.name}</span>
-                  <Badge variant="secondary">{loc.venue}</Badge>
+                  <span className="truncate flex-1">{loc.name}</span>
+                  <Select
+                    value={loc.venue}
+                    onValueChange={(newVenue) => {
+                      startTransition(async () => {
+                        const updated = (status.locations ?? []).map((l) =>
+                          l.id === loc.id ? { ...l, venue: newVenue } : l
+                        )
+                        await updateLocationVenueMapping(updated)
+                        router.refresh()
+                      })
+                    }}
+                  >
+                    <SelectTrigger className="h-8 w-[200px] text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SINGLE_VENUES.map((v) => (
+                        <SelectItem key={v} value={v}>
+                          {VENUE_LABEL[v]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               ))}
             </div>

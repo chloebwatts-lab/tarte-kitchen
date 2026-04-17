@@ -1,22 +1,26 @@
 export const dynamic = "force-dynamic"
 
 import { getSuppliers } from "@/lib/actions/suppliers"
-import { SuppliersContent } from "@/components/suppliers-content"
+import { getInvoices, getPriceAlerts, getUnacknowledgedAlertCount } from "@/lib/actions/invoices"
+import { getIngredients } from "@/lib/actions/ingredients"
+import { SupplierDashboard } from "@/components/supplier-dashboard"
 
 export default async function SuppliersPage() {
-  const suppliers = await getSuppliers()
+  const [suppliers, invoices, alerts, alertCount, ingredients] = await Promise.all([
+    getSuppliers(),
+    getInvoices(),
+    getPriceAlerts(),
+    getUnacknowledgedAlertCount(),
+    getIngredients(),
+  ])
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Suppliers</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {suppliers.length} supplier{suppliers.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-      </div>
-      <SuppliersContent suppliers={suppliers} />
-    </div>
+    <SupplierDashboard
+      suppliers={suppliers}
+      invoices={invoices}
+      alerts={alerts}
+      alertCount={alertCount}
+      ingredients={ingredients}
+    />
   )
 }

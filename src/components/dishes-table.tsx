@@ -92,19 +92,24 @@ const MENU_CATEGORY_LABELS: Record<string, string> = {
 
 const VENUE_LABELS: Record<string, string> = {
   ALL: "All Venues",
-  BURLEIGH: "Burleigh",
-  CURRUMBIN: "Currumbin",
+  BURLEIGH: "Bakery",
+  BEACH_HOUSE: "Beach House",
+  TEA_GARDEN: "Tea Garden",
   BOTH: "Both",
 }
 
 const VENUE_BADGE: Record<string, { label: string; className: string }> = {
   BURLEIGH: {
-    label: "Burleigh",
+    label: "Bakery",
     className: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
   },
-  CURRUMBIN: {
-    label: "Currumbin",
-    className: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300",
+  BEACH_HOUSE: {
+    label: "Beach House",
+    className: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-300",
+  },
+  TEA_GARDEN: {
+    label: "Tea Garden",
+    className: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-300",
   },
   BOTH: {
     label: "Both",
@@ -265,8 +270,9 @@ function InlineVenue({
           </Badge>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="BURLEIGH">Burleigh</SelectItem>
-          <SelectItem value="CURRUMBIN">Currumbin</SelectItem>
+          <SelectItem value="BURLEIGH">Bakery (Burleigh)</SelectItem>
+          <SelectItem value="BEACH_HOUSE">Beach House</SelectItem>
+          <SelectItem value="TEA_GARDEN">Tea Garden</SelectItem>
           <SelectItem value="BOTH">Both</SelectItem>
         </SelectContent>
       </Select>
@@ -514,8 +520,9 @@ export function DishesTable({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All Venues</SelectItem>
-            <SelectItem value="BURLEIGH">Burleigh</SelectItem>
-            <SelectItem value="CURRUMBIN">Currumbin</SelectItem>
+            <SelectItem value="BURLEIGH">Bakery (Burleigh)</SelectItem>
+            <SelectItem value="BEACH_HOUSE">Beach House</SelectItem>
+            <SelectItem value="TEA_GARDEN">Tea Garden</SelectItem>
             <SelectItem value="BOTH">Both</SelectItem>
           </SelectContent>
         </Select>

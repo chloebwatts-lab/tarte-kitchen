@@ -1,10 +1,18 @@
 export const dynamic = "force-dynamic"
 
 import { getLightspeedStatus } from "@/lib/actions/lightspeed"
+import { getGmailStatus } from "@/lib/actions/gmail"
+import { getXeroStatus } from "@/lib/actions/xero"
 import { LightspeedConnection } from "@/components/lightspeed-connection"
+import { GmailConnection } from "@/components/gmail-connection"
+import { XeroConnection } from "@/components/xero-connection"
 
 export default async function IntegrationsPage() {
-  const status = await getLightspeedStatus()
+  const [lightspeedStatus, gmailStatus, xeroStatus] = await Promise.all([
+    getLightspeedStatus(),
+    getGmailStatus(),
+    getXeroStatus(),
+  ])
 
   return (
     <div className="space-y-6">
@@ -14,7 +22,9 @@ export default async function IntegrationsPage() {
           Connect external services to sync sales data and automate workflows
         </p>
       </div>
-      <LightspeedConnection status={status} />
+      <XeroConnection status={xeroStatus} />
+      <GmailConnection status={gmailStatus} />
+      <LightspeedConnection status={lightspeedStatus} />
     </div>
   )
 }

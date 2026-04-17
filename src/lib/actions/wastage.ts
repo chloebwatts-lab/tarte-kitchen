@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import Decimal from "decimal.js"
 import { Venue, WasteReason } from "@/generated/prisma"
+import { SINGLE_VENUES, VENUE_SHORT_LABEL, type SingleVenue } from "@/lib/venues"
 
 // ============================================================
 // WASTE ENTRY CRUD
@@ -17,7 +18,7 @@ export interface CreateWasteEntryInput {
   itemName: string
   quantity: number
   unit: string
-  reason: WasteReason
+  reason?: WasteReason
   estimatedCost: number
   notes?: string | null
   recordedBy?: string | null
@@ -33,7 +34,7 @@ export async function createWasteEntry(input: CreateWasteEntryInput) {
       itemName: input.itemName,
       quantity: input.quantity,
       unit: input.unit,
-      reason: input.reason,
+      reason: input.reason ?? "OTHER",
       estimatedCost: input.estimatedCost,
       notes: input.notes ?? null,
       recordedBy: input.recordedBy ?? null,
@@ -95,16 +96,32 @@ export async function getWasteEntries(filters: WasteFilters = {}) {
 // WASTE STATS (KPIs)
 // ============================================================
 
+export interface PerVenueWaste {
+  venue: SingleVenue
+  label: string
+  wasteCost: number
+  revenueExGst: number
+  wastePercent: number
+  wasteCostLastWeek: number
+  wastePercentLastWeek: number
+  weekOverWeekChange: number
+  topSellerRevenue: number
+  wasteToTopSellerRatio: number // wasteCost / topSellerRevenue
+}
+
 export interface WasteStats {
   totalWasteCost: number
   totalWasteCostLastWeek: number
   wastePercentOfRevenue: number
+  revenueThisWeekExGst: number
   byVenue: { venue: string; cost: number }[]
+  perVenue: PerVenueWaste[]
   topWastedItem: { name: string; cost: number } | null
   weekOverWeekChange: number // percentage change
   alertLevel: "green" | "amber" | "red"
   byReason: { reason: string; cost: number; count: number }[]
-  dailyByVenue: { date: string; BURLEIGH: number; CURRUMBIN: number }[]
+  byDayOfWeek: { day: string; cost: number }[]
+  dailyByVenue: ({ date: string } & Record<SingleVenue, number>)[]
   weeklyTrend: { week: string; wastePercent: number }[]
 }
 
@@ -135,6 +152,8 @@ export async function getWasteStats(
     last12WeeksEntries,
     revenueSummaries,
     revenueThisWeek,
+    revenueLastWeek,
+    topSellersThisWeek,
   ] = await Promise.all([
     db.wasteEntry.findMany({
       where: { ...venueFilter, date: { gte: thisWeekStart } },
@@ -156,6 +175,16 @@ export async function getWasteStats(
     }),
     db.dailySalesSummary.findMany({
       where: { ...venueFilter, date: { gte: thisWeekStart } },
+    }),
+    db.dailySalesSummary.findMany({
+      where: { ...venueFilter, date: { gte: lastWeekStart, lt: thisWeekStart } },
+    }),
+    db.dailySales.groupBy({
+      by: ["venue", "menuItemName"],
+      where: { ...venueFilter, date: { gte: thisWeekStart } },
+      _sum: { revenue: true, quantitySold: true },
+      orderBy: { _sum: { revenue: "desc" } },
+      take: 30,
     }),
   ])
 
@@ -181,7 +210,7 @@ export async function getWasteStats(
       ? (totalWasteCost / revenueThisWeekTotal) * 100
       : 0
 
-  // By venue
+  // By venue (simple legacy — kept for existing KPI card)
   const byVenueMap = new Map<string, number>()
   for (const e of thisWeekEntries) {
     byVenueMap.set(e.venue, (byVenueMap.get(e.venue) ?? 0) + Number(e.estimatedCost))
@@ -190,6 +219,80 @@ export async function getWasteStats(
     venue: v,
     cost: Math.round(cost * 100) / 100,
   }))
+
+  // Per-venue waste with revenue context (3-venue breakdown)
+  const wasteThisWeekByVenue = new Map<SingleVenue, number>()
+  const wasteLastWeekByVenue = new Map<SingleVenue, number>()
+  const revenueThisWeekByVenue = new Map<SingleVenue, number>()
+  const revenueLastWeekByVenue = new Map<SingleVenue, number>()
+
+  for (const e of thisWeekEntries) {
+    if ((SINGLE_VENUES as readonly string[]).includes(e.venue)) {
+      const v = e.venue as SingleVenue
+      wasteThisWeekByVenue.set(v, (wasteThisWeekByVenue.get(v) ?? 0) + Number(e.estimatedCost))
+    }
+  }
+  for (const e of lastWeekEntries) {
+    if ((SINGLE_VENUES as readonly string[]).includes(e.venue)) {
+      const v = e.venue as SingleVenue
+      wasteLastWeekByVenue.set(v, (wasteLastWeekByVenue.get(v) ?? 0) + Number(e.estimatedCost))
+    }
+  }
+  for (const s of revenueThisWeek) {
+    if ((SINGLE_VENUES as readonly string[]).includes(s.venue)) {
+      const v = s.venue as SingleVenue
+      revenueThisWeekByVenue.set(
+        v,
+        (revenueThisWeekByVenue.get(v) ?? 0) + Number(s.totalRevenueExGst)
+      )
+    }
+  }
+  for (const s of revenueLastWeek) {
+    if ((SINGLE_VENUES as readonly string[]).includes(s.venue)) {
+      const v = s.venue as SingleVenue
+      revenueLastWeekByVenue.set(
+        v,
+        (revenueLastWeekByVenue.get(v) ?? 0) + Number(s.totalRevenueExGst)
+      )
+    }
+  }
+
+  const topSellerByVenue = new Map<SingleVenue, number>()
+  for (const row of topSellersThisWeek) {
+    if ((SINGLE_VENUES as readonly string[]).includes(row.venue)) {
+      const v = row.venue as SingleVenue
+      const rev = Number(row._sum.revenue ?? 0)
+      if (rev > (topSellerByVenue.get(v) ?? 0)) {
+        topSellerByVenue.set(v, rev)
+      }
+    }
+  }
+
+  const perVenue: PerVenueWaste[] = SINGLE_VENUES.map((v) => {
+    const wasteCost = wasteThisWeekByVenue.get(v) ?? 0
+    const revenueExGst = revenueThisWeekByVenue.get(v) ?? 0
+    const wasteCostLastWeek = wasteLastWeekByVenue.get(v) ?? 0
+    const revenueLastWeekExGst = revenueLastWeekByVenue.get(v) ?? 0
+    const wastePercent = revenueExGst > 0 ? (wasteCost / revenueExGst) * 100 : 0
+    const wastePercentLastWeek =
+      revenueLastWeekExGst > 0 ? (wasteCostLastWeek / revenueLastWeekExGst) * 100 : 0
+    const weekOverWeekChange =
+      wasteCostLastWeek > 0 ? ((wasteCost - wasteCostLastWeek) / wasteCostLastWeek) * 100 : 0
+    const topSellerRevenue = topSellerByVenue.get(v) ?? 0
+    const wasteToTopSellerRatio = topSellerRevenue > 0 ? wasteCost / topSellerRevenue : 0
+    return {
+      venue: v,
+      label: VENUE_SHORT_LABEL[v],
+      wasteCost: Math.round(wasteCost * 100) / 100,
+      revenueExGst: Math.round(revenueExGst * 100) / 100,
+      wastePercent: Math.round(wastePercent * 100) / 100,
+      wasteCostLastWeek: Math.round(wasteCostLastWeek * 100) / 100,
+      wastePercentLastWeek: Math.round(wastePercentLastWeek * 100) / 100,
+      weekOverWeekChange: Math.round(weekOverWeekChange * 100) / 100,
+      topSellerRevenue: Math.round(topSellerRevenue * 100) / 100,
+      wasteToTopSellerRatio: Math.round(wasteToTopSellerRatio * 100) / 100,
+    }
+  })
 
   // Top wasted item
   const itemCosts = new Map<string, number>()
@@ -230,22 +333,42 @@ export async function getWasteStats(
     count: data.count,
   }))
 
-  // Daily by venue (last 30 days)
-  const dailyMap = new Map<string, { BURLEIGH: number; CURRUMBIN: number }>()
+  // By day of week (last 30 days, Mon–Sun order)
+  const DOW_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  const dayWasteMap = new Map<number, number>()
+  for (const e of last30DaysEntries) {
+    const day = e.date.getDay()
+    dayWasteMap.set(day, (dayWasteMap.get(day) ?? 0) + Number(e.estimatedCost))
+  }
+  const byDayOfWeek = [1, 2, 3, 4, 5, 6, 0].map((d) => ({
+    day: DOW_NAMES[d],
+    cost: Math.round((dayWasteMap.get(d) ?? 0) * 100) / 100,
+  }))
+
+  // Daily by venue (last 30 days) — 3-venue stacked bar
+  const emptyVenueRow = () =>
+    SINGLE_VENUES.reduce(
+      (acc, v) => ({ ...acc, [v]: 0 }),
+      {} as Record<SingleVenue, number>
+    )
+  const dailyMap = new Map<string, Record<SingleVenue, number>>()
   for (const e of last30DaysEntries) {
     const dateKey = e.date.toISOString().split("T")[0]
-    const existing = dailyMap.get(dateKey) ?? { BURLEIGH: 0, CURRUMBIN: 0 }
-    if (e.venue === "BURLEIGH" || e.venue === "CURRUMBIN") {
-      existing[e.venue] += Number(e.estimatedCost)
+    const existing = dailyMap.get(dateKey) ?? emptyVenueRow()
+    if ((SINGLE_VENUES as readonly string[]).includes(e.venue)) {
+      const v = e.venue as SingleVenue
+      existing[v] += Number(e.estimatedCost)
     }
     dailyMap.set(dateKey, existing)
   }
   const dailyByVenue = Array.from(dailyMap.entries())
-    .map(([date, data]) => ({
-      date,
-      BURLEIGH: Math.round(data.BURLEIGH * 100) / 100,
-      CURRUMBIN: Math.round(data.CURRUMBIN * 100) / 100,
-    }))
+    .map(([date, data]) => {
+      const rounded = SINGLE_VENUES.reduce(
+        (acc, v) => ({ ...acc, [v]: Math.round(data[v] * 100) / 100 }),
+        {} as Record<SingleVenue, number>
+      )
+      return { date, ...rounded }
+    })
     .sort((a, b) => a.date.localeCompare(b.date))
 
   // Weekly trend (last 12 weeks)
@@ -273,11 +396,14 @@ export async function getWasteStats(
     totalWasteCost: Math.round(totalWasteCost * 100) / 100,
     totalWasteCostLastWeek: Math.round(totalWasteCostLastWeek * 100) / 100,
     wastePercentOfRevenue: Math.round(wastePercentOfRevenue * 100) / 100,
+    revenueThisWeekExGst: Math.round(revenueThisWeekTotal * 100) / 100,
     byVenue,
+    perVenue,
     topWastedItem,
     weekOverWeekChange: Math.round(weekOverWeekChange * 100) / 100,
     alertLevel,
     byReason,
+    byDayOfWeek,
     dailyByVenue,
     weeklyTrend,
   }
@@ -343,30 +469,36 @@ export async function getWasteInsights(): Promise<WasteInsight[]> {
     }
   }
 
-  // Rule 2: Venue comparison — one venue wastes 2x+ more
-  const venueItemWaste = new Map<string, { BURLEIGH: number; CURRUMBIN: number }>()
+  // Rule 2: Venue comparison — any venue wastes 2x+ more of the same item than
+  // another. With 3 venues, compare each pair.
+  const venueItemWaste = new Map<string, Record<SingleVenue, number>>()
   for (const e of wasteEntries) {
-    const existing = venueItemWaste.get(e.itemName) ?? { BURLEIGH: 0, CURRUMBIN: 0 }
-    if (e.venue === "BURLEIGH" || e.venue === "CURRUMBIN") {
-      existing[e.venue] += Number(e.estimatedCost)
+    const existing =
+      venueItemWaste.get(e.itemName) ??
+      SINGLE_VENUES.reduce(
+        (acc, v) => ({ ...acc, [v]: 0 }),
+        {} as Record<SingleVenue, number>
+      )
+    if ((SINGLE_VENUES as readonly string[]).includes(e.venue)) {
+      existing[e.venue as SingleVenue] += Number(e.estimatedCost)
     }
     venueItemWaste.set(e.itemName, existing)
   }
   for (const [item, data] of venueItemWaste) {
-    if (data.BURLEIGH > 0 && data.CURRUMBIN > 0) {
-      const ratio = data.BURLEIGH / data.CURRUMBIN
-      if (ratio >= 2) {
-        insights.push({
-          icon: "triangle-alert",
-          message: `${item} waste at Burleigh is ${ratio.toFixed(1)}x higher than Currumbin — investigate`,
-          estimatedImpact: data.BURLEIGH - data.CURRUMBIN,
-        })
-      } else if (1 / ratio >= 2) {
-        insights.push({
-          icon: "triangle-alert",
-          message: `${item} waste at Currumbin is ${(1 / ratio).toFixed(1)}x higher than Burleigh — investigate`,
-          estimatedImpact: data.CURRUMBIN - data.BURLEIGH,
-        })
+    for (let i = 0; i < SINGLE_VENUES.length; i++) {
+      for (let j = 0; j < SINGLE_VENUES.length; j++) {
+        if (i === j) continue
+        const high = SINGLE_VENUES[i]
+        const low = SINGLE_VENUES[j]
+        const hv = data[high]
+        const lv = data[low]
+        if (hv > 0 && lv > 0 && hv / lv >= 2) {
+          insights.push({
+            icon: "triangle-alert",
+            message: `${item} waste at ${VENUE_SHORT_LABEL[high]} is ${(hv / lv).toFixed(1)}x higher than ${VENUE_SHORT_LABEL[low]} — investigate`,
+            estimatedImpact: hv - lv,
+          })
+        }
       }
     }
   }
@@ -463,11 +595,33 @@ export async function exportWasteCsv(filters: WasteFilters = {}): Promise<string
     orderBy: { date: "desc" },
   })
 
-  const header = "Date,Venue,Item,Quantity,Unit,Cost,Reason,Notes,Recorded By"
+  // Build per-day per-venue revenue lookup so each row can carry waste % of revenue.
+  // Key: `${date}|${venue}`.
+  const revenueLookup = new Map<string, number>()
+  if (entries.length > 0) {
+    const minDate = entries[entries.length - 1].date
+    const maxDate = entries[0].date
+    const summaries = await db.dailySalesSummary.findMany({
+      where: {
+        date: { gte: minDate, lte: maxDate },
+        ...(venue ? { venue } : {}),
+      },
+    })
+    for (const s of summaries) {
+      const key = `${s.date.toISOString().split("T")[0]}|${s.venue}`
+      revenueLookup.set(key, Number(s.totalRevenueExGst))
+    }
+  }
+
+  const header =
+    "Date,Venue,Item,Quantity,Unit,Cost,Revenue (ex GST),Waste % of Revenue,Reason,Notes,Recorded By"
   const rows = entries.map((e) => {
     const date = e.date.toISOString().split("T")[0]
     const notes = (e.notes ?? "").replace(/"/g, '""')
-    return `${date},${e.venue},"${e.itemName}",${Number(e.quantity)},${e.unit},${Number(e.estimatedCost)},${e.reason},"${notes}","${e.recordedBy ?? ""}"`
+    const rev = revenueLookup.get(`${date}|${e.venue}`) ?? 0
+    const cost = Number(e.estimatedCost)
+    const pct = rev > 0 ? ((cost / rev) * 100).toFixed(2) : ""
+    return `${date},${e.venue},"${e.itemName}",${Number(e.quantity)},${e.unit},${cost},${rev},${pct},${e.reason},"${notes}","${e.recordedBy ?? ""}"`
   })
 
   return [header, ...rows].join("\n")
@@ -478,7 +632,7 @@ export async function exportWasteCsv(filters: WasteFilters = {}): Promise<string
 // ============================================================
 
 export async function getWasteFormItems() {
-  const [dishes, ingredients] = await Promise.all([
+  const [dishes, ingredients, preps] = await Promise.all([
     db.dish.findMany({
       where: { isActive: true },
       select: {
@@ -502,6 +656,15 @@ export async function getWasteFormItems() {
       },
       orderBy: { name: "asc" },
     }),
+    db.preparation.findMany({
+      select: {
+        id: true,
+        name: true,
+        costPerGram: true,
+        costPerServe: true,
+      },
+      orderBy: { name: "asc" },
+    }),
   ])
 
   return {
@@ -514,7 +677,6 @@ export async function getWasteFormItems() {
       category: d.menuCategory,
     })),
     ingredients: ingredients.map((i) => {
-      // Cost per base unit for ingredients
       const price = new Decimal(i.purchasePrice)
       const baseUnits = new Decimal(i.baseUnitsPerPurchase)
       const wastePct = new Decimal(i.wastePercentage)
@@ -531,5 +693,12 @@ export async function getWasteFormItems() {
         baseUnitType: i.baseUnitType,
       }
     }),
+    preps: preps.map((p) => ({
+      id: p.id,
+      name: p.name,
+      costPerGram: Number(p.costPerGram),
+      costPerServe: Number(p.costPerServe),
+      type: "prep" as const,
+    })),
   }
 }

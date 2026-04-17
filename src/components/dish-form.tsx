@@ -119,8 +119,9 @@ const MENU_CATEGORIES = [
 ]
 
 const VENUES = [
-  { value: "BURLEIGH", label: "Burleigh" },
-  { value: "CURRUMBIN", label: "Currumbin" },
+  { value: "BURLEIGH", label: "Bakery (Burleigh)" },
+  { value: "BEACH_HOUSE", label: "Beach House" },
+  { value: "TEA_GARDEN", label: "Tea Garden" },
   { value: "BOTH", label: "Both" },
 ]
 

@@ -153,7 +153,7 @@ export function WasteEntryForm({ items }: Props) {
       try {
         await createWasteEntry({
           date,
-          venue: venue as "BURLEIGH" | "CURRUMBIN",
+          venue: venue as "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN",
           dishId: selectedItem.type === "dish" ? selectedItem.id : null,
           ingredientId: selectedItem.type === "ingredient" ? selectedItem.id : null,
           itemName: selectedItem.name,
@@ -203,8 +203,9 @@ export function WasteEntryForm({ items }: Props) {
                 <SelectValue placeholder="Select venue" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="BURLEIGH">Burleigh</SelectItem>
-                <SelectItem value="CURRUMBIN">Currumbin</SelectItem>
+                <SelectItem value="BURLEIGH">Bakery (Burleigh)</SelectItem>
+                <SelectItem value="BEACH_HOUSE">Beach House</SelectItem>
+                <SelectItem value="TEA_GARDEN">Tea Garden</SelectItem>
               </SelectContent>
             </Select>
           </div>

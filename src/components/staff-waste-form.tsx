@@ -1,8 +1,6 @@
 "use client"
 
-import { useState, useMemo, useTransition, useRef, useEffect } from "react"
-import Fuse from "fuse.js"
-import Decimal from "decimal.js"
+import { useState, useMemo, useTransition } from "react"
 import { CheckCircle2, Search, X, Trash2 } from "lucide-react"
 import { createWasteEntry } from "@/lib/actions/wastage"
 
@@ -66,18 +64,18 @@ function calcCost(item: FormItem, qty: number, unit: string): number {
   if (!qty || qty <= 0) return 0
   try {
     if (item.type === "dish") {
-      return new Decimal(qty).mul(item.costPerUnit).toDecimalPlaces(2).toNumber()
+      return Math.round(qty * item.costPerUnit * 100) / 100
     }
     if (item.type === "ingredient") {
       let baseQty = qty
       if (unit === "kg") baseQty = qty * 1000
       else if (unit === "l") baseQty = qty * 1000
-      return new Decimal(baseQty).mul(item.costPerBaseUnit).toDecimalPlaces(2).toNumber()
+      return Math.round(baseQty * item.costPerBaseUnit * 100) / 100
     }
     if (item.type === "prep") {
-      if (unit === "g") return new Decimal(qty).mul(item.costPerGram).toDecimalPlaces(2).toNumber()
-      if (unit === "kg") return new Decimal(qty * 1000).mul(item.costPerGram).toDecimalPlaces(2).toNumber()
-      return new Decimal(qty).mul(item.costPerServe).toDecimalPlaces(2).toNumber()
+      if (unit === "g") return Math.round(qty * item.costPerGram * 100) / 100
+      if (unit === "kg") return Math.round(qty * 1000 * item.costPerGram * 100) / 100
+      return Math.round(qty * item.costPerServe * 100) / 100
     }
   } catch { return 0 }
   return 0
@@ -85,13 +83,13 @@ function calcCost(item: FormItem, qty: number, unit: string): number {
 
 function defaultUnit(item: FormItem): string {
   if (item.type === "dish") return "ea"
-  if (item.type === "prep") return "g"
+  if (item.type === "prep") return "serves"
   return UNIT_OPTIONS[(item as IngredientItem).baseUnitType]?.[0] ?? "ea"
 }
 
 function availableUnits(item: FormItem): string[] {
   if (item.type === "dish") return ["ea"]
-  if (item.type === "prep") return ["g", "kg", "serves"]
+  if (item.type === "prep") return ["serves", "g", "kg"]
   return UNIT_OPTIONS[(item as IngredientItem).baseUnitType] ?? ["ea"]
 }
 
@@ -105,53 +103,39 @@ function itemLabel(item: FormItem): string {
 
 export function StaffWasteForm({ items }: Props) {
   const [isPending, startTransition] = useTransition()
-  const searchRef = useRef<HTMLInputElement>(null)
-  const searchWrapperRef = useRef<HTMLDivElement>(null)
 
-  const [venue, setVenue] = useState<"BURLEIGH" | "CURRUMBIN" | "">("")
+  const [venue, setVenue] = useState<"BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN" | "">("")
   const [selectedItem, setSelectedItem] = useState<FormItem | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  const [showSearch, setShowSearch] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const [quantity, setQuantity] = useState("")
   const [unit, setUnit] = useState("")
   const [reason, setReason] = useState<string>("")
   const [error, setError] = useState("")
   const [success, setSuccess] = useState<{ name: string; cost: number } | null>(null)
 
+  // Combine all items — plain array, no Fuse dependency
   const allItems = useMemo<FormItem[]>(
     () => [...items.preps, ...items.ingredients, ...items.dishes],
     [items]
   )
 
-  const fuse = useMemo(
-    () => new Fuse(allItems, { keys: ["name"], threshold: 0.35, includeScore: true }),
-    [allItems]
-  )
-
+  // Simple substring search — works everywhere, no external deps
   const searchResults = useMemo<FormItem[]>(() => {
-    if (!searchQuery.trim()) return allItems.slice(0, 30)
-    return fuse.search(searchQuery).map((r) => r.item).slice(0, 30)
-  }, [searchQuery, fuse, allItems])
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return allItems.slice(0, 30)
+    return allItems.filter((item) => item.name.toLowerCase().includes(q)).slice(0, 30)
+  }, [searchQuery, allItems])
 
   const estimatedCost = useMemo(
     () => (selectedItem ? calcCost(selectedItem, Number(quantity), unit) : 0),
     [selectedItem, quantity, unit]
   )
 
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target as Node)) {
-        setShowSearch(false)
-      }
-    }
-    document.addEventListener("mousedown", handler)
-    return () => document.removeEventListener("mousedown", handler)
-  }, [])
-
   function handleSelectItem(item: FormItem) {
     setSelectedItem(item)
     setUnit(defaultUnit(item))
-    setShowSearch(false)
+    setSearchOpen(false)
     setSearchQuery("")
   }
 
@@ -197,7 +181,7 @@ export function StaffWasteForm({ items }: Props) {
     <div className="flex flex-col min-h-svh bg-[#faf7f4]">
 
       {/* Header */}
-      <header className="bg-[#1a1a1a] px-5 pt-12 pb-5 safe-area-top">
+      <header className="bg-[#1a1a1a] px-5 pt-12 pb-5">
         <p className="text-[#c4a882] text-[10px] font-bold uppercase tracking-[0.2em] mb-0.5">
           Tarte Kitchen
         </p>
@@ -223,7 +207,7 @@ export function StaffWasteForm({ items }: Props) {
 
         {/* Success banner */}
         {success && (
-          <div className="flex items-center gap-3 rounded-2xl bg-emerald-600 px-4 py-4 shadow-lg animate-in slide-in-from-top duration-300">
+          <div className="flex items-center gap-3 rounded-2xl bg-emerald-600 px-4 py-4 shadow-lg">
             <CheckCircle2 className="h-6 w-6 shrink-0 text-white" />
             <div>
               <p className="text-sm font-semibold text-white">{success.name} logged</p>
@@ -247,20 +231,27 @@ export function StaffWasteForm({ items }: Props) {
             <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">Venue</p>
             {step === 1 && <span className="text-[10px] font-medium text-[#c4a882]">Step 1</span>}
           </div>
-          <div className="grid grid-cols-2 gap-0 border-t border-gray-50">
-            {(["BURLEIGH", "CURRUMBIN"] as const).map((v, i) => (
+          <div className="grid grid-cols-3 gap-0 border-t border-gray-50">
+            {(
+              [
+                { v: "BURLEIGH" as const, label: "Bakery" },
+                { v: "BEACH_HOUSE" as const, label: "Beach House" },
+                { v: "TEA_GARDEN" as const, label: "Tea Garden" },
+              ]
+            ).map(({ v, label }, i, arr) => (
               <button
                 key={v}
+                type="button"
                 onClick={() => setVenue(v)}
                 className={`py-4 text-sm font-bold tracking-wide transition-all ${
-                  i === 0 ? "border-r border-gray-50" : ""
+                  i < arr.length - 1 ? "border-r border-gray-50" : ""
                 } ${
                   venue === v
                     ? "bg-[#1a1a1a] text-white"
                     : "bg-white text-gray-400 active:bg-gray-50"
                 }`}
               >
-                {v.charAt(0) + v.slice(1).toLowerCase()}
+                {label}
               </button>
             ))}
           </div>
@@ -280,6 +271,7 @@ export function StaffWasteForm({ items }: Props) {
                 <p className="text-[11px] text-gray-400 mt-0.5">{itemLabel(selectedItem)}</p>
               </div>
               <button
+                type="button"
                 onClick={() => { setSelectedItem(null); setUnit(""); setQuantity("") }}
                 className="rounded-full bg-gray-100 p-2 text-gray-400 active:bg-gray-200"
               >
@@ -287,26 +279,29 @@ export function StaffWasteForm({ items }: Props) {
               </button>
             </div>
           ) : (
-            <div ref={searchWrapperRef} className="relative border-t border-gray-50">
-              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-300 pointer-events-none" />
-              <input
-                ref={searchRef}
-                type="text"
-                placeholder="Search ingredients, preps, dishes..."
-                value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); setShowSearch(true) }}
-                onFocus={() => setShowSearch(true)}
-                className="w-full bg-transparent py-3.5 pl-11 pr-4 text-sm text-gray-900 outline-none placeholder:text-gray-300"
-              />
-              {showSearch && (
-                <div className="absolute left-0 right-0 top-full z-20 max-h-64 overflow-y-auto bg-white border-t border-gray-100 shadow-xl rounded-b-2xl">
+            <div className="border-t border-gray-50">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-300 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search ingredients, preps, dishes..."
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true) }}
+                  onFocus={() => setSearchOpen(true)}
+                  className="w-full bg-transparent py-3.5 pl-11 pr-4 text-sm text-gray-900 outline-none placeholder:text-gray-300"
+                />
+              </div>
+              {/* Results list — rendered inline, not absolutely positioned */}
+              {searchOpen && (
+                <div className="max-h-64 overflow-y-auto border-t border-gray-100">
                   {searchResults.length === 0 ? (
                     <p className="px-4 py-4 text-sm text-gray-400">No items found</p>
                   ) : (
                     searchResults.map((item) => (
                       <button
                         key={`${item.type}-${item.id}`}
-                        onMouseDown={() => handleSelectItem(item)}
+                        type="button"
+                        onClick={() => handleSelectItem(item)}
                         className="flex w-full items-center justify-between px-4 py-3 text-left border-b border-gray-50 last:border-0 active:bg-gray-50"
                       >
                         <span className="text-sm text-gray-900">{item.name}</span>
@@ -338,13 +333,14 @@ export function StaffWasteForm({ items }: Props) {
                 placeholder="0"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
-                className="flex-1 bg-transparent py-4 px-4 text-3xl font-bold text-gray-900 outline-none placeholder:text-gray-200 [&::-webkit-inner-spin-button]:appearance-none"
+                className="flex-1 bg-transparent py-4 px-4 text-3xl font-bold text-gray-900 outline-none placeholder:text-gray-200"
+                style={{ WebkitAppearance: "none", MozAppearance: "textfield" } as React.CSSProperties}
               />
               {availableUnits(selectedItem).length > 1 ? (
                 <select
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
-                  className="border-l border-gray-50 bg-transparent px-4 text-base font-semibold text-gray-500 outline-none w-20 text-center appearance-none"
+                  className="border-l border-gray-50 bg-transparent px-4 text-base font-semibold text-gray-500 outline-none w-20 text-center"
                 >
                   {availableUnits(selectedItem).map((u) => (
                     <option key={u} value={u}>{u}</option>
@@ -370,6 +366,7 @@ export function StaffWasteForm({ items }: Props) {
               {WASTE_REASONS.map((r) => (
                 <button
                   key={r.value}
+                  type="button"
                   onClick={() => setReason(r.value)}
                   className={`flex flex-col items-center gap-1 rounded-xl py-2.5 px-1 text-center transition-all ${
                     reason === r.value
@@ -397,6 +394,7 @@ export function StaffWasteForm({ items }: Props) {
       {/* Sticky submit */}
       <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-[#faf7f4] from-70% to-transparent px-4 pb-8 pt-6">
         <button
+          type="button"
           onClick={handleSubmit}
           disabled={isPending || step < 5}
           className={`w-full rounded-2xl py-4 text-sm font-bold tracking-wide shadow-lg transition-all active:scale-[0.98] ${

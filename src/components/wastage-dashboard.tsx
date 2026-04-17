@@ -9,26 +9,15 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
   LineChart,
   Line,
   ReferenceLine,
   CartesianGrid,
-  Legend,
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import {
   DollarSign,
   TrendingUp,
@@ -50,8 +39,16 @@ import {
   type WasteStats,
   type WasteInsight,
   getWasteEntries,
+  getWasteStats,
+  getWasteInsights,
   exportWasteCsv,
 } from "@/lib/actions/wastage"
+import {
+  SINGLE_VENUES,
+  VENUE_SHORT_LABEL,
+  VENUE_CHART_COLOR,
+  type SingleVenue,
+} from "@/lib/venues"
 
 // ============================================================
 // TYPES
@@ -65,7 +62,6 @@ interface WasteEntryRow {
   quantity: number
   unit: string
   estimatedCost: number
-  reason: string
   notes: string | null
   recordedBy: string | null
 }
@@ -87,22 +83,6 @@ interface Props {
 // ============================================================
 // CONSTANTS
 // ============================================================
-
-const REASON_LABELS: Record<string, string> = {
-  OVERPRODUCTION: "Overproduction",
-  SPOILAGE: "Spoilage",
-  EXPIRED: "Expired",
-  DROPPED: "Dropped",
-  STAFF_MEAL: "Staff Meal",
-  CUSTOMER_RETURN: "Customer Return",
-  QUALITY_ISSUE: "Quality Issue",
-  OTHER: "Other",
-}
-
-const PIE_COLORS = [
-  "#ef4444", "#f97316", "#eab308", "#22c55e",
-  "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899",
-]
 
 const INSIGHT_ICONS: Record<string, typeof CircleAlert> = {
   "circle-alert": CircleAlert,
@@ -126,58 +106,55 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
   const [insightsOpen, setInsightsOpen] = useState(true)
   const [entries, setEntries] = useState(initialEntries)
   const [searchQuery, setSearchQuery] = useState("")
-  const [venueFilter, setVenueFilter] = useState<string>("all")
-  const [reasonFilter, setReasonFilter] = useState<string>("all")
+  const [activeVenue, setActiveVenue] = useState<SingleVenue | null>(null)
+  const [currentStats, setCurrentStats] = useState(stats)
+  const [currentInsights, setCurrentInsights] = useState(insights)
   const [sortField, setSortField] = useState<string>("date")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
   const [isPending, startTransition] = useTransition()
 
   const fetchEntries = useCallback(
-    (page: number) => {
+    (page: number, venue: SingleVenue | null = activeVenue) => {
       startTransition(async () => {
         const result = await getWasteEntries({
           page,
           pageSize: 20,
-          venue: venueFilter !== "all" ? (venueFilter as "BURLEIGH" | "CURRUMBIN") : undefined,
-          reason: reasonFilter !== "all" ? (reasonFilter as keyof typeof REASON_LABELS) : undefined,
+          venue: venue ?? undefined,
           search: searchQuery || undefined,
         })
         setEntries(result)
       })
     },
-    [venueFilter, reasonFilter, searchQuery]
+    [activeVenue, searchQuery]
   )
 
-  function handleSearch(query: string) {
-    setSearchQuery(query)
-    // Debounced fetch on next render via effect
+  function handleVenueSwitch(venue: SingleVenue | null) {
+    setActiveVenue(venue)
     startTransition(async () => {
-      const result = await getWasteEntries({
-        page: 1,
-        pageSize: 20,
-        venue: venueFilter !== "all" ? (venueFilter as "BURLEIGH" | "CURRUMBIN") : undefined,
-        reason: reasonFilter !== "all" ? (reasonFilter as keyof typeof REASON_LABELS) : undefined,
-        search: query || undefined,
-      })
-      setEntries(result)
+      const [newStats, newInsights, newEntries] = await Promise.all([
+        getWasteStats(venue ?? undefined),
+        getWasteInsights(),
+        getWasteEntries({
+          page: 1,
+          pageSize: 20,
+          venue: venue ?? undefined,
+          search: searchQuery || undefined,
+        }),
+      ])
+      setCurrentStats(newStats)
+      setCurrentInsights(newInsights)
+      setEntries(newEntries)
     })
   }
 
-  function handleFilterChange(type: "venue" | "reason", value: string) {
-    if (type === "venue") setVenueFilter(value)
-    else setReasonFilter(value)
-
+  function handleSearch(query: string) {
+    setSearchQuery(query)
     startTransition(async () => {
       const result = await getWasteEntries({
         page: 1,
         pageSize: 20,
-        venue: (type === "venue" ? value : venueFilter) !== "all"
-          ? ((type === "venue" ? value : venueFilter) as "BURLEIGH" | "CURRUMBIN")
-          : undefined,
-        reason: (type === "reason" ? value : reasonFilter) !== "all"
-          ? ((type === "reason" ? value : reasonFilter) as keyof typeof REASON_LABELS)
-          : undefined,
-        search: searchQuery || undefined,
+        venue: activeVenue ?? undefined,
+        search: query || undefined,
       })
       setEntries(result)
     })
@@ -185,8 +162,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
 
   async function handleExport() {
     const csv = await exportWasteCsv({
-      venue: venueFilter !== "all" ? (venueFilter as "BURLEIGH" | "CURRUMBIN") : undefined,
-      reason: reasonFilter !== "all" ? (reasonFilter as keyof typeof REASON_LABELS) : undefined,
+      venue: activeVenue ?? undefined,
       search: searchQuery || undefined,
     })
     const blob = new Blob([csv], { type: "text/csv" })
@@ -206,7 +182,6 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
       case "venue": cmp = a.venue.localeCompare(b.venue); break
       case "item": cmp = a.itemName.localeCompare(b.itemName); break
       case "cost": cmp = a.estimatedCost - b.estimatedCost; break
-      case "reason": cmp = a.reason.localeCompare(b.reason); break
       default: cmp = 0
     }
     return sortDir === "desc" ? -cmp : cmp
@@ -223,8 +198,30 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Venue Toggle */}
+      <div className="flex flex-wrap gap-2">
+        {([
+          { label: "All Venues", value: null as SingleVenue | null },
+          ...SINGLE_VENUES.map((v) => ({ label: VENUE_SHORT_LABEL[v], value: v as SingleVenue })),
+        ]).map(({ label, value }) => (
+          <button
+            key={label}
+            onClick={() => handleVenueSwitch(value)}
+            disabled={isPending}
+            className={cn(
+              "rounded-full px-5 py-2 text-sm font-medium transition-all",
+              activeVenue === value
+                ? "bg-gray-900 text-white shadow-sm"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* AI Suggestions Panel */}
-      {insights.length > 0 && (
+      {currentInsights.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
             <button
@@ -235,7 +232,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                 <AlertTriangle className="h-4 w-4 text-amber-500" />
                 Insights & Suggestions
                 <Badge variant="secondary" className="text-xs">
-                  {insights.length}
+                  {currentInsights.length}
                 </Badge>
               </CardTitle>
               {insightsOpen ? (
@@ -247,7 +244,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
           </CardHeader>
           {insightsOpen && (
             <CardContent className="space-y-2 pt-0">
-              {insights.map((insight, i) => {
+              {currentInsights.map((insight, i) => {
                 const Icon = INSIGHT_ICONS[insight.icon] ?? AlertTriangle
                 return (
                   <div
@@ -274,25 +271,25 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Waste Cost</p>
-                <p className="text-3xl font-bold">${stats.totalWasteCost.toFixed(0)}</p>
+                <p className="text-3xl font-bold">${currentStats.totalWasteCost.toFixed(0)}</p>
                 <p className={cn(
                   "mt-1 text-xs font-medium",
-                  ALERT_STYLES[stats.alertLevel]?.split(" ").find(c => c.startsWith("text-")) ?? "text-muted-foreground"
+                  ALERT_STYLES[currentStats.alertLevel]?.split(" ").find(c => c.startsWith("text-")) ?? "text-muted-foreground"
                 )}>
-                  {stats.wastePercentOfRevenue.toFixed(1)}% of revenue
+                  {currentStats.wastePercentOfRevenue.toFixed(1)}% of revenue
                 </p>
               </div>
               <div className={cn(
                 "rounded-lg p-3",
-                stats.alertLevel === "green" && "bg-green-100",
-                stats.alertLevel === "amber" && "bg-amber-100",
-                stats.alertLevel === "red" && "bg-red-100",
+                currentStats.alertLevel === "green" && "bg-green-100",
+                currentStats.alertLevel === "amber" && "bg-amber-100",
+                currentStats.alertLevel === "red" && "bg-red-100",
               )}>
                 <DollarSign className={cn(
                   "h-5 w-5",
-                  stats.alertLevel === "green" && "text-green-600",
-                  stats.alertLevel === "amber" && "text-amber-600",
-                  stats.alertLevel === "red" && "text-red-600",
+                  currentStats.alertLevel === "green" && "text-green-600",
+                  currentStats.alertLevel === "amber" && "text-amber-600",
+                  currentStats.alertLevel === "red" && "text-red-600",
                 )} />
               </div>
             </div>
@@ -302,18 +299,36 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">By Venue</p>
-                {stats.byVenue.map((v) => (
-                  <p key={v.venue} className="text-sm">
-                    <span className="font-medium">{v.venue}:</span> ${v.cost.toFixed(0)}
-                  </p>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-muted-foreground">Waste % of Revenue by Venue</p>
+                {currentStats.perVenue?.map((v) => (
+                  <div
+                    key={v.venue}
+                    className="mt-1 flex items-center justify-between gap-2 text-sm"
+                  >
+                    <span className="font-medium truncate">{v.label}:</span>
+                    <span className="tabular-nums">
+                      ${v.wasteCost.toFixed(0)}{" "}
+                      <span
+                        className={cn(
+                          "ml-1 text-xs",
+                          v.wastePercent >= 2.5
+                            ? "text-red-600"
+                            : v.wastePercent >= 1.5
+                              ? "text-amber-600"
+                              : "text-green-600"
+                        )}
+                      >
+                        ({v.wastePercent.toFixed(1)}%)
+                      </span>
+                    </span>
+                  </div>
                 ))}
-                {stats.byVenue.length === 0 && (
+                {(!currentStats.perVenue || currentStats.perVenue.length === 0) && (
                   <p className="text-sm text-muted-foreground">No data</p>
                 )}
               </div>
-              <div className="rounded-lg bg-muted p-3">
+              <div className="rounded-lg bg-muted p-3 ml-2">
                 <Store className="h-5 w-5 text-muted-foreground" />
               </div>
             </div>
@@ -325,13 +340,13 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Top Wasted Item</p>
-                {stats.topWastedItem ? (
+                {currentStats.topWastedItem ? (
                   <>
                     <p className="text-lg font-semibold truncate max-w-[160px]">
-                      {stats.topWastedItem.name}
+                      {currentStats.topWastedItem.name}
                     </p>
                     <p className="text-sm text-red-600">
-                      ${stats.topWastedItem.cost.toFixed(2)}
+                      ${currentStats.topWastedItem.cost.toFixed(2)}
                     </p>
                   </>
                 ) : (
@@ -351,15 +366,15 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
               <div>
                 <p className="text-sm text-muted-foreground">vs Last Week</p>
                 <p className="text-3xl font-bold">
-                  {stats.weekOverWeekChange >= 0 ? "+" : ""}
-                  {stats.weekOverWeekChange.toFixed(0)}%
+                  {currentStats.weekOverWeekChange >= 0 ? "+" : ""}
+                  {currentStats.weekOverWeekChange.toFixed(0)}%
                 </p>
               </div>
               <div className={cn(
                 "rounded-lg p-3",
-                stats.weekOverWeekChange > 0 ? "bg-red-100" : "bg-green-100"
+                currentStats.weekOverWeekChange > 0 ? "bg-red-100" : "bg-green-100"
               )}>
-                {stats.weekOverWeekChange > 0 ? (
+                {currentStats.weekOverWeekChange > 0 ? (
                   <TrendingUp className="h-5 w-5 text-red-600" />
                 ) : (
                   <TrendingDown className="h-5 w-5 text-green-600" />
@@ -380,7 +395,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.dailyByVenue}>
+                <BarChart data={currentStats.dailyByVenue}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis
                     dataKey="date"
@@ -392,44 +407,36 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                     formatter={(value: number) => `$${value.toFixed(2)}`}
                     labelFormatter={(d) => new Date(d).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })}
                   />
-                  <Bar dataKey="BURLEIGH" stackId="a" fill="#3b82f6" name="Burleigh" />
-                  <Bar dataKey="CURRUMBIN" stackId="a" fill="#06b6d4" name="Currumbin" />
+                  {SINGLE_VENUES.map((v) => (
+                    <Bar
+                      key={v}
+                      dataKey={v}
+                      stackId="a"
+                      fill={VENUE_CHART_COLOR[v]}
+                      name={VENUE_SHORT_LABEL[v]}
+                    />
+                  ))}
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
-        {/* Donut — Waste by reason */}
+        {/* Bar — Waste by day of week */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Waste by Reason</CardTitle>
+            <CardTitle className="text-sm font-medium">Waste by Day of Week (30 days)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={stats.byReason.map((r) => ({
-                      name: REASON_LABELS[r.reason] ?? r.reason,
-                      value: r.cost,
-                    }))}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    dataKey="value"
-                    label={({ name, percent }) =>
-                      `${name} ${(percent * 100).toFixed(0)}%`
-                    }
-                    labelLine={false}
-                  >
-                    {stats.byReason.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
+                <BarChart data={currentStats.byDayOfWeek} barCategoryGap="30%">
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `$${v}`} />
                   <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
-                </PieChart>
+                  <Bar dataKey="cost" fill="#f97316" radius={[4, 4, 0, 0]} name="Waste" />
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
@@ -443,7 +450,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={stats.weeklyTrend}>
+                <LineChart data={currentStats.weeklyTrend}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis
                     dataKey="week"
@@ -503,29 +510,6 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                 className="pl-9"
               />
             </div>
-            <Select value={venueFilter} onValueChange={(v) => handleFilterChange("venue", v)}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Venue" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Venues</SelectItem>
-                <SelectItem value="BURLEIGH">Burleigh</SelectItem>
-                <SelectItem value="CURRUMBIN">Currumbin</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={reasonFilter} onValueChange={(v) => handleFilterChange("reason", v)}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Reason" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Reasons</SelectItem>
-                {Object.entries(REASON_LABELS).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           {/* Table */}
@@ -535,11 +519,10 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                 <tr className="border-b border-border text-left text-muted-foreground">
                   {[
                     { key: "date", label: "Date" },
-                    { key: "venue", label: "Venue" },
+                    ...(!activeVenue ? [{ key: "venue", label: "Venue" }] : []),
                     { key: "item", label: "Item" },
                     { key: "qty", label: "Qty" },
                     { key: "cost", label: "Cost" },
-                    { key: "reason", label: "Reason" },
                     { key: "notes", label: "Notes" },
                   ].map((col) => (
                     <th
@@ -572,26 +555,24 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                   <tr key={entry.id} className="border-b border-border last:border-0 hover:bg-muted/50">
                     <td className="px-3 py-2 whitespace-nowrap">
                       {new Date(entry.date).toLocaleDateString("en-AU", {
+                        weekday: "short",
                         day: "numeric",
                         month: "short",
                       })}
                     </td>
-                    <td className="px-3 py-2">
-                      <Badge variant="secondary" className="text-xs">
-                        {entry.venue === "BURLEIGH" ? "Burleigh" : "Currumbin"}
-                      </Badge>
-                    </td>
+                    {!activeVenue && (
+                      <td className="px-3 py-2">
+                        <Badge variant="secondary" className="text-xs">
+                          {VENUE_SHORT_LABEL[entry.venue as SingleVenue] ?? entry.venue}
+                        </Badge>
+                      </td>
+                    )}
                     <td className="px-3 py-2 font-medium">{entry.itemName}</td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       {entry.quantity} {entry.unit}
                     </td>
                     <td className="px-3 py-2 text-red-600 font-medium">
                       ${entry.estimatedCost.toFixed(2)}
-                    </td>
-                    <td className="px-3 py-2">
-                      <Badge variant="outline" className="text-xs">
-                        {REASON_LABELS[entry.reason] ?? entry.reason}
-                      </Badge>
                     </td>
                     <td className="px-3 py-2 text-muted-foreground max-w-[200px] truncate">
                       {entry.notes ?? "—"}

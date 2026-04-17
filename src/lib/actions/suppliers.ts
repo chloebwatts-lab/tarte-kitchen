@@ -93,3 +93,23 @@ export async function deleteSupplier(id: string) {
   revalidatePath("/suppliers")
   return true
 }
+
+export async function getSupplierEmails(supplierId: string) {
+  const emails = await db.supplierEmail.findMany({
+    where: { supplierId },
+    orderBy: { createdAt: "asc" },
+  })
+  return emails.map((e) => ({ id: e.id, email: e.email }))
+}
+
+export async function addSupplierEmail(supplierId: string, email: string) {
+  await db.supplierEmail.create({
+    data: { supplierId, email: email.toLowerCase().trim() },
+  })
+  revalidatePath("/suppliers")
+}
+
+export async function removeSupplierEmail(id: string) {
+  await db.supplierEmail.delete({ where: { id } })
+  revalidatePath("/suppliers")
+}

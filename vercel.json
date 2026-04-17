@@ -1,0 +1,20 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/sync-lightspeed-reports",
+      "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/cron/sync-sales",
+      "schedule": "30 20 * * *"
+    },
+    {
+      "path": "/api/cron/check-invoices",
+      "schedule": "15 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-wastage",
+      "schedule": "0 */6 * * *"
+    }
+  ]
+}

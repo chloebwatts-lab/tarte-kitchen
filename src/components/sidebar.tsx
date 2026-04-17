@@ -10,6 +10,7 @@ import {
   UtensilsCrossed,
   Truck,
   BarChart3,
+  LineChart,
   PanelLeftClose,
   PanelLeft,
   Trash2,
@@ -24,6 +25,7 @@ const navItems = [
   { label: "Menu Items", href: "/dishes", icon: UtensilsCrossed },
   { label: "Suppliers", href: "/suppliers", icon: Truck },
   { label: "Wastage", href: "/wastage", icon: Trash2 },
+  { label: "Analysis", href: "/analysis", icon: LineChart },
   { label: "Reports", href: "/reports", icon: BarChart3 },
   { label: "Settings", href: "/settings/integrations", icon: Settings },
 ];

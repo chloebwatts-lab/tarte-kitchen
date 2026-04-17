@@ -246,8 +246,14 @@ enum MenuCategory {
 
 enum Venue {
   BURLEIGH
-  CURRUMBIN
+  BEACH_HOUSE
+  TEA_GARDEN
   BOTH
+}
+
+enum SalesSource {
+  API
+  EMAIL
 }
 
 model Dish {
@@ -325,7 +331,7 @@ model LightspeedConnection {
 model DailySales {
   id              String   @id @default(cuid())
   date            DateTime @db.Date
-  venue           Venue    // BURLEIGH or CURRUMBIN
+  venue           Venue    // BURLEIGH, BEACH_HOUSE, or TEA_GARDEN
   menuItemName    String
   menuItemId      String?  // Lightspeed item ID
   dishId          String?
@@ -335,6 +341,7 @@ model DailySales {
   revenueExGst    Decimal  @db.Decimal(12, 2)
   voids           Int      @default(0)
   comps           Int      @default(0)
+  source          SalesSource @default(API)
   createdAt       DateTime @default(now())
 
   @@unique([date, venue, menuItemName])
@@ -353,9 +360,21 @@ model DailySalesSummary {
   totalVoids        Int
   totalComps        Int
   theoreticalCogs   Decimal? @db.Decimal(12, 2) // sales x recipe costs
+  source            SalesSource @default(API)
   createdAt         DateTime @default(now())
 
   @@unique([date, venue])
+}
+
+// Idempotency record for Lightspeed EOD email imports
+model LightspeedReportImport {
+  id             String   @id @default(cuid())
+  gmailMessageId String   @unique
+  reportDate     DateTime @db.Date
+  venue          Venue
+  createdAt      DateTime @default(now())
+
+  @@index([reportDate, venue])
 }
 
 // ============================================================

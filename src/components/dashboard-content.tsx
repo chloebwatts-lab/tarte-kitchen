@@ -381,8 +381,9 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">All Venues</SelectItem>
-                  <SelectItem value="BURLEIGH">Burleigh</SelectItem>
-                  <SelectItem value="CURRUMBIN">Currumbin</SelectItem>
+                  <SelectItem value="BURLEIGH">Tarte Bakery (Burleigh)</SelectItem>
+                  <SelectItem value="BEACH_HOUSE">Tarte Beach House</SelectItem>
+                  <SelectItem value="TEA_GARDEN">Tarte Tea Garden</SelectItem>
                   <SelectItem value="BOTH">Both</SelectItem>
                 </SelectContent>
               </Select>

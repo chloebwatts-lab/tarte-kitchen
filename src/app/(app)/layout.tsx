@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/header";
 import { CommandSearch } from "@/components/command-search";
+import { PriceAlertBanner } from "@/components/price-alert-banner";
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -36,6 +37,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main content area — offset by sidebar width (256px = w-64) */}
       <div className="flex flex-1 flex-col md:pl-64">
+        <PriceAlertBanner />
         <Header title={title} />
 
         <main className="flex-1 overflow-y-auto">
