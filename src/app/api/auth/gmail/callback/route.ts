@@ -64,8 +64,8 @@ export async function GET(request: NextRequest) {
       data: {
         accessToken: encrypt(tokenData.access_token),
         refreshToken: encrypt(tokenData.refresh_token),
-        tokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
-        emailAddress: profile.emailAddress,
+        tokenExpiry: new Date(Date.now() + tokenData.expires_in * 1000),
+        email: profile.emailAddress,
       },
     })
 

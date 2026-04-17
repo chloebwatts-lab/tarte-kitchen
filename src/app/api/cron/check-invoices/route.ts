@@ -214,8 +214,9 @@ export async function GET(request: Request) {
           const invoice = await db.invoice.create({
             data: {
               supplierId: supplier.id,
+              supplierName: supplier.name,
               gmailMessageId: ref.id,
-              pdfPath,
+              pdfUrl: pdfPath,
               status: "PENDING",
             },
           })
@@ -236,7 +237,7 @@ export async function GET(request: Request) {
             await db.invoice.update({
               where: { id: invoice.id },
               data: {
-                status: "FAILED",
+                status: "ERROR",
                 errorMessage: errMsg,
               },
             })

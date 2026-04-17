@@ -35,16 +35,24 @@ export async function getDashboardStats() {
 
   // Invoice tables may not exist yet — guard against missing tables
   let invoiceAlertCount = 0
-  let recentInvoices: Array<{ id: string; supplier: { name: string }; invoiceNumber: string | null; totalAmount: unknown; status: string; createdAt: Date }> = []
+  let recentInvoices: Array<{ id: string; supplier: { name: string } | null; invoiceNumber: string | null; totalAmount: unknown; status: string; createdAt: Date }> = []
   try {
     invoiceAlertCount = await db.invoiceLineItem.count({
-      where: { priceChanged: true, acknowledged: false },
+      where: { priceChanged: true, priceApproved: null },
     })
-    recentInvoices = await db.invoice.findMany({
+    const rows = await db.invoice.findMany({
       include: { supplier: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
       take: 5,
     })
+    recentInvoices = rows.map((r) => ({
+      id: r.id,
+      supplier: r.supplier,
+      invoiceNumber: r.invoiceNumber,
+      totalAmount: r.total,
+      status: r.status,
+      createdAt: r.createdAt,
+    }))
   } catch {
     // Invoice tables not yet migrated — skip
   }

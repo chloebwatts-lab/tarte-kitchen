@@ -1,7 +1,7 @@
 import { db } from "@/lib/db"
 import { matchLineItem, detectPriceChange } from "./matcher"
 import type { ParsedInvoice } from "./parser"
-type InvoiceStatus = "PENDING" | "PROCESSED" | "FAILED" | "NEEDS_REVIEW"
+import type { InvoiceStatus } from "@/generated/prisma"
 
 export interface ProcessingResult {
   invoiceId: string
@@ -29,8 +29,8 @@ export async function processInvoice(
       invoiceDate: parsedData.invoiceDate ? new Date(parsedData.invoiceDate) : null,
       subtotal: parsedData.subtotal,
       gst: parsedData.gst,
-      totalAmount: parsedData.total,
-      rawExtraction: JSON.parse(JSON.stringify(parsedData)),
+      total: parsedData.total,
+      extractedData: JSON.parse(JSON.stringify(parsedData)),
     },
   })
 
@@ -41,9 +41,7 @@ export async function processInvoice(
     let ingredientId: string | null = null
     let mappingId: string | null = null
     let priceChanged = false
-    let previousPrice: number | null = null
-    let priceChangeAmount: number | null = null
-    let priceChangePercent: number | null = null
+    let currentPrice: number | null = null
 
     if (matchResult.matched) {
       matchedItems++
@@ -56,9 +54,7 @@ export async function processInvoice(
       if (priceResult.changed) {
         priceChanges++
         priceChanged = true
-        previousPrice = priceResult.previousPrice
-        priceChangeAmount = priceResult.changeAmount
-        priceChangePercent = priceResult.changePercent
+        currentPrice = priceResult.previousPrice
       }
     } else {
       unmatchedItems++
@@ -69,24 +65,21 @@ export async function processInvoice(
       data: {
         invoiceId,
         description: lineItem.description,
-        productCode: lineItem.productCode,
         quantity: lineItem.quantity,
         unit: lineItem.unit,
         unitPrice: lineItem.unitPrice,
         lineTotal: lineItem.totalPrice,
-        gst: lineItem.gst,
         ingredientId,
         mappingId,
         priceChanged,
-        previousPrice,
-        priceChangeAmount,
-        priceChangePercent,
+        currentPrice,
       },
     })
   }
 
-  // Set invoice status
-  const status: InvoiceStatus = unmatchedItems > 0 ? "NEEDS_REVIEW" : "PROCESSED"
+  // Set invoice status. Schema's InvoiceStatus enum does not have
+  // PROCESSED / NEEDS_REVIEW — use the closest equivalents.
+  const status: InvoiceStatus = unmatchedItems > 0 ? "EXTRACTED" : "MATCHED"
 
   await db.invoice.update({
     where: { id: invoiceId },
@@ -115,7 +108,7 @@ export async function applyPriceChanges(invoiceId: string): Promise<number> {
     where: {
       invoiceId,
       priceChanged: true,
-      acknowledged: false,
+      priceApproved: null,
       ingredientId: { not: null },
     },
   })
@@ -134,12 +127,12 @@ export async function applyPriceChanges(invoiceId: string): Promise<number> {
 
   await bulkUpdatePrices(updates)
 
-  // Mark items as acknowledged
+  // Mark items as approved
   await db.invoiceLineItem.updateMany({
     where: {
       id: { in: changedItems.map((i) => i.id) },
     },
-    data: { acknowledged: true },
+    data: { priceApproved: true },
   })
 
   return changedItems.length

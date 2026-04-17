@@ -12,15 +12,15 @@ interface NoMatch {
 }
 
 export async function matchLineItem(
-  supplierProductName: string,
+  invoiceDescription: string,
   supplierId: string
 ): Promise<MatchResult | NoMatch> {
   // 1. Check exact mapping
-  const mapping = await db.supplierIngredientMapping.findUnique({
+  const mapping = await db.supplierItemMapping.findUnique({
     where: {
-      supplierId_supplierProductName: {
+      supplierId_invoiceDescription: {
         supplierId,
-        supplierProductName,
+        invoiceDescription,
       },
     },
   })
@@ -34,10 +34,10 @@ export async function matchLineItem(
   }
 
   // 2. Try case-insensitive mapping match
-  const fuzzyMapping = await db.supplierIngredientMapping.findFirst({
+  const fuzzyMapping = await db.supplierItemMapping.findFirst({
     where: {
       supplierId,
-      supplierProductName: { equals: supplierProductName, mode: "insensitive" },
+      invoiceDescription: { equals: invoiceDescription, mode: "insensitive" },
     },
   })
 
@@ -63,14 +63,14 @@ export async function matchLineItem(
     includeScore: true,
   })
 
-  const results = fuse.search(supplierProductName)
+  const results = fuse.search(invoiceDescription)
   if (results.length > 0 && results[0].score !== undefined && results[0].score < 0.4) {
     // Auto-create mapping for future use
-    const newMapping = await db.supplierIngredientMapping.create({
+    const newMapping = await db.supplierItemMapping.create({
       data: {
         supplierId,
         ingredientId: results[0].item.id,
-        supplierProductName,
+        invoiceDescription,
       },
     })
 
