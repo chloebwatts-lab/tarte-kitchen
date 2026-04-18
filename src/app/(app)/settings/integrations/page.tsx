@@ -23,7 +23,10 @@ export default async function IntegrationsPage() {
         </p>
       </div>
       <XeroConnection status={xeroStatus} />
-      <GmailConnection status={gmailStatus} />
+      <GmailConnection
+        status={gmailStatus}
+        configured={Boolean(process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET)}
+      />
       <LightspeedConnection status={lightspeedStatus} />
     </div>
   )

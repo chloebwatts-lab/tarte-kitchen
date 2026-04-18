@@ -11,9 +11,10 @@ import type { GmailConnectionStatus } from "@/lib/gmail/token"
 
 interface Props {
   status: GmailConnectionStatus
+  configured: boolean
 }
 
-export function GmailConnection({ status }: Props) {
+export function GmailConnection({ status, configured }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [connecting, setConnecting] = useState(false)
@@ -75,15 +76,15 @@ export function GmailConnection({ status }: Props) {
             </ol>
           </div>
 
-          {process.env.NEXT_PUBLIC_GOOGLE_CONFIGURED === "true" ? (
+          {configured ? (
             <Button onClick={handleConnect} disabled={connecting}>
               {connecting ? "Redirecting..." : "Connect Gmail"}
             </Button>
           ) : (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-              Google OAuth credentials are not configured. Add{" "}
-              <code className="rounded bg-amber-100 px-1">GOOGLE_CLIENT_ID</code> and{" "}
-              <code className="rounded bg-amber-100 px-1">GOOGLE_CLIENT_SECRET</code>{" "}
+              Gmail OAuth credentials are not configured. Add{" "}
+              <code className="rounded bg-amber-100 px-1">GMAIL_CLIENT_ID</code> and{" "}
+              <code className="rounded bg-amber-100 px-1">GMAIL_CLIENT_SECRET</code>{" "}
               to your environment variables to enable this integration.
             </div>
           )}
