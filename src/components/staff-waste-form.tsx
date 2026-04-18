@@ -168,8 +168,18 @@ export function StaffWasteForm({ items }: Props) {
         setUnit("")
         setReason("")
         setTimeout(() => setSuccess(null), 4000)
-      } catch {
-        setError("Failed to save — try again")
+      } catch (e) {
+        const msg = (e instanceof Error ? e.message : String(e)) || ''
+        // Server action hash changes on every deploy. If the browser has
+        // a stale bundle, the POST returns 'Failed to find Server Action'.
+        // Reload once so the user gets fresh JS and can retry.
+        if (msg.includes('Server Action') || msg.includes('NEXT_REDIRECT') === false && /action|deployment/i.test(msg)) {
+          setError('Updating — reloading the app...')
+          setTimeout(() => window.location.reload(), 800)
+          return
+        }
+        console.error('Waste save failed:', e)
+        setError('Failed to save — try again')
       }
     })
   }
