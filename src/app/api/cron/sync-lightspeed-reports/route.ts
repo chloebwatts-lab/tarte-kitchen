@@ -168,6 +168,7 @@ export async function GET(request: Request) {
         const parsed: LightspeedPdfReport = await parseLightspeedPdf(pdfBuffer)
         const reportDate = reportDateFromEmail(parsed.reportDate, emailDateHeader)
         const dateKey = reportDate.toISOString().split("T")[0]
+        let messageRecorded = false
 
         for (const site of parsed.sites) {
           const venue = resolveVenue(site.siteName, locationMap)
@@ -230,9 +231,14 @@ export async function GET(request: Request) {
             }
           }
 
-          await db.lightspeedReportImport.create({
-            data: { gmailMessageId: ref.id, reportDate, venue },
-          })
+          // Only record the gmail message once, keyed to the first venue we
+          // processed (the table's unique constraint is on gmailMessageId).
+          if (!messageRecorded) {
+            await db.lightspeedReportImport.create({
+              data: { gmailMessageId: ref.id, reportDate, venue },
+            })
+            messageRecorded = true
+          }
 
           processedVenueDates.add(`${venue}|${dateKey}`)
           reportsIngested++
