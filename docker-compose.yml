@@ -74,6 +74,32 @@ services:
       DOMAIN: ${DOMAIN}
       BASIC_AUTH_HASH: ${BASIC_AUTH_HASH}
 
+  # Simple cron sidecar — fires the app's /api/cron/* endpoints on a daily
+  # schedule. Runs inside the docker network so it can reach `app:3000`
+  # directly; authenticates via CRON_SECRET. Times are in UTC.
+  cron:
+    image: alpine:3.19
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      CRON_SECRET: ${CRON_SECRET}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        apk add --no-cache curl tzdata >/dev/null
+        cat > /etc/crontabs/root <<'CRON'
+        # 08:00 AEST — pull Lightspeed end-of-day email(s) from Gmail
+        0 22 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-lightspeed-reports 2>&1
+        # 08:30 AEST — scan Gmail for new supplier invoices
+        30 22 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/check-invoices 2>&1
+        # 06:30 AEST — API-based sales fallback (runs before the email cron;
+        # email data overwrites if it arrives later)
+        30 20 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-sales 2>&1
+        CRON
+        exec crond -f -l 8 -L /dev/stdout
+
 volumes:
   pgdata:
   caddy_data:
