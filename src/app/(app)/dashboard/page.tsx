@@ -5,10 +5,13 @@ import { DashboardContent } from "@/components/dashboard-content"
 import { getVenueSalesSnapshot } from "@/lib/actions/venue-metrics"
 import { VenueSalesTile } from "@/components/venue-sales-tile"
 import { SINGLE_VENUES } from "@/lib/venues"
+import { getLatestDailyReport } from "@/lib/actions/daily-report"
+import { DailyReportSection } from "@/components/daily-report"
 
 export default async function DashboardPage() {
-  const [stats, ...snapshots] = await Promise.all([
+  const [stats, dailyReport, ...snapshots] = await Promise.all([
     getDashboardStats(),
+    getLatestDailyReport(),
     ...SINGLE_VENUES.map((v) => getVenueSalesSnapshot(v)),
   ])
 
@@ -20,6 +23,9 @@ export default async function DashboardPage() {
           Overview of your kitchen costs and menu performance
         </p>
       </div>
+
+      {/* Lightspeed end-of-day report (mirrors the emailed PDF sections) */}
+      <DailyReportSection data={dailyReport} />
 
       {/* Per-venue revenue & best sellers */}
       <div>

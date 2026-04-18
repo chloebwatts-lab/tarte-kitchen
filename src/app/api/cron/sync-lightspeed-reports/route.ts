@@ -6,10 +6,7 @@ import {
   getValidGmailAccessToken,
 } from "@/lib/gmail/token"
 import { searchMessages, getMessage, getAttachment } from "@/lib/gmail/client"
-import {
-  parseLightspeedReportMessage,
-  type EodReport,
-} from "@/lib/lightspeed/email-parser"
+import { parseLightspeedPdf, type LightspeedPdfReport } from "@/lib/lightspeed/pdf-parser"
 import { normalizeVenueSlug } from "@/lib/venues"
 import { Venue } from "@/generated/prisma"
 import Decimal from "decimal.js"
@@ -20,8 +17,12 @@ import {
 } from "@/lib/sales/enrich"
 
 // Allowlist of Lightspeed sender domains — anything else is ignored so a
-// spoofed email can't poison the numbers.
+// spoofed email can't poison the numbers. Lightspeed AU was originally
+// Kounta, and the Looker reports still come from that domain.
 const LIGHTSPEED_SENDERS = [
+  "insights@kounta.com",
+  "reports@kounta.com",
+  "no-reply@kounta.com",
   "reports@lightspeed-hq.com",
   "no-reply@lightspeedhq.com",
   "noreply@lightspeedhq.com",
@@ -55,33 +56,56 @@ function resolveVenue(
 ): Venue | null {
   const key = reportLocation.toLowerCase().trim()
   if (locationMap.has(key)) return locationMap.get(key) ?? null
-  // Partial match on mapped locations
   for (const [name, venue] of locationMap) {
     if (key.includes(name) || name.includes(key)) return venue
   }
-  // Fall back to the normalizer — handles "Tarte Bakery"/"Beach House"/etc.
   return normalizeVenueSlug(reportLocation)
 }
 
-function parseReportDate(raw: string | undefined): Date {
-  if (raw) {
-    const d = new Date(raw)
-    if (!isNaN(d.getTime())) return d
-    // Try DD/MM/YYYY
-    const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
-    if (m) return new Date(`${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`)
+function findPdfAttachment(
+  payload: unknown
+): { attachmentId: string; filename: string } | null {
+  type Part = {
+    mimeType?: string
+    filename?: string
+    body?: { attachmentId?: string }
+    parts?: Part[]
   }
-  // Default: yesterday in AEST
-  const now = new Date()
+  const walk = (p: Part): { attachmentId: string; filename: string } | null => {
+    const name = p.filename ?? ""
+    const mime = p.mimeType ?? ""
+    if (
+      p.body?.attachmentId &&
+      (mime === "application/pdf" || name.toLowerCase().endsWith(".pdf"))
+    ) {
+      return { attachmentId: p.body.attachmentId, filename: name || "report.pdf" }
+    }
+    for (const sub of p.parts ?? []) {
+      const found = walk(sub)
+      if (found) return found
+    }
+    return null
+  }
+  return walk(payload as Part)
+}
+
+function reportDateFromEmail(
+  reportDate: string | null,
+  emailDateHeader: string | undefined
+): Date {
+  if (reportDate) {
+    const d = new Date(reportDate)
+    if (!isNaN(d.getTime())) return new Date(reportDate)
+  }
+  // Fall back: email arrives the morning after — subtract 1 day in AEST.
+  const base = emailDateHeader ? new Date(emailDateHeader) : new Date()
   const aestOffset = 10 * 60 * 60 * 1000
-  const aestNow = new Date(now.getTime() + aestOffset)
-  const yesterday = new Date(aestNow)
-  yesterday.setDate(yesterday.getDate() - 1)
-  return new Date(yesterday.toISOString().split("T")[0])
+  const aestNow = new Date(base.getTime() + aestOffset)
+  aestNow.setUTCDate(aestNow.getUTCDate() - 1)
+  return new Date(aestNow.toISOString().split("T")[0])
 }
 
 export async function GET(request: Request) {
-  // Verify cron secret
   const authHeader = request.headers.get("authorization")
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 })
@@ -92,8 +116,6 @@ export async function GET(request: Request) {
     return Response.json({ error: "Gmail not connected" }, { status: 400 })
   }
 
-  // Pull Lightspeed location→venue map (optional — if the connection isn't
-  // configured, we still fall back to fuzzy matching via normalizeVenueSlug).
   const lightspeedConnection = await db.lightspeedConnection.findFirst({
     orderBy: { connectedAt: "desc" },
   })
@@ -105,10 +127,7 @@ export async function GET(request: Request) {
     const accessToken = await getValidGmailAccessToken()
 
     const fromQuery = `from:(${LIGHTSPEED_SENDERS.join(" OR ")})`
-    const subjectQuery =
-      'subject:("End of day" OR "EOD" OR "Daily summary" OR "Daily report")'
 
-    // First-run default: scan the last 2 days.
     let afterQuery = ""
     if (connection.lastScanAt) {
       const epochSec = Math.floor(connection.lastScanAt.getTime() / 1000)
@@ -120,121 +139,99 @@ export async function GET(request: Request) {
       afterQuery = ` after:${twoDaysAgoSec}`
     }
 
-    const query = `${fromQuery} ${subjectQuery}${afterQuery}`
+    const query = `${fromQuery} has:attachment filename:pdf${afterQuery}`
     const messageRefs = await searchMessages(accessToken, query, 50)
 
     let reportsIngested = 0
     const errors: string[] = []
-    const processedVenueDates = new Set<string>() // `${venue}|${YYYY-MM-DD}`
+    const processedVenueDates = new Set<string>()
 
     for (const ref of messageRefs) {
       try {
-        // Idempotency — skip messages we've already imported.
         const existing = await db.lightspeedReportImport.findUnique({
           where: { gmailMessageId: ref.id },
         })
         if (existing) continue
 
         const message = await getMessage(accessToken, ref.id)
-        const reports: EodReport[] = await parseLightspeedReportMessage(
-          message,
-          (messageId, attachmentId) =>
-            getAttachment(accessToken, messageId, attachmentId)
-        )
+        const emailDateHeader = (message.payload.headers || []).find(
+          (h) => h.name.toLowerCase() === "date"
+        )?.value
 
-        if (reports.length === 0) {
-          errors.push(`Message ${ref.id}: no reports parsed from attachment or body`)
+        const pdfRef = findPdfAttachment(message.payload)
+        if (!pdfRef) {
+          errors.push(`Message ${ref.id}: no PDF attachment`)
           continue
         }
 
-        for (const report of reports) {
-          const venue = resolveVenue(report.locationName, locationMap)
-          if (!venue) {
+        const pdfBuffer = await getAttachment(accessToken, ref.id, pdfRef.attachmentId)
+        const parsed: LightspeedPdfReport = await parseLightspeedPdf(pdfBuffer)
+        const reportDate = reportDateFromEmail(parsed.reportDate, emailDateHeader)
+        const dateKey = reportDate.toISOString().split("T")[0]
+
+        for (const site of parsed.sites) {
+          const venue = resolveVenue(site.siteName, locationMap)
+          if (!venue || venue === "BOTH") {
             errors.push(
-              `Message ${ref.id}: could not resolve venue for location "${report.locationName}"`
-            )
-            continue
-          }
-          if (venue === "BOTH") {
-            errors.push(
-              `Message ${ref.id}: location "${report.locationName}" mapped to BOTH — expected a single venue`
+              `Message ${ref.id}: unresolved venue for site "${site.siteName}"`
             )
             continue
           }
 
-          const dateObj = parseReportDate(report.date)
-          const dateKey = dateObj.toISOString().split("T")[0]
-
-          // Upsert summary
-          const net =
-            report.netRevenueExGst.isZero() && !report.grossRevenue.isZero()
-              ? report.grossRevenue.div(1.1)
-              : report.netRevenueExGst
-          const avgSpend =
-            report.covers > 0 ? net.div(report.covers) : new Decimal(0)
+          const revenue = site.totalIncTax
+          const revenueExGst = site.totalExTax.isZero()
+            ? revenue.div(1.1)
+            : site.totalExTax
 
           await db.dailySalesSummary.upsert({
-            where: { date_venue: { date: dateObj, venue } },
+            where: { date_venue: { date: reportDate, venue } },
             update: {
-              totalRevenue: report.grossRevenue,
-              totalRevenueExGst: net,
-              totalCovers: report.covers,
-              averageSpend: avgSpend,
-              totalVoids: report.voids,
-              totalComps: report.comps,
+              totalRevenue: revenue,
+              totalRevenueExGst: revenueExGst,
               source: "EMAIL",
             },
             create: {
-              date: dateObj,
+              date: reportDate,
               venue,
-              totalRevenue: report.grossRevenue,
-              totalRevenueExGst: net,
-              totalCovers: report.covers,
-              averageSpend: avgSpend,
-              totalVoids: report.voids,
-              totalComps: report.comps,
+              totalRevenue: revenue,
+              totalRevenueExGst: revenueExGst,
+              totalCovers: 0,
+              averageSpend: new Decimal(0),
+              totalVoids: 0,
+              totalComps: 0,
               source: "EMAIL",
             },
           })
 
-          // Upsert top-N items — email reports typically carry only a
-          // truncated best-sellers list, so we don't delete existing rows
-          // for the day (the API sync may have the long tail).
-          for (const item of report.topItems) {
-            const revenue = item.revenue
-            const revenueExGst = revenue.div(1.1)
-            await db.dailySales.upsert({
-              where: {
-                date_venue_menuItemName: {
-                  date: dateObj,
-                  venue,
-                  menuItemName: item.name,
-                },
-              },
-              update: {
-                quantitySold: item.qty,
-                revenue,
-                revenueExGst,
-                source: "EMAIL",
-              },
-              create: {
-                date: dateObj,
-                venue,
-                menuItemName: item.name,
-                quantitySold: item.qty,
-                revenue,
-                revenueExGst,
-                source: "EMAIL",
-              },
-            })
+          // Clear previous top items for this day+venue so rankings refresh
+          // if the report is re-ingested.
+          await db.dailyCategoryTopItem.deleteMany({
+            where: { date: reportDate, venue },
+          })
+
+          for (const cat of site.categories) {
+            let rank = 0
+            for (const product of cat.topProducts) {
+              rank++
+              try {
+                await db.dailyCategoryTopItem.create({
+                  data: {
+                    date: reportDate,
+                    venue,
+                    categoryName: cat.categoryName,
+                    productName: product.name,
+                    quantity: product.quantity,
+                    rank,
+                  },
+                })
+              } catch {
+                // Duplicate product name in the same category — skip.
+              }
+            }
           }
 
           await db.lightspeedReportImport.create({
-            data: {
-              gmailMessageId: ref.id,
-              reportDate: dateObj,
-              venue,
-            },
+            data: { gmailMessageId: ref.id, reportDate, venue },
           })
 
           processedVenueDates.add(`${venue}|${dateKey}`)
@@ -246,8 +243,6 @@ export async function GET(request: Request) {
       }
     }
 
-    // Re-run enrichment for any (venue, date) we touched so dishId matches and
-    // theoretical COGS/usage numbers reflect the new rows.
     for (const key of processedVenueDates) {
       const [venue, dateKey] = key.split("|") as [Venue, string]
       const dateObj = new Date(dateKey)
@@ -267,7 +262,6 @@ export async function GET(request: Request) {
       }
     }
 
-    // Update watermark
     await db.gmailConnection.update({
       where: { id: connection.id },
       data: { lastScanAt: new Date() },

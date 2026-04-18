@@ -31,6 +31,13 @@ model Supplier {
   phone     String?
   email     String?
   notes     String?
+  /// ISO weekday numbers the supplier delivers on (1=Mon … 7=Sun). Empty
+  /// array means unknown — PO suggestions fall back to a generic 7-day
+  /// window.
+  deliveryDays    Int[]   @default([])
+  /// Hour-of-day (0–23, local time) after which orders placed get pushed
+  /// to the next delivery day. Null = no cutoff modelled.
+  orderCutoffHour Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -39,6 +46,7 @@ model Supplier {
   invoices           Invoice[]
   itemMappings       SupplierItemMapping[]
   emailAddresses     SupplierEmail[]
+  purchaseOrders     PurchaseOrder[]
 }
 
 model SupplierEmail {
@@ -86,6 +94,25 @@ enum IngredientCategory {
   OTHER
 }
 
+/// Australian FSANZ-mandated allergen declarations. Stored on Ingredient
+/// and rolled up through preparations to dishes for menu display.
+enum Allergen {
+  MILK
+  EGG
+  FISH
+  SHELLFISH
+  CRUSTACEAN
+  MOLLUSC
+  TREE_NUT
+  PEANUT
+  WHEAT
+  GLUTEN
+  SOY
+  SESAME
+  LUPIN
+  SULPHITE
+}
+
 model Ingredient {
   id                   String             @id @default(cuid())
   name                 String
@@ -117,6 +144,10 @@ model Ingredient {
   parLevel             Decimal?
   parUnit              String?
 
+  // Allergens declared on this ingredient. Rolled up through preparations
+  // to dishes. FSANZ 1.2.3 compliance.
+  allergens            Allergen[]         @default([])
+
   notes                String?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
@@ -130,6 +161,8 @@ model Ingredient {
   theoreticalUsages    TheoreticalUsage[]
   invoiceLineItems     InvoiceLineItem[]
   supplierMappings     SupplierItemMapping[]
+  stocktakeItems       StocktakeItem[]
+  purchaseOrderLines   PurchaseOrderLine[]
 
   @@unique([name, supplierId])
 }
@@ -377,6 +410,23 @@ model LightspeedReportImport {
   @@index([reportDate, venue])
 }
 
+// Top-N products per category per venue per day, mirrored from the
+// Lightspeed EOD PDF's "Reporting Group Breakdown" section.
+model DailyCategoryTopItem {
+  id           String   @id @default(cuid())
+  date         DateTime @db.Date
+  venue        Venue
+  categoryName String   // e.g. "Alcohol", "Cafe Food", "Coffee & Tea"
+  productName  String
+  quantity     Int
+  rank         Int      // 1 = top seller in this category on this day
+  createdAt    DateTime @default(now())
+
+  @@unique([date, venue, categoryName, productName])
+  @@index([date, venue])
+  @@index([categoryName])
+}
+
 // ============================================================
 // WASTAGE TRACKING
 // ============================================================
@@ -562,4 +612,217 @@ model SupplierItemMapping {
 
   @@unique([supplierId, invoiceDescription])
   @@index([ingredientId])
+}
+
+// ============================================================
+// STOCKTAKE — count inventory to reconcile against theoretical
+// ============================================================
+
+enum StocktakeStatus {
+  DRAFT
+  SUBMITTED
+}
+
+model Stocktake {
+  id         String          @id @default(cuid())
+  date       DateTime        @db.Date
+  venue      Venue
+  status     StocktakeStatus @default(DRAFT)
+  // Total value of counted stock (sum of lineValue) and variance against
+  // theoretical closing stock from the previous stocktake + receipts − usage.
+  totalValue Decimal         @default(0) @db.Decimal(12, 2)
+  notes      String?
+  countedBy  String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  items StocktakeItem[]
+
+  @@unique([date, venue])
+  @@index([venue, date])
+}
+
+model StocktakeItem {
+  id             String     @id @default(cuid())
+  stocktakeId    String
+  stocktake      Stocktake  @relation(fields: [stocktakeId], references: [id], onDelete: Cascade)
+  ingredientId   String
+  ingredient     Ingredient @relation(fields: [ingredientId], references: [id])
+  // Count captured by staff, in the ingredient's natural purchase unit or
+  // its base unit. We normalise to base units when computing variance so a
+  // "2 kg" count and a "2000 g" count line up.
+  countedQty     Decimal    @db.Decimal(12, 3)
+  countedUnit    String
+  countedBaseQty Decimal    @db.Decimal(12, 3) // normalised to base units
+  unitCost       Decimal    @db.Decimal(12, 4) // cost per base unit at count time
+  lineValue      Decimal    @db.Decimal(12, 2) // countedBaseQty * unitCost
+  // Snapshot of the ingredient's expected on-hand at count time, driven by
+  // previous stocktake + invoices received − theoretical usage since.
+  expectedBaseQty Decimal?  @db.Decimal(12, 3)
+  varianceBaseQty Decimal?  @db.Decimal(12, 3) // counted − expected
+  varianceValue   Decimal?  @db.Decimal(12, 2)
+  note           String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@unique([stocktakeId, ingredientId])
+  @@index([ingredientId])
+}
+
+// ============================================================
+// CHECKLISTS / SOPs / TASK MANAGEMENT
+// ============================================================
+
+enum ChecklistCadence {
+  DAILY
+  WEEKLY
+  MONTHLY
+  ON_DEMAND
+}
+
+enum ChecklistShift {
+  OPEN
+  MID
+  CLOSE
+  ANY
+}
+
+enum ChecklistRunStatus {
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
+model ChecklistTemplate {
+  id        String             @id @default(cuid())
+  name      String
+  /// Optional kitchen-area label (e.g. "Front of house", "Pastry section").
+  area      String?
+  venue     Venue              @default(BOTH)
+  cadence   ChecklistCadence   @default(DAILY)
+  shift     ChecklistShift     @default(ANY)
+  /// HACCP / food safety checklists require temperature or evidence capture
+  /// on each run. Surfaces in Reports → Food Safety.
+  isFoodSafety Boolean          @default(false)
+  isActive  Boolean            @default(true)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  items ChecklistTemplateItem[]
+  runs  ChecklistRun[]
+
+  @@index([venue, cadence])
+}
+
+model ChecklistTemplateItem {
+  id           String            @id @default(cuid())
+  templateId   String
+  template     ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  sortOrder    Int               @default(0)
+  label        String
+  /// Optional longer instructions shown when the staff member opens the item.
+  instructions String?
+  /// HACCP capture hints — if set, the run item will require a temp / note.
+  requireTemp  Boolean           @default(false)
+  requireNote  Boolean           @default(false)
+
+  runItems ChecklistRunItem[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ChecklistRun {
+  id         String             @id @default(cuid())
+  templateId String
+  template   ChecklistTemplate  @relation(fields: [templateId], references: [id])
+  venue      Venue
+  runDate    DateTime           @db.Date
+  shift      ChecklistShift     @default(ANY)
+  status     ChecklistRunStatus @default(IN_PROGRESS)
+  completedBy String?
+  completedAt DateTime?
+  notes      String?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  items ChecklistRunItem[]
+
+  @@unique([templateId, venue, runDate, shift])
+  @@index([runDate, venue])
+}
+
+model ChecklistRunItem {
+  id                 String                @id @default(cuid())
+  runId              String
+  run                ChecklistRun          @relation(fields: [runId], references: [id], onDelete: Cascade)
+  templateItemId     String
+  templateItem       ChecklistTemplateItem @relation(fields: [templateItemId], references: [id])
+  /// Checked-off timestamp. Null until staff confirms the line.
+  checkedAt          DateTime?
+  checkedBy          String?
+  tempCelsius        Decimal?              @db.Decimal(5, 2)
+  note               String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  @@unique([runId, templateItemId])
+}
+
+// ============================================================
+// PURCHASE ORDERS — auto-generated from par + usage, sent to supplier
+// ============================================================
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SUBMITTED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id           String              @id @default(cuid())
+  supplierId   String
+  supplier     Supplier            @relation(fields: [supplierId], references: [id])
+  venue        Venue
+  status       PurchaseOrderStatus @default(DRAFT)
+  orderDate    DateTime            @db.Date
+  expectedDate DateTime?           @db.Date
+  subtotal     Decimal             @default(0) @db.Decimal(12, 2)
+  notes        String?
+  submittedBy  String?
+  submittedAt  DateTime?
+  /// Optional snapshot of the email we generated when submitting — lets
+  /// us resend or inspect what went out without pulling Gmail back in.
+  emailSubject String?
+  emailTo      String?
+  emailBody    String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  lines PurchaseOrderLine[]
+
+  @@index([supplierId, status])
+  @@index([venue, orderDate])
+}
+
+model PurchaseOrderLine {
+  id           String        @id @default(cuid())
+  orderId      String
+  order        PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  ingredientId String
+  ingredient   Ingredient    @relation(fields: [ingredientId], references: [id])
+  quantity     Decimal       @db.Decimal(12, 3)
+  unit         String
+  unitPrice    Decimal       @db.Decimal(12, 4)
+  lineTotal    Decimal       @db.Decimal(12, 2)
+  /// Quantity received against this line (fill as the delivery arrives).
+  /// Used for partial-delivery tracking & invoice reconciliation.
+  receivedQty  Decimal?      @db.Decimal(12, 3)
+  note         String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([ingredientId])
+  @@index([orderId])
 }
