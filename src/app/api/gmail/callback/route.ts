@@ -5,12 +5,26 @@ import { db } from "@/lib/db"
 import { encrypt } from "@/lib/encryption"
 import { getGmailRedirectUri } from "@/lib/gmail/client"
 
+/**
+ * Behind the Caddy reverse proxy inside docker-compose, Next.js sees the
+ * request as coming to its internal bind (0.0.0.0:3000) rather than the
+ * public host. Building redirects with `new URL(path, request.url)` leaks
+ * that internal address into the Location header and the browser then
+ * fails with ERR_SSL_PROTOCOL_ERROR trying to reach 0.0.0.0. Use the
+ * configured public base URL instead.
+ */
+function absoluteUrl(path: string, request: NextRequest): string {
+  const base =
+    process.env.NEXTAUTH_URL ??
+    (process.env.DOMAIN ? `https://${process.env.DOMAIN}` : null) ??
+    request.nextUrl.origin
+  return new URL(path, base).toString()
+}
+
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code")
   if (!code) {
-    return NextResponse.redirect(
-      new URL("/settings/integrations?error=no_code", request.url)
-    )
+    return NextResponse.redirect(absoluteUrl("/settings/integrations?error=no_code", request))
   }
 
   const clientId = process.env.GMAIL_CLIENT_ID!
@@ -35,7 +49,7 @@ export async function GET(request: NextRequest) {
       const error = await tokenRes.text()
       console.error("Gmail token exchange failed:", error)
       return NextResponse.redirect(
-        new URL("/settings/integrations?error=token_exchange_failed", request.url)
+        absoluteUrl("/settings/integrations?error=token_exchange_failed", request)
       )
     }
 
@@ -50,7 +64,7 @@ export async function GET(request: NextRequest) {
     if (!profileRes.ok) {
       console.error("Gmail profile fetch failed:", await profileRes.text())
       return NextResponse.redirect(
-        new URL("/settings/integrations?error=profile_fetch_failed", request.url)
+        absoluteUrl("/settings/integrations?error=profile_fetch_failed", request)
       )
     }
 
@@ -70,12 +84,12 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.redirect(
-      new URL("/settings/integrations?gmail_connected=true", request.url)
+      absoluteUrl("/settings/integrations?gmail_connected=true", request)
     )
   } catch (err) {
     console.error("Gmail OAuth callback error:", err)
     return NextResponse.redirect(
-      new URL("/settings/integrations?error=unexpected", request.url)
+      absoluteUrl("/settings/integrations?error=unexpected", request)
     )
   }
 }
