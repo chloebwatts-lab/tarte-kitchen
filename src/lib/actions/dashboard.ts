@@ -130,7 +130,7 @@ export async function getDashboardStats() {
     invoiceAlertCount,
     recentInvoices: recentInvoices.map((inv) => ({
       id: inv.id,
-      supplierName: inv.supplier.name,
+      supplierName: inv.supplier?.name ?? "Unknown",
       invoiceNumber: inv.invoiceNumber,
       totalAmount: inv.totalAmount ? Number(inv.totalAmount) : null,
       status: inv.status,
