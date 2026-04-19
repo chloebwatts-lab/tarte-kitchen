@@ -157,12 +157,17 @@ export async function listEmployees(): Promise<DeputyEmployee[]> {
 export async function listTimesheetsSince(
   sinceUnix: number
 ): Promise<DeputyTimesheet[]> {
+  // Deputy's /QUERY search shape: { search: { <alias>: { field, type, data } } }
+  // where `type` ∈ eq|ne|gt|ge|lt|le|like|in and `data` is the raw value
+  // (integer for timestamp fields). Using `stringValue` returned 400.
   return deputyFetch<DeputyTimesheet[]>(
     "/api/v1/resource/Timesheet/QUERY",
     {
       method: "POST",
       body: {
-        search: { StartTime: { stringValue: sinceUnix, type: "ge" } },
+        search: {
+          s1: { field: "StartTime", type: "ge", data: sinceUnix },
+        },
         max: 500,
         sort: { StartTime: "asc" },
       },
