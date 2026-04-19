@@ -15,8 +15,9 @@ echo "▶ Pulling latest main..."
 git fetch origin main
 git reset --hard origin/main
 
-echo "▶ Rebuilding app image..."
+echo "▶ Rebuilding app + migrate images..."
 docker compose build app
+docker compose --profile tools build migrate
 
 echo "▶ Applying pending DB migrations..."
 docker compose --profile tools run --rm migrate
