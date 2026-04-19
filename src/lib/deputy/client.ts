@@ -223,6 +223,26 @@ export async function syncDeputyTimesheets() {
     }
     const emp = empMap.get(t.Employee)
     const name = emp?.DisplayName ?? `Employee #${t.Employee}`
+    // Defensive: coerce every numeric to a safe value before handing to
+    // Decimal. Deputy's Timesheet rows occasionally have null/undefined
+    // for PayRate (unpriced shifts) and have been seen to omit Cost on
+    // rosters that haven't been costed yet.
+    const safeDecimal = (v: unknown): InstanceType<typeof Decimal> =>
+      new Decimal(
+        typeof v === "number" || typeof v === "string" ? v : 0
+      )
+    const safeDecimalOrNull = (
+      v: unknown
+    ): InstanceType<typeof Decimal> | null =>
+      v == null ? null : safeDecimal(v)
+
+    const startMs = Number(t.StartTime) * 1000
+    const endMs = Number(t.EndTime) * 1000
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) {
+      skipped += 1
+      continue
+    }
+
     await db.labourShift.upsert({
       where: { deputyId: String(t.Id) },
       create: {
@@ -230,20 +250,20 @@ export async function syncDeputyTimesheets() {
         employeeName: name,
         employeeId: String(t.Employee),
         venue,
-        shiftStart: new Date(t.StartTime * 1000),
-        shiftEnd: new Date(t.EndTime * 1000),
-        hours: new Decimal(t.TotalTime ?? 0),
-        cost: new Decimal(t.Cost ?? 0),
-        payRate: t.PayRate !== null ? new Decimal(t.PayRate) : null,
+        shiftStart: new Date(startMs),
+        shiftEnd: new Date(endMs),
+        hours: safeDecimal(t.TotalTime),
+        cost: safeDecimal(t.Cost),
+        payRate: safeDecimalOrNull(t.PayRate),
         approved: !!t.Approved,
       },
       update: {
         employeeName: name,
-        shiftStart: new Date(t.StartTime * 1000),
-        shiftEnd: new Date(t.EndTime * 1000),
-        hours: new Decimal(t.TotalTime ?? 0),
-        cost: new Decimal(t.Cost ?? 0),
-        payRate: t.PayRate !== null ? new Decimal(t.PayRate) : null,
+        shiftStart: new Date(startMs),
+        shiftEnd: new Date(endMs),
+        hours: safeDecimal(t.TotalTime),
+        cost: safeDecimal(t.Cost),
+        payRate: safeDecimalOrNull(t.PayRate),
         approved: !!t.Approved,
       },
     })
