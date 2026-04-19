@@ -22,7 +22,7 @@ export async function GET() {
   const clientId = process.env.DEPUTY_CLIENT_ID
   const install = process.env.DEPUTY_INSTALL
   const redirectUri =
-    process.env.DEPUTY_REDIRECT_URI ??
+    process.env.DEPUTY_REDIRECT_URI ||
     "https://kitchen.tarte.com.au/api/deputy/callback"
   if (!clientId) {
     return NextResponse.json(

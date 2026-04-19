@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   }
 
   const redirectUri =
-    process.env.DEPUTY_REDIRECT_URI ??
+    process.env.DEPUTY_REDIRECT_URI ||
     "https://kitchen.tarte.com.au/api/deputy/callback"
 
   // Install-local token endpoint. Per Deputy docs, path is
