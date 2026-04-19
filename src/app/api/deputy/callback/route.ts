@@ -20,6 +20,28 @@ function absoluteUrl(path: string, request: NextRequest): string {
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code")
+  const deputyError = request.nextUrl.searchParams.get("error")
+  const deputyErrorDesc = request.nextUrl.searchParams.get("error_description")
+
+  // Log everything we got — this is invaluable when Deputy redirects us
+  // back with a non-standard error format.
+  console.log("[deputy/callback] incoming", {
+    code: code ? `${code.slice(0, 8)}…` : null,
+    error: deputyError,
+    error_description: deputyErrorDesc,
+    allParams: Object.fromEntries(request.nextUrl.searchParams.entries()),
+  })
+
+  if (deputyError) {
+    const msg = deputyErrorDesc || deputyError
+    return NextResponse.redirect(
+      absoluteUrl(
+        `/settings/integrations?error=deputy_${deputyError}&msg=${encodeURIComponent(msg.slice(0, 200))}`,
+        request
+      )
+    )
+  }
+
   if (!code) {
     return NextResponse.redirect(
       absoluteUrl("/settings/integrations?error=missing_code", request)
