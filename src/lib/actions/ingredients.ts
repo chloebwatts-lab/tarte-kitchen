@@ -91,6 +91,7 @@ export async function createIngredient(data: {
   parLevel?: number | null
   parUnit?: string | null
   notes?: string | null
+  allergens?: string[]
 }) {
   const ingredient = await db.ingredient.create({
     data: {
@@ -108,6 +109,7 @@ export async function createIngredient(data: {
       parLevel: data.parLevel ?? null,
       parUnit: data.parUnit || null,
       notes: data.notes || null,
+      allergens: (data.allergens ?? []) as never,
     },
   })
 
@@ -133,6 +135,7 @@ export async function updateIngredient(
     parLevel?: number | null
     parUnit?: string | null
     notes?: string | null
+    allergens?: string[]
   }
 ) {
   const current = await db.ingredient.findUnique({ where: { id } })
@@ -170,6 +173,9 @@ export async function updateIngredient(
       parLevel: data.parLevel ?? null,
       parUnit: data.parUnit || null,
       notes: data.notes || null,
+      ...(data.allergens !== undefined
+        ? { allergens: data.allergens as never }
+        : {}),
     },
   })
 

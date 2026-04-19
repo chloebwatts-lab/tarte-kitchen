@@ -23,5 +23,13 @@ export const config = {
     "/wastage/:path*",
     "/settings/:path*",
     "/reports/:path*",
+    "/analysis/:path*",
+    "/menu-engineering/:path*",
+    "/prep-sheet/:path*",
+    "/stocktake/:path*",
+    "/checklists/:path*",
+    "/orders/:path*",
+    "/labour/:path*",
+    "/kitchen/:path*",
   ],
 }

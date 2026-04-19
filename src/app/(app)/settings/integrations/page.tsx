@@ -3,16 +3,20 @@ export const dynamic = "force-dynamic"
 import { getLightspeedStatus } from "@/lib/actions/lightspeed"
 import { getGmailStatus } from "@/lib/actions/gmail"
 import { getXeroStatus } from "@/lib/actions/xero"
+import { getDeputyStatus } from "@/lib/actions/deputy"
 import { LightspeedConnection } from "@/components/lightspeed-connection"
 import { GmailConnection } from "@/components/gmail-connection"
 import { XeroConnection } from "@/components/xero-connection"
+import { DeputyConnection } from "@/components/deputy-connection"
 
 export default async function IntegrationsPage() {
-  const [lightspeedStatus, gmailStatus, xeroStatus] = await Promise.all([
-    getLightspeedStatus(),
-    getGmailStatus(),
-    getXeroStatus(),
-  ])
+  const [lightspeedStatus, gmailStatus, xeroStatus, deputyStatus] =
+    await Promise.all([
+      getLightspeedStatus(),
+      getGmailStatus(),
+      getXeroStatus(),
+      getDeputyStatus(),
+    ])
 
   return (
     <div className="space-y-6">
@@ -28,6 +32,12 @@ export default async function IntegrationsPage() {
         configured={Boolean(process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET)}
       />
       <LightspeedConnection status={lightspeedStatus} />
+      <DeputyConnection
+        status={deputyStatus}
+        configured={Boolean(
+          process.env.DEPUTY_CLIENT_ID && process.env.DEPUTY_CLIENT_SECRET
+        )}
+      />
     </div>
   )
 }

@@ -524,6 +524,50 @@ model WeeklyLabourCost {
 }
 
 // ============================================================
+// DEPUTY INTEGRATION — rostered & actual labour hours per venue
+// ============================================================
+
+model DeputyConnection {
+  id             String    @id @default(cuid())
+  /// Deputy subdomain (e.g. "tarte" in tarte.au.deputy.com)
+  install        String
+  region         String    @default("au") // au | na | eu
+  accessToken    String    // Encrypted at rest
+  refreshToken   String?   // Encrypted at rest — some Deputy plans only hand out long-lived tokens
+  tokenExpiresAt DateTime?
+  /// JSON array of { id, name, venue } mapping Deputy operational-unit /
+  /// location ids to our Venue enum.
+  locations      Json?
+  connectedAt    DateTime  @default(now())
+  lastSyncedAt   DateTime?
+  updatedAt      DateTime  @updatedAt
+}
+
+/// One row per timesheet entry ingested from Deputy. Keyed by Deputy's
+/// timesheet id for idempotent re-sync.
+model LabourShift {
+  id              String   @id @default(cuid())
+  deputyId        String   @unique
+  employeeName    String
+  employeeId      String?  // Deputy employee id — useful for future drill-downs
+  venue           Venue
+  shiftStart      DateTime
+  shiftEnd        DateTime
+  hours           Decimal  @db.Decimal(6, 2)
+  /// Gross cost = hours × payRate (pulled from Deputy). Encrypted? No —
+  /// this is aggregated management data we already surface in labour %.
+  cost            Decimal  @db.Decimal(10, 2)
+  payRate         Decimal? @db.Decimal(8, 2)
+  area            String?  // Deputy "Area" (e.g. "Kitchen", "Floor")
+  approved        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([venue, shiftStart])
+  @@index([shiftStart])
+}
+
+// ============================================================
 // INVOICE MONITORING
 // ============================================================
 
@@ -704,12 +748,19 @@ model ChecklistTemplate {
   /// HACCP / food safety checklists require temperature or evidence capture
   /// on each run. Surfaces in Reports → Food Safety.
   isFoodSafety Boolean          @default(false)
+  /// Hour-of-day (0–23, AEST) by which this checklist must be complete.
+  /// If still incomplete after this hour, the alert cron fires once per
+  /// run and writes a ChecklistAlert row.
+  dueByHour     Int?
+  /// Emails that receive alerts when this template is overdue. Comma-free.
+  alertEmails   String[]       @default([])
   isActive  Boolean            @default(true)
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 
-  items ChecklistTemplateItem[]
-  runs  ChecklistRun[]
+  items  ChecklistTemplateItem[]
+  runs   ChecklistRun[]
+  alerts ChecklistAlert[]
 
   @@index([venue, cadence])
 }
@@ -766,6 +817,27 @@ model ChecklistRunItem {
   updatedAt          DateTime              @updatedAt
 
   @@unique([runId, templateItemId])
+}
+
+/// One row per (template, venue, date) overdue event. Idempotent so the
+/// cron can re-run every 15 minutes without spamming. `resolvedAt` is set
+/// when the run is subsequently completed or cancelled.
+model ChecklistAlert {
+  id         String            @id @default(cuid())
+  templateId String
+  template   ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  venue      Venue
+  runDate    DateTime          @db.Date
+  /// Snapshot of the completion state at alert time.
+  completedItems Int
+  totalItems     Int
+  emailedTo      String[]      @default([])
+  emailedAt      DateTime?
+  resolvedAt     DateTime?
+  createdAt      DateTime      @default(now())
+
+  @@unique([templateId, venue, runDate])
+  @@index([resolvedAt])
 }
 
 // ============================================================

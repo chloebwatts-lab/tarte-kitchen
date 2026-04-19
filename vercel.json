@@ -15,6 +15,14 @@
     {
       "path": "/api/cron/sync-wastage",
       "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/checklist-alerts",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-deputy",
+      "schedule": "0 * * * *"
     }
   ]
 }

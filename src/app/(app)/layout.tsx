@@ -15,6 +15,13 @@ const pageTitles: Record<string, string> = {
   "/wastage": "Wastage",
   "/settings": "Settings",
   "/reports": "Reports",
+  "/menu-engineering": "Menu Matrix",
+  "/prep-sheet": "Prep Sheet",
+  "/stocktake": "Stocktake",
+  "/checklists": "Checklists",
+  "/orders": "Orders",
+  "/labour": "Labour",
+  "/wastage/analytics": "Wastage Analytics",
 };
 
 function getPageTitle(pathname: string): string {

@@ -28,6 +28,8 @@ import {
 import { Separator } from "@/components/ui/separator"
 
 import { createIngredient, updateIngredient } from "@/lib/actions/ingredients"
+import { AllergenPicker } from "@/components/allergen-picker"
+import type { Allergen } from "@/generated/prisma"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -55,6 +57,7 @@ interface Ingredient {
   parLevel: number | null
   parUnit: string | null
   notes: string | null
+  allergens?: Allergen[]
   createdAt: Date | string
   updatedAt: Date | string
 }
@@ -186,6 +189,7 @@ export function IngredientForm({ ingredient, suppliers, onSuccess }: IngredientF
   const [gramsPerUnit, setGramsPerUnit] = useState("")
   const [wastePercentage, setWastePercentage] = useState("")
   const [notes, setNotes] = useState("")
+  const [allergens, setAllergens] = useState<Allergen[]>([])
   const [error, setError] = useState<string | null>(null)
 
   // Reset form when dialog opens
@@ -205,6 +209,7 @@ export function IngredientForm({ ingredient, suppliers, onSuccess }: IngredientF
         setGramsPerUnit(ingredient.gramsPerUnit != null ? String(ingredient.gramsPerUnit) : "")
         setWastePercentage(String(ingredient.wastePercentage))
         setNotes(ingredient.notes || "")
+        setAllergens(ingredient.allergens ?? [])
       } else {
         setName("")
         setCategory("")
@@ -219,6 +224,7 @@ export function IngredientForm({ ingredient, suppliers, onSuccess }: IngredientF
         setGramsPerUnit("")
         setWastePercentage("")
         setNotes("")
+        setAllergens([])
       }
       setError(null)
     }
@@ -301,6 +307,7 @@ export function IngredientForm({ ingredient, suppliers, onSuccess }: IngredientF
       gramsPerUnit: gramsPerUnit && Number(gramsPerUnit) > 0 ? Number(gramsPerUnit) : null,
       wastePercentage: Number(wastePercentage) || 0,
       notes: notes.trim() || null,
+      allergens,
     }
 
     startTransition(async () => {
@@ -320,7 +327,7 @@ export function IngredientForm({ ingredient, suppliers, onSuccess }: IngredientF
   }, [
     name, category, baseUnitType, supplierId, supplierProductCode,
     purchaseQuantity, purchaseUnit, purchasePrice, baseUnitsPerPurchase,
-    gramsPerUnit, wastePercentage, notes, isEditing, ingredient, router, onSuccess,
+    gramsPerUnit, wastePercentage, notes, allergens, isEditing, ingredient, router, onSuccess,
   ])
 
   const purchaseUnits = PURCHASE_UNITS_BY_TYPE[baseUnitType] || PURCHASE_UNITS_BY_TYPE.WEIGHT
@@ -560,6 +567,17 @@ export function IngredientForm({ ingredient, suppliers, onSuccess }: IngredientF
             <p className="text-[11px] text-muted-foreground">
               Percentage lost to trimming, peeling, or bones. A 38% waste on striploin means you
               only use 62% of what you buy.
+            </p>
+          </div>
+
+          {/* Allergens */}
+          <div className="space-y-2">
+            <Label>Allergens</Label>
+            <AllergenPicker value={allergens} onChange={setAllergens} />
+            <p className="text-[11px] text-muted-foreground">
+              Declared allergens (FSANZ 1.2.3). Rolls up to any preparation
+              and dish that uses this ingredient, including printable recipe
+              cards.
             </p>
           </div>
 
