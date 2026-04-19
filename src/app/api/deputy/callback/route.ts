@@ -25,9 +25,10 @@ export async function GET(request: Request) {
     process.env.DEPUTY_REDIRECT_URI ??
     "https://kitchen.tarte.com.au/api/deputy/callback"
 
-  // Install-local token endpoint — matches the install-local authorize URL.
+  // Install-local token endpoint. Per Deputy docs, path is
+  // /oauth/access_token (no /exec/ prefix, unlike the authorize URL).
   const tokenRes = await fetch(
-    `https://${installHost}/exec/api/v1/oauth/access_token`,
+    `https://${installHost}/oauth/access_token`,
     {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },

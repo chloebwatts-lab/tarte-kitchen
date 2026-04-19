@@ -40,8 +40,9 @@ export async function GET() {
     )
   }
 
-  // Install-local authorise endpoint. Path is `/exec/api/v1/oauth/authorize`.
-  const url = new URL(`https://${install}/exec/api/v1/oauth/authorize`)
+  // Install-local authorise endpoint. Per Deputy docs for OAuth apps
+  // registered via /exec/devapp/oauth_clients, path is /exec/devapp/oauth/login.
+  const url = new URL(`https://${install}/exec/devapp/oauth/login`)
   url.searchParams.set("client_id", clientId)
   url.searchParams.set("redirect_uri", redirectUri)
   url.searchParams.set("response_type", "code")

@@ -91,7 +91,7 @@ async function getValidAccessToken(): Promise<{ token: string; install: string; 
     // Install-local refresh endpoint — same host the OAuth authorize
     // flow used. We rebuild from the stored install/region.
     const res = await fetch(
-      `https://${c.install}.${c.region}.deputy.com/exec/api/v1/oauth/access_token`,
+      `https://${c.install}.${c.region}.deputy.com/oauth/access_token`,
       {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
