@@ -70,8 +70,8 @@ export function normalizeVenueSlug(input: string | null | undefined): Venue | nu
     return "BEACH_HOUSE"
   }
   if (s.includes("BAKERY") || s.includes("BURLEIGH")) return "BURLEIGH"
-  // "Tarte Market" is the Lightspeed site name for the Burleigh bakery.
-  if (s.includes("MARKET")) return "BURLEIGH"
+  // "Tarte Market" is Lightspeed's site name for Tarte Tea Garden.
+  if (s.includes("MARKET")) return "TEA_GARDEN"
   if (s.includes("CURRUMBIN")) return "BEACH_HOUSE"
 
   return null
