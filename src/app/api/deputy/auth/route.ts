@@ -40,9 +40,12 @@ export async function GET() {
     )
   }
 
-  // Install-local authorise endpoint. Per Deputy docs for OAuth apps
-  // registered via /exec/devapp/oauth_clients, path is /exec/devapp/oauth/login.
-  const url = new URL(`https://${install}/exec/devapp/oauth/login`)
+  // Install-local authorise endpoint — /my/oauth/login on the install's
+  // own hostname. Hitting this while logged-in to the install serves the
+  // consent screen directly. Hitting the equivalent once.deputy.com URL
+  // leaves Deputy unable to resolve which install the client belongs to
+  // (empty "Select business" dropdown).
+  const url = new URL(`https://${install}/my/oauth/login`)
   url.searchParams.set("client_id", clientId)
   url.searchParams.set("redirect_uri", redirectUri)
   url.searchParams.set("response_type", "code")
