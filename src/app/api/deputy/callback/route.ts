@@ -1,22 +1,37 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { encrypt } from "@/lib/encryption"
 
-export async function GET(request: Request) {
-  const url = new URL(request.url)
-  const code = url.searchParams.get("code")
+/**
+ * Behind the Caddy reverse proxy inside docker-compose, Next.js sees the
+ * request as coming to its internal bind (0.0.0.0:3000) rather than the
+ * public host. Building redirects with `new URL(path, request.url)` leaks
+ * that internal address into the Location header and the browser fails
+ * with ERR_CONNECTION_REFUSED on 0.0.0.0. Use the configured public
+ * base URL instead.
+ */
+function absoluteUrl(path: string, request: NextRequest): string {
+  const base =
+    process.env.NEXTAUTH_URL ||
+    (process.env.DOMAIN ? `https://${process.env.DOMAIN}` : null) ||
+    request.nextUrl.origin
+  return new URL(path, base).toString()
+}
+
+export async function GET(request: NextRequest) {
+  const code = request.nextUrl.searchParams.get("code")
   if (!code) {
     return NextResponse.redirect(
-      new URL("/settings/integrations?error=missing_code", request.url)
+      absoluteUrl("/settings/integrations?error=missing_code", request)
     )
   }
 
   const installHost = process.env.DEPUTY_INSTALL
   if (!installHost) {
     return NextResponse.redirect(
-      new URL(
+      absoluteUrl(
         "/settings/integrations?error=deputy_install_not_configured",
-        request.url
+        request
       )
     )
   }
@@ -45,9 +60,9 @@ export async function GET(request: Request) {
   if (!tokenRes.ok) {
     const text = await tokenRes.text()
     return NextResponse.redirect(
-      new URL(
+      absoluteUrl(
         `/settings/integrations?error=token_exchange&msg=${encodeURIComponent(text.slice(0, 120))}`,
-        request.url
+        request
       )
     )
   }
@@ -91,6 +106,6 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.redirect(
-    new URL("/settings/integrations?connected=deputy", request.url)
+    absoluteUrl("/settings/integrations?connected=deputy", request)
   )
 }
