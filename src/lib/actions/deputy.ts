@@ -35,10 +35,15 @@ export async function getDeputyStatus(): Promise<DeputyStatus> {
       unmappedCount: 0,
     }
   }
+  // Three ways the connection can be healthy:
+  //   1. Has a refresh token — we can refresh on demand (OAuth mode).
+  //   2. Has no expiry at all — it's a permanent token (install-minted),
+  //      which never expires.
+  //   3. Has an expiry still in the future — OAuth token still valid.
   const tokenHealthy =
     connection.refreshToken !== null ||
-    (connection.tokenExpiresAt !== null &&
-      connection.tokenExpiresAt.getTime() > Date.now())
+    connection.tokenExpiresAt === null ||
+    connection.tokenExpiresAt.getTime() > Date.now()
 
   const locs = (connection.locations as {
     id: number
