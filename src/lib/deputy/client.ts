@@ -88,11 +88,16 @@ async function getValidAccessToken(): Promise<{ token: string; install: string; 
       grant_type: "refresh_token",
       scope: "longlife_refresh_token",
     })
-    const res = await fetch("https://once.deputy.com/my/oauth/access_token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params.toString(),
-    })
+    // Install-local refresh endpoint — same host the OAuth authorize
+    // flow used. We rebuild from the stored install/region.
+    const res = await fetch(
+      `https://${c.install}.${c.region}.deputy.com/exec/api/v1/oauth/access_token`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params.toString(),
+      }
+    )
     if (!res.ok) throw new Error(`Deputy token refresh failed: ${await res.text()}`)
     const data = (await res.json()) as {
       access_token: string

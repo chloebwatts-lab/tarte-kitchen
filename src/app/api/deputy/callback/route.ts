@@ -11,22 +11,36 @@ export async function GET(request: Request) {
     )
   }
 
+  const installHost = process.env.DEPUTY_INSTALL
+  if (!installHost) {
+    return NextResponse.redirect(
+      new URL(
+        "/settings/integrations?error=deputy_install_not_configured",
+        request.url
+      )
+    )
+  }
+
   const redirectUri =
     process.env.DEPUTY_REDIRECT_URI ??
     "https://kitchen.tarte.com.au/api/deputy/callback"
 
-  const tokenRes = await fetch("https://once.deputy.com/my/oauth/access_token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: process.env.DEPUTY_CLIENT_ID ?? "",
-      client_secret: process.env.DEPUTY_CLIENT_SECRET ?? "",
-      code,
-      redirect_uri: redirectUri,
-      grant_type: "authorization_code",
-      scope: "longlife_refresh_token",
-    }).toString(),
-  })
+  // Install-local token endpoint — matches the install-local authorize URL.
+  const tokenRes = await fetch(
+    `https://${installHost}/exec/api/v1/oauth/access_token`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: process.env.DEPUTY_CLIENT_ID ?? "",
+        client_secret: process.env.DEPUTY_CLIENT_SECRET ?? "",
+        code,
+        redirect_uri: redirectUri,
+        grant_type: "authorization_code",
+        scope: "longlife_refresh_token",
+      }).toString(),
+    }
+  )
   if (!tokenRes.ok) {
     const text = await tokenRes.text()
     return NextResponse.redirect(
@@ -40,15 +54,17 @@ export async function GET(request: Request) {
     access_token: string
     refresh_token?: string
     expires_in: number
-    endpoint?: string // e.g. "https://tarte.au.deputy.com/"
+    endpoint?: string
   }
 
-  // Deputy returns the install endpoint with the token — parse it so we
-  // don't make the admin type it in.
-  let install = "tarte"
-  let region = "au"
-  if (token.endpoint) {
-    const m = token.endpoint.match(/^https:\/\/([^.]+)\.([^.]+)\.deputy\.com/)
+  // Parse install + region from DEPUTY_INSTALL (the env var we trust) or
+  // from Deputy's endpoint field if the env var isn't in the expected
+  // {install}.{region}.deputy.com form.
+  const hostMatch = installHost.match(/^([^.]+)\.([^.]+)\.deputy\.com$/i)
+  let install = hostMatch?.[1] ?? "tarte"
+  let region = hostMatch?.[2] ?? "au"
+  if (!hostMatch && token.endpoint) {
+    const m = token.endpoint.match(/^https?:\/\/([^.]+)\.([^.]+)\.deputy\.com/)
     if (m) {
       install = m[1]
       region = m[2]
