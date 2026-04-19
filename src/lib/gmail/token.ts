@@ -82,7 +82,16 @@ export async function getGmailConnectionStatus(): Promise<GmailConnectionStatus>
     return { connected: false }
   }
 
-  const tokenHealthy = connection.tokenExpiry.getTime() > Date.now()
+  // A Gmail connection is healthy as long as we have a refresh token
+  // stored — the access token expiring every hour is expected and
+  // `getValidGmailAccessToken()` auto-refreshes on the next use. Marking
+  // the connection "expired" because the short-lived access token has
+  // ticked over misrepresents state to the user (who sees "Reauth needed"
+  // every hour despite nothing actually being wrong).
+  //
+  // If the refresh token itself has been revoked, the next refresh call
+  // will throw and surface in cron logs.
+  const tokenHealthy = Boolean(connection.refreshToken)
 
   return {
     connected: true,
