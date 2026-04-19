@@ -38,13 +38,14 @@ export interface DeputyRosterShift {
 export interface DeputyTimesheet {
   Id: number
   Employee: number
-  OpUnit: number
+  // Foreign key to OperationalUnit.Id. Deputy uses `OperationalUnit` on
+  // Timesheet rows even though OperationalUnit resource list uses `Id`.
+  OperationalUnit: number
   StartTime: number
   EndTime: number
   TotalTime: number // hours
   Cost: number // gross $
   PayRate: number | null
-  OperationalUnit?: number
   Approved: boolean
 }
 
@@ -209,10 +210,15 @@ export async function syncDeputyTimesheets() {
 
   let upserted = 0
   let skipped = 0
+  const skippedOpUnits = new Map<number, number>() // op-unit id → count
   for (const t of timesheets) {
-    const venue = locMap.get(t.OpUnit)
+    const venue = locMap.get(t.OperationalUnit)
     if (!venue) {
       skipped += 1
+      skippedOpUnits.set(
+        t.OperationalUnit,
+        (skippedOpUnits.get(t.OperationalUnit) ?? 0) + 1
+      )
       continue
     }
     const emp = empMap.get(t.Employee)
@@ -248,6 +254,13 @@ export async function syncDeputyTimesheets() {
     where: { id: connection.id },
     data: { lastSyncedAt: new Date() },
   })
+
+  if (skippedOpUnits.size > 0) {
+    console.log(
+      "[deputy/sync] skipped op-units (not in locMap):",
+      Object.fromEntries(skippedOpUnits.entries())
+    )
+  }
 
   return { upserted, skipped, total: timesheets.length }
 }
