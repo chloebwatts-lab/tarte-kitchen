@@ -60,6 +60,10 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
   // super + open-shift $/hr are layered on here.
   const superMultiplier = 1 + Number(connection?.superRate ?? 0.12)
   const openShiftRate = Number(connection?.defaultOpenShiftRate ?? 0)
+  // Workers' comp + payroll tax uplift. Deputy's Insights page includes
+  // these but the Roster API's Cost/OnCost fields don't — so we stack
+  // this on top of the super multiplier at display time.
+  const upliftMultiplier = 1 + Number(connection?.onCostUpliftRate ?? 0)
 
   // Pull everything in parallel — 3 queries total.
   const [rosterShifts, actuals, forecasts] = await Promise.all([
@@ -108,7 +112,7 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
     const hrs = Number(s.hours)
     const baseCost = s.isOpen ? hrs * openShiftRate : Number(s.cost)
     existing.hours += hrs
-    existing.cost += baseCost * superMultiplier
+    existing.cost += baseCost * superMultiplier * upliftMultiplier
     rosterBucket.set(key, existing)
   }
 

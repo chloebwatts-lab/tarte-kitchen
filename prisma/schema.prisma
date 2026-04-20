@@ -547,6 +547,11 @@ model DeputyConnection {
   /// (which doesn't cost open slots). Crank up in Settings if you want
   /// commitment estimates for unfilled hours.
   defaultOpenShiftRate Decimal @default(0) @db.Decimal(8, 2)
+  /// Extra multiplicative uplift stacked on top of super (workers' comp +
+  /// payroll tax). Deputy's Insights page factors these in but the Roster
+  /// API's Cost/OnCost fields don't — so we apply it here. 0.0293 = 2.93%.
+  /// Keep at 5 decimals so we can tune to match Insights to the cent.
+  onCostUpliftRate Decimal @default(0) @db.Decimal(6, 5)
   connectedAt    DateTime  @default(now())
   lastSyncedAt   DateTime?
   updatedAt      DateTime  @updatedAt

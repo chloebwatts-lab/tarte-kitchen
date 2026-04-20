@@ -51,6 +51,9 @@ export function DeputyConnection({ status, configured }: Props) {
   const [openRate, setOpenRate] = useState(
     status.defaultOpenShiftRate.toFixed(2)
   )
+  const [upliftPct, setUpliftPct] = useState(
+    (status.onCostUpliftRate * 100).toFixed(2)
+  )
   const [wageSaveMsg, setWageSaveMsg] = useState<string | null>(null)
 
   function handleConnectWithToken() {
@@ -114,6 +117,7 @@ export function DeputyConnection({ status, configured }: Props) {
     setWageSaveMsg(null)
     const superDec = Number(superPct) / 100
     const openDollars = Number(openRate)
+    const upliftDec = Number(upliftPct) / 100
     if (!Number.isFinite(superDec) || superDec < 0 || superDec > 1) {
       setWageSaveMsg("Super % must be between 0 and 100")
       return
@@ -122,11 +126,16 @@ export function DeputyConnection({ status, configured }: Props) {
       setWageSaveMsg("Open shift rate must be a non-negative number")
       return
     }
+    if (!Number.isFinite(upliftDec) || upliftDec < 0 || upliftDec > 1) {
+      setWageSaveMsg("On-cost uplift % must be between 0 and 100")
+      return
+    }
     startTransition(async () => {
       try {
         await setDeputyWageSettings({
           superRate: superDec,
           defaultOpenShiftRate: openDollars,
+          onCostUpliftRate: upliftDec,
         })
         setWageSaveMsg("Saved")
       } catch (e) {
@@ -373,11 +382,13 @@ export function DeputyConnection({ status, configured }: Props) {
           <div>
             <div className="text-sm font-medium">Wage settings</div>
             <div className="text-xs text-muted-foreground">
-              Applied on top of Deputy&apos;s Cost field (only when Deputy
-              didn&apos;t already include on-costs in its own OnCost).
+              Stacked on top of Deputy&apos;s Cost/OnCost. The on-cost
+              uplift captures workers&apos; comp + payroll tax, which
+              Deputy&apos;s Insights page shows but its API doesn&apos;t
+              expose. Tune to match the Insights total to the cent.
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium">
                 Super %
@@ -394,7 +405,24 @@ export function DeputyConnection({ status, configured }: Props) {
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium">
-                Open shift fallback rate ($/hr)
+                On-cost uplift %
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                value={upliftPct}
+                onChange={(e) => setUpliftPct(e.target.value)}
+                className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+              />
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                Workers&apos; comp + payroll tax
+              </p>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium">
+                Open shift $/hr
               </label>
               <input
                 type="number"

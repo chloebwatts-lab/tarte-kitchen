@@ -22,6 +22,7 @@ export interface DeputyStatus {
   unmappedCount: number
   superRate: number // decimal, e.g. 0.12
   defaultOpenShiftRate: number // $/hr
+  onCostUpliftRate: number // decimal, e.g. 0.0293 for 2.93%
 }
 
 export async function getDeputyStatus(): Promise<DeputyStatus> {
@@ -37,6 +38,7 @@ export async function getDeputyStatus(): Promise<DeputyStatus> {
       unmappedCount: 0,
       superRate: 0.12,
       defaultOpenShiftRate: 30,
+      onCostUpliftRate: 0,
     }
   }
   // Three ways the connection can be healthy:
@@ -66,12 +68,14 @@ export async function getDeputyStatus(): Promise<DeputyStatus> {
     unmappedCount,
     superRate: Number(connection.superRate ?? 0.12),
     defaultOpenShiftRate: Number(connection.defaultOpenShiftRate ?? 30),
+    onCostUpliftRate: Number(connection.onCostUpliftRate ?? 0),
   }
 }
 
 export async function setDeputyWageSettings(params: {
   superRate: number // decimal, e.g. 0.12
   defaultOpenShiftRate: number // $/hr
+  onCostUpliftRate: number // decimal, e.g. 0.0293
 }) {
   const connection = await db.deputyConnection.findFirst()
   if (!connection) throw new Error("No Deputy connection")
@@ -88,11 +92,19 @@ export async function setDeputyWageSettings(params: {
   ) {
     throw new Error("Open shift rate must be a non-negative dollar value")
   }
+  if (
+    !Number.isFinite(params.onCostUpliftRate) ||
+    params.onCostUpliftRate < 0 ||
+    params.onCostUpliftRate > 1
+  ) {
+    throw new Error("On-cost uplift must be between 0 and 1 (e.g. 0.03 for 3%)")
+  }
   await db.deputyConnection.update({
     where: { id: connection.id },
     data: {
       superRate: params.superRate,
       defaultOpenShiftRate: params.defaultOpenShiftRate,
+      onCostUpliftRate: params.onCostUpliftRate,
     },
   })
   revalidatePath("/settings/integrations")
