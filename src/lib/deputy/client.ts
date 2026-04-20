@@ -324,29 +324,20 @@ export async function syncDeputyRoster() {
     const emp = empMap.get(r.Employee)
     const empRate =
       typeof emp?.PayRate === "number" && emp.PayRate > 0 ? emp.PayRate : null
-    // In practice Deputy's API returns OnCost == Cost (the Insights UI
-    // layers super on top at display time, the API response does not).
-    // So we always apply our own super multiplier — picking whichever
-    // base cost is available — to match what Deputy shows on its
-    // Insights page. Salary staff (payrate = 0) still resolve to $0.
-    const baseCost =
-      typeof r.OnCost === "number" && r.OnCost > 0
+    const isOpen = r.Open === true || !emp || r.Employee === 0
+    // Store raw Deputy cost only, no super / no open-shift fallback —
+    // those are applied at *display* time in /labour so the settings
+    // are instant (no resync). Open shifts are stored at $0 here; the
+    // dashboard multiplies open-shift hours by the configured $/hr.
+    const effectiveCost = isOpen
+      ? 0
+      : typeof r.OnCost === "number" && r.OnCost > 0
         ? r.OnCost
         : typeof r.Cost === "number" && r.Cost > 0
           ? r.Cost
-          : null
-    const isOpenShift = r.Open === true || !emp || r.Employee === 0
-    const superMultiplier = 1 + Number(connection.superRate ?? 0.12)
-    const openShiftRate = Number(connection.defaultOpenShiftRate ?? 30)
-    const rawCost =
-      baseCost !== null
-        ? baseCost
-        : empRate !== null
-          ? empRate * hoursNum
-          : isOpenShift
-            ? openShiftRate * hoursNum
+          : empRate !== null
+            ? empRate * hoursNum
             : 0
-    const effectiveCost = rawCost * superMultiplier
 
     await db.labourShift.create({
       data: {
@@ -360,6 +351,7 @@ export async function syncDeputyRoster() {
         cost: safeDecimal(effectiveCost),
         payRate: safeDecimalOrNull(empRate),
         approved: false,
+        isOpen,
         source: "ROSTER",
       },
     })

@@ -48,6 +48,12 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
 
   const connection = await db.deputyConnection.findFirst()
   const hasDeputyConnection = !!connection
+  // Apply wage settings at display time so tweaks in Settings are
+  // instant — no Deputy re-sync required. See syncDeputyRoster: raw
+  // Deputy cost is stored on LabourShift.cost (0 for open shifts);
+  // super + open-shift $/hr are layered on here.
+  const superMultiplier = 1 + Number(connection?.superRate ?? 0.12)
+  const openShiftRate = Number(connection?.defaultOpenShiftRate ?? 0)
 
   // Pull everything in parallel — 3 queries total.
   const [rosterShifts, actuals, forecasts] = await Promise.all([
@@ -56,7 +62,13 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
         source: "ROSTER",
         shiftStart: { gte: liveStart },
       },
-      select: { venue: true, shiftStart: true, hours: true, cost: true },
+      select: {
+        venue: true,
+        shiftStart: true,
+        hours: true,
+        cost: true,
+        isOpen: true,
+      },
     }),
     db.labourWeekActual.findMany({
       where: { weekStartWed: { gte: past8Start } },
@@ -79,14 +91,18 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
     actualsByKey.set(`${a.venue}|${weekStartWedIso(a.weekStartWed)}`, a)
   }
 
-  // Bucket ROSTER shifts into (venue, weekStartWed)
+  // Bucket ROSTER shifts into (venue, weekStartWed). Cost model:
+  //   - Assigned shifts: stored cost × superMultiplier
+  //   - Open shifts:    hours × openShiftRate × superMultiplier
   const rosterBucket = new Map<string, { hours: number; cost: number }>()
   for (const s of rosterShifts) {
     const wk = weekStartWedIso(startOfTarteWeekUtc(s.shiftStart))
     const key = `${s.venue}|${wk}`
     const existing = rosterBucket.get(key) ?? { hours: 0, cost: 0 }
-    existing.hours += Number(s.hours)
-    existing.cost += Number(s.cost)
+    const hrs = Number(s.hours)
+    const baseCost = s.isOpen ? hrs * openShiftRate : Number(s.cost)
+    existing.hours += hrs
+    existing.cost += baseCost * superMultiplier
     rosterBucket.set(key, existing)
   }
 

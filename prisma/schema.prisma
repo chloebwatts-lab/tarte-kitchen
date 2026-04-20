@@ -542,10 +542,11 @@ model DeputyConnection {
   /// labour tab displays scheduled wages. Deputy's Insights Summary bakes
   /// super into its totals; the API's Cost field does not. 0.12 = 12% super.
   superRate      Decimal   @default(0.12) @db.Decimal(5, 4)
-  /// Fallback hourly rate used to cost Deputy "Open" (unfilled) shifts —
-  /// these have no assigned employee and no payrate in Deputy, but still
-  /// represent real labour commitment that should show up on the labour %.
-  defaultOpenShiftRate Decimal @default(30.00) @db.Decimal(8, 2)
+  /// Fallback hourly rate used to cost Deputy "Open" (unfilled) shifts
+  /// in the forecast. Default 0 so we match Deputy's Insights display
+  /// (which doesn't cost open slots). Crank up in Settings if you want
+  /// commitment estimates for unfilled hours.
+  defaultOpenShiftRate Decimal @default(0) @db.Decimal(8, 2)
   connectedAt    DateTime  @default(now())
   lastSyncedAt   DateTime?
   updatedAt      DateTime  @updatedAt
@@ -568,6 +569,11 @@ model LabourShift {
   payRate         Decimal? @db.Decimal(8, 2)
   area            String?  // Deputy "Area" (e.g. "Kitchen", "Floor")
   approved        Boolean  @default(false)
+  /// True when this is a Deputy "Open" shift (no employee assigned).
+  /// We store cost as 0 on sync; the labour dashboard applies the
+  /// configured open-shift $/hr rate at display time so it's tunable
+  /// without a re-sync.
+  isOpen          Boolean  @default(false)
   /// Which source this row came from. ROSTER = scheduled/forecast shift
   /// from Deputy's Roster resource (live/future weeks). TIMESHEET = actual
   /// shift from Deputy's Timesheet resource. Approved timesheets are what
