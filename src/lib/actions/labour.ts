@@ -407,3 +407,59 @@ export async function hasDeputyConnection() {
   const c = await db.deputyConnection.findFirst()
   return !!c
 }
+
+/**
+ * Convert a bookkeeper's payroll PDF into the same CSV shape the textarea
+ * accepts. Hands the PDF to Claude with the expected column schema so
+ * the operator can still eyeball the parsed rows before they hit the DB.
+ */
+export async function parseLabourPdf(params: {
+  pdfBase64: string
+  filename: string
+}): Promise<{ csv: string; notes?: string }> {
+  const Anthropic = (await import("@anthropic-ai/sdk")).default
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  const prompt = `Extract weekly payroll data from this PDF and return ONLY a CSV with this header (no prose, no code fences):
+
+venue,week_start,gross_wages,super,hours,m_forecast
+
+Rules:
+- One row per (venue, week) pair shown in the report.
+- venue: Burleigh (aka Bakery), Beach House, or Tea Garden. Use the exact venue name shown on the report; if it's a variant like "Tarte Bakery & Cafe" return "Burleigh".
+- week_start: yyyy-mm-dd of the Wednesday that starts the pay-week. If the report shows "week ending Tue 28 Apr" return 2026-04-22. If it shows a different start day, still return the Wednesday of that Wed-Tue week.
+- gross_wages: total gross wages (ex super) for the week, dollars only — strip $ and commas.
+- super: superannuation for the week. If not shown, leave blank.
+- hours: total hours worked. If not shown, leave blank.
+- m_forecast: manager's sales forecast (ex GST) for the week. If not shown, leave blank.
+- Use blank cells for unknown fields (e.g. "Burleigh,2026-04-15,18750,,,").
+- No headers other than the single header row. No totals row.`
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-5-20250929",
+    max_tokens: 2048,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "document",
+            source: {
+              type: "base64",
+              media_type: "application/pdf",
+              data: params.pdfBase64,
+            },
+          },
+          { type: "text", text: prompt },
+        ],
+      },
+    ],
+  })
+  const textBlock = response.content.find((b) => b.type === "text")
+  if (!textBlock || textBlock.type !== "text") {
+    throw new Error("Claude returned no text response")
+  }
+  let csv = textBlock.text.trim()
+  if (csv.startsWith("```")) {
+    csv = csv.replace(/^```(?:csv)?\n?/, "").replace(/\n?```$/, "")
+  }
+  return { csv, notes: `Extracted from ${params.filename}` }
+}

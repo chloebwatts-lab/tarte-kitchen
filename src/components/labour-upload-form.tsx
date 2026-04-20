@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
   parseLabourCsv,
+  parseLabourPdf,
   commitLabourCsv,
   type ParsedCsvRow,
 } from "@/lib/actions/labour"
@@ -32,6 +33,32 @@ export function LabourUploadForm() {
 
   async function handleFile(f: File) {
     setFilename(f.name)
+    setSaveResult(null)
+    setErrors([])
+    if (f.type === "application/pdf" || /\.pdf$/i.test(f.name)) {
+      // PDF → hand to Claude for extraction, populate the CSV textarea.
+      const buf = await f.arrayBuffer()
+      let binary = ""
+      const bytes = new Uint8Array(buf)
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i])
+      }
+      const base64 = btoa(binary)
+      setRaw(`# Extracting from ${f.name}… this takes ~10s.`)
+      startTransition(async () => {
+        try {
+          const { csv } = await parseLabourPdf({
+            pdfBase64: base64,
+            filename: f.name,
+          })
+          setRaw(csv)
+        } catch (e) {
+          setRaw("")
+          setErrors([`PDF extraction failed: ${(e as Error).message}`])
+        }
+      })
+      return
+    }
     const text = await f.text()
     setRaw(text)
   }
@@ -95,10 +122,10 @@ export function LabourUploadForm() {
           <div className="flex items-center gap-2">
             <label className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
               <Upload className="h-3.5 w-3.5" />
-              Upload file
+              Upload CSV or PDF
               <input
                 type="file"
-                accept=".csv,text/csv"
+                accept=".csv,text/csv,.pdf,application/pdf"
                 className="sr-only"
                 onChange={(e) => {
                   const f = e.target.files?.[0]
