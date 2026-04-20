@@ -22,7 +22,7 @@
     },
     {
       "path": "/api/cron/sync-deputy",
-      "schedule": "0 * * * *"
+      "schedule": "*/15 * * * *"
     }
   ]
 }

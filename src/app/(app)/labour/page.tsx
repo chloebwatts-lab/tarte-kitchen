@@ -1,11 +1,14 @@
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
+import { AlertTriangle } from "lucide-react"
 import {
   getLabourDashboardData,
   hasDeputyConnection,
 } from "@/lib/actions/labour"
+import { getDeputyStatus } from "@/lib/actions/deputy"
 import { LabourDashboard } from "@/components/labour-dashboard"
+import { LabourRefreshButton } from "@/components/labour-refresh-button"
 import { Card, CardContent } from "@/components/ui/card"
 
 export default async function LabourPage() {
@@ -36,7 +39,10 @@ export default async function LabourPage() {
       </div>
     )
   }
-  const data = await getLabourDashboardData()
+  const [data, status] = await Promise.all([
+    getLabourDashboardData(),
+    getDeputyStatus(),
+  ])
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -47,13 +53,33 @@ export default async function LabourPage() {
             from Deputy; past weeks from uploaded payroll reports.
           </p>
         </div>
-        <Link
-          href="/labour/upload"
-          className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-        >
-          Upload payroll
-        </Link>
+        <div className="flex items-start gap-3">
+          <LabourRefreshButton lastSyncedAt={status.lastSyncedAt} />
+          <Link
+            href="/labour/upload"
+            className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Upload payroll
+          </Link>
+        </div>
       </div>
+      {status.unmappedCount > 0 && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+          <span>
+            {status.unmappedCount} Deputy operational unit
+            {status.unmappedCount === 1 ? " is" : "s are"} unmapped — shifts
+            from {status.unmappedCount === 1 ? "it" : "them"} aren&apos;t being
+            counted, which will under-report wages.{" "}
+            <Link
+              href="/settings/integrations"
+              className="font-medium underline hover:text-amber-900"
+            >
+              Fix in Integrations →
+            </Link>
+          </span>
+        </div>
+      )}
       <LabourDashboard initial={data} />
     </div>
   )

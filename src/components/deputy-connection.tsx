@@ -24,6 +24,7 @@ import {
 import {
   refreshDeputyLocations,
   setDeputyLocationVenue,
+  setDeputyWageSettings,
   triggerDeputySync,
   disconnectDeputy,
   connectDeputyWithToken,
@@ -44,6 +45,13 @@ export function DeputyConnection({ status, configured }: Props) {
   const [tokenInput, setTokenInput] = useState("")
   const [installInput, setInstallInput] = useState("")
   const [tokenError, setTokenError] = useState<string | null>(null)
+  const [superPct, setSuperPct] = useState(
+    (status.superRate * 100).toFixed(2)
+  )
+  const [openRate, setOpenRate] = useState(
+    status.defaultOpenShiftRate.toFixed(2)
+  )
+  const [wageSaveMsg, setWageSaveMsg] = useState<string | null>(null)
 
   function handleConnectWithToken() {
     setTokenError(null)
@@ -98,6 +106,32 @@ export function DeputyConnection({ status, configured }: Props) {
         opUnitId,
         venue: venue === "NONE" ? null : (venue as Venue),
       })
+      router.refresh()
+    })
+  }
+
+  function handleSaveWageSettings() {
+    setWageSaveMsg(null)
+    const superDec = Number(superPct) / 100
+    const openDollars = Number(openRate)
+    if (!Number.isFinite(superDec) || superDec < 0 || superDec > 1) {
+      setWageSaveMsg("Super % must be between 0 and 100")
+      return
+    }
+    if (!Number.isFinite(openDollars) || openDollars < 0) {
+      setWageSaveMsg("Open shift rate must be a non-negative number")
+      return
+    }
+    startTransition(async () => {
+      try {
+        await setDeputyWageSettings({
+          superRate: superDec,
+          defaultOpenShiftRate: openDollars,
+        })
+        setWageSaveMsg("Saved")
+      } catch (e) {
+        setWageSaveMsg((e as Error).message)
+      }
       router.refresh()
     })
   }
@@ -332,6 +366,61 @@ export function DeputyConnection({ status, configured }: Props) {
               No locations loaded yet — click &ldquo;Refresh from Deputy&rdquo;.
             </div>
           )}
+        </div>
+
+        {/* Wage settings */}
+        <div className="space-y-2 border-t border-border pt-4">
+          <div>
+            <div className="text-sm font-medium">Wage settings</div>
+            <div className="text-xs text-muted-foreground">
+              Applied on top of Deputy&apos;s Cost field (only when Deputy
+              didn&apos;t already include on-costs in its own OnCost).
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium">
+                Super %
+              </label>
+              <input
+                type="number"
+                step="0.5"
+                min="0"
+                max="100"
+                value={superPct}
+                onChange={(e) => setSuperPct(e.target.value)}
+                className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium">
+                Open shift fallback rate ($/hr)
+              </label>
+              <input
+                type="number"
+                step="1"
+                min="0"
+                value={openRate}
+                onChange={(e) => setOpenRate(e.target.value)}
+                className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleSaveWageSettings}
+              disabled={isPending}
+            >
+              Save wage settings
+            </Button>
+            {wageSaveMsg && (
+              <span className="text-xs text-muted-foreground">
+                {wageSaveMsg}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Actions */}

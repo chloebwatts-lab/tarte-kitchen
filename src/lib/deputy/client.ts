@@ -34,6 +34,12 @@ export interface DeputyRosterShift {
   EndTime: number
   TotalTime?: number // hours — sometimes on Roster, sometimes computed
   Cost?: number // forecast cost on Roster (pre-approval, from nominal rate)
+  /// "The total dollar cost of the shift" — per Deputy's own docs. When
+  /// Deputy has super/on-costs configured per-employee, OnCost is the
+  /// fully-loaded figure that matches Deputy's Insights Summary display.
+  /// Cost is the base unloaded cost. If OnCost > 0 we prefer it and skip
+  /// our own super multiplier; otherwise we load Cost ourselves.
+  OnCost?: number
   Open?: boolean
 }
 
@@ -318,10 +324,30 @@ export async function syncDeputyRoster() {
     const emp = empMap.get(r.Employee)
     const empRate =
       typeof emp?.PayRate === "number" && emp.PayRate > 0 ? emp.PayRate : null
-    const rosterCost =
+    const onCost =
+      typeof r.OnCost === "number" && r.OnCost > 0 ? r.OnCost : null
+    const baseCost =
       typeof r.Cost === "number" && r.Cost > 0 ? r.Cost : null
+    const isOpenShift = r.Open === true || !emp || r.Employee === 0
+    const superMultiplier = 1 + Number(connection.superRate ?? 0.12)
+    const openShiftRate = Number(connection.defaultOpenShiftRate ?? 30)
+    // Priority:
+    //   1. OnCost — Deputy's own fully-loaded figure (super already baked
+    //      in if configured per-employee in Deputy). Use verbatim.
+    //   2. Cost × (1 + superRate) — base wage from Deputy, we load super
+    //      ourselves so the labour % still includes on-costs.
+    //   3. empRate × hours × (1 + superRate) — nominal payrate, loaded.
+    //   4. openShiftRate × hours × (1 + superRate) — unfilled shifts.
+    //   5. 0 — salary staff (payrate=0 in Deputy, intentional).
     const effectiveCost =
-      rosterCost ?? (empRate !== null ? empRate * hoursNum : 0)
+      onCost ??
+      (baseCost !== null
+        ? baseCost * superMultiplier
+        : empRate !== null
+          ? empRate * hoursNum * superMultiplier
+          : isOpenShift
+            ? openShiftRate * hoursNum * superMultiplier
+            : 0)
 
     await db.labourShift.create({
       data: {

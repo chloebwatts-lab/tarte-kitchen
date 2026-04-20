@@ -538,6 +538,14 @@ model DeputyConnection {
   /// JSON array of { id, name, venue } mapping Deputy operational-unit /
   /// location ids to our Venue enum.
   locations      Json?
+  /// On-cost multiplier applied on top of Deputy Roster.Cost when the
+  /// labour tab displays scheduled wages. Deputy's Insights Summary bakes
+  /// super into its totals; the API's Cost field does not. 0.12 = 12% super.
+  superRate      Decimal   @default(0.12) @db.Decimal(5, 4)
+  /// Fallback hourly rate used to cost Deputy "Open" (unfilled) shifts —
+  /// these have no assigned employee and no payrate in Deputy, but still
+  /// represent real labour commitment that should show up on the labour %.
+  defaultOpenShiftRate Decimal @default(30.00) @db.Decimal(8, 2)
   connectedAt    DateTime  @default(now())
   lastSyncedAt   DateTime?
   updatedAt      DateTime  @updatedAt
