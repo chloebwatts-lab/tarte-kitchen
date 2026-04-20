@@ -102,6 +102,8 @@ services:
         # 06:30 AEST — API-based sales fallback (runs before the email cron;
         # email data overwrites if it arrives later)
         30 20 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-sales 2>&1
+        # Every 15 min — pull Deputy rosters so /labour stays fresh
+        */15 * * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-deputy 2>&1
         CRON
         exec crond -f -l 8 -L /dev/stdout
 
