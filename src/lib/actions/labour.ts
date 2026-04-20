@@ -1,222 +1,384 @@
 "use server"
 
 import { db } from "@/lib/db"
+import { revalidatePath } from "next/cache"
 import { Venue } from "@/generated/prisma"
 import { SINGLE_VENUES } from "@/lib/venues"
+import { currentTarteWeekRange, startOfTarteWeekUtc, weekStartWedIso } from "@/lib/dates"
+import Decimal from "decimal.js"
+
+// ----------------------------------------------------------------------
+// Types
+// ----------------------------------------------------------------------
+
+export interface LabourWeekCard {
+  weekStartWed: string
+  label: string // "Wed 22 Apr – Tue 28 Apr"
+  kind: "LIVE" | "NEXT" | "PAST"
+  perVenue: {
+    venue: Venue
+    scheduledHours: number | null
+    scheduledWages: number | null // from Roster (forward-looking)
+    actualHours: number | null // from LabourWeekActual (past weeks)
+    actualWages: number | null
+    mForecast: number | null // manager's sales forecast ex GST
+    labourPct: number | null // (wages / mForecast) * 100
+    hasActuals: boolean
+  }[]
+}
 
 export interface LabourDashboardData {
-  rangeDays: number
-  venue: Venue | "ALL"
-  totalCost: number
-  totalHours: number
-  totalRevenue: number
-  labourPct: number | null
-  byDay: {
-    date: string
-    cost: number
-    hours: number
-    revenue: number
-    pctOfRevenue: number | null
-  }[]
-  byVenue: {
-    venue: Venue
-    cost: number
-    hours: number
-    revenue: number
-    pctOfRevenue: number | null
-  }[]
-  byEmployee: {
-    employeeName: string
-    hours: number
-    cost: number
-    shifts: number
-  }[]
-  highestLabourDays: {
-    date: string
-    venue: Venue
-    pctOfRevenue: number
-    cost: number
-    revenue: number
-  }[]
+  liveWeek: LabourWeekCard
+  nextWeek: LabourWeekCard
+  pastWeeks: LabourWeekCard[]
+  hasDeputyConnection: boolean
 }
 
-function startOfAestDay(offsetDays = 0): Date {
+// ----------------------------------------------------------------------
+// Main
+// ----------------------------------------------------------------------
+
+export async function getLabourDashboardData(): Promise<LabourDashboardData> {
   const now = new Date()
-  const aest = new Date(now.getTime() + 10 * 60 * 60 * 1000)
-  aest.setUTCHours(0, 0, 0, 0)
-  aest.setUTCDate(aest.getUTCDate() - offsetDays)
-  return new Date(aest.toISOString().split("T")[0])
-}
+  const { start: liveStart } = currentTarteWeekRange(now)
+  const nextStart = new Date(liveStart)
+  nextStart.setUTCDate(nextStart.getUTCDate() + 7)
+  const past8Start = new Date(liveStart)
+  past8Start.setUTCDate(past8Start.getUTCDate() - 7 * 8) // last 8 past weeks
 
-function ymd(d: Date): string {
-  return d.toISOString().split("T")[0]
-}
+  const connection = await db.deputyConnection.findFirst()
+  const hasDeputyConnection = !!connection
 
-export async function getLabourDashboardData(params: {
-  venue: Venue | "ALL"
-  rangeDays?: number
-}): Promise<LabourDashboardData> {
-  const { venue, rangeDays = 28 } = params
-  const start = startOfAestDay(rangeDays)
-  const venueFilter =
-    venue === "ALL"
-      ? { venue: { in: [...SINGLE_VENUES] as Venue[] } }
-      : { venue: { in: [venue as Venue] } }
+  // Pull everything in parallel — 3 queries total.
+  const [rosterShifts, actuals, forecasts] = await Promise.all([
+    db.labourShift.findMany({
+      where: {
+        source: "ROSTER",
+        shiftStart: { gte: liveStart },
+      },
+      select: { venue: true, shiftStart: true, hours: true, cost: true },
+    }),
+    db.labourWeekActual.findMany({
+      where: { weekStartWed: { gte: past8Start } },
+    }),
+    db.managerSalesForecast.findMany({
+      where: { weekStartWed: { gte: past8Start } },
+    }),
+  ])
 
-  const shifts = await db.labourShift.findMany({
-    where: { ...venueFilter, shiftStart: { gte: start } },
-    orderBy: { shiftStart: "asc" },
-  })
-  const summaries = await db.dailySalesSummary.findMany({
-    where: { ...venueFilter, date: { gte: start } },
-  })
-
-  const totalCost = shifts.reduce((s, r) => s + Number(r.cost), 0)
-  const totalHours = shifts.reduce((s, r) => s + Number(r.hours), 0)
-  const totalRevenue = summaries.reduce(
-    (s, r) => s + Number(r.totalRevenueExGst),
-    0
-  )
-  const labourPct =
-    totalRevenue > 0 ? (totalCost / totalRevenue) * 100 : null
-
-  // By day — shifts grouped by the start date, revenue from daily summary
-  const dayMap = new Map<
-    string,
-    { cost: number; hours: number }
-  >()
-  for (const s of shifts) {
-    const key = ymd(new Date(s.shiftStart))
-    const e = dayMap.get(key) ?? { cost: 0, hours: 0 }
-    e.cost += Number(s.cost)
-    e.hours += Number(s.hours)
-    dayMap.set(key, e)
-  }
-  const revMap = new Map<string, number>()
-  for (const r of summaries) {
-    const key = ymd(new Date(r.date))
-    revMap.set(
-      key,
-      (revMap.get(key) ?? 0) + Number(r.totalRevenueExGst)
+  const forecastByKey = new Map<string, number>()
+  for (const f of forecasts) {
+    forecastByKey.set(
+      `${f.venue}|${weekStartWedIso(f.weekStartWed)}`,
+      Number(f.amount)
     )
   }
-  const allDays = new Set<string>([...dayMap.keys(), ...revMap.keys()])
-  const byDay = Array.from(allDays)
-    .sort()
-    .map((date) => {
-      const d = dayMap.get(date) ?? { cost: 0, hours: 0 }
-      const revenue = revMap.get(date) ?? 0
+
+  const actualsByKey = new Map<string, (typeof actuals)[number]>()
+  for (const a of actuals) {
+    actualsByKey.set(`${a.venue}|${weekStartWedIso(a.weekStartWed)}`, a)
+  }
+
+  // Bucket ROSTER shifts into (venue, weekStartWed)
+  const rosterBucket = new Map<string, { hours: number; cost: number }>()
+  for (const s of rosterShifts) {
+    const wk = weekStartWedIso(startOfTarteWeekUtc(s.shiftStart))
+    const key = `${s.venue}|${wk}`
+    const existing = rosterBucket.get(key) ?? { hours: 0, cost: 0 }
+    existing.hours += Number(s.hours)
+    existing.cost += Number(s.cost)
+    rosterBucket.set(key, existing)
+  }
+
+  function buildCard(
+    weekStart: Date,
+    kind: "LIVE" | "NEXT" | "PAST"
+  ): LabourWeekCard {
+    const iso = weekStartWedIso(weekStart)
+    const perVenue = SINGLE_VENUES.map((v) => {
+      const key = `${v}|${iso}`
+      const roster = rosterBucket.get(key)
+      const actual = actualsByKey.get(key)
+      const forecast =
+        actual?.mForecast !== null && actual?.mForecast !== undefined
+          ? Number(actual.mForecast)
+          : forecastByKey.get(key) ?? null
+
+      // Choose the authoritative wage total for this card:
+      //   - past weeks prefer actuals
+      //   - live + next weeks prefer rostered
+      const wages =
+        kind === "PAST"
+          ? actual
+            ? Number(actual.grossWages)
+            : null
+          : roster?.cost ?? null
+      const hours =
+        kind === "PAST"
+          ? actual?.totalHours != null
+            ? Number(actual.totalHours)
+            : null
+          : roster?.hours ?? null
+
+      const labourPct =
+        wages !== null && forecast !== null && forecast > 0
+          ? Math.round((wages / forecast) * 10000) / 100
+          : null
+
       return {
-        date,
-        cost: Math.round(d.cost * 100) / 100,
-        hours: Math.round(d.hours * 100) / 100,
-        revenue: Math.round(revenue * 100) / 100,
-        pctOfRevenue:
-          revenue > 0 ? Math.round((d.cost / revenue) * 10000) / 100 : null,
+        venue: v,
+        scheduledHours: kind === "PAST" ? null : roster?.hours ?? null,
+        scheduledWages: kind === "PAST" ? null : roster?.cost ?? null,
+        actualHours: kind === "PAST" && actual?.totalHours != null
+          ? Number(actual.totalHours)
+          : null,
+        actualWages: kind === "PAST" && actual
+          ? Number(actual.grossWages)
+          : null,
+        mForecast: forecast,
+        labourPct,
+        hasActuals: !!actual,
       }
     })
-
-  // By venue
-  const venueMap = new Map<Venue, { cost: number; hours: number }>()
-  for (const s of shifts) {
-    const e = venueMap.get(s.venue) ?? { cost: 0, hours: 0 }
-    e.cost += Number(s.cost)
-    e.hours += Number(s.hours)
-    venueMap.set(s.venue, e)
-  }
-  const venueRev = new Map<Venue, number>()
-  for (const r of summaries) {
-    venueRev.set(
-      r.venue,
-      (venueRev.get(r.venue) ?? 0) + Number(r.totalRevenueExGst)
-    )
-  }
-  const byVenue = SINGLE_VENUES.map((v) => {
-    const e = venueMap.get(v) ?? { cost: 0, hours: 0 }
-    const revenue = venueRev.get(v) ?? 0
     return {
-      venue: v,
-      cost: Math.round(e.cost * 100) / 100,
-      hours: Math.round(e.hours * 100) / 100,
-      revenue: Math.round(revenue * 100) / 100,
-      pctOfRevenue:
-        revenue > 0 ? Math.round((e.cost / revenue) * 10000) / 100 : null,
+      weekStartWed: iso,
+      label: tarteLabel(weekStart),
+      kind,
+      perVenue,
     }
-  }).filter((r) => r.cost > 0 || r.revenue > 0)
+  }
 
-  // By employee
-  const empMap = new Map<
-    string,
-    { hours: number; cost: number; shifts: number }
-  >()
-  for (const s of shifts) {
-    const e = empMap.get(s.employeeName) ?? {
-      hours: 0,
-      cost: 0,
-      shifts: 0,
-    }
-    e.hours += Number(s.hours)
-    e.cost += Number(s.cost)
-    e.shifts += 1
-    empMap.set(s.employeeName, e)
+  const pastWeeks: LabourWeekCard[] = []
+  for (let i = 1; i <= 8; i++) {
+    const start = new Date(liveStart)
+    start.setUTCDate(start.getUTCDate() - 7 * i)
+    pastWeeks.push(buildCard(start, "PAST"))
   }
-  const byEmployee = Array.from(empMap.entries())
-    .map(([employeeName, v]) => ({
-      employeeName,
-      hours: Math.round(v.hours * 100) / 100,
-      cost: Math.round(v.cost * 100) / 100,
-      shifts: v.shifts,
-    }))
-    .sort((a, b) => b.cost - a.cost)
-    .slice(0, 15)
-
-  // Highest labour % days per venue
-  const perVenueDay = new Map<
-    string,
-    { date: string; venue: Venue; cost: number; revenue: number }
-  >()
-  for (const s of shifts) {
-    const key = `${ymd(new Date(s.shiftStart))}|${s.venue}`
-    const existing = perVenueDay.get(key) ?? {
-      date: ymd(new Date(s.shiftStart)),
-      venue: s.venue,
-      cost: 0,
-      revenue: 0,
-    }
-    existing.cost += Number(s.cost)
-    perVenueDay.set(key, existing)
-  }
-  for (const r of summaries) {
-    const key = `${ymd(new Date(r.date))}|${r.venue}`
-    const existing = perVenueDay.get(key)
-    if (existing) {
-      existing.revenue += Number(r.totalRevenueExGst)
-    }
-  }
-  const highestLabourDays = Array.from(perVenueDay.values())
-    .filter((r) => r.revenue > 0)
-    .map((r) => ({
-      date: r.date,
-      venue: r.venue,
-      cost: Math.round(r.cost * 100) / 100,
-      revenue: Math.round(r.revenue * 100) / 100,
-      pctOfRevenue: Math.round((r.cost / r.revenue) * 10000) / 100,
-    }))
-    .sort((a, b) => b.pctOfRevenue - a.pctOfRevenue)
-    .slice(0, 8)
 
   return {
-    rangeDays,
-    venue,
-    totalCost: Math.round(totalCost * 100) / 100,
-    totalHours: Math.round(totalHours * 100) / 100,
-    totalRevenue: Math.round(totalRevenue * 100) / 100,
-    labourPct: labourPct !== null ? Math.round(labourPct * 100) / 100 : null,
-    byDay,
-    byVenue,
-    byEmployee,
-    highestLabourDays,
+    liveWeek: buildCard(liveStart, "LIVE"),
+    nextWeek: buildCard(nextStart, "NEXT"),
+    pastWeeks,
+    hasDeputyConnection,
   }
+}
+
+function tarteLabel(weekStartWed: Date): string {
+  const end = new Date(weekStartWed)
+  end.setUTCDate(end.getUTCDate() + 6)
+  const fmt = (d: Date) =>
+    d.toLocaleDateString("en-AU", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    })
+  return `${fmt(weekStartWed)} – ${fmt(end)}`
+}
+
+// ----------------------------------------------------------------------
+// Manager forecast + actuals writes
+// ----------------------------------------------------------------------
+
+export async function setManagerForecast(params: {
+  venue: Venue
+  weekStartWed: string
+  amount: number
+  enteredBy?: string
+}) {
+  const wk = startOfTarteWeekUtc(new Date(params.weekStartWed))
+  await db.managerSalesForecast.upsert({
+    where: {
+      venue_weekStartWed: { venue: params.venue, weekStartWed: wk },
+    },
+    create: {
+      venue: params.venue,
+      weekStartWed: wk,
+      amount: new Decimal(params.amount),
+      source: "MANUAL",
+      enteredBy: params.enteredBy ?? null,
+    },
+    update: {
+      amount: new Decimal(params.amount),
+      source: "MANUAL",
+      enteredBy: params.enteredBy ?? null,
+    },
+  })
+  revalidatePath("/labour")
+}
+
+export async function upsertLabourWeekActual(params: {
+  venue: Venue
+  weekStartWed: string
+  grossWages: number
+  superAmount?: number
+  totalHours?: number | null
+  headcount?: number | null
+  mForecast?: number | null
+  notes?: string | null
+  uploadId?: string | null
+}) {
+  const wk = startOfTarteWeekUtc(new Date(params.weekStartWed))
+  await db.labourWeekActual.upsert({
+    where: {
+      venue_weekStartWed: { venue: params.venue, weekStartWed: wk },
+    },
+    create: {
+      venue: params.venue,
+      weekStartWed: wk,
+      grossWages: new Decimal(params.grossWages),
+      superAmount: new Decimal(params.superAmount ?? 0),
+      totalHours:
+        params.totalHours != null ? new Decimal(params.totalHours) : null,
+      headcount: params.headcount ?? null,
+      mForecast:
+        params.mForecast != null ? new Decimal(params.mForecast) : null,
+      notes: params.notes ?? null,
+      uploadId: params.uploadId ?? null,
+      source: params.uploadId ? "UPLOAD" : "MANUAL",
+    },
+    update: {
+      grossWages: new Decimal(params.grossWages),
+      superAmount: new Decimal(params.superAmount ?? 0),
+      totalHours:
+        params.totalHours != null ? new Decimal(params.totalHours) : null,
+      headcount: params.headcount ?? null,
+      mForecast:
+        params.mForecast != null ? new Decimal(params.mForecast) : null,
+      notes: params.notes ?? null,
+      uploadId: params.uploadId ?? null,
+    },
+  })
+  revalidatePath("/labour")
+}
+
+// ----------------------------------------------------------------------
+// CSV upload parser
+// ----------------------------------------------------------------------
+
+export interface ParsedCsvRow {
+  venue: Venue | null
+  venueRaw: string
+  weekStartWed: string
+  grossWages: number
+  superAmount: number
+  totalHours: number | null
+  mForecast: number | null
+}
+
+/**
+ * Parse a bookkeeper CSV. Expected columns (case-insensitive, flexible order):
+ *   venue, week_start (yyyy-mm-dd, Wednesday), gross_wages, super, hours, m_forecast
+ *
+ * Returns an array of parsed rows plus errors. Does NOT write to DB —
+ * preview first, then the user confirms.
+ */
+export async function parseLabourCsv(raw: string): Promise<{
+  rows: ParsedCsvRow[]
+  errors: string[]
+}> {
+  const lines = raw
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+  if (lines.length < 2) {
+    return { rows: [], errors: ["CSV needs a header row and at least one data row"] }
+  }
+  const header = lines[0]
+    .split(",")
+    .map((h) => h.trim().toLowerCase().replace(/[^a-z_]/g, ""))
+  const indexOf = (...names: string[]) =>
+    names
+      .map((n) => header.indexOf(n))
+      .find((i) => i >= 0) ?? -1
+  const iVenue = indexOf("venue", "site", "location")
+  const iWeek = indexOf("week_start", "weekstart", "week", "wedweekstart")
+  const iWages = indexOf("gross_wages", "grosswages", "wages", "gross")
+  const iSuper = indexOf("super", "superamount", "superannuation")
+  const iHours = indexOf("hours", "total_hours", "totalhours")
+  const iForecast = indexOf("m_forecast", "mforecast", "forecast", "sales_forecast")
+
+  const errors: string[] = []
+  if (iVenue < 0) errors.push("Missing column: venue")
+  if (iWeek < 0) errors.push("Missing column: week_start")
+  if (iWages < 0) errors.push("Missing column: gross_wages")
+
+  if (errors.length > 0) return { rows: [], errors }
+
+  const rows: ParsedCsvRow[] = []
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(",").map((c) => c.trim().replace(/^"|"$/g, ""))
+    const venueRaw = cols[iVenue] ?? ""
+    const venue = matchVenue(venueRaw)
+    const weekRaw = cols[iWeek] ?? ""
+    const wages = parseFloat(cols[iWages] ?? "0") || 0
+    const superAmt = iSuper >= 0 ? parseFloat(cols[iSuper] ?? "0") || 0 : 0
+    const hours = iHours >= 0 ? parseFloat(cols[iHours] ?? "") : NaN
+    const forecast = iForecast >= 0 ? parseFloat(cols[iForecast] ?? "") : NaN
+
+    let weekIso = weekRaw
+    try {
+      const d = new Date(weekRaw)
+      if (!Number.isNaN(d.getTime())) {
+        weekIso = weekStartWedIso(d)
+      } else {
+        errors.push(`Row ${i + 1}: unparseable week_start "${weekRaw}"`)
+        continue
+      }
+    } catch {
+      errors.push(`Row ${i + 1}: unparseable week_start "${weekRaw}"`)
+      continue
+    }
+
+    rows.push({
+      venue,
+      venueRaw,
+      weekStartWed: weekIso,
+      grossWages: wages,
+      superAmount: superAmt,
+      totalHours: Number.isFinite(hours) ? hours : null,
+      mForecast: Number.isFinite(forecast) ? forecast : null,
+    })
+  }
+  return { rows, errors }
+}
+
+function matchVenue(raw: string): Venue | null {
+  const s = raw.toUpperCase().trim()
+  if (s.includes("BURLEIGH") || s.includes("BAKERY")) return "BURLEIGH"
+  if (s.includes("BEACH")) return "BEACH_HOUSE"
+  if (s.includes("TEA")) return "TEA_GARDEN"
+  return null
+}
+
+export async function commitLabourCsv(params: {
+  filename: string
+  rawCsv: string
+  rows: {
+    venue: Venue
+    weekStartWed: string
+    grossWages: number
+    superAmount: number
+    totalHours: number | null
+    mForecast: number | null
+  }[]
+  uploadedBy?: string
+}) {
+  const upload = await db.labourUpload.create({
+    data: {
+      filename: params.filename,
+      rawCsv: params.rawCsv,
+      weekCount: params.rows.length,
+      uploadedBy: params.uploadedBy ?? null,
+    },
+  })
+  for (const r of params.rows) {
+    await upsertLabourWeekActual({
+      ...r,
+      uploadId: upload.id,
+    })
+  }
+  revalidatePath("/labour")
+  return { uploadId: upload.id, rows: params.rows.length }
 }
 
 export async function hasDeputyConnection() {

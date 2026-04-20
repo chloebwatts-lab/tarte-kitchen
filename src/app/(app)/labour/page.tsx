@@ -16,38 +16,43 @@ export default async function LabourPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Labour</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Track wage cost vs revenue per venue per day. Powered by Deputy.
+            Weekly labour % per venue. Forecasts pulled live from Deputy,
+            actuals posted from payroll.
           </p>
         </div>
         <Card>
           <CardContent className="py-10 text-center">
             <p className="text-sm text-muted-foreground">
-              Connect Deputy to unlock daily per-venue labour tracking.
+              Connect Deputy to unlock live labour tracking.
             </p>
             <Link
-              href="/api/deputy/auth"
+              href="/settings/integrations"
               className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
             >
-              Connect Deputy
+              Go to Integrations
             </Link>
-            <p className="mt-3 text-[11px] text-muted-foreground">
-              You&apos;ll be redirected to deputy.com to authorise access.
-              After connecting, map each Deputy location to a venue in
-              Settings → Integrations → Deputy.
-            </p>
           </CardContent>
         </Card>
       </div>
     )
   }
-  const data = await getLabourDashboardData({ venue: "ALL", rangeDays: 28 })
+  const data = await getLabourDashboardData()
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Labour</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Daily labour % by venue, sourced from Deputy timesheets.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Labour</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Weekly labour % per venue. Forecast (current + next week) pulled
+            from Deputy; past weeks from uploaded payroll reports.
+          </p>
+        </div>
+        <Link
+          href="/labour/upload"
+          className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          Upload payroll
+        </Link>
       </div>
       <LabourDashboard initial={data} />
     </div>

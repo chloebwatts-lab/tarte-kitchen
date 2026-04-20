@@ -29,10 +29,12 @@ import Decimal from "decimal.js"
 export interface DeputyRosterShift {
   Id: number
   Employee: number
-  OpUnit: number
+  OperationalUnit: number
   StartTime: number // unix seconds
   EndTime: number
-  Open: boolean
+  TotalTime?: number // hours — sometimes on Roster, sometimes computed
+  Cost?: number // forecast cost on Roster (pre-approval, from nominal rate)
+  Open?: boolean
 }
 
 export interface DeputyTimesheet {
@@ -155,6 +157,67 @@ export async function listEmployees(): Promise<DeputyEmployee[]> {
   return deputyFetch<DeputyEmployee[]>("/api/v1/resource/Employee")
 }
 
+export interface DeputyPlanSales {
+  Id: number
+  Date: string // "2026-04-22T00:00:00+10:00"
+  Timestamp: number
+  OperationalUnit: number
+  SalesType: string // "plan_Sales" for manager forecasts
+  SalesAmount: number
+}
+
+/**
+ * Manager sales forecast per day per operational unit. Deputy's own
+ * Roster Insights Summary uses these values as the labour-%% denominator.
+ * SalesType=plan_Sales is the manager's planned forecast; other types
+ * (actual_Sales, etc) are left alone.
+ */
+export async function listPlanSalesBetween(
+  sinceUnix: number,
+  untilUnix: number
+): Promise<DeputyPlanSales[]> {
+  return deputyFetch<DeputyPlanSales[]>(
+    "/api/v1/resource/SalesData/QUERY",
+    {
+      method: "POST",
+      body: {
+        search: {
+          s1: { field: "Timestamp", type: "ge", data: sinceUnix },
+          s2: { field: "Timestamp", type: "lt", data: untilUnix },
+          s3: { field: "SalesType", type: "eq", data: "plan_Sales" },
+        },
+        max: 2000,
+        sort: { Timestamp: "asc" },
+      },
+    }
+  )
+}
+
+/**
+ * Rostered/scheduled shifts between two unix timestamps. This is what
+ * Deputy's own Insights Summary pulls from — forecast hours and forecast
+ * wages for the current and upcoming week.
+ */
+export async function listRosterBetween(
+  sinceUnix: number,
+  untilUnix: number
+): Promise<DeputyRosterShift[]> {
+  return deputyFetch<DeputyRosterShift[]>(
+    "/api/v1/resource/Roster/QUERY",
+    {
+      method: "POST",
+      body: {
+        search: {
+          s1: { field: "StartTime", type: "ge", data: sinceUnix },
+          s2: { field: "StartTime", type: "lt", data: untilUnix },
+        },
+        max: 2000,
+        sort: { StartTime: "asc" },
+      },
+    }
+  )
+}
+
 export async function listTimesheetsSince(
   sinceUnix: number
 ): Promise<DeputyTimesheet[]> {
@@ -177,15 +240,15 @@ export async function listTimesheetsSince(
 }
 
 /**
- * Pull Deputy timesheets since the last sync and upsert them into
- * LabourShift. Returns a summary of what happened. Called by the cron at
- * /api/cron/sync-deputy.
+ * Pull Deputy rosters for the live window (current + next Wed–Tue week)
+ * and upsert them into LabourShift with source=ROSTER. These drive the
+ * forward-looking labour % on /labour.
  *
- * Requires the DeputyConnection.locations JSON to map Deputy OpUnit ids to
- * our Venue enum — we don't guess. This gets populated from the settings
- * page when the user first connects.
+ * Past weeks' actuals come from LabourWeekActual (payroll upload / Xero).
+ * This function intentionally does NOT backfill history — syncing every
+ * shift forever creates noise without signal.
  */
-export async function syncDeputyTimesheets() {
+export async function syncDeputyRoster() {
   const connection = await getConnection()
   const locMap = new Map<number, Venue>()
   for (const row of (connection.locations as { id: number; venue: Venue }[]) ??
@@ -198,92 +261,130 @@ export async function syncDeputyTimesheets() {
     )
   }
 
-  const since = connection.lastSyncedAt
-    ? Math.floor(connection.lastSyncedAt.getTime() / 1000) - 60 * 60 * 24 // overlap by a day
-    : Math.floor(Date.now() / 1000) - 60 * 60 * 24 * 28 // backfill 4 weeks
+  const { liveRosterWindowUnix, startOfTarteWeekUtc } = await import(
+    "@/lib/dates"
+  )
+  const { sinceUnix, untilUnix } = liveRosterWindowUnix()
 
-  const [timesheets, employees] = await Promise.all([
-    listTimesheetsSince(since),
+  const [rosters, employees, planSales] = await Promise.all([
+    listRosterBetween(sinceUnix, untilUnix),
     listEmployees(),
+    listPlanSalesBetween(sinceUnix, untilUnix),
   ])
   const empMap = new Map(employees.map((e) => [e.Id, e]))
 
+  const safeDecimal = (v: unknown): InstanceType<typeof Decimal> =>
+    new Decimal(typeof v === "number" || typeof v === "string" ? v : 0)
+  const safeDecimalOrNull = (
+    v: unknown
+  ): InstanceType<typeof Decimal> | null =>
+    v == null ? null : safeDecimal(v)
+
+  // Clear any previously-synced ROSTER rows in the window so we don't keep
+  // stale/deleted shifts around. We key on source='ROSTER' and
+  // shiftStart within the window.
+  const windowStart = new Date(sinceUnix * 1000)
+  const windowEnd = new Date(untilUnix * 1000)
+  await db.labourShift.deleteMany({
+    where: {
+      source: "ROSTER",
+      shiftStart: { gte: windowStart, lt: windowEnd },
+    },
+  })
+
   let upserted = 0
   let skipped = 0
-  const skippedOpUnits = new Map<number, number>() // op-unit id → count
-  for (const t of timesheets) {
-    const venue = locMap.get(t.OperationalUnit)
+  const skippedOpUnits = new Map<number, number>()
+  for (const r of rosters) {
+    const venue = locMap.get(r.OperationalUnit)
     if (!venue) {
       skipped += 1
       skippedOpUnits.set(
-        t.OperationalUnit,
-        (skippedOpUnits.get(t.OperationalUnit) ?? 0) + 1
+        r.OperationalUnit,
+        (skippedOpUnits.get(r.OperationalUnit) ?? 0) + 1
       )
       continue
     }
-    const emp = empMap.get(t.Employee)
-    const name = emp?.DisplayName ?? `Employee #${t.Employee}`
-    // Defensive: coerce every numeric to a safe value before handing to
-    // Decimal. Deputy's Timesheet rows occasionally have null/undefined
-    // for PayRate (unpriced shifts) and have been seen to omit Cost on
-    // rosters that haven't been costed yet.
-    const safeDecimal = (v: unknown): InstanceType<typeof Decimal> =>
-      new Decimal(
-        typeof v === "number" || typeof v === "string" ? v : 0
-      )
-    const safeDecimalOrNull = (
-      v: unknown
-    ): InstanceType<typeof Decimal> | null =>
-      v == null ? null : safeDecimal(v)
-
-    const startMs = Number(t.StartTime) * 1000
-    const endMs = Number(t.EndTime) * 1000
+    const startMs = Number(r.StartTime) * 1000
+    const endMs = Number(r.EndTime) * 1000
     if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) {
       skipped += 1
       continue
     }
-
-    // Deputy only populates Timesheet.Cost + Timesheet.PayRate after the
-    // shift is approved / exported to payroll. For unapproved shifts we
-    // estimate cost from the employee's nominal PayRate so /labour has
-    // live numbers instead of $0. If Employee.PayRate is also missing
-    // we fall back to 0 and let the approved shifts populate later.
-    const tsRate =
-      typeof t.PayRate === "number" && t.PayRate > 0 ? t.PayRate : null
+    const hoursNum =
+      typeof r.TotalTime === "number" && r.TotalTime > 0
+        ? r.TotalTime
+        : (endMs - startMs) / 1000 / 3600
+    const emp = empMap.get(r.Employee)
     const empRate =
       typeof emp?.PayRate === "number" && emp.PayRate > 0 ? emp.PayRate : null
-    const effectiveRate = tsRate ?? empRate ?? null
-    const hoursNum = typeof t.TotalTime === "number" ? t.TotalTime : 0
-    const tsCost =
-      typeof t.Cost === "number" && t.Cost > 0 ? t.Cost : null
+    const rosterCost =
+      typeof r.Cost === "number" && r.Cost > 0 ? r.Cost : null
     const effectiveCost =
-      tsCost ?? (effectiveRate !== null ? effectiveRate * hoursNum : 0)
+      rosterCost ?? (empRate !== null ? empRate * hoursNum : 0)
 
-    await db.labourShift.upsert({
-      where: { deputyId: String(t.Id) },
-      create: {
-        deputyId: String(t.Id),
-        employeeName: name,
-        employeeId: String(t.Employee),
+    await db.labourShift.create({
+      data: {
+        deputyId: `roster-${r.Id}`,
+        employeeName: emp?.DisplayName ?? `Employee #${r.Employee}`,
+        employeeId: String(r.Employee),
         venue,
         shiftStart: new Date(startMs),
         shiftEnd: new Date(endMs),
         hours: safeDecimal(hoursNum),
         cost: safeDecimal(effectiveCost),
-        payRate: safeDecimalOrNull(effectiveRate),
-        approved: !!t.Approved,
-      },
-      update: {
-        employeeName: name,
-        shiftStart: new Date(startMs),
-        shiftEnd: new Date(endMs),
-        hours: safeDecimal(hoursNum),
-        cost: safeDecimal(effectiveCost),
-        payRate: safeDecimalOrNull(effectiveRate),
-        approved: !!t.Approved,
+        payRate: safeDecimalOrNull(empRate),
+        approved: false,
+        source: "ROSTER",
       },
     })
     upserted += 1
+  }
+
+  // ---- Manager sales forecast (plan_Sales) → ManagerSalesForecast ----
+  // plan_Sales rows are daily per operational unit; we sum them per
+  // (venue, Wed-week) and upsert into ManagerSalesForecast. Source=DEPUTY
+  // so manual overrides (source=MANUAL) still win.
+  const forecastByKey = new Map<string, number>() // "<venue>|<wedIso>" → $
+  for (const ps of planSales) {
+    const venue = locMap.get(ps.OperationalUnit)
+    if (!venue) continue
+    const d = new Date(ps.Timestamp * 1000)
+    const wedStart = startOfTarteWeekUtc(d)
+    const key = `${venue}|${wedStart.toISOString().split("T")[0]}`
+    forecastByKey.set(
+      key,
+      (forecastByKey.get(key) ?? 0) + Number(ps.SalesAmount || 0)
+    )
+  }
+  let forecastsWritten = 0
+  for (const [key, amount] of forecastByKey.entries()) {
+    const [venue, wedIso] = key.split("|")
+    const wedDate = new Date(wedIso)
+    // Only overwrite rows that came from DEPUTY (or don't exist yet) —
+    // a MANUAL override should not be clobbered by a sync.
+    const existing = await db.managerSalesForecast.findUnique({
+      where: {
+        venue_weekStartWed: { venue: venue as Venue, weekStartWed: wedDate },
+      },
+    })
+    if (existing && existing.source === "MANUAL") continue
+    await db.managerSalesForecast.upsert({
+      where: {
+        venue_weekStartWed: { venue: venue as Venue, weekStartWed: wedDate },
+      },
+      create: {
+        venue: venue as Venue,
+        weekStartWed: wedDate,
+        amount: new Decimal(Math.round(amount * 100) / 100),
+        source: "DEPUTY",
+      },
+      update: {
+        amount: new Decimal(Math.round(amount * 100) / 100),
+        source: "DEPUTY",
+      },
+    })
+    forecastsWritten += 1
   }
 
   await db.deputyConnection.update({
@@ -293,10 +394,21 @@ export async function syncDeputyTimesheets() {
 
   if (skippedOpUnits.size > 0) {
     console.log(
-      "[deputy/sync] skipped op-units (not in locMap):",
+      "[deputy/roster] skipped op-units (not in locMap):",
       Object.fromEntries(skippedOpUnits.entries())
     )
   }
 
-  return { upserted, skipped, total: timesheets.length }
+  return {
+    upserted,
+    skipped,
+    forecastsWritten,
+    total: rosters.length,
+    windowStart: windowStart.toISOString().split("T")[0],
+    windowEnd: windowEnd.toISOString().split("T")[0],
+  }
 }
+
+// Legacy alias — the old action button + cron endpoint called this name.
+// Points at the new Roster-based sync so /api/cron/sync-deputy keeps working.
+export const syncDeputyTimesheets = syncDeputyRoster

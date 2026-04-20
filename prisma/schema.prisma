@@ -560,11 +560,79 @@ model LabourShift {
   payRate         Decimal? @db.Decimal(8, 2)
   area            String?  // Deputy "Area" (e.g. "Kitchen", "Floor")
   approved        Boolean  @default(false)
+  /// Which source this row came from. ROSTER = scheduled/forecast shift
+  /// from Deputy's Roster resource (live/future weeks). TIMESHEET = actual
+  /// shift from Deputy's Timesheet resource. Approved timesheets are what
+  /// eventually settle into payroll.
+  source          String   @default("TIMESHEET")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@index([venue, shiftStart])
   @@index([shiftStart])
+  @@index([source])
+}
+
+/// Weekly per-venue actuals, uploaded or Xero-imported post-payroll.
+/// Weeks are Wed–Tue; weekStartWed is the Wednesday UTC midnight.
+///
+/// Why separate from WeeklyLabourCost: that table is org-wide and indexed
+/// by Monday ISO week; we need per-venue + Wed-week + a source trail.
+model LabourWeekActual {
+  id           String         @id @default(cuid())
+  venue        Venue
+  weekStartWed DateTime       @db.Date
+  grossWages   Decimal        @db.Decimal(10, 2)
+  superAmount  Decimal        @db.Decimal(10, 2) @default(0)
+  totalHours   Decimal?       @db.Decimal(8, 2)
+  headcount    Int?
+  /// Manager's sales forecast for this week (ex GST) — what Deputy's
+  /// Roster Insights uses as the denominator for the labour-% forecast.
+  /// Captured alongside payroll actuals so the "was the week on-target?"
+  /// retrospective can use the same number the manager was aiming at.
+  mForecast    Decimal?       @db.Decimal(10, 2)
+  source       String         @default("UPLOAD") // UPLOAD | XERO
+  notes        String?
+  uploadId     String?
+  upload       LabourUpload?  @relation(fields: [uploadId], references: [id], onDelete: SetNull)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([venue, weekStartWed])
+  @@index([weekStartWed])
+}
+
+/// Manager's weekly sales forecast (M. Forecast) per venue. Drives the
+/// labour-% denominator for live + next week on /labour, matching
+/// Deputy's Roster Insights Summary view.
+model ManagerSalesForecast {
+  id           String   @id @default(cuid())
+  venue        Venue
+  weekStartWed DateTime @db.Date
+  /// Sales forecast in dollars EX GST. Industry-standard for labour %.
+  amount       Decimal  @db.Decimal(10, 2)
+  /// Where the number came from — MANUAL when a manager typed it in,
+  /// DEPUTY when we scraped it from Deputy's Insights API.
+  source       String   @default("MANUAL")
+  enteredBy    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([venue, weekStartWed])
+  @@index([weekStartWed])
+}
+
+/// One row per uploaded bookkeeper report. Holds the raw CSV + parse
+/// metadata so we can re-parse / audit / delete an upload cleanly.
+model LabourUpload {
+  id         String             @id @default(cuid())
+  filename   String
+  rawCsv     String
+  weekCount  Int                @default(0) // # of LabourWeekActual rows created
+  uploadedBy String?
+  createdAt  DateTime           @default(now())
+
+  rows LabourWeekActual[]
 }
 
 // ============================================================
