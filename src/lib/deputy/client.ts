@@ -324,30 +324,29 @@ export async function syncDeputyRoster() {
     const emp = empMap.get(r.Employee)
     const empRate =
       typeof emp?.PayRate === "number" && emp.PayRate > 0 ? emp.PayRate : null
-    const onCost =
-      typeof r.OnCost === "number" && r.OnCost > 0 ? r.OnCost : null
+    // In practice Deputy's API returns OnCost == Cost (the Insights UI
+    // layers super on top at display time, the API response does not).
+    // So we always apply our own super multiplier — picking whichever
+    // base cost is available — to match what Deputy shows on its
+    // Insights page. Salary staff (payrate = 0) still resolve to $0.
     const baseCost =
-      typeof r.Cost === "number" && r.Cost > 0 ? r.Cost : null
+      typeof r.OnCost === "number" && r.OnCost > 0
+        ? r.OnCost
+        : typeof r.Cost === "number" && r.Cost > 0
+          ? r.Cost
+          : null
     const isOpenShift = r.Open === true || !emp || r.Employee === 0
     const superMultiplier = 1 + Number(connection.superRate ?? 0.12)
     const openShiftRate = Number(connection.defaultOpenShiftRate ?? 30)
-    // Priority:
-    //   1. OnCost — Deputy's own fully-loaded figure (super already baked
-    //      in if configured per-employee in Deputy). Use verbatim.
-    //   2. Cost × (1 + superRate) — base wage from Deputy, we load super
-    //      ourselves so the labour % still includes on-costs.
-    //   3. empRate × hours × (1 + superRate) — nominal payrate, loaded.
-    //   4. openShiftRate × hours × (1 + superRate) — unfilled shifts.
-    //   5. 0 — salary staff (payrate=0 in Deputy, intentional).
-    const effectiveCost =
-      onCost ??
-      (baseCost !== null
-        ? baseCost * superMultiplier
+    const rawCost =
+      baseCost !== null
+        ? baseCost
         : empRate !== null
-          ? empRate * hoursNum * superMultiplier
+          ? empRate * hoursNum
           : isOpenShift
-            ? openShiftRate * hoursNum * superMultiplier
-            : 0)
+            ? openShiftRate * hoursNum
+            : 0
+    const effectiveCost = rawCost * superMultiplier
 
     await db.labourShift.create({
       data: {
