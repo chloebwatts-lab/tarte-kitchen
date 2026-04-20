@@ -243,6 +243,22 @@ export async function syncDeputyTimesheets() {
       continue
     }
 
+    // Deputy only populates Timesheet.Cost + Timesheet.PayRate after the
+    // shift is approved / exported to payroll. For unapproved shifts we
+    // estimate cost from the employee's nominal PayRate so /labour has
+    // live numbers instead of $0. If Employee.PayRate is also missing
+    // we fall back to 0 and let the approved shifts populate later.
+    const tsRate =
+      typeof t.PayRate === "number" && t.PayRate > 0 ? t.PayRate : null
+    const empRate =
+      typeof emp?.PayRate === "number" && emp.PayRate > 0 ? emp.PayRate : null
+    const effectiveRate = tsRate ?? empRate ?? null
+    const hoursNum = typeof t.TotalTime === "number" ? t.TotalTime : 0
+    const tsCost =
+      typeof t.Cost === "number" && t.Cost > 0 ? t.Cost : null
+    const effectiveCost =
+      tsCost ?? (effectiveRate !== null ? effectiveRate * hoursNum : 0)
+
     await db.labourShift.upsert({
       where: { deputyId: String(t.Id) },
       create: {
@@ -252,18 +268,18 @@ export async function syncDeputyTimesheets() {
         venue,
         shiftStart: new Date(startMs),
         shiftEnd: new Date(endMs),
-        hours: safeDecimal(t.TotalTime),
-        cost: safeDecimal(t.Cost),
-        payRate: safeDecimalOrNull(t.PayRate),
+        hours: safeDecimal(hoursNum),
+        cost: safeDecimal(effectiveCost),
+        payRate: safeDecimalOrNull(effectiveRate),
         approved: !!t.Approved,
       },
       update: {
         employeeName: name,
         shiftStart: new Date(startMs),
         shiftEnd: new Date(endMs),
-        hours: safeDecimal(t.TotalTime),
-        cost: safeDecimal(t.Cost),
-        payRate: safeDecimalOrNull(t.PayRate),
+        hours: safeDecimal(hoursNum),
+        cost: safeDecimal(effectiveCost),
+        payRate: safeDecimalOrNull(effectiveRate),
         approved: !!t.Approved,
       },
     })
