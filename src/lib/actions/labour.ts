@@ -45,6 +45,12 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
   nextStart.setUTCDate(nextStart.getUTCDate() + 7)
   const past8Start = new Date(liveStart)
   past8Start.setUTCDate(past8Start.getUTCDate() - 7 * 8) // last 8 past weeks
+  // Shift filter uses the true UTC instant of Wed 00:00 AEST so the
+  // 4am Wednesday bakery shifts (StartTime = Tue 18:00 UTC) aren't
+  // accidentally excluded from the current live week.
+  const liveStartAestInstant = new Date(
+    liveStart.getTime() - 10 * 60 * 60 * 1000
+  )
 
   const connection = await db.deputyConnection.findFirst()
   const hasDeputyConnection = !!connection
@@ -60,7 +66,7 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
     db.labourShift.findMany({
       where: {
         source: "ROSTER",
-        shiftStart: { gte: liveStart },
+        shiftStart: { gte: liveStartAestInstant },
       },
       select: {
         venue: true,

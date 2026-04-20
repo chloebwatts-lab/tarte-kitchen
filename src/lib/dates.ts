@@ -1,30 +1,31 @@
 /**
- * Date helpers. Tarte's operating week runs **Wednesday → Tuesday** — not
- * ISO Monday weeks. Every labour/sales/cost aggregation that rolls up per
- * week should use these helpers, not `startOfWeek` from date-fns.
+ * Date helpers. Tarte's operating week runs **Wednesday → Tuesday** in
+ * Queensland local time (Australia/Brisbane, UTC+10, no DST). Every
+ * labour/sales/cost aggregation that rolls up per week should use these
+ * helpers, not `startOfWeek` from date-fns.
  */
 
+const BRISBANE_OFFSET_MS = 10 * 60 * 60 * 1000
+
 /**
- * Given any date, return the UTC midnight of the **Wednesday** that
- * begins the Tarte week containing it.
+ * Given any date, return a Date at Wed 00:00 UTC representing the AEST
+ * Wednesday of the week containing it — matching the `weekStartWed` DATE
+ * column convention in the DB (yyyy-mm-dd of the AEST Wednesday).
  *
- * Wednesday is ISO weekday 3, Thursday 4, … Tuesday 2.
- * Formula: weekday index with Wed=0: (isoWeekday + 4) % 7
- *   Wed = (3+4)%7 = 0
- *   Thu = (4+4)%7 = 1
- *   …
- *   Tue = (2+4)%7 = 6
- *
- * We work in UTC throughout — the DB stores DATE columns which ignore
- * timezone, and the 10h AEST offset is handled elsewhere.
+ * The +10h shift projects the input into AEST's clock space, then we
+ * snap to midnight and walk back to Wednesday. Result is a pure-UTC-
+ * midnight Date whose yyyy-mm-dd is the AEST Wednesday — so DB lookups
+ * for existing rows keyed to a Wed UTC midnight continue to work, and
+ * shift bucketing now respects AEST week boundaries (critical for early-
+ * Wednesday bakery shifts whose UTC timestamp falls on Tuesday).
  */
 export function startOfTarteWeekUtc(d: Date): Date {
-  const out = new Date(d)
-  out.setUTCHours(0, 0, 0, 0)
-  const iso = out.getUTCDay() === 0 ? 7 : out.getUTCDay()
+  const shifted = new Date(d.getTime() + BRISBANE_OFFSET_MS)
+  shifted.setUTCHours(0, 0, 0, 0)
+  const iso = shifted.getUTCDay() === 0 ? 7 : shifted.getUTCDay()
   const offsetFromWed = (iso + 4) % 7
-  out.setUTCDate(out.getUTCDate() - offsetFromWed)
-  return out
+  shifted.setUTCDate(shifted.getUTCDate() - offsetFromWed)
+  return shifted
 }
 
 /** ISO yyyy-mm-dd of the Wednesday that starts the Tarte week. */
@@ -42,18 +43,26 @@ export function currentTarteWeekRange(now = new Date()): { start: Date; end: Dat
 
 /**
  * The 2-week window we sync from Deputy's Roster (live + next).
- * Returns Unix seconds for Deputy's search API.
+ * Returns Unix seconds for Deputy's search API. The window bounds are
+ * the **actual UTC instants** of Wed 00:00 AEST → 2 weeks later, so
+ * Deputy returns every shift inside Tarte's AEST week (including the
+ * 4am Wed bakery shifts whose UTC StartTime falls on Tue 18:00 UTC).
  */
 export function liveRosterWindowUnix(now = new Date()): {
   sinceUnix: number
   untilUnix: number
 } {
-  const start = startOfTarteWeekUtc(now)
-  const end = new Date(start)
-  end.setUTCDate(end.getUTCDate() + 14) // 2 weeks
+  // startOfTarteWeekUtc returns Wed 00:00 UTC labelled as the AEST Wed;
+  // subtract 10h to get the actual UTC instant of Wed 00:00 AEST.
+  const wedAestInstant = new Date(
+    startOfTarteWeekUtc(now).getTime() - BRISBANE_OFFSET_MS
+  )
+  const endInstant = new Date(
+    wedAestInstant.getTime() + 14 * 24 * 60 * 60 * 1000
+  )
   return {
-    sinceUnix: Math.floor(start.getTime() / 1000),
-    untilUnix: Math.floor(end.getTime() / 1000),
+    sinceUnix: Math.floor(wedAestInstant.getTime() / 1000),
+    untilUnix: Math.floor(endInstant.getTime() / 1000),
   }
 }
 
