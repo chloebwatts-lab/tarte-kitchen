@@ -2,15 +2,17 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Upload, Check, AlertTriangle } from "lucide-react"
+import { ArrowLeft, Upload, Check, AlertTriangle, FileText } from "lucide-react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
   parseLabourCsv,
-  parseLabourPdf,
+  parseLabourPdfRich,
   commitLabourCsv,
+  commitLabourMgePdf,
   type ParsedCsvRow,
+  type ExtractedMgeWeek,
 } from "@/lib/actions/labour"
 import { cn } from "@/lib/utils"
 import { VENUE_LABEL, SINGLE_VENUES } from "@/lib/venues"
@@ -26,6 +28,7 @@ export function LabourUploadForm() {
   const [raw, setRaw] = useState(EXAMPLE_CSV)
   const [filename, setFilename] = useState("payroll.csv")
   const [preview, setPreview] = useState<ParsedCsvRow[] | null>(null)
+  const [mgePreview, setMgePreview] = useState<ExtractedMgeWeek[] | null>(null)
   const [errors, setErrors] = useState<string[]>([])
   const [fixedVenues, setFixedVenues] = useState<Record<number, Venue>>({})
   const [isPending, startTransition] = useTransition()
@@ -35,8 +38,9 @@ export function LabourUploadForm() {
     setFilename(f.name)
     setSaveResult(null)
     setErrors([])
+    setPreview(null)
+    setMgePreview(null)
     if (f.type === "application/pdf" || /\.pdf$/i.test(f.name)) {
-      // PDF → hand to Claude for extraction, populate the CSV textarea.
       const buf = await f.arrayBuffer()
       let binary = ""
       const bytes = new Uint8Array(buf)
@@ -44,14 +48,17 @@ export function LabourUploadForm() {
         binary += String.fromCharCode(bytes[i])
       }
       const base64 = btoa(binary)
-      setRaw(`# Extracting from ${f.name}… this takes ~10s.`)
+      setRaw(`# Extracting rich management-report data from ${f.name}… this takes ~10s.`)
       startTransition(async () => {
         try {
-          const { csv } = await parseLabourPdf({
+          const { weeks } = await parseLabourPdfRich({
             pdfBase64: base64,
             filename: f.name,
           })
-          setRaw(csv)
+          setMgePreview(weeks)
+          setRaw(
+            `# PDF parsed: ${weeks.length} week${weeks.length === 1 ? "" : "s"}. Review the preview below and click Save when ready.`
+          )
         } catch (e) {
           setRaw("")
           setErrors([`PDF extraction failed: ${(e as Error).message}`])
@@ -65,6 +72,7 @@ export function LabourUploadForm() {
 
   function handleParse() {
     setSaveResult(null)
+    setMgePreview(null)
     startTransition(async () => {
       const { rows, errors } = await parseLabourCsv(raw)
       setPreview(rows)
@@ -104,6 +112,32 @@ export function LabourUploadForm() {
     })
   }
 
+  function handleCommitMge() {
+    if (!mgePreview) return
+    const missing = mgePreview.filter(
+      (w) => w.venue === null || !w.weekStartWed
+    )
+    if (missing.length > 0) {
+      setErrors([
+        `${missing.length} week(s) missing venue or week-start — re-upload the PDF or edit manually via CSV`,
+      ])
+      return
+    }
+    startTransition(async () => {
+      try {
+        const res = await commitLabourMgePdf({
+          filename,
+          rawPdfBase64: "",
+          weeks: mgePreview,
+        })
+        setSaveResult(`Saved ${res.weeks} week(s). Upload id: ${res.uploadId}`)
+        setTimeout(() => router.push("/labour"), 1000)
+      } catch (e) {
+        setErrors([`Save failed: ${(e as Error).message}`])
+      }
+    })
+  }
+
   return (
     <div className="space-y-6">
       <Link
@@ -116,7 +150,9 @@ export function LabourUploadForm() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">CSV input</CardTitle>
+          <CardTitle className="text-sm font-medium">
+            Upload Mge PDF or CSV
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center gap-2">
@@ -137,43 +173,38 @@ export function LabourUploadForm() {
           </div>
           <textarea
             value={raw}
-            onChange={(e) => setRaw(e.target.value)}
+            onChange={(e) => {
+              setRaw(e.target.value)
+              setMgePreview(null)
+            }}
             rows={9}
             className="w-full rounded-md border border-border bg-background p-3 font-mono text-xs"
             placeholder="venue,week_start,gross_wages,super,hours,m_forecast"
           />
           <div className="rounded-md border border-border bg-muted/30 p-3 text-xs">
-            <p className="font-medium">Expected columns</p>
+            <p className="font-medium">Two upload modes</p>
             <ul className="mt-1 list-disc space-y-0.5 pl-5 text-muted-foreground">
               <li>
-                <code>venue</code> — Burleigh / Beach House / Tea Garden
+                <strong>Mge PDF</strong> — uploads the weekly management
+                report. Claude extracts revenue, department wage
+                breakdown, ex-admin totals, and COGS automatically.
               </li>
               <li>
-                <code>week_start</code> — any date; we snap to the Wednesday
-                of that Tarte week automatically
-              </li>
-              <li>
-                <code>gross_wages</code> — gross $ for the week
-              </li>
-              <li>
-                <code>super</code> — super amount (optional)
-              </li>
-              <li>
-                <code>hours</code> — total hours worked (optional)
-              </li>
-              <li>
-                <code>m_forecast</code> — manager&apos;s sales forecast ex GST
-                (optional; live weeks already use Deputy&apos;s forecast)
+                <strong>CSV</strong> — paste or edit the textarea and
+                click &ldquo;Parse & preview&rdquo;. Supports columns:
+                venue, week_start, gross_wages, super, hours, m_forecast.
               </li>
             </ul>
           </div>
-          <button
-            onClick={handleParse}
-            disabled={isPending || !raw.trim()}
-            className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
-          >
-            Parse & preview
-          </button>
+          {!mgePreview && (
+            <button
+              onClick={handleParse}
+              disabled={isPending || !raw.trim() || raw.startsWith("#")}
+              className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+            >
+              {isPending ? "Working…" : "Parse CSV"}
+            </button>
+          )}
         </CardContent>
       </Card>
 
@@ -192,10 +223,82 @@ export function LabourUploadForm() {
         </Card>
       )}
 
+      {mgePreview && mgePreview.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <FileText className="h-4 w-4" />
+              Mge PDF preview
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {mgePreview.map((w, i) => (
+              <div
+                key={i}
+                className="rounded-lg border border-border p-4 space-y-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">
+                      {w.venue ? VENUE_LABEL[w.venue] : (
+                        <span className="text-red-600">⚠ Unknown venue</span>
+                      )}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      week of {w.weekStartWed || "—"} (Wed–Tue)
+                    </span>
+                  </div>
+                  {w.revenueExGst !== null && (
+                    <span className="text-xs text-muted-foreground">
+                      Revenue ex GST: <span className="font-medium text-foreground">${w.revenueExGst.toLocaleString()}</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* Totals */}
+                <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                  <Stat label="Total wages" value={w.grossWages} revenue={w.revenueExGst} />
+                  <Stat label="Ex-admin" value={w.grossWagesExAdmin} revenue={w.revenueExGst} />
+                  <Stat label="Ex-admin/leave/bkpay" value={w.grossWagesExAdminLeaveBackpay} revenue={w.revenueExGst} />
+                  <Stat label="COGS" value={w.cogsActual} pctOverride={w.cogsPct} />
+                </div>
+
+                {/* Departments */}
+                <div className="rounded-md border border-border bg-muted/20 p-3">
+                  <div className="mb-2 text-xs font-medium">Department breakdown</div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-3">
+                    <Dept label="Barista" value={w.wagesBarista} revenue={w.revenueExGst} />
+                    <Dept label="Chef" value={w.wagesChef} revenue={w.revenueExGst} />
+                    <Dept label="FOH" value={w.wagesFoh} revenue={w.revenueExGst} />
+                    <Dept label="KP/Dishy" value={w.wagesKp} revenue={w.revenueExGst} />
+                    <Dept label="Pastry" value={w.wagesPastry} revenue={w.revenueExGst} />
+                    <Dept label="Admin" value={w.wagesAdmin} revenue={w.revenueExGst} />
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCommitMge}
+                disabled={isPending}
+                className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                <Check className="h-4 w-4" />
+                Save {mgePreview.length} week{mgePreview.length === 1 ? "" : "s"}
+              </button>
+              {saveResult && (
+                <span className="text-xs text-emerald-700">{saveResult}</span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {preview && preview.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Preview</CardTitle>
+            <CardTitle className="text-sm font-medium">CSV preview</CardTitle>
           </CardHeader>
           <CardContent>
             <table className="w-full text-sm">
@@ -297,6 +400,76 @@ export function LabourUploadForm() {
           </CardContent>
         </Card>
       )}
+    </div>
+  )
+}
+
+function Stat({
+  label,
+  value,
+  revenue,
+  pctOverride,
+}: {
+  label: string
+  value: number | null
+  revenue?: number | null
+  pctOverride?: number | null
+}) {
+  if (value === null) {
+    return (
+      <div>
+        <div className="text-muted-foreground">{label}</div>
+        <div className="text-muted-foreground/60">—</div>
+      </div>
+    )
+  }
+  const pct =
+    pctOverride ??
+    (revenue && revenue > 0 ? (value / revenue) * 100 : null)
+  return (
+    <div>
+      <div className="text-muted-foreground">{label}</div>
+      <div className="tabular-nums font-medium">
+        ${value.toLocaleString()}
+        {pct !== null && (
+          <span className="ml-1 text-[10px] text-muted-foreground">
+            ({pct.toFixed(2)}%)
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function Dept({
+  label,
+  value,
+  revenue,
+}: {
+  label: string
+  value: number | null
+  revenue: number | null
+}) {
+  if (value === null) {
+    return (
+      <div className="flex items-center justify-between">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="text-muted-foreground/60">—</span>
+      </div>
+    )
+  }
+  const pct = revenue && revenue > 0 ? (value / revenue) * 100 : null
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="tabular-nums">
+        ${value.toLocaleString()}
+        {pct !== null && (
+          <span className="ml-1 text-[10px] text-muted-foreground/70">
+            {pct.toFixed(2)}%
+          </span>
+        )}
+      </span>
     </div>
   )
 }

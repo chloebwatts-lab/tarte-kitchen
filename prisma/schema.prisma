@@ -610,7 +610,30 @@ model LabourWeekActual {
   /// Captured alongside payroll actuals so the "was the week on-target?"
   /// retrospective can use the same number the manager was aiming at.
   mForecast    Decimal?       @db.Decimal(10, 2)
-  source       String         @default("UPLOAD") // UPLOAD | XERO
+  // --- Rich management-report fields (from Mge PDF) ------------------
+  /// Actual revenue (ex GST) for the week as reported on the Mge PDF.
+  /// The source of truth for labour-% post-week — overrides mForecast
+  /// as the denominator once actuals are uploaded.
+  revenueExGst Decimal?       @db.Decimal(10, 2)
+  /// Gross wages excluding admin/salary — matches what Deputy's Roster
+  /// Insights shows (salary admin staff aren't in shift-level data).
+  grossWagesExAdmin Decimal?  @db.Decimal(10, 2)
+  /// Gross wages excluding admin + leave + toil + backpay. The cleanest
+  /// apples-to-apples comparison with a rostered week.
+  grossWagesExAdminLeaveBackpay Decimal? @db.Decimal(10, 2)
+  // Per-department wage breakdown. Nullable so pre-PDF rows stay intact.
+  wagesBarista Decimal?       @db.Decimal(10, 2)
+  wagesChef    Decimal?       @db.Decimal(10, 2)
+  wagesFoh     Decimal?       @db.Decimal(10, 2)
+  wagesKp      Decimal?       @db.Decimal(10, 2)
+  wagesPastry  Decimal?       @db.Decimal(10, 2)
+  wagesAdmin   Decimal?       @db.Decimal(10, 2)
+  /// Actual COGS $ for the week (from the Mge PDF's COGS box).
+  cogsActual   Decimal?       @db.Decimal(10, 2)
+  /// COGS as % of revenue, captured directly from the PDF so we don't
+  /// re-derive and potentially mask rounding.
+  cogsPct      Decimal?       @db.Decimal(5, 2)
+  source       String         @default("UPLOAD") // UPLOAD | XERO | PDF
   notes        String?
   uploadId     String?
   upload       LabourUpload?  @relation(fields: [uploadId], references: [id], onDelete: SetNull)

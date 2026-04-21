@@ -22,8 +22,23 @@ export interface LabourWeekCard {
     actualHours: number | null // from LabourWeekActual (past weeks)
     actualWages: number | null
     mForecast: number | null // manager's sales forecast ex GST
-    labourPct: number | null // (wages / mForecast) * 100
+    labourPct: number | null // (wages / revenue-or-forecast) * 100
     hasActuals: boolean
+    // Rich Mge-PDF fields (past weeks, when uploaded)
+    actualRevenueExGst: number | null
+    actualWagesExAdmin: number | null
+    actualCogs: number | null
+    actualCogsPct: number | null
+    wagesBarista: number | null
+    wagesChef: number | null
+    wagesFoh: number | null
+    wagesKp: number | null
+    wagesPastry: number | null
+    wagesAdmin: number | null
+    // Theoretical COGS (from DailySalesSummary.theoreticalCogs recipe rollup)
+    // aggregated for this Wed–Tue window. Lets the UI show actual vs theory.
+    theoreticalCogs: number | null
+    theoreticalCogsPct: number | null
   }[]
 }
 
@@ -65,8 +80,10 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
   // this on top of the super multiplier at display time.
   const upliftMultiplier = 1 + Number(connection?.onCostUpliftRate ?? 0)
 
-  // Pull everything in parallel — 3 queries total.
-  const [rosterShifts, actuals, forecasts] = await Promise.all([
+  // Pull everything in parallel. Sales summaries drive theoretical COGS
+  // (actual POS revenue × recipe costs) so we can cross-check against
+  // the actual COGS figure in the Mge PDF.
+  const [rosterShifts, actuals, forecasts, sales] = await Promise.all([
     db.labourShift.findMany({
       where: {
         source: "ROSTER",
@@ -86,7 +103,34 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
     db.managerSalesForecast.findMany({
       where: { weekStartWed: { gte: past8Start } },
     }),
+    db.dailySalesSummary.findMany({
+      where: { date: { gte: past8Start } },
+      select: {
+        date: true,
+        venue: true,
+        totalRevenueExGst: true,
+        theoreticalCogs: true,
+      },
+    }),
   ])
+
+  // Aggregate POS revenue + theoretical COGS per (venue, Wed-week) so we
+  // can compare against the Mge PDF's "This Week" COGS % line-for-line.
+  const posByKey = new Map<
+    string,
+    { revenue: number; theoreticalCogs: number | null }
+  >()
+  for (const s of sales) {
+    const wk = weekStartWedIso(startOfTarteWeekUtc(s.date))
+    const key = `${s.venue}|${wk}`
+    const existing = posByKey.get(key) ?? { revenue: 0, theoreticalCogs: null }
+    existing.revenue += Number(s.totalRevenueExGst)
+    if (s.theoreticalCogs != null) {
+      existing.theoreticalCogs =
+        (existing.theoreticalCogs ?? 0) + Number(s.theoreticalCogs)
+    }
+    posByKey.set(key, existing)
+  }
 
   const forecastByKey = new Map<string, number>()
   for (const f of forecasts) {
@@ -125,45 +169,83 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
       const key = `${v}|${iso}`
       const roster = rosterBucket.get(key)
       const actual = actualsByKey.get(key)
+      const pos = posByKey.get(key)
       const forecast =
         actual?.mForecast !== null && actual?.mForecast !== undefined
           ? Number(actual.mForecast)
           : forecastByKey.get(key) ?? null
 
-      // Choose the authoritative wage total for this card:
-      //   - past weeks prefer actuals
-      //   - live + next weeks prefer rostered
+      // Mge-PDF rich fields (past weeks). These are preferred over the
+      // plain gross_wages number from CSV uploads because they match
+      // what Deputy's Insights roster shows (salary admin excluded).
+      const actualRevenueExGst =
+        actual?.revenueExGst != null ? Number(actual.revenueExGst) : null
+      const actualWagesExAdmin =
+        actual?.grossWagesExAdmin != null
+          ? Number(actual.grossWagesExAdmin)
+          : null
+      const actualCogs =
+        actual?.cogsActual != null ? Number(actual.cogsActual) : null
+      const actualCogsPct =
+        actual?.cogsPct != null ? Number(actual.cogsPct) : null
+
+      // Wage total for this card:
+      //   - past weeks: prefer ex-admin (matches roster), else full gross
+      //   - live + next weeks: rostered (already ex-admin since salary
+      //     staff are mapped to a single aggregate in Deputy)
       const wages =
         kind === "PAST"
-          ? actual
-            ? Number(actual.grossWages)
-            : null
+          ? actualWagesExAdmin ??
+            (actual ? Number(actual.grossWages) : null)
           : roster?.cost ?? null
-      const hours =
+      // Denominator: prefer the actual revenue from the Mge PDF; else
+      // fall back to POS-aggregated revenue; else manager's forecast.
+      const denom =
         kind === "PAST"
-          ? actual?.totalHours != null
-            ? Number(actual.totalHours)
-            : null
-          : roster?.hours ?? null
+          ? actualRevenueExGst ?? pos?.revenue ?? forecast
+          : forecast
 
       const labourPct =
-        wages !== null && forecast !== null && forecast > 0
-          ? Math.round((wages / forecast) * 10000) / 100
+        wages !== null && denom !== null && denom > 0
+          ? Math.round((wages / denom) * 10000) / 100
+          : null
+
+      // POS-derived theoretical COGS (recipe rollup × actual daily sales).
+      const theoreticalCogs = pos?.theoreticalCogs ?? null
+      const theoreticalCogsPct =
+        theoreticalCogs !== null && pos && pos.revenue > 0
+          ? Math.round((theoreticalCogs / pos.revenue) * 10000) / 100
           : null
 
       return {
         venue: v,
         scheduledHours: kind === "PAST" ? null : roster?.hours ?? null,
         scheduledWages: kind === "PAST" ? null : roster?.cost ?? null,
-        actualHours: kind === "PAST" && actual?.totalHours != null
-          ? Number(actual.totalHours)
-          : null,
-        actualWages: kind === "PAST" && actual
-          ? Number(actual.grossWages)
-          : null,
+        actualHours:
+          kind === "PAST" && actual?.totalHours != null
+            ? Number(actual.totalHours)
+            : null,
+        actualWages:
+          kind === "PAST" && actual ? Number(actual.grossWages) : null,
         mForecast: forecast,
         labourPct,
         hasActuals: !!actual,
+        actualRevenueExGst,
+        actualWagesExAdmin,
+        actualCogs,
+        actualCogsPct,
+        wagesBarista:
+          actual?.wagesBarista != null ? Number(actual.wagesBarista) : null,
+        wagesChef:
+          actual?.wagesChef != null ? Number(actual.wagesChef) : null,
+        wagesFoh: actual?.wagesFoh != null ? Number(actual.wagesFoh) : null,
+        wagesKp: actual?.wagesKp != null ? Number(actual.wagesKp) : null,
+        wagesPastry:
+          actual?.wagesPastry != null ? Number(actual.wagesPastry) : null,
+        wagesAdmin:
+          actual?.wagesAdmin != null ? Number(actual.wagesAdmin) : null,
+        theoreticalCogs,
+        theoreticalCogsPct,
       }
     })
     return {
@@ -412,31 +494,84 @@ export async function hasDeputyConnection() {
   return !!c
 }
 
+// ----------------------------------------------------------------------
+// Rich management-report extraction
+// ----------------------------------------------------------------------
+
+export interface ExtractedMgeWeek {
+  venue: Venue | null
+  venueRaw: string
+  weekStartWed: string // yyyy-mm-dd (Wed)
+  revenueExGst: number | null
+  grossWages: number | null
+  grossWagesExAdmin: number | null
+  grossWagesExAdminLeaveBackpay: number | null
+  superAmount: number | null
+  totalHours: number | null
+  wagesBarista: number | null
+  wagesChef: number | null
+  wagesFoh: number | null
+  wagesKp: number | null
+  wagesPastry: number | null
+  wagesAdmin: number | null
+  cogsActual: number | null
+  cogsPct: number | null
+  mForecast: number | null
+}
+
 /**
- * Convert a bookkeeper's payroll PDF into the same CSV shape the textarea
- * accepts. Hands the PDF to Claude with the expected column schema so
- * the operator can still eyeball the parsed rows before they hit the DB.
+ * Hand the weekly management-report PDF ("Mge" / "Payroll Report") to
+ * Claude and parse a structured payload covering revenue, department
+ * wage breakdown, ex-admin totals, and COGS. Previous CSV path is kept
+ * as a fallback in parseLabourCsv.
+ *
+ * Returns one row per week reported in the PDF (usually just one, but
+ * multi-week reports are supported).
  */
-export async function parseLabourPdf(params: {
+export async function parseLabourPdfRich(params: {
   pdfBase64: string
   filename: string
-}): Promise<{ csv: string; notes?: string }> {
+}): Promise<{ weeks: ExtractedMgeWeek[]; notes?: string }> {
   const Anthropic = (await import("@anthropic-ai/sdk")).default
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-  const prompt = `Extract weekly payroll data from this PDF and return ONLY a CSV with this header (no prose, no code fences):
+  const prompt = `Extract the CURRENT WEEK management report from this PDF. Return ONLY a JSON object (no prose, no code fences) with shape:
 
-venue,week_start,gross_wages,super,hours,m_forecast
+{
+  "weeks": [
+    {
+      "venue": "Burleigh" | "Beach House" | "Tea Garden",
+      "week_ending_tuesday": "yyyy-mm-dd",
+      "revenue_ex_gst": number | null,
+      "gross_wages": number | null,
+      "gross_wages_ex_admin": number | null,
+      "gross_wages_ex_admin_leave_backpay": number | null,
+      "super_amount": number | null,
+      "total_hours": number | null,
+      "wages_barista": number | null,
+      "wages_chef": number | null,
+      "wages_foh": number | null,
+      "wages_kp": number | null,
+      "wages_pastry": number | null,
+      "wages_admin": number | null,
+      "cogs_actual": number | null,
+      "cogs_pct": number | null,
+      "m_forecast": number | null
+    }
+  ]
+}
 
 Rules:
-- One row per (venue, week) pair shown in the report.
-- venue: Burleigh (aka Bakery), Beach House, or Tea Garden. Use the exact venue name shown on the report; if it's a variant like "Tarte Bakery & Cafe" return "Burleigh".
-- week_start: yyyy-mm-dd of the Wednesday that starts the pay-week. If the report shows "week ending Tue 28 Apr" return 2026-04-22. If it shows a different start day, still return the Wednesday of that Wed-Tue week.
-- gross_wages: total gross wages (ex super) for the week, dollars only — strip $ and commas.
-- super: superannuation for the week. If not shown, leave blank.
-- hours: total hours worked. If not shown, leave blank.
-- m_forecast: manager's sales forecast (ex GST) for the week. If not shown, leave blank.
-- Use blank cells for unknown fields (e.g. "Burleigh,2026-04-15,18750,,,").
-- No headers other than the single header row. No totals row.`
+- All dollar figures are numbers (strip $ and commas). Percentages are numbers too (e.g. 36.17 for 36.17%).
+- venue: "Burleigh" for Tarte Bakery Burleigh / Bakery, "Beach House" for Tarte Beach House, "Tea Garden" for Tarte Tea Garden.
+- week_ending_tuesday: the Tuesday the report week ends on (look for "Week ending Tuesday …" or similar).
+- Only the CURRENT week columns (not last week, not YTD, not monthly). If the PDF shows multiple weeks, emit one entry per week.
+- "gross_wages" is the Total row under Current Week.
+- "gross_wages_ex_admin" is the "Total less Admin" row under Current Week.
+- "gross_wages_ex_admin_leave_backpay" is the "Less Admin, leave, backpay" row under Current Week.
+- Department wages are the department $ cells under Current Week — NOT the % columns.
+- "cogs_actual" is the "This Week" COGS $ cell. "cogs_pct" is that row's % of Revenue.
+- "m_forecast" only if a manager sales forecast is shown explicitly; otherwise null.
+- Use null (not 0) for fields you can't find.`
   const response = await client.messages.create({
     model: "claude-sonnet-4-5-20250929",
     max_tokens: 2048,
@@ -461,9 +596,211 @@ Rules:
   if (!textBlock || textBlock.type !== "text") {
     throw new Error("Claude returned no text response")
   }
-  let csv = textBlock.text.trim()
-  if (csv.startsWith("```")) {
-    csv = csv.replace(/^```(?:csv)?\n?/, "").replace(/\n?```$/, "")
+  let raw = textBlock.text.trim()
+  if (raw.startsWith("```")) {
+    raw = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "")
   }
-  return { csv, notes: `Extracted from ${params.filename}` }
+  let parsed: {
+    weeks: {
+      venue?: string
+      week_ending_tuesday?: string
+      revenue_ex_gst?: number | null
+      gross_wages?: number | null
+      gross_wages_ex_admin?: number | null
+      gross_wages_ex_admin_leave_backpay?: number | null
+      super_amount?: number | null
+      total_hours?: number | null
+      wages_barista?: number | null
+      wages_chef?: number | null
+      wages_foh?: number | null
+      wages_kp?: number | null
+      wages_pastry?: number | null
+      wages_admin?: number | null
+      cogs_actual?: number | null
+      cogs_pct?: number | null
+      m_forecast?: number | null
+    }[]
+  }
+  try {
+    parsed = JSON.parse(raw)
+  } catch (e) {
+    throw new Error(
+      `Claude returned invalid JSON: ${(e as Error).message}\nRaw: ${raw.slice(0, 300)}…`
+    )
+  }
+
+  const weeks: ExtractedMgeWeek[] = (parsed.weeks ?? []).map((w) => {
+    const venueRaw = w.venue ?? ""
+    const venue = matchVenue(venueRaw)
+    // Convert "week ending Tuesday Y-M-D" to the Wednesday that starts
+    // the Tarte week — 6 days earlier.
+    let weekStartWed = ""
+    if (w.week_ending_tuesday) {
+      const tue = new Date(w.week_ending_tuesday)
+      if (!Number.isNaN(tue.getTime())) {
+        const wed = new Date(tue)
+        wed.setUTCDate(wed.getUTCDate() - 6)
+        weekStartWed = weekStartWedIso(wed)
+      }
+    }
+    return {
+      venue,
+      venueRaw,
+      weekStartWed,
+      revenueExGst: numOrNull(w.revenue_ex_gst),
+      grossWages: numOrNull(w.gross_wages),
+      grossWagesExAdmin: numOrNull(w.gross_wages_ex_admin),
+      grossWagesExAdminLeaveBackpay: numOrNull(
+        w.gross_wages_ex_admin_leave_backpay
+      ),
+      superAmount: numOrNull(w.super_amount),
+      totalHours: numOrNull(w.total_hours),
+      wagesBarista: numOrNull(w.wages_barista),
+      wagesChef: numOrNull(w.wages_chef),
+      wagesFoh: numOrNull(w.wages_foh),
+      wagesKp: numOrNull(w.wages_kp),
+      wagesPastry: numOrNull(w.wages_pastry),
+      wagesAdmin: numOrNull(w.wages_admin),
+      cogsActual: numOrNull(w.cogs_actual),
+      cogsPct: numOrNull(w.cogs_pct),
+      mForecast: numOrNull(w.m_forecast),
+    }
+  })
+  return { weeks, notes: `Extracted from ${params.filename}` }
+}
+
+function numOrNull(v: unknown): number | null {
+  if (v == null) return null
+  const n = typeof v === "number" ? v : parseFloat(String(v))
+  return Number.isFinite(n) ? n : null
+}
+
+/**
+ * Commit rich Mge extractions into LabourWeekActual. Upserts per
+ * (venue, week) — uploading the same PDF twice overwrites rather than
+ * duplicating.
+ */
+export async function commitLabourMgePdf(params: {
+  filename: string
+  rawPdfBase64: string
+  weeks: ExtractedMgeWeek[]
+  uploadedBy?: string
+}) {
+  // Filter to valid weeks (venue resolved, week_start resolved).
+  const valid = params.weeks.filter(
+    (w): w is ExtractedMgeWeek & { venue: Venue } =>
+      w.venue !== null && w.weekStartWed !== ""
+  )
+  if (valid.length === 0) {
+    throw new Error("No valid weeks to commit (missing venue or week start)")
+  }
+
+  const upload = await db.labourUpload.create({
+    data: {
+      filename: params.filename,
+      // Store the short filename context instead of the full PDF base64.
+      rawCsv: `PDF upload: ${params.filename} (${valid.length} week${valid.length === 1 ? "" : "s"})`,
+      weekCount: valid.length,
+      uploadedBy: params.uploadedBy ?? null,
+    },
+  })
+
+  for (const w of valid) {
+    const wk = startOfTarteWeekUtc(new Date(w.weekStartWed))
+    await db.labourWeekActual.upsert({
+      where: { venue_weekStartWed: { venue: w.venue, weekStartWed: wk } },
+      create: {
+        venue: w.venue,
+        weekStartWed: wk,
+        grossWages: new Decimal(w.grossWages ?? 0),
+        superAmount: new Decimal(w.superAmount ?? 0),
+        totalHours:
+          w.totalHours != null ? new Decimal(w.totalHours) : null,
+        mForecast: w.mForecast != null ? new Decimal(w.mForecast) : null,
+        revenueExGst:
+          w.revenueExGst != null ? new Decimal(w.revenueExGst) : null,
+        grossWagesExAdmin:
+          w.grossWagesExAdmin != null
+            ? new Decimal(w.grossWagesExAdmin)
+            : null,
+        grossWagesExAdminLeaveBackpay:
+          w.grossWagesExAdminLeaveBackpay != null
+            ? new Decimal(w.grossWagesExAdminLeaveBackpay)
+            : null,
+        wagesBarista:
+          w.wagesBarista != null ? new Decimal(w.wagesBarista) : null,
+        wagesChef: w.wagesChef != null ? new Decimal(w.wagesChef) : null,
+        wagesFoh: w.wagesFoh != null ? new Decimal(w.wagesFoh) : null,
+        wagesKp: w.wagesKp != null ? new Decimal(w.wagesKp) : null,
+        wagesPastry:
+          w.wagesPastry != null ? new Decimal(w.wagesPastry) : null,
+        wagesAdmin:
+          w.wagesAdmin != null ? new Decimal(w.wagesAdmin) : null,
+        cogsActual:
+          w.cogsActual != null ? new Decimal(w.cogsActual) : null,
+        cogsPct: w.cogsPct != null ? new Decimal(w.cogsPct) : null,
+        source: "PDF",
+        uploadId: upload.id,
+      },
+      update: {
+        grossWages: new Decimal(w.grossWages ?? 0),
+        superAmount: new Decimal(w.superAmount ?? 0),
+        totalHours:
+          w.totalHours != null ? new Decimal(w.totalHours) : null,
+        mForecast: w.mForecast != null ? new Decimal(w.mForecast) : null,
+        revenueExGst:
+          w.revenueExGst != null ? new Decimal(w.revenueExGst) : null,
+        grossWagesExAdmin:
+          w.grossWagesExAdmin != null
+            ? new Decimal(w.grossWagesExAdmin)
+            : null,
+        grossWagesExAdminLeaveBackpay:
+          w.grossWagesExAdminLeaveBackpay != null
+            ? new Decimal(w.grossWagesExAdminLeaveBackpay)
+            : null,
+        wagesBarista:
+          w.wagesBarista != null ? new Decimal(w.wagesBarista) : null,
+        wagesChef: w.wagesChef != null ? new Decimal(w.wagesChef) : null,
+        wagesFoh: w.wagesFoh != null ? new Decimal(w.wagesFoh) : null,
+        wagesKp: w.wagesKp != null ? new Decimal(w.wagesKp) : null,
+        wagesPastry:
+          w.wagesPastry != null ? new Decimal(w.wagesPastry) : null,
+        wagesAdmin:
+          w.wagesAdmin != null ? new Decimal(w.wagesAdmin) : null,
+        cogsActual:
+          w.cogsActual != null ? new Decimal(w.cogsActual) : null,
+        cogsPct: w.cogsPct != null ? new Decimal(w.cogsPct) : null,
+        source: "PDF",
+        uploadId: upload.id,
+      },
+    })
+  }
+  revalidatePath("/labour")
+  return { uploadId: upload.id, weeks: valid.length }
+}
+
+/**
+ * Legacy CSV-output PDF parser. Kept for backwards compatibility with
+ * the existing labour upload form's textarea. New callers should use
+ * parseLabourPdfRich + commitLabourMgePdf instead.
+ */
+export async function parseLabourPdf(params: {
+  pdfBase64: string
+  filename: string
+}): Promise<{ csv: string; notes?: string }> {
+  const { weeks } = await parseLabourPdfRich(params)
+  const lines = ["venue,week_start,gross_wages,super,hours,m_forecast"]
+  for (const w of weeks) {
+    lines.push(
+      [
+        w.venueRaw || "",
+        w.weekStartWed || "",
+        w.grossWages ?? "",
+        w.superAmount ?? "",
+        w.totalHours ?? "",
+        w.mForecast ?? "",
+      ].join(",")
+    )
+  }
+  return { csv: lines.join("\n"), notes: `Extracted from ${params.filename}` }
 }
