@@ -8,13 +8,17 @@ import { cn } from "@/lib/utils"
 import { VENUE_SHORT_LABEL, VENUE_LABEL, VENUE_CHART_COLOR } from "@/lib/venues"
 import type { LabourDashboardData, LabourWeekCard } from "@/lib/actions/labour"
 
+// Wage % of revenue. Targets shared by Chris 2026-04-21: <37% green
+// (dream week, hard to hit), 37–40% amber (on-track / normal), >40%
+// red (week is off).
 function bandVariant(pct: number | null): "green" | "amber" | "red" | "outline" {
   if (pct === null) return "outline"
-  if (pct < 28) return "green"
-  if (pct < 34) return "amber"
+  if (pct < 37) return "green"
+  if (pct <= 40) return "amber"
   return "red"
 }
 
+// COGS % of revenue: <28% green, 28–32% amber, ≥32% red.
 function cogsBandVariant(pct: number | null): "green" | "amber" | "red" | "outline" {
   if (pct === null) return "outline"
   if (pct < 28) return "green"
