@@ -37,6 +37,7 @@ type IngredientItem = {
   type: "ingredient"
   category: string
   baseUnitType: string
+  gramsPerUnit?: number | null
 }
 
 type FormItem = DishItem | IngredientItem
@@ -104,7 +105,16 @@ export function WasteEntryForm({ items }: Props) {
   const availableUnits = useMemo(() => {
     if (!selectedItem) return ["ea", "g", "kg", "ml", "l"]
     if (selectedItem.type === "dish") return ["ea"]
-    return UNIT_OPTIONS[selectedItem.baseUnitType] ?? ["ea"]
+    const base = UNIT_OPTIONS[selectedItem.baseUnitType] ?? ["ea"]
+    // COUNT ingredients with a known weight-per-unit can also be entered by grams
+    if (
+      selectedItem.baseUnitType === "COUNT" &&
+      selectedItem.gramsPerUnit &&
+      selectedItem.gramsPerUnit > 0
+    ) {
+      return [...base, "g", "kg"]
+    }
+    return base
   }, [selectedItem])
 
   // Auto-calculate estimated cost
@@ -114,6 +124,21 @@ export function WasteEntryForm({ items }: Props) {
     const qty = Number(quantity)
     if (selectedItem.type === "dish") {
       return new Decimal(qty).mul(selectedItem.costPerUnit).toDecimalPlaces(2).toNumber()
+    }
+
+    // COUNT ingredient entered by weight: convert grams → ea via gramsPerUnit
+    if (
+      selectedItem.baseUnitType === "COUNT" &&
+      (unit === "g" || unit === "kg") &&
+      selectedItem.gramsPerUnit &&
+      selectedItem.gramsPerUnit > 0
+    ) {
+      const grams = unit === "kg" ? qty * 1000 : qty
+      return new Decimal(grams)
+        .div(selectedItem.gramsPerUnit)
+        .mul(selectedItem.costPerBaseUnit)
+        .toDecimalPlaces(2)
+        .toNumber()
     }
 
     // Ingredient: cost per base unit * base units

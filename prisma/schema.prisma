@@ -906,10 +906,23 @@ model ChecklistRun {
   createdAt  DateTime           @default(now())
   updatedAt  DateTime           @updatedAt
 
-  items ChecklistRunItem[]
+  items  ChecklistRunItem[]
+  photos ChecklistRunPhoto[]
 
   @@unique([templateId, venue, runDate, shift])
   @@index([runDate, venue])
+}
+
+model ChecklistRunPhoto {
+  id         String       @id @default(cuid())
+  runId      String
+  run        ChecklistRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  url        String
+  publicId   String
+  uploadedAt DateTime     @default(now())
+  uploadedBy String?
+
+  @@index([runId])
 }
 
 model ChecklistRunItem {

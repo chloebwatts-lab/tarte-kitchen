@@ -9,6 +9,7 @@ import {
   ChecklistRunStatus,
 } from "@/generated/prisma"
 import Decimal from "decimal.js"
+import { sendFoodSafetyEmail } from "@/lib/gmail/send"
 
 export interface ChecklistTemplateSummary {
   id: string
@@ -47,6 +48,12 @@ export interface ChecklistRunDetail {
     checkedBy: string | null
     tempCelsius: number | null
     note: string | null
+  }[]
+  photos: {
+    id: string
+    url: string
+    publicId: string
+    uploadedBy: string | null
   }[]
 }
 
@@ -201,6 +208,7 @@ export async function getChecklistRun(id: string): Promise<ChecklistRunDetail | 
         include: { templateItem: true },
         orderBy: { templateItem: { sortOrder: "asc" } },
       },
+      photos: { orderBy: { uploadedAt: "asc" } },
     },
   })
   if (!run) return null
@@ -224,6 +232,12 @@ export async function getChecklistRun(id: string): Promise<ChecklistRunDetail | 
       checkedBy: i.checkedBy,
       tempCelsius: i.tempCelsius !== null ? Number(i.tempCelsius) : null,
       note: i.note,
+    })),
+    photos: run.photos.map((p) => ({
+      id: p.id,
+      url: p.url,
+      publicId: p.publicId,
+      uploadedBy: p.uploadedBy,
     })),
   }
 }
@@ -255,10 +269,42 @@ export async function tickChecklistItem(params: {
     where: { runId: params.runId, checkedAt: null },
   })
   if (remaining === 0) {
-    await db.checklistRun.update({
+    const completedAt = new Date()
+    const completedRun = await db.checklistRun.update({
       where: { id: params.runId },
-      data: { status: "COMPLETED", completedAt: new Date() },
+      data: { status: "COMPLETED", completedAt },
+      include: {
+        template: { select: { name: true, isFoodSafety: true } },
+        items: {
+          include: { templateItem: { select: { label: true, requireTemp: true } } },
+          orderBy: { templateItem: { sortOrder: "asc" } },
+        },
+      },
     })
+
+    if (completedRun.template.isFoodSafety) {
+      const staffNames = [
+        ...new Set(completedRun.items.map((i) => i.checkedBy).filter(Boolean) as string[]),
+      ]
+      sendFoodSafetyEmail({
+        venue: completedRun.venue,
+        templateName: completedRun.template.name,
+        runDate: completedRun.runDate.toISOString().split("T")[0],
+        completedAt,
+        staffNames,
+        items: completedRun.items.map((i) => {
+          const temp = i.tempCelsius !== null ? Number(i.tempCelsius) : null
+          return {
+            label: i.templateItem.label,
+            tempCelsius: temp,
+            requireTemp: i.templateItem.requireTemp,
+            passed: i.templateItem.requireTemp && temp !== null ? temp <= 5 : null,
+            note: i.note,
+            checkedBy: i.checkedBy,
+          }
+        }),
+      }).catch((err) => console.error("[food-safety-email]", err))
+    }
   } else {
     await db.checklistRun.update({
       where: { id: params.runId },
@@ -267,4 +313,119 @@ export async function tickChecklistItem(params: {
   }
   revalidatePath(`/checklists/runs/${params.runId}`)
   revalidatePath("/checklists")
+}
+
+// ─── FOOD SAFETY LOG ────────────────────────────────────────────────────────
+
+export interface FoodSafetyRun {
+  id: string
+  date: string
+  venue: Venue
+  templateName: string
+  status: ChecklistRunStatus
+  completedAt: string | null
+  staffNames: string[]
+  items: {
+    label: string
+    tempCelsius: number | null
+    note: string | null
+    checkedAt: string | null
+    checkedBy: string | null
+    requireTemp: boolean
+    passed: boolean | null // null = temp not required or not yet entered
+  }[]
+}
+
+export async function getFoodSafetyLog(params?: {
+  venue?: Venue
+  dateFrom?: string
+  dateTo?: string
+}): Promise<FoodSafetyRun[]> {
+  const where: Record<string, unknown> = {
+    template: { isFoodSafety: true },
+  }
+  if (params?.venue) where.venue = params.venue
+  if (params?.dateFrom || params?.dateTo) {
+    where.runDate = {}
+    if (params.dateFrom)
+      (where.runDate as Record<string, unknown>).gte = new Date(params.dateFrom)
+    if (params.dateTo)
+      (where.runDate as Record<string, unknown>).lte = new Date(params.dateTo)
+  }
+
+  const runs = await db.checklistRun.findMany({
+    where,
+    orderBy: { runDate: "desc" },
+    include: {
+      template: { select: { name: true } },
+      items: {
+        include: { templateItem: { select: { label: true, requireTemp: true } } },
+        orderBy: { templateItem: { sortOrder: "asc" } },
+      },
+    },
+  })
+
+  return runs.map((run) => {
+    const staffNames = [
+      ...new Set(run.items.map((i) => i.checkedBy).filter(Boolean) as string[]),
+    ]
+    return {
+      id: run.id,
+      date: run.runDate.toISOString().split("T")[0],
+      venue: run.venue,
+      templateName: run.template.name,
+      status: run.status,
+      completedAt: run.completedAt ? run.completedAt.toISOString() : null,
+      staffNames,
+      items: run.items.map((i) => {
+        const temp = i.tempCelsius !== null ? Number(i.tempCelsius) : null
+        const passed =
+          i.templateItem.requireTemp && temp !== null ? temp <= 5 : null
+        return {
+          label: i.templateItem.label,
+          tempCelsius: temp,
+          note: i.note,
+          checkedAt: i.checkedAt ? i.checkedAt.toISOString() : null,
+          checkedBy: i.checkedBy,
+          requireTemp: i.templateItem.requireTemp,
+          passed,
+        }
+      }),
+    }
+  })
+}
+
+// ─── CHECKLIST PHOTOS ───────────────────────────────────────────────────────
+
+export async function saveChecklistPhoto(params: {
+  runId: string
+  url: string
+  publicId: string
+  uploadedBy?: string | null
+}) {
+  await db.checklistRunPhoto.create({
+    data: {
+      id: crypto.randomUUID(),
+      runId: params.runId,
+      url: params.url,
+      publicId: params.publicId,
+      uploadedBy: params.uploadedBy ?? null,
+    },
+  })
+  revalidatePath(`/checklists/runs/${params.runId}`)
+}
+
+export async function deleteChecklistPhoto(params: {
+  photoId: string
+  runId: string
+}) {
+  await db.checklistRunPhoto.delete({ where: { id: params.photoId } })
+  revalidatePath(`/checklists/runs/${params.runId}`)
+}
+
+export async function getChecklistPhotos(runId: string) {
+  return db.checklistRunPhoto.findMany({
+    where: { runId },
+    orderBy: { uploadedAt: "asc" },
+  })
 }

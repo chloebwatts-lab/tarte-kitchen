@@ -58,6 +58,75 @@ export async function sendEmail(params: {
   }
 }
 
+export async function sendFoodSafetyEmail(params: {
+  venue: Venue
+  templateName: string
+  runDate: string
+  completedAt: Date
+  staffNames: string[]
+  items: {
+    label: string
+    tempCelsius: number | null
+    requireTemp: boolean
+    passed: boolean | null
+    note: string | null
+    checkedBy: string | null
+  }[]
+}) {
+  const venueLabel = VENUE_SHORT_LABEL[params.venue] ?? params.venue
+  const timeStr = params.completedAt.toLocaleTimeString("en-AU", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Australia/Brisbane",
+  })
+
+  const tempItems = params.items.filter((i) => i.requireTemp)
+  const breaches = tempItems.filter((i) => i.passed === false)
+
+  const tableLines = tempItems.map((i) => {
+    const name = i.label.replace(/ — temperature check$/i, "").padEnd(32)
+    const temp = i.tempCelsius !== null ? `${i.tempCelsius}°C`.padEnd(8) : "—".padEnd(8)
+    const status = i.passed === true ? "PASS" : i.passed === false ? "FAIL ⚠" : "—"
+    const note = i.note ? `  [${i.note}]` : ""
+    return `  ${name} ${temp} ${status}${note}`
+  })
+
+  const result =
+    breaches.length === 0
+      ? "RESULT: All temperatures within safe limits ✓"
+      : `RESULT: ${breaches.length} temperature breach${breaches.length !== 1 ? "es" : ""} recorded ⚠`
+
+  const body = [
+    `Tarte Kitchen — HACCP Temperature Record`,
+    ``,
+    `Date:       ${params.runDate}`,
+    `Venue:      ${venueLabel}`,
+    `Checklist:  ${params.templateName}`,
+    params.staffNames.length > 0 ? `Staff:      ${params.staffNames.join(", ")}` : null,
+    `Completed:  ${timeStr}`,
+    ``,
+    `PRODUCT                                  TEMP     STATUS`,
+    `─────────────────────────────────────────────────────────`,
+    ...tableLines,
+    ``,
+    result,
+    `Cold storage must be kept at ≤5°C.`,
+    ``,
+    `─────────────────────────────────────────────────────────`,
+    `Records: https://kitchen.tarte.com.au/checklists/food-safety`,
+    `— Tarte Kitchen`,
+  ]
+    .filter((l) => l !== null)
+    .join("\n")
+
+  const subject =
+    breaches.length > 0
+      ? `[Tarte] HACCP ${params.templateName} — ${venueLabel} — ${params.runDate} — ${breaches.length} BREACH`
+      : `[Tarte] HACCP ${params.templateName} — ${venueLabel} — ${params.runDate} — All pass`
+
+  return sendEmail({ to: "accounts@tarte.com.au", subject, body })
+}
+
 export async function sendChecklistAlertEmail(params: {
   to: string[]
   templateName: string

@@ -21,6 +21,7 @@ type IngredientItem = {
   type: "ingredient"
   category: string
   baseUnitType: string
+  gramsPerUnit: number | null
 }
 
 type PrepItem = {
@@ -67,6 +68,13 @@ function calcCost(item: FormItem, qty: number, unit: string): number {
       return Math.round(qty * item.costPerUnit * 100) / 100
     }
     if (item.type === "ingredient") {
+      // COUNT ingredient entered by weight: convert grams → ea via gramsPerUnit
+      if (item.baseUnitType === "COUNT" && (unit === "g" || unit === "kg")) {
+        if (!item.gramsPerUnit || item.gramsPerUnit <= 0) return 0
+        const grams = unit === "kg" ? qty * 1000 : qty
+        const eaEquivalent = grams / item.gramsPerUnit
+        return Math.round(eaEquivalent * item.costPerBaseUnit * 100) / 100
+      }
       let baseQty = qty
       if (unit === "kg") baseQty = qty * 1000
       else if (unit === "l") baseQty = qty * 1000
@@ -90,7 +98,13 @@ function defaultUnit(item: FormItem): string {
 function availableUnits(item: FormItem): string[] {
   if (item.type === "dish") return ["ea"]
   if (item.type === "prep") return ["serves", "g", "kg"]
-  return UNIT_OPTIONS[(item as IngredientItem).baseUnitType] ?? ["ea"]
+  const ing = item as IngredientItem
+  const base = UNIT_OPTIONS[ing.baseUnitType] ?? ["ea"]
+  // COUNT ingredients with a known weight-per-unit can also be entered by grams
+  if (ing.baseUnitType === "COUNT" && ing.gramsPerUnit && ing.gramsPerUnit > 0) {
+    return [...base, "g", "kg"]
+  }
+  return base
 }
 
 function itemLabel(item: FormItem): string {

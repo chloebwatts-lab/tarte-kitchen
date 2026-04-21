@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   Thermometer,
   MessageSquare,
+  Camera,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -17,6 +18,7 @@ import { VENUE_SHORT_LABEL } from "@/lib/venues"
 import type { ChecklistRunDetail } from "@/lib/actions/checklists"
 import { tickChecklistItem } from "@/lib/actions/checklists"
 import type { Venue } from "@/generated/prisma"
+import { ChecklistPhotoUpload } from "@/components/checklist-photo-upload"
 
 export function ChecklistRunView({
   initial,
@@ -236,12 +238,30 @@ export function ChecklistRunView({
       </Card>
 
       {isDone && (
-        <Card className="border-emerald-200 bg-emerald-50">
-          <CardContent className="py-4 text-center text-sm text-emerald-800">
-            <CheckCircle2 className="mx-auto mb-1 h-6 w-6" />
-            All checked — this run is logged for compliance.
-          </CardContent>
-        </Card>
+        <>
+          <Card className="border-emerald-200 bg-emerald-50">
+            <CardContent className="py-4 text-center text-sm text-emerald-800">
+              <CheckCircle2 className="mx-auto mb-1 h-6 w-6" />
+              All checked — this run is logged for compliance.
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Camera className="h-4 w-4 text-gray-500" />
+                Completion photos
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Take photos showing the completed work before leaving.
+              </p>
+              <ChecklistPhotoUpload
+                runId={initial.id}
+                initialPhotos={initial.photos}
+              />
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   )

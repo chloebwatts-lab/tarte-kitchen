@@ -653,6 +653,7 @@ export async function getWasteFormItems() {
         baseUnitsPerPurchase: true,
         wastePercentage: true,
         baseUnitType: true,
+        gramsPerUnit: true,
       },
       orderBy: { name: "asc" },
     }),
@@ -691,6 +692,7 @@ export async function getWasteFormItems() {
         type: "ingredient" as const,
         category: i.category,
         baseUnitType: i.baseUnitType,
+        gramsPerUnit: i.gramsPerUnit != null ? Number(i.gramsPerUnit) : null,
       }
     }),
     preps: preps.map((p) => ({
