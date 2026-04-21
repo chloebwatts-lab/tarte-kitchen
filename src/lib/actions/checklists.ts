@@ -175,7 +175,6 @@ export async function startChecklistRun(params: {
     },
   })
   if (existing) {
-    revalidatePath("/checklists")
     return existing.id
   }
   const items = await db.checklistTemplateItem.findMany({
@@ -195,7 +194,6 @@ export async function startChecklistRun(params: {
       },
     },
   })
-  revalidatePath("/checklists")
   return run.id
 }
 
