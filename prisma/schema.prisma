@@ -621,6 +621,9 @@ model LabourWeekActual {
   /// Gross wages excluding admin + leave + toil + backpay. The cleanest
   /// apples-to-apples comparison with a rostered week.
   grossWagesExAdminLeaveBackpay Decimal? @db.Decimal(10, 2)
+  /// Gross wages excluding leave + toil + backpay (admin still included).
+  /// Mge PDF row: "Total less leave, toil, backpay".
+  grossWagesLessLeaveBackpay Decimal? @db.Decimal(10, 2)
   // Per-department wage breakdown. Nullable so pre-PDF rows stay intact.
   wagesBarista Decimal?       @db.Decimal(10, 2)
   wagesChef    Decimal?       @db.Decimal(10, 2)

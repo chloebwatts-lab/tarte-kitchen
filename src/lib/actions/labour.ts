@@ -27,6 +27,8 @@ export interface LabourWeekCard {
     // Rich Mge-PDF fields (past weeks, when uploaded)
     actualRevenueExGst: number | null
     actualWagesExAdmin: number | null
+    actualWagesExAdminLeaveBackpay: number | null
+    actualWagesLessLeaveBackpay: number | null
     actualCogs: number | null
     actualCogsPct: number | null
     wagesBarista: number | null
@@ -184,6 +186,14 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
         actual?.grossWagesExAdmin != null
           ? Number(actual.grossWagesExAdmin)
           : null
+      const actualWagesExAdminLeaveBackpay =
+        actual?.grossWagesExAdminLeaveBackpay != null
+          ? Number(actual.grossWagesExAdminLeaveBackpay)
+          : null
+      const actualWagesLessLeaveBackpay =
+        actual?.grossWagesLessLeaveBackpay != null
+          ? Number(actual.grossWagesLessLeaveBackpay)
+          : null
       const actualCogs =
         actual?.cogsActual != null ? Number(actual.cogsActual) : null
       const actualCogsPct =
@@ -232,6 +242,8 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
         hasActuals: !!actual,
         actualRevenueExGst,
         actualWagesExAdmin,
+        actualWagesExAdminLeaveBackpay,
+        actualWagesLessLeaveBackpay,
         actualCogs,
         actualCogsPct,
         wagesBarista:
@@ -506,6 +518,7 @@ export interface ExtractedMgeWeek {
   grossWages: number | null
   grossWagesExAdmin: number | null
   grossWagesExAdminLeaveBackpay: number | null
+  grossWagesLessLeaveBackpay: number | null
   superAmount: number | null
   totalHours: number | null
   wagesBarista: number | null
@@ -545,6 +558,7 @@ export async function parseLabourPdfRich(params: {
       "gross_wages": number | null,
       "gross_wages_ex_admin": number | null,
       "gross_wages_ex_admin_leave_backpay": number | null,
+      "gross_wages_less_leave_backpay": number | null,
       "super_amount": number | null,
       "total_hours": number | null,
       "wages_barista": number | null,
@@ -568,6 +582,7 @@ Rules:
 - "gross_wages" is the Total row under Current Week.
 - "gross_wages_ex_admin" is the "Total less Admin" row under Current Week.
 - "gross_wages_ex_admin_leave_backpay" is the "Less Admin, leave, backpay" row under Current Week.
+- "gross_wages_less_leave_backpay" is the "Total less leave, toil, backpay" row (admin still included).
 - Department wages are the department $ cells under Current Week — NOT the % columns.
 - "cogs_actual" is the "This Week" COGS $ cell. "cogs_pct" is that row's % of Revenue.
 - "m_forecast" only if a manager sales forecast is shown explicitly; otherwise null.
@@ -608,6 +623,7 @@ Rules:
       gross_wages?: number | null
       gross_wages_ex_admin?: number | null
       gross_wages_ex_admin_leave_backpay?: number | null
+      gross_wages_less_leave_backpay?: number | null
       super_amount?: number | null
       total_hours?: number | null
       wages_barista?: number | null
@@ -653,6 +669,7 @@ Rules:
       grossWagesExAdminLeaveBackpay: numOrNull(
         w.gross_wages_ex_admin_leave_backpay
       ),
+      grossWagesLessLeaveBackpay: numOrNull(w.gross_wages_less_leave_backpay),
       superAmount: numOrNull(w.super_amount),
       totalHours: numOrNull(w.total_hours),
       wagesBarista: numOrNull(w.wages_barista),
@@ -727,6 +744,10 @@ export async function commitLabourMgePdf(params: {
           w.grossWagesExAdminLeaveBackpay != null
             ? new Decimal(w.grossWagesExAdminLeaveBackpay)
             : null,
+        grossWagesLessLeaveBackpay:
+          w.grossWagesLessLeaveBackpay != null
+            ? new Decimal(w.grossWagesLessLeaveBackpay)
+            : null,
         wagesBarista:
           w.wagesBarista != null ? new Decimal(w.wagesBarista) : null,
         wagesChef: w.wagesChef != null ? new Decimal(w.wagesChef) : null,
@@ -757,6 +778,10 @@ export async function commitLabourMgePdf(params: {
         grossWagesExAdminLeaveBackpay:
           w.grossWagesExAdminLeaveBackpay != null
             ? new Decimal(w.grossWagesExAdminLeaveBackpay)
+            : null,
+        grossWagesLessLeaveBackpay:
+          w.grossWagesLessLeaveBackpay != null
+            ? new Decimal(w.grossWagesLessLeaveBackpay)
             : null,
         wagesBarista:
           w.wagesBarista != null ? new Decimal(w.wagesBarista) : null,

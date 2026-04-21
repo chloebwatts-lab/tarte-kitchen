@@ -194,7 +194,21 @@ function VenueDetailCard({
           varianceLabel="vs M. forecast"
         />
         <Row label="Wages (total)" value={row.actualWages} />
+        {row.actualWagesLessLeaveBackpay !== null && (
+          <Row
+            label="Wages ex-leave/toil/bkpay"
+            value={row.actualWagesLessLeaveBackpay}
+            muted
+          />
+        )}
         <Row label="Wages ex-admin" value={row.actualWagesExAdmin} />
+        {row.actualWagesExAdminLeaveBackpay !== null && (
+          <Row
+            label="Wages ex-admin/leave/bkpay"
+            value={row.actualWagesExAdminLeaveBackpay}
+            muted
+          />
+        )}
         {row.actualCogs !== null && (
           <Row
             label="COGS (actual)"
