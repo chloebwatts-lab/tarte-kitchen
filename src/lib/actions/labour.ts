@@ -465,8 +465,10 @@ export async function parseLabourCsv(raw: string): Promise<{
 function matchVenue(raw: string): Venue | null {
   const s = raw.toUpperCase().trim()
   if (s.includes("BURLEIGH") || s.includes("BAKERY")) return "BURLEIGH"
-  if (s.includes("BEACH")) return "BEACH_HOUSE"
+  // Tea Garden's PDF title is "BEACH HOUSE TEA GARDEN" — check TEA first
+  // so it doesn't get mis-routed to the Beach House venue.
   if (s.includes("TEA")) return "TEA_GARDEN"
+  if (s.includes("BEACH")) return "BEACH_HOUSE"
   return null
 }
 
@@ -576,15 +578,26 @@ export async function parseLabourPdfRich(params: {
 
 Rules:
 - All dollar figures are numbers (strip $ and commas). Percentages are numbers too (e.g. 36.17 for 36.17%).
-- venue: "Burleigh" for Tarte Bakery Burleigh / Bakery, "Beach House" for Tarte Beach House, "Tea Garden" for Tarte Tea Garden.
-- week_ending_tuesday: the Tuesday the report week ends on (look for "Week ending Tuesday …" or similar).
-- Only the CURRENT week columns (not last week, not YTD, not monthly). If the PDF shows multiple weeks, emit one entry per week.
-- "gross_wages" is the Total row under Current Week.
-- "gross_wages_ex_admin" is the "Total less Admin" row under Current Week.
-- "gross_wages_ex_admin_leave_backpay" is the "Less Admin, leave, backpay" row under Current Week.
-- "gross_wages_less_leave_backpay" is the "Total less leave, toil, backpay" row (admin still included).
-- Department wages are the department $ cells under Current Week — NOT the % columns.
-- "cogs_actual" is the "This Week" COGS $ cell. "cogs_pct" is that row's % of Revenue.
+- venue: "Burleigh" for any report titled "Tarte Bakery Burleigh" / "Burleigh" / "Bakery"; "Tea Garden" for any title containing "Tea Garden" (including "Beach House Tea Garden"); "Beach House" for a Beach House-only report that does NOT say Tea Garden.
+- week_ending_tuesday: the Tuesday the report week ends on (look for "Week ending Tuesday …" or similar). If the PDF has a "This Week" column but no explicit date, use the most recent Tuesday date referenced (often shown in a "w/e <date>" header for the previous week — this week is the Tuesday one week later).
+- Only the CURRENT week column/row (not last week, not YTD, not monthly). If the PDF shows multiple weeks, emit one entry per week.
+- Two report formats exist:
+  A) Detailed Burleigh-style table with a "Current Week" column, Department rows (Barista/Chef/FOH/KP/Pastry/Admin), Total + "Total less leave/toil/backpay" + "Total less Admin" + "Less Admin, leave, backpay" rows, Revenue (gst exc), and a COGS box with "This Week" $ and %.
+  B) Simpler rollup table with rows "# Hours", "Wages & Super", "Revenue", "Wages % Rev", and optional "COGS" / "COGS % Rev". Each column is a week; the left-most data column is "This Week".
+- For format A:
+    - "gross_wages" = Total row, Current Week
+    - "gross_wages_ex_admin" = "Total less Admin" row, Current Week
+    - "gross_wages_ex_admin_leave_backpay" = "Less Admin, leave, backpay" row, Current Week
+    - "gross_wages_less_leave_backpay" = "Total less leave, toil, backpay" row, Current Week
+    - Department wages = the $ cells (NOT the % columns), Current Week
+    - "cogs_actual" / "cogs_pct" = the "This Week" COGS row
+    - "revenue_ex_gst" = the "Revenue (gst exc)" row, Current Week
+- For format B:
+    - "gross_wages" = the "Wages & Super" value for This Week (note: super IS included; we have no way to split it)
+    - "revenue_ex_gst" = the "Revenue" value for This Week (assume ex-GST unless the report explicitly says otherwise)
+    - "total_hours" = the "# Hours" value for This Week
+    - "cogs_actual" / "cogs_pct" = the COGS row if populated (often blank — return null)
+    - All department and ex-admin / ex-leave fields: null (not reported)
 - "m_forecast" only if a manager sales forecast is shown explicitly; otherwise null.
 - Use null (not 0) for fields you can't find.`
   const response = await client.messages.create({
