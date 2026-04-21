@@ -168,6 +168,21 @@ function VenueDetailCard({
     row.actualCogs !== null && row.theoreticalCogs !== null
       ? row.actualCogs - row.theoreticalCogs
       : null
+  // Percentage-point delta (actual COGS% − theoretical COGS%). Tells you
+  // how much of revenue the gap represents — the number that actually
+  // maps to weekly margin impact.
+  const cogsVariancePct =
+    row.actualCogsPct !== null && row.theoreticalCogsPct !== null
+      ? row.actualCogsPct - row.theoreticalCogsPct
+      : null
+  const cogsVariancePctVariant: "green" | "amber" | "red" | "outline" =
+    cogsVariancePct === null
+      ? "outline"
+      : Math.abs(cogsVariancePct) < 2
+        ? "green"
+        : Math.abs(cogsVariancePct) < 5
+          ? "amber"
+          : "red"
   const revenueVariance =
     row.actualRevenueExGst !== null && row.mForecast !== null
       ? row.actualRevenueExGst - row.mForecast
@@ -226,10 +241,34 @@ function VenueDetailCard({
             label="COGS (theoretical)"
             value={row.theoreticalCogs}
             pct={row.theoreticalCogsPct}
-            variance={cogsVariance}
-            varianceLabel="actual−theoretical"
             muted
           />
+        )}
+        {cogsVariance !== null && (
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-muted-foreground">COGS vs theoretical</span>
+            <div className="flex items-center gap-1.5 tabular-nums">
+              <span
+                className={cn(
+                  "font-medium",
+                  cogsVariance > 0 ? "text-red-600" : "text-emerald-600"
+                )}
+              >
+                {cogsVariance > 0 ? "+" : "−"}$
+                {Math.abs(Math.round(cogsVariance)).toLocaleString()}
+              </span>
+              {cogsVariancePct !== null && (
+                <Badge
+                  variant={cogsVariancePctVariant}
+                  className="text-[9px] px-1 py-0"
+                  title="percentage points of revenue"
+                >
+                  {cogsVariancePct > 0 ? "+" : ""}
+                  {cogsVariancePct.toFixed(1)}pp
+                </Badge>
+              )}
+            </div>
+          </div>
         )}
       </div>
 
