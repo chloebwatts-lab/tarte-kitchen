@@ -240,6 +240,46 @@ export async function getChecklistRun(id: string): Promise<ChecklistRunDetail | 
   }
 }
 
+export async function forceCompleteRun(runId: string) {
+  const completedAt = new Date()
+  const completedRun = await db.checklistRun.update({
+    where: { id: runId },
+    data: { status: "COMPLETED", completedAt },
+    include: {
+      template: { select: { name: true, isFoodSafety: true } },
+      items: {
+        include: { templateItem: { select: { label: true, requireTemp: true } } },
+        orderBy: { templateItem: { sortOrder: "asc" } },
+      },
+    },
+  })
+  if (completedRun.template.isFoodSafety) {
+    const staffNames = [
+      ...new Set(completedRun.items.map((i) => i.checkedBy).filter(Boolean) as string[]),
+    ]
+    sendFoodSafetyEmail({
+      venue: completedRun.venue,
+      templateName: completedRun.template.name,
+      runDate: completedRun.runDate.toISOString().split("T")[0],
+      completedAt,
+      staffNames,
+      items: completedRun.items.map((i) => {
+        const temp = i.tempCelsius !== null ? Number(i.tempCelsius) : null
+        return {
+          label: i.templateItem.label,
+          tempCelsius: temp,
+          requireTemp: i.templateItem.requireTemp,
+          passed: i.templateItem.requireTemp && temp !== null ? temp <= 5 : null,
+          note: i.note,
+          checkedBy: i.checkedBy,
+        }
+      }),
+    }).catch((err) => console.error("[food-safety-email]", err))
+  }
+  revalidatePath(`/checklists/runs/${runId}`)
+  revalidatePath("/checklists")
+}
+
 export async function tickChecklistItem(params: {
   runId: string
   runItemId: string

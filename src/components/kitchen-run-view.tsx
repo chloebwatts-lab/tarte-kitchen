@@ -2,21 +2,14 @@
 
 import { useState, useTransition } from "react"
 import Link from "next/link"
-import { CheckCircle2, Circle, Thermometer, ArrowLeft, ShieldCheck } from "lucide-react"
+import { CheckCircle2, Circle, Thermometer, ArrowLeft, ShieldCheck, Camera } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { VENUE_SHORT_LABEL } from "@/lib/venues"
 import type { ChecklistRunDetail } from "@/lib/actions/checklists"
-import { tickChecklistItem } from "@/lib/actions/checklists"
+import { tickChecklistItem, forceCompleteRun } from "@/lib/actions/checklists"
 import type { Venue } from "@/generated/prisma"
+import { ChecklistPhotoUpload } from "@/components/checklist-photo-upload"
 
-/**
- * Kitchen iPad run view. Same data model as the admin /checklists/runs/:id
- * page, but the layout is tuned for big fingers and greasy gloves:
- *  - 64-pixel tap targets
- *  - huge type, no hover states, no nested menus
- *  - staff initials field at the top so temp/note captures are attributed
- *  - no back-to-home mid-task (staff tap Home explicitly)
- */
 export function KitchenRunView({
   initial,
 }: {
@@ -25,11 +18,13 @@ export function KitchenRunView({
   const [items, setItems] = useState(initial.items)
   const [by, setBy] = useState<string>("")
   const [isPending, startTransition] = useTransition()
+  const [isSubmitting, startSubmitTransition] = useTransition()
+  const [submitted, setSubmitted] = useState(initial.status === "COMPLETED")
 
   const completed = items.filter((i) => i.checkedAt).length
-  const pct =
-    items.length === 0 ? 0 : Math.round((completed / items.length) * 100)
+  const pct = items.length === 0 ? 0 : Math.round((completed / items.length) * 100)
   const isDone = completed === items.length && items.length > 0
+  const showSubmit = !isDone && !submitted && completed > 0
 
   function toggle(itemId: string) {
     const current = items.find((i) => i.id === itemId)
@@ -70,6 +65,15 @@ export function KitchenRunView({
       })
     })
   }
+
+  function handleForceSubmit() {
+    startSubmitTransition(async () => {
+      await forceCompleteRun(initial.id)
+      setSubmitted(true)
+    })
+  }
+
+  const showCompletion = isDone || submitted
 
   return (
     <div className={cn("space-y-5", isPending && "opacity-80")}>
@@ -228,15 +232,47 @@ export function KitchenRunView({
         })}
       </div>
 
-      {isDone && (
-        <div className="rounded-2xl border-2 border-emerald-300 bg-emerald-50 p-6 text-center">
-          <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
-          <div className="mt-2 text-lg font-semibold text-emerald-900">
-            Done — logged.
+      {/* Submit incomplete */}
+      {showSubmit && (
+        <button
+          onClick={handleForceSubmit}
+          disabled={isSubmitting}
+          className="w-full rounded-2xl border-2 border-amber-300 bg-amber-50 px-4 py-4 text-center text-sm font-semibold text-amber-900 disabled:opacity-50"
+        >
+          {isSubmitting
+            ? "Submitting…"
+            : `Submit with ${items.length - completed} item${items.length - completed !== 1 ? "s" : ""} incomplete`}
+        </button>
+      )}
+
+      {/* Completion card + photos */}
+      {showCompletion && (
+        <div className="space-y-4">
+          <div className="rounded-2xl border-2 border-emerald-300 bg-emerald-50 p-6 text-center">
+            <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
+            <div className="mt-2 text-lg font-semibold text-emerald-900">
+              {isDone ? "Done — logged." : `Submitted — ${completed} of ${items.length} items completed.`}
+            </div>
           </div>
+
+          <div className="rounded-2xl border-2 border-gray-200 bg-white p-4 space-y-3">
+            <div className="flex items-center gap-2 font-semibold text-gray-800">
+              <Camera className="h-5 w-5 text-gray-500" />
+              Completion photos
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Take photos showing the completed work before leaving.
+            </p>
+            <ChecklistPhotoUpload
+              runId={initial.id}
+              initialPhotos={initial.photos}
+              uploadedBy={by || null}
+            />
+          </div>
+
           <Link
             href={`/kitchen?venue=${initial.venue}`}
-            className="mt-3 inline-block rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"
+            className="block w-full rounded-2xl bg-emerald-600 px-4 py-4 text-center text-sm font-semibold text-white"
           >
             Back to checklists
           </Link>

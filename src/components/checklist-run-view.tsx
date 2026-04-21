@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { VENUE_SHORT_LABEL } from "@/lib/venues"
 import type { ChecklistRunDetail } from "@/lib/actions/checklists"
-import { tickChecklistItem } from "@/lib/actions/checklists"
+import { tickChecklistItem, forceCompleteRun } from "@/lib/actions/checklists"
 import type { Venue } from "@/generated/prisma"
 import { ChecklistPhotoUpload } from "@/components/checklist-photo-upload"
 
@@ -27,11 +27,15 @@ export function ChecklistRunView({
 }) {
   const [items, setItems] = useState(initial.items)
   const [isPending, startTransition] = useTransition()
+  const [isSubmitting, startSubmitTransition] = useTransition()
+  const [submitted, setSubmitted] = useState(initial.status === "COMPLETED")
   const [expanded, setExpanded] = useState<string | null>(null)
 
   const completed = items.filter((i) => i.checkedAt).length
   const pct = items.length === 0 ? 0 : Math.round((completed / items.length) * 100)
   const isDone = completed === items.length && items.length > 0
+  const showSubmit = !isDone && !submitted && completed > 0
+  const showCompletion = isDone || submitted
 
   function toggle(itemId: string) {
     const current = items.find((i) => i.id === itemId)
@@ -237,12 +241,24 @@ export function ChecklistRunView({
         </CardContent>
       </Card>
 
-      {isDone && (
+      {showSubmit && (
+        <button
+          onClick={() => startSubmitTransition(async () => { await forceCompleteRun(initial.id); setSubmitted(true) })}
+          disabled={isSubmitting}
+          className="w-full rounded-md border border-amber-300 bg-amber-50 px-4 py-2.5 text-center text-sm font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+        >
+          {isSubmitting ? "Submitting…" : `Submit with ${items.length - completed} item${items.length - completed !== 1 ? "s" : ""} incomplete`}
+        </button>
+      )}
+
+      {showCompletion && (
         <>
           <Card className="border-emerald-200 bg-emerald-50">
             <CardContent className="py-4 text-center text-sm text-emerald-800">
               <CheckCircle2 className="mx-auto mb-1 h-6 w-6" />
-              All checked — this run is logged for compliance.
+              {isDone
+                ? "All checked — this run is logged for compliance."
+                : `Submitted — ${completed} of ${items.length} items completed.`}
             </CardContent>
           </Card>
 
