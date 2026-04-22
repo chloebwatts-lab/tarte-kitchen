@@ -92,7 +92,8 @@ function PastWeekRow({ wk }: { wk: LabourWeekCard }) {
     (v) =>
       v.wagesBarista !== null ||
       v.actualCogs !== null ||
-      v.actualRevenueExGst !== null
+      v.actualRevenueExGst !== null ||
+      v.cogsXlsxTotal !== null
   )
   const hasAnyActuals = wk.perVenue.some((v) => v.hasActuals)
   return (
@@ -271,6 +272,49 @@ function VenueDetailCard({
           </div>
         )}
       </div>
+
+      {row.cogsXlsxTotal !== null && (
+        <>
+          <div className="mt-2 mb-1 flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
+            <span>COGS mix (xlsx)</span>
+            <span className="tabular-nums normal-case">
+              ${Math.round(row.cogsXlsxTotal).toLocaleString()}
+              {row.cogsXlsxPct !== null && (
+                <span className="ml-1 text-muted-foreground/70">
+                  {row.cogsXlsxPct.toFixed(1)}%
+                </span>
+              )}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+            {[
+              { label: "Food", value: row.cogsFood },
+              { label: "Coffee/tea", value: row.cogsCoffee },
+              { label: "Drinks", value: row.cogsDrinks },
+              { label: "Packaging", value: row.cogsPackaging },
+              { label: "Consumables", value: row.cogsConsumables },
+            ].map((c) =>
+              c.value === null ? null : (
+                <div
+                  key={c.label}
+                  className="flex items-center justify-between text-[11px]"
+                >
+                  <span className="text-muted-foreground">{c.label}</span>
+                  <span className="tabular-nums">
+                    ${Math.round(c.value).toLocaleString()}
+                    {row.actualRevenueExGst &&
+                      row.actualRevenueExGst > 0 && (
+                        <span className="ml-1 text-[10px] text-muted-foreground/70">
+                          {((c.value / row.actualRevenueExGst) * 100).toFixed(1)}%
+                        </span>
+                      )}
+                  </span>
+                </div>
+              )
+            )}
+          </div>
+        </>
+      )}
 
       {hasDepts && (
         <>

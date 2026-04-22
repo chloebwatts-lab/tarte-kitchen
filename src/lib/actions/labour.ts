@@ -41,6 +41,18 @@ export interface LabourWeekCard {
     // aggregated for this Wed–Tue window. Lets the UI show actual vs theory.
     theoreticalCogs: number | null
     theoreticalCogsPct: number | null
+    // COGS category mix from the weekly xlsx upload. Null when no xlsx
+    // has been uploaded for this (venue, week).
+    cogsFood: number | null
+    cogsCoffee: number | null
+    cogsConsumables: number | null
+    cogsDrinks: number | null
+    cogsPackaging: number | null
+    // Total from the xlsx — may differ from actualCogs (Mge PDF) due to
+    // timing / inclusion differences; we surface both so Chris can spot
+    // the gap.
+    cogsXlsxTotal: number | null
+    cogsXlsxPct: number | null
   }[]
 }
 
@@ -85,7 +97,7 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
   // Pull everything in parallel. Sales summaries drive theoretical COGS
   // (actual POS revenue × recipe costs) so we can cross-check against
   // the actual COGS figure in the Mge PDF.
-  const [rosterShifts, actuals, forecasts, sales] = await Promise.all([
+  const [rosterShifts, actuals, forecasts, sales, cogsRows] = await Promise.all([
     db.labourShift.findMany({
       where: {
         source: "ROSTER",
@@ -113,6 +125,9 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
         totalRevenueExGst: true,
         theoreticalCogs: true,
       },
+    }),
+    db.weeklyCogs.findMany({
+      where: { weekStartWed: { gte: past8Start } },
     }),
   ])
 
@@ -147,6 +162,11 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
     actualsByKey.set(`${a.venue}|${weekStartWedIso(a.weekStartWed)}`, a)
   }
 
+  const cogsByKey = new Map<string, (typeof cogsRows)[number]>()
+  for (const c of cogsRows) {
+    cogsByKey.set(`${c.venue}|${weekStartWedIso(c.weekStartWed)}`, c)
+  }
+
   // Bucket ROSTER shifts into (venue, weekStartWed). Cost model:
   //   - Assigned shifts: stored cost × superMultiplier
   //   - Open shifts:    hours × openShiftRate × superMultiplier
@@ -172,6 +192,7 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
       const roster = rosterBucket.get(key)
       const actual = actualsByKey.get(key)
       const pos = posByKey.get(key)
+      const cogs = cogsByKey.get(key)
       const forecast =
         actual?.mForecast !== null && actual?.mForecast !== undefined
           ? Number(actual.mForecast)
@@ -258,6 +279,15 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
           actual?.wagesAdmin != null ? Number(actual.wagesAdmin) : null,
         theoreticalCogs,
         theoreticalCogsPct,
+        cogsFood: cogs?.cogsFood != null ? Number(cogs.cogsFood) : null,
+        cogsCoffee: cogs?.cogsCoffee != null ? Number(cogs.cogsCoffee) : null,
+        cogsConsumables:
+          cogs?.cogsConsumables != null ? Number(cogs.cogsConsumables) : null,
+        cogsDrinks: cogs?.cogsDrinks != null ? Number(cogs.cogsDrinks) : null,
+        cogsPackaging:
+          cogs?.cogsPackaging != null ? Number(cogs.cogsPackaging) : null,
+        cogsXlsxTotal: cogs?.totalCogs != null ? Number(cogs.totalCogs) : null,
+        cogsXlsxPct: cogs?.cogsPct != null ? Number(cogs.cogsPct) : null,
       }
     })
     return {

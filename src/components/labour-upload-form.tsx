@@ -14,6 +14,11 @@ import {
   type ParsedCsvRow,
   type ExtractedMgeWeek,
 } from "@/lib/actions/labour"
+import {
+  parseCogsXlsx,
+  commitCogsXlsx,
+  type ExtractedCogsWeek,
+} from "@/lib/actions/cogs"
 import { cn } from "@/lib/utils"
 import { VENUE_LABEL, SINGLE_VENUES } from "@/lib/venues"
 import type { Venue } from "@/generated/prisma"
@@ -29,6 +34,7 @@ export function LabourUploadForm() {
   const [filename, setFilename] = useState("payroll.csv")
   const [preview, setPreview] = useState<ParsedCsvRow[] | null>(null)
   const [mgePreview, setMgePreview] = useState<ExtractedMgeWeek[] | null>(null)
+  const [cogsPreview, setCogsPreview] = useState<ExtractedCogsWeek[] | null>(null)
   const [errors, setErrors] = useState<string[]>([])
   const [fixedVenues, setFixedVenues] = useState<Record<number, Venue>>({})
   const [isPending, startTransition] = useTransition()
@@ -40,6 +46,31 @@ export function LabourUploadForm() {
     setErrors([])
     setPreview(null)
     setMgePreview(null)
+    setCogsPreview(null)
+    if (/\.xlsx$/i.test(f.name)) {
+      const buf = await f.arrayBuffer()
+      let binary = ""
+      const bytes = new Uint8Array(buf)
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i])
+      }
+      const base64 = btoa(binary)
+      setRaw(`# Parsing weekly COGS xlsx ${f.name}…`)
+      startTransition(async () => {
+        try {
+          const { weeks, notes } = await parseCogsXlsx({
+            xlsxBase64: base64,
+            filename: f.name,
+          })
+          setCogsPreview(weeks)
+          setRaw(`# ${notes ?? `Parsed ${weeks.length} weeks`}. Review and click Save.`)
+        } catch (e) {
+          setRaw("")
+          setErrors([`COGS xlsx parse failed: ${(e as Error).message}`])
+        }
+      })
+      return
+    }
     if (f.type === "application/pdf" || /\.pdf$/i.test(f.name)) {
       const buf = await f.arrayBuffer()
       let binary = ""
@@ -68,6 +99,31 @@ export function LabourUploadForm() {
     }
     const text = await f.text()
     setRaw(text)
+  }
+
+  async function handleCommitCogs() {
+    if (!cogsPreview) return
+    const missing = cogsPreview.filter(
+      (w) => w.venue === null || !w.weekStartWed
+    )
+    if (missing.length > 0) {
+      setErrors([
+        `${missing.length} week(s) missing venue or week-start — re-check the xlsx header / title cell`,
+      ])
+      return
+    }
+    startTransition(async () => {
+      try {
+        const res = await commitCogsXlsx({
+          filename,
+          weeks: cogsPreview,
+        })
+        setSaveResult(`Saved ${res.weeks} COGS week(s). Upload id: ${res.uploadId}`)
+        setTimeout(() => router.push("/labour"), 1000)
+      } catch (e) {
+        setErrors([`Save failed: ${(e as Error).message}`])
+      }
+    })
   }
 
   function handleParse() {
@@ -158,10 +214,10 @@ export function LabourUploadForm() {
           <div className="flex items-center gap-2">
             <label className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
               <Upload className="h-3.5 w-3.5" />
-              Upload CSV or PDF
+              Upload CSV, PDF, or XLSX
               <input
                 type="file"
-                accept=".csv,text/csv,.pdf,application/pdf"
+                accept=".csv,text/csv,.pdf,application/pdf,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 className="sr-only"
                 onChange={(e) => {
                   const f = e.target.files?.[0]
@@ -176,27 +232,33 @@ export function LabourUploadForm() {
             onChange={(e) => {
               setRaw(e.target.value)
               setMgePreview(null)
+              setCogsPreview(null)
             }}
             rows={9}
             className="w-full rounded-md border border-border bg-background p-3 font-mono text-xs"
             placeholder="venue,week_start,gross_wages,super,hours,m_forecast"
           />
           <div className="rounded-md border border-border bg-muted/30 p-3 text-xs">
-            <p className="font-medium">Two upload modes</p>
+            <p className="font-medium">Three upload modes</p>
             <ul className="mt-1 list-disc space-y-0.5 pl-5 text-muted-foreground">
               <li>
-                <strong>Mge PDF</strong> — uploads the weekly management
-                report. Claude extracts revenue, department wage
-                breakdown, ex-admin totals, and COGS automatically.
+                <strong>Mge PDF</strong> — weekly management report.
+                Extracts revenue, department wage breakdown, ex-admin
+                totals, and COGS.
+              </li>
+              <li>
+                <strong>COGS xlsx</strong> — weekly Burleigh / Currumbin
+                food-costs spreadsheet. Upserts per week: total + food /
+                coffee / consumables / drinks / packaging breakdown.
               </li>
               <li>
                 <strong>CSV</strong> — paste or edit the textarea and
-                click &ldquo;Parse & preview&rdquo;. Supports columns:
+                click &ldquo;Parse & preview&rdquo;. Columns:
                 venue, week_start, gross_wages, super, hours, m_forecast.
               </li>
             </ul>
           </div>
-          {!mgePreview && (
+          {!mgePreview && !cogsPreview && (
             <button
               onClick={handleParse}
               disabled={isPending || !raw.trim() || raw.startsWith("#")}
@@ -286,6 +348,76 @@ export function LabourUploadForm() {
               >
                 <Check className="h-4 w-4" />
                 Save {mgePreview.length} week{mgePreview.length === 1 ? "" : "s"}
+              </button>
+              {saveResult && (
+                <span className="text-xs text-emerald-700">{saveResult}</span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {cogsPreview && cogsPreview.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <FileText className="h-4 w-4" />
+              COGS xlsx preview · {cogsPreview[0]?.venue
+                ? VENUE_LABEL[cogsPreview[0].venue]
+                : (cogsPreview[0]?.venueRaw || "unknown venue")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="max-h-80 overflow-y-auto rounded-md border border-border">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-muted/50">
+                  <tr className="border-b border-border text-left text-muted-foreground">
+                    <th className="px-2 py-1.5">Week (Wed)</th>
+                    <th className="px-2 py-1.5 text-right">Revenue</th>
+                    <th className="px-2 py-1.5 text-right">Food</th>
+                    <th className="px-2 py-1.5 text-right">Coffee</th>
+                    <th className="px-2 py-1.5 text-right">Cons.</th>
+                    <th className="px-2 py-1.5 text-right">Drinks</th>
+                    <th className="px-2 py-1.5 text-right">Pkg</th>
+                    <th className="px-2 py-1.5 text-right">Total</th>
+                    <th className="px-2 py-1.5 text-right">%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cogsPreview.map((w, i) => (
+                    <tr key={i} className="border-b border-border/50">
+                      <td className="px-2 py-1 tabular-nums">{w.weekStartWed}</td>
+                      <td className="px-2 py-1 text-right tabular-nums">{w.revenueExGst != null ? `$${w.revenueExGst.toLocaleString()}` : "—"}</td>
+                      <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">{w.cogsFood != null ? `$${w.cogsFood.toLocaleString()}` : "—"}</td>
+                      <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">{w.cogsCoffee != null ? `$${w.cogsCoffee.toLocaleString()}` : "—"}</td>
+                      <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">{w.cogsConsumables != null ? `$${w.cogsConsumables.toLocaleString()}` : "—"}</td>
+                      <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">{w.cogsDrinks != null ? `$${w.cogsDrinks.toLocaleString()}` : "—"}</td>
+                      <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">{w.cogsPackaging != null ? `$${w.cogsPackaging.toLocaleString()}` : "—"}</td>
+                      <td className="px-2 py-1 text-right tabular-nums font-medium">{w.totalCogs != null ? `$${w.totalCogs.toLocaleString()}` : "—"}</td>
+                      <td className="px-2 py-1 text-right">
+                        {w.cogsPct != null && (
+                          <Badge
+                            variant={
+                              w.cogsPct < 28 ? "green" : w.cogsPct < 32 ? "amber" : "red"
+                            }
+                          >
+                            {w.cogsPct.toFixed(1)}%
+                          </Badge>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCommitCogs}
+                disabled={isPending}
+                className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                <Check className="h-4 w-4" />
+                Save {cogsPreview.length} week{cogsPreview.length === 1 ? "" : "s"}
               </button>
               {saveResult && (
                 <span className="text-xs text-emerald-700">{saveResult}</span>

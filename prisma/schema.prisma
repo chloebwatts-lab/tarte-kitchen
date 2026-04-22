@@ -680,6 +680,49 @@ model LabourUpload {
   rows LabourWeekActual[]
 }
 
+/// Weekly per-venue COGS actuals, from the Thursday xlsx report Chris
+/// uploads manually (Burleigh + Currumbin formats — Tea Garden rides
+/// with Currumbin/Beach House). Complements LabourWeekActual.cogsActual
+/// by breaking the total into category mix so we can spot supplier /
+/// category drift week over week.
+model WeeklyCogs {
+  id             String        @id @default(cuid())
+  venue          Venue
+  weekStartWed   DateTime      @db.Date
+  revenueExGst   Decimal?      @db.Decimal(10, 2)
+  totalCogs      Decimal       @db.Decimal(10, 2)
+  cogsPct        Decimal?      @db.Decimal(5, 2)
+  cogsTargetPct  Decimal?      @db.Decimal(5, 2)
+  // Category breakdown — nullable because not every venue reports
+  // every category every week.
+  cogsFood         Decimal? @db.Decimal(10, 2)
+  cogsCoffee       Decimal? @db.Decimal(10, 2)
+  cogsConsumables  Decimal? @db.Decimal(10, 2)
+  cogsDrinks       Decimal? @db.Decimal(10, 2)
+  cogsPackaging    Decimal? @db.Decimal(10, 2)
+  source         String        @default("XLSX")
+  uploadId       String?
+  upload         CogsUpload?   @relation(fields: [uploadId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([venue, weekStartWed])
+  @@index([weekStartWed])
+}
+
+/// One row per uploaded COGS xlsx report. Mirrors LabourUpload — keeps
+/// the raw extracted text + parse metadata for re-parse / audit.
+model CogsUpload {
+  id         String       @id @default(cuid())
+  filename   String
+  rawText    String
+  weekCount  Int          @default(0)
+  uploadedBy String?
+  createdAt  DateTime     @default(now())
+
+  rows WeeklyCogs[]
+}
+
 // ============================================================
 // INVOICE MONITORING
 // ============================================================
@@ -889,6 +932,8 @@ model ChecklistTemplateItem {
   /// HACCP capture hints — if set, the run item will require a temp / note.
   requireTemp  Boolean           @default(false)
   requireNote  Boolean           @default(false)
+  /// Hot holding check: pass if ≥60°C. False (default) = cold check: pass if ≤5°C.
+  hotCheck     Boolean           @default(false)
 
   runItems ChecklistRunItem[]
   createdAt DateTime @default(now())
