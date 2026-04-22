@@ -261,6 +261,8 @@ export async function GET(request: Request) {
       messagesFound: messageRefs.length,
       invoicesProcessed,
       priceChangesDetected,
+      scanningFrom: connection.lastScanAt?.toISOString() ?? "all time",
+      supplierEmailsConfigured: allEmails.length,
       errors: errors.length > 0 ? errors : undefined,
     })
   } catch (err) {
