@@ -26,6 +26,59 @@ function cogsBandVariant(pct: number | null): "green" | "amber" | "red" | "outli
   return "red"
 }
 
+// Per-venue dept-group wage % targets (source: Chris 2026-04-21).
+// Burleigh groups Chef+KP and FOH+Barista. Beach House folds Barista into
+// FOH. Tea Garden targets are TBD — dept rows render without variance.
+type DeptGroup = {
+  label: string
+  // Which raw dept wage fields to sum together for this group.
+  keys: Array<
+    "wagesChef" | "wagesKp" | "wagesFoh" | "wagesBarista" | "wagesPastry"
+  >
+  target: [number, number] | null
+}
+const DEPT_GROUPS: Record<string, DeptGroup[]> = {
+  BURLEIGH: [
+    { label: "Chef + KP", keys: ["wagesChef", "wagesKp"], target: [11.5, 12] },
+    {
+      label: "FOH + Barista",
+      keys: ["wagesFoh", "wagesBarista"],
+      target: [20.5, 21],
+    },
+    { label: "Pastry", keys: ["wagesPastry"], target: [4.75, 5.25] },
+  ],
+  BEACH_HOUSE: [
+    {
+      label: "Chef + KP",
+      keys: ["wagesChef", "wagesKp"],
+      target: [12.5, 13.5],
+    },
+    {
+      label: "FOH",
+      keys: ["wagesFoh", "wagesBarista"],
+      target: [21.5, 22.5],
+    },
+    { label: "Pastry", keys: ["wagesPastry"], target: [2.5, 3] },
+  ],
+  TEA_GARDEN: [
+    { label: "Chef + KP", keys: ["wagesChef", "wagesKp"], target: null },
+    { label: "FOH", keys: ["wagesFoh", "wagesBarista"], target: null },
+    { label: "Pastry", keys: ["wagesPastry"], target: null },
+  ],
+}
+
+// Within target → green. Within 0.5pp of either edge → amber. Beyond → red.
+function deptBandVariant(
+  pct: number | null,
+  target: [number, number] | null
+): "green" | "amber" | "red" | "outline" {
+  if (pct === null || target === null) return "outline"
+  const [lo, hi] = target
+  if (pct >= lo && pct <= hi) return "green"
+  if (pct >= lo - 0.5 && pct <= hi + 0.5) return "amber"
+  return "red"
+}
+
 export function LabourDashboard({ initial }: { initial: LabourDashboardData }) {
   return (
     <div className="space-y-6">
@@ -205,15 +258,19 @@ function VenueDetailCard({
     row.actualRevenueExGst !== null && row.mForecast !== null
       ? row.actualRevenueExGst - row.mForecast
       : null
-  const depts: { label: string; value: number | null }[] = [
-    { label: "Barista", value: row.wagesBarista },
-    { label: "Chef", value: row.wagesChef },
-    { label: "FOH", value: row.wagesFoh },
-    { label: "KP/Dishy", value: row.wagesKp },
-    { label: "Pastry", value: row.wagesPastry },
-    { label: "Admin", value: row.wagesAdmin },
-  ]
-  const hasDepts = depts.some((d) => d.value !== null)
+  const deptGroups = (DEPT_GROUPS[row.venue] ?? []).map((g) => {
+    const vals = g.keys.map((k) => row[k])
+    const anyPresent = vals.some((v) => v !== null)
+    const value = anyPresent
+      ? vals.reduce<number>((s, v) => s + (v ?? 0), 0)
+      : null
+    const pct =
+      value !== null && row.actualRevenueExGst && row.actualRevenueExGst > 0
+        ? Math.round((value / row.actualRevenueExGst) * 1000) / 10
+        : null
+    return { ...g, value, pct }
+  })
+  const hasDepts = deptGroups.some((g) => g.value !== null)
   return (
     <div className="rounded-md border border-border bg-background p-3 text-xs">
       <div
@@ -336,31 +393,51 @@ function VenueDetailCard({
       {hasDepts && (
         <>
           <div className="mt-2 mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-            Departments
+            Dept vs target
           </div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-            {depts.map((d) =>
-              d.value === null ? null : (
+          <div className="space-y-0.5">
+            {deptGroups.map((g) => {
+              if (g.value === null) return null
+              const variant = deptBandVariant(g.pct, g.target)
+              return (
                 <div
-                  key={d.label}
+                  key={g.label}
                   className="flex items-center justify-between text-[11px]"
                 >
-                  <span className="text-muted-foreground">{d.label}</span>
-                  <span className="tabular-nums">
-                    ${Math.round(d.value).toLocaleString()}
-                    {row.actualRevenueExGst &&
-                      row.actualRevenueExGst > 0 && (
-                        <span className="ml-1 text-[10px] text-muted-foreground/70">
-                          {(
-                            (d.value / row.actualRevenueExGst) *
-                            100
-                          ).toFixed(1)}
-                          %
-                        </span>
-                      )}
-                  </span>
+                  <span className="text-muted-foreground">{g.label}</span>
+                  <div className="flex items-center gap-1.5 tabular-nums">
+                    <span className="text-muted-foreground/70">
+                      ${Math.round(g.value).toLocaleString()}
+                    </span>
+                    {g.pct !== null && (
+                      <Badge
+                        variant={variant}
+                        className="text-[9px] px-1 py-0 min-w-[3rem] justify-center"
+                        title={
+                          g.target
+                            ? `target ${g.target[0]}–${g.target[1]}%`
+                            : "no target set"
+                        }
+                      >
+                        {g.pct.toFixed(1)}%
+                      </Badge>
+                    )}
+                    {g.target && (
+                      <span className="text-[9px] text-muted-foreground/60 tabular-nums w-[4rem] text-right">
+                        {g.target[0]}–{g.target[1]}%
+                      </span>
+                    )}
+                  </div>
                 </div>
               )
+            })}
+            {row.wagesAdmin !== null && (
+              <div className="flex items-center justify-between text-[11px] pt-0.5 border-t border-border/50 mt-1">
+                <span className="text-muted-foreground/60">Admin</span>
+                <span className="tabular-nums text-muted-foreground/60">
+                  ${Math.round(row.wagesAdmin).toLocaleString()}
+                </span>
+              </div>
             )}
           </div>
         </>
