@@ -20,7 +20,11 @@ import {
   VENUE_CHART_COLOR,
   type SingleVenue,
 } from "@/lib/venues"
-import type { CogsDashboardData, CogsWeekCell } from "@/lib/actions/cogs"
+import type {
+  CogsDashboardData,
+  CogsWeekCell,
+  SupplierWeekCell,
+} from "@/lib/actions/cogs"
 
 const CATEGORIES = [
   { key: "cogsFood" as const, label: "Food", color: "#ef4444" },
@@ -77,6 +81,21 @@ export function CogsDashboard({ initial }: { initial: CogsDashboardData }) {
   }, [cells, mode])
 
   const hasData = cells.length > 0
+
+  // Venue-compare chart data: one row per week, one key per venue for
+  // total-COGS %. Always lives below the category chart.
+  const compareData = useMemo(() => {
+    return initial.weeks.map((iso) => {
+      const row: Record<string, string | number | null> = { week: shortLabel(iso) }
+      for (const v of SINGLE_VENUES) {
+        const cell = initial.perVenue.find((p) => p.venue === v)?.cells[iso]
+        row[v] = cell?.cogsPct ?? null
+      }
+      return row
+    })
+  }, [initial.weeks, initial.perVenue])
+
+  const suppliers: SupplierWeekCell[] = venueData?.suppliers ?? []
 
   return (
     <div className="space-y-6">
@@ -182,6 +201,146 @@ export function CogsDashboard({ initial }: { initial: CogsDashboardData }) {
                   ))}
                 </LineChart>
               </ResponsiveContainer>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">
+            Total COGS % — all venues
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={compareData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="week" tick={{ fontSize: 10 }} />
+                <YAxis
+                  tick={{ fontSize: 10 }}
+                  tickFormatter={(v) => `${v}%`}
+                  domain={[0, "dataMax + 4"]}
+                />
+                <Tooltip
+                  contentStyle={{ fontSize: 11 }}
+                  formatter={((v: unknown) => {
+                    const n = typeof v === "number" ? v : 0
+                    return `${n.toFixed(1)}%`
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  }) as any}
+                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                {SINGLE_VENUES.map((v) => (
+                  <Line
+                    key={v}
+                    type="monotone"
+                    dataKey={v}
+                    stroke={VENUE_CHART_COLOR[v]}
+                    strokeWidth={2}
+                    dot={{ r: 2 }}
+                    name={VENUE_SHORT_LABEL[v]}
+                    connectNulls
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">
+            Suppliers · {VENUE_SHORT_LABEL[venue]}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {suppliers.length === 0 ? (
+            <div className="py-6 text-center text-xs text-muted-foreground">
+              No supplier lines yet — upload a COGS xlsx to populate.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border text-left text-muted-foreground">
+                    <th className="px-2 py-1.5">Supplier</th>
+                    {initial.weeks.slice(-6).map((iso) => (
+                      <th key={iso} className="px-2 py-1.5 text-right">
+                        {shortLabel(iso)}
+                      </th>
+                    ))}
+                    <th className="px-2 py-1.5 text-right">4wk avg</th>
+                    <th className="px-2 py-1.5 text-right">Latest</th>
+                    <th className="px-2 py-1.5 text-right">Δ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {suppliers.slice(0, 25).map((s) => {
+                    const delta =
+                      s.latest !== null && s.fourWeekAvg && s.fourWeekAvg > 0
+                        ? ((s.latest - s.fourWeekAvg) / s.fourWeekAvg) * 100
+                        : null
+                    return (
+                      <tr
+                        key={s.supplier}
+                        className="border-b border-border/50"
+                      >
+                        <td className="px-2 py-1.5 font-medium">
+                          {s.supplier}
+                        </td>
+                        {initial.weeks.slice(-6).map((iso) => (
+                          <td
+                            key={iso}
+                            className="px-2 py-1.5 text-right tabular-nums text-muted-foreground"
+                          >
+                            {s.byWeek[iso] !== undefined
+                              ? `$${Math.round(s.byWeek[iso]).toLocaleString()}`
+                              : "—"}
+                          </td>
+                        ))}
+                        <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
+                          {s.fourWeekAvg !== null
+                            ? `$${Math.round(s.fourWeekAvg).toLocaleString()}`
+                            : "—"}
+                        </td>
+                        <td className="px-2 py-1.5 text-right tabular-nums font-medium">
+                          {s.latest !== null
+                            ? `$${Math.round(s.latest).toLocaleString()}`
+                            : "—"}
+                        </td>
+                        <td className="px-2 py-1.5 text-right">
+                          {delta !== null && (
+                            <span
+                              className={cn(
+                                "tabular-nums text-[11px]",
+                                s.spike
+                                  ? "font-medium text-red-600"
+                                  : delta < -10
+                                    ? "text-emerald-600"
+                                    : "text-muted-foreground"
+                              )}
+                            >
+                              {delta > 0 ? "+" : ""}
+                              {delta.toFixed(0)}%
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              {suppliers.length > 25 && (
+                <div className="mt-2 text-center text-[11px] text-muted-foreground">
+                  Showing top 25 of {suppliers.length} suppliers by total spend
+                </div>
+              )}
+              <div className="mt-3 text-[11px] text-muted-foreground">
+                Δ = latest week vs 4-week avg. Red = spike (+25% or more).
+              </div>
             </div>
           )}
         </CardContent>

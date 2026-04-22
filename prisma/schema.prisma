@@ -720,7 +720,27 @@ model CogsUpload {
   uploadedBy String?
   createdAt  DateTime     @default(now())
 
-  rows WeeklyCogs[]
+  rows          WeeklyCogs[]
+  supplierLines CogsSupplierLine[]
+}
+
+/// Per-supplier spend per (venue, week) extracted from the same Thursday
+/// xlsx. Lets us surface "Marrow Meats up 40% vs 4-week avg" style drift
+/// in the COGS dashboard without re-parsing the file every render.
+model CogsSupplierLine {
+  id           String     @id @default(cuid())
+  venue        Venue
+  weekStartWed DateTime   @db.Date
+  supplier     String
+  amount       Decimal    @db.Decimal(10, 2)
+  uploadId     String?
+  upload       CogsUpload? @relation(fields: [uploadId], references: [id], onDelete: SetNull)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([venue, weekStartWed, supplier])
+  @@index([venue, weekStartWed])
+  @@index([supplier])
 }
 
 // ============================================================

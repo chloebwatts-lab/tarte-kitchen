@@ -20,6 +20,7 @@ export interface ExtractedCogsWeek {
   cogsConsumables: number | null
   cogsDrinks: number | null
   cogsPackaging: number | null
+  suppliers: { supplier: string; amount: number }[]
 }
 
 type CategoryKey =
@@ -193,11 +194,31 @@ export async function parseCogsXlsx(params: {
     return toNum(ws.getRow(rowIdx).getCell(col).value)
   }
 
+  // Supplier rows sit between the header and the "Total food cost" row.
+  // Skip blank labels. Store the label as-is (trimmed) — UI normalises
+  // "Other : Woolworths, …" etc. when displaying.
+  const supplierRows: { row: number; supplier: string }[] = []
+  if (labelRows.food > headerRow + 1) {
+    for (let r = headerRow + 1; r < labelRows.food; r++) {
+      const label = toText(ws.getRow(r).getCell(2).value)
+      if (label) supplierRows.push({ row: r, supplier: label })
+    }
+  }
+
   const weeks: ExtractedCogsWeek[] = colWeek.map(({ col, weekEndTue }) => {
     const wed = new Date(weekEndTue)
     wed.setUTCDate(wed.getUTCDate() - 6)
     const weekStartWed = weekStartWedIso(wed)
     const pct = getNum(labelRows.pct, col)
+    const suppliers: { supplier: string; amount: number }[] = []
+    for (const { row, supplier } of supplierRows) {
+      const amt = getNum(row, col)
+      // Skip empties + zero-only rows so we don't bloat the DB with
+      // "this supplier wasn't used this week" noise.
+      if (amt != null && amt !== 0) {
+        suppliers.push({ supplier, amount: amt })
+      }
+    }
     return {
       venue,
       venueRaw,
@@ -211,6 +232,7 @@ export async function parseCogsXlsx(params: {
       cogsConsumables: getNum(labelRows.consumables, col),
       cogsDrinks: getNum(labelRows.drinks, col),
       cogsPackaging: getNum(labelRows.packaging, col),
+      suppliers,
     }
   })
   const nonEmpty = weeks.filter((w) => w.totalCogs != null)
@@ -236,11 +258,22 @@ export interface CogsWeekCell {
   cogsPackaging: number | null
 }
 
+export interface SupplierWeekCell {
+  supplier: string
+  // Amounts keyed by weekStartWed. Missing keys mean no spend that week.
+  byWeek: Record<string, number>
+  total: number // sum across the displayed window — used for ranking
+  latest: number | null // latest non-zero week's amount
+  fourWeekAvg: number | null // average of last 4 non-null weeks ending latest
+  spike: boolean // latest > 1.25 × 4-wk avg AND both defined
+}
+
 export interface CogsDashboardData {
   weeks: string[] // ISO Wed-start ordered oldest→newest
   perVenue: {
     venue: Venue
     cells: Record<string, CogsWeekCell> // keyed by weekStartWed
+    suppliers: SupplierWeekCell[] // sorted desc by total spend
   }[]
   lastUpload: {
     filename: string
@@ -263,8 +296,12 @@ export async function getCogsDashboardData(params?: {
   const earliest = new Date(now)
   earliest.setUTCDate(earliest.getUTCDate() - 7 * (weeksToFetch + 1))
 
-  const [rows, uploads] = await Promise.all([
+  const [rows, supplierRows, uploads] = await Promise.all([
     db.weeklyCogs.findMany({
+      where: { weekStartWed: { gte: earliest } },
+      orderBy: { weekStartWed: "asc" },
+    }),
+    db.cogsSupplierLine.findMany({
       where: { weekStartWed: { gte: earliest } },
       orderBy: { weekStartWed: "asc" },
     }),
@@ -297,14 +334,73 @@ export async function getCogsDashboardData(params?: {
     })
   }
   const weeks = Array.from(weeksSet).sort().slice(-weeksToFetch)
-  const perVenue = SINGLE_VENUES.map((venue) => ({
-    venue,
-    cells: Object.fromEntries(
-      Array.from(byVenue.get(venue)?.entries() ?? []).filter(([iso]) =>
-        weeks.includes(iso)
+  const weeksClip = new Set(weeks)
+
+  // Pivot supplier rows → per-venue supplier × week map.
+  const supplierByVenue = new Map<
+    Venue,
+    Map<string, Map<string, number>>
+  >()
+  for (const v of SINGLE_VENUES) supplierByVenue.set(v, new Map())
+  for (const s of supplierRows) {
+    const iso = weekStartWedIso(s.weekStartWed)
+    if (!weeksClip.has(iso)) continue
+    const venueMap = supplierByVenue.get(s.venue)
+    if (!venueMap) continue
+    let supplier = venueMap.get(s.supplier)
+    if (!supplier) {
+      supplier = new Map()
+      venueMap.set(s.supplier, supplier)
+    }
+    supplier.set(iso, Number(s.amount))
+  }
+
+  const perVenue = SINGLE_VENUES.map((venue) => {
+    const venueSupplierMap =
+      supplierByVenue.get(venue) ?? new Map<string, Map<string, number>>()
+    const latestWeek = weeks[weeks.length - 1]
+    const prior4 = weeks.slice(-5, -1) // 4 weeks before latest
+    const suppliers: SupplierWeekCell[] = Array.from(
+      venueSupplierMap.entries()
+    ).map(([supplier, byWeekMap]) => {
+      const byWeek: Record<string, number> = Object.fromEntries(byWeekMap)
+      const total = Array.from(byWeekMap.values()).reduce(
+        (a: number, b: number) => a + b,
+        0
       )
-    ) as Record<string, CogsWeekCell>,
-  }))
+      const latest = byWeek[latestWeek] ?? null
+      const priorVals = prior4
+        .map((w) => byWeek[w])
+        .filter((v): v is number => typeof v === "number")
+      const fourWeekAvg = priorVals.length
+        ? priorVals.reduce((a, b) => a + b, 0) / priorVals.length
+        : null
+      const spike =
+        latest !== null &&
+        fourWeekAvg !== null &&
+        fourWeekAvg > 0 &&
+        latest > fourWeekAvg * 1.25
+      return {
+        supplier,
+        byWeek,
+        total: Math.round(total * 100) / 100,
+        latest,
+        fourWeekAvg:
+          fourWeekAvg === null ? null : Math.round(fourWeekAvg * 100) / 100,
+        spike,
+      }
+    })
+    suppliers.sort((a, b) => b.total - a.total)
+    return {
+      venue,
+      cells: Object.fromEntries(
+        Array.from(byVenue.get(venue)?.entries() ?? []).filter(([iso]) =>
+          weeksClip.has(iso)
+        )
+      ) as Record<string, CogsWeekCell>,
+      suppliers,
+    }
+  })
 
   const lastUpload = uploads[0]
     ? {
@@ -360,7 +456,24 @@ export async function commitCogsXlsx(params: {
       create: { venue: w.venue, weekStartWed: wk, ...payload },
       update: payload,
     })
+    // Replace supplier lines for this (venue, week) so a re-upload
+    // cleanly drops suppliers that are no longer present in the sheet.
+    await db.cogsSupplierLine.deleteMany({
+      where: { venue: w.venue, weekStartWed: wk },
+    })
+    if (w.suppliers.length > 0) {
+      await db.cogsSupplierLine.createMany({
+        data: w.suppliers.map((s) => ({
+          venue: w.venue,
+          weekStartWed: wk,
+          supplier: s.supplier,
+          amount: new Decimal(s.amount),
+          uploadId: upload.id,
+        })),
+      })
+    }
   }
   revalidatePath("/labour")
+  revalidatePath("/cogs")
   return { uploadId: upload.id, weeks: valid.length }
 }
