@@ -114,32 +114,49 @@ function PastWeekRow({ wk }: { wk: LabourWeekCard }) {
             ))}
         </td>
         <td className="py-2.5">{wk.label}</td>
-        {wk.perVenue.map((row) => (
-          <td key={row.venue} className="py-2.5 text-right tabular-nums">
-            {row.hasActuals ? (
-              <div className="inline-flex flex-col items-end gap-0.5">
+        {wk.perVenue.map((row) => {
+          const cogsPct = row.cogsXlsxPct ?? row.actualCogsPct
+          return (
+            <td key={row.venue} className="py-2.5 text-right tabular-nums">
+              {row.hasActuals || row.cogsXlsxTotal !== null ? (
+                <div className="inline-flex flex-col items-end gap-0.5">
+                  {row.hasActuals && (
+                    <span className="text-xs text-muted-foreground">
+                      $
+                      {Math.round(
+                        row.actualWagesExAdmin ?? row.actualWages ?? 0
+                      ).toLocaleString()}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-1">
+                    {row.labourPct !== null && (
+                      <Badge
+                        variant={bandVariant(row.labourPct)}
+                        className="text-[10px]"
+                        title="Wages % of revenue"
+                      >
+                        W {row.labourPct.toFixed(1)}%
+                      </Badge>
+                    )}
+                    {cogsPct !== null && (
+                      <Badge
+                        variant={cogsBandVariant(cogsPct)}
+                        className="text-[10px]"
+                        title="COGS % of revenue"
+                      >
+                        C {cogsPct.toFixed(1)}%
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              ) : (
                 <span className="text-xs text-muted-foreground">
-                  $
-                  {Math.round(
-                    row.actualWagesExAdmin ?? row.actualWages ?? 0
-                  ).toLocaleString()}
+                  — not uploaded —
                 </span>
-                <Badge
-                  variant={bandVariant(row.labourPct)}
-                  className="text-[10px]"
-                >
-                  {row.labourPct !== null
-                    ? `${row.labourPct.toFixed(1)}%`
-                    : "—"}
-                </Badge>
-              </div>
-            ) : (
-              <span className="text-xs text-muted-foreground">
-                — not uploaded —
-              </span>
-            )}
-          </td>
-        ))}
+              )}
+            </td>
+          )
+        })}
       </tr>
       {open && hasAnyRich && (
         <tr className="border-b border-border/50 bg-muted/10">

@@ -20,6 +20,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   Trash2,
+  Receipt,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,7 @@ const navItems = [
   { label: "Analysis", href: "/analysis", icon: LineChart },
   { label: "Menu Matrix", href: "/menu-engineering", icon: LayoutGrid },
   { label: "Labour", href: "/labour", icon: Users },
+  { label: "COGS", href: "/cogs", icon: Receipt },
   { label: "Reports", href: "/reports", icon: BarChart3 },
   { label: "Settings", href: "/settings/integrations", icon: Settings },
 ];

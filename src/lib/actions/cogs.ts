@@ -3,6 +3,7 @@
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { Venue } from "@/generated/prisma"
+import { SINGLE_VENUES } from "@/lib/venues"
 import { startOfTarteWeekUtc, weekStartWedIso } from "@/lib/dates"
 import Decimal from "decimal.js"
 import ExcelJS from "exceljs"
@@ -217,6 +218,104 @@ export async function parseCogsXlsx(params: {
     weeks: nonEmpty,
     notes: `Extracted ${nonEmpty.length} weeks from ${params.filename} (${venueRaw || "unknown venue"})`,
   }
+}
+
+// ----------------------------------------------------------------------
+// Dashboard read
+// ----------------------------------------------------------------------
+
+export interface CogsWeekCell {
+  weekStartWed: string
+  revenueExGst: number | null
+  totalCogs: number
+  cogsPct: number | null
+  cogsFood: number | null
+  cogsCoffee: number | null
+  cogsConsumables: number | null
+  cogsDrinks: number | null
+  cogsPackaging: number | null
+}
+
+export interface CogsDashboardData {
+  weeks: string[] // ISO Wed-start ordered oldest→newest
+  perVenue: {
+    venue: Venue
+    cells: Record<string, CogsWeekCell> // keyed by weekStartWed
+  }[]
+  lastUpload: {
+    filename: string
+    createdAt: string
+    venue: Venue | null
+    weekCount: number
+  } | null
+}
+
+/**
+ * Fetch the last N weeks of WeeklyCogs rows across every venue for the
+ * COGS dashboard. Returns a pivoted shape the chart + table can both
+ * read off directly.
+ */
+export async function getCogsDashboardData(params?: {
+  weeks?: number
+}): Promise<CogsDashboardData> {
+  const weeksToFetch = params?.weeks ?? 12
+  const now = new Date()
+  const earliest = new Date(now)
+  earliest.setUTCDate(earliest.getUTCDate() - 7 * (weeksToFetch + 1))
+
+  const [rows, uploads] = await Promise.all([
+    db.weeklyCogs.findMany({
+      where: { weekStartWed: { gte: earliest } },
+      orderBy: { weekStartWed: "asc" },
+    }),
+    db.cogsUpload.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 1,
+    }),
+  ])
+
+  const weeksSet = new Set<string>()
+  const byVenue = new Map<Venue, Map<string, CogsWeekCell>>()
+  for (const v of SINGLE_VENUES) byVenue.set(v, new Map())
+  for (const r of rows) {
+    const iso = weekStartWedIso(r.weekStartWed)
+    weeksSet.add(iso)
+    const venueMap = byVenue.get(r.venue)
+    if (!venueMap) continue
+    venueMap.set(iso, {
+      weekStartWed: iso,
+      revenueExGst: r.revenueExGst != null ? Number(r.revenueExGst) : null,
+      totalCogs: Number(r.totalCogs),
+      cogsPct: r.cogsPct != null ? Number(r.cogsPct) : null,
+      cogsFood: r.cogsFood != null ? Number(r.cogsFood) : null,
+      cogsCoffee: r.cogsCoffee != null ? Number(r.cogsCoffee) : null,
+      cogsConsumables:
+        r.cogsConsumables != null ? Number(r.cogsConsumables) : null,
+      cogsDrinks: r.cogsDrinks != null ? Number(r.cogsDrinks) : null,
+      cogsPackaging:
+        r.cogsPackaging != null ? Number(r.cogsPackaging) : null,
+    })
+  }
+  const weeks = Array.from(weeksSet).sort().slice(-weeksToFetch)
+  const perVenue = SINGLE_VENUES.map((venue) => ({
+    venue,
+    cells: Object.fromEntries(
+      Array.from(byVenue.get(venue)?.entries() ?? []).filter(([iso]) =>
+        weeks.includes(iso)
+      )
+    ) as Record<string, CogsWeekCell>,
+  }))
+
+  const lastUpload = uploads[0]
+    ? {
+        filename: uploads[0].filename,
+        createdAt: uploads[0].createdAt.toISOString(),
+        venue: null,
+        weekCount: uploads[0].weekCount,
+      }
+    : null
+
+  return { weeks, perVenue, lastUpload }
 }
 
 export async function commitCogsXlsx(params: {
