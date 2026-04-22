@@ -159,3 +159,78 @@ export async function sendChecklistAlertEmail(params: {
     body,
   })
 }
+
+export async function sendDailySummaryEmail(params: {
+  date: string
+  venues: {
+    venue: string
+    rows: {
+      name: string
+      area: string | null
+      status: "COMPLETED" | "PARTIAL" | "NOT_STARTED"
+      completedItems: number
+      totalItems: number
+      completedAt: string | null
+      staffNames: string[]
+    }[]
+  }[]
+  totalTemplates: number
+  totalIncomplete: number
+}) {
+  const VENUE_LABEL: Record<string, string> = {
+    BURLEIGH: "Burleigh Bakery",
+    BEACH_HOUSE: "Beach House",
+    TEA_GARDEN: "Tea Garden",
+  }
+
+  const dateObj = new Date(params.date)
+  const dateHuman = dateObj.toLocaleDateString("en-AU", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Australia/Brisbane",
+  })
+
+  const venueBlocks = params.venues.map((v) => {
+    const label = VENUE_LABEL[v.venue] ?? v.venue
+    const divider = "─".repeat(48)
+    const rows = v.rows.map((r) => {
+      const icon = r.status === "COMPLETED" ? "✓" : r.status === "PARTIAL" ? "~" : "✗"
+      const name = r.name.padEnd(28)
+      const detail =
+        r.status === "COMPLETED"
+          ? `${r.completedAt ?? ""}${r.staffNames.length ? "  " + r.staffNames.join(", ") : ""}`
+          : r.status === "PARTIAL"
+          ? `${r.completedItems}/${r.totalItems} items`
+          : "NOT STARTED"
+      return `  ${icon} ${name} ${detail}`
+    })
+    return [label, divider, ...rows].join("\n")
+  })
+
+  const result =
+    params.totalIncomplete === 0
+      ? "All checklists completed ✓"
+      : `${params.totalIncomplete} of ${params.totalTemplates} checklists incomplete`
+
+  const body = [
+    `Tarte Kitchen — Daily Checklist Summary`,
+    ``,
+    dateHuman,
+    ``,
+    ...venueBlocks.flatMap((b) => [b, ""]),
+    result,
+    ``,
+    `─────────────────────────────────────────────────`,
+    `Full records: https://kitchen.tarte.com.au/checklists`,
+    `— Tarte Kitchen`,
+  ].join("\n")
+
+  const subject =
+    params.totalIncomplete === 0
+      ? `[Tarte] Daily checklists — ${dateHuman} — All done ✓`
+      : `[Tarte] Daily checklists — ${dateHuman} — ${params.totalIncomplete} incomplete`
+
+  return sendEmail({ to: "chloe@tarte.com.au", subject, body })
+}

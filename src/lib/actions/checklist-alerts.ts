@@ -220,3 +220,102 @@ export async function markAlertEmailed(alertId: string) {
   })
   revalidatePath("/checklists")
 }
+
+// ─── DAILY SUMMARY ──────────────────────────────────────────────────────────
+
+export interface DailySummaryVenue {
+  venue: Venue
+  rows: {
+    name: string
+    area: string | null
+    status: "COMPLETED" | "PARTIAL" | "NOT_STARTED"
+    completedItems: number
+    totalItems: number
+    completedAt: string | null
+    staffNames: string[]
+  }[]
+}
+
+export async function getDailySummaryData(): Promise<{
+  date: string
+  venues: DailySummaryVenue[]
+  totalTemplates: number
+  totalIncomplete: number
+}> {
+  const today = todayAest()
+
+  const templates = await db.checklistTemplate.findMany({
+    where: { isActive: true, dueByHour: { not: null } },
+    include: {
+      _count: { select: { items: true } },
+      runs: {
+        where: { runDate: today },
+        include: {
+          items: { select: { checkedAt: true, checkedBy: true } },
+        },
+      },
+    },
+    orderBy: [{ venue: "asc" }, { area: "asc" }, { name: "asc" }],
+  })
+
+  const venueMap = new Map<Venue, DailySummaryVenue["rows"]>()
+
+  for (const t of templates) {
+    const expectedVenues: Venue[] =
+      t.venue === "BOTH"
+        ? (["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN"] as Venue[])
+        : [t.venue]
+
+    for (const v of expectedVenues) {
+      const run = t.runs.find((r) => r.venue === v)
+      const completed = run
+        ? run.items.filter((i) => i.checkedAt !== null).length
+        : 0
+      const total = t._count.items
+      const staffNames = run
+        ? [...new Set(run.items.map((i) => i.checkedBy).filter(Boolean) as string[])]
+        : []
+
+      let status: "COMPLETED" | "PARTIAL" | "NOT_STARTED"
+      if (!run || completed === 0) status = "NOT_STARTED"
+      else if (completed >= total) status = "COMPLETED"
+      else status = "PARTIAL"
+
+      const completedAt =
+        run?.items
+          .map((i) => i.checkedAt)
+          .filter(Boolean)
+          .sort()
+          .pop()
+          ?.toLocaleTimeString("en-AU", {
+            hour: "2-digit",
+            minute: "2-digit",
+            timeZone: "Australia/Brisbane",
+          }) ?? null
+
+      if (!venueMap.has(v)) venueMap.set(v, [])
+      venueMap.get(v)!.push({
+        name: t.name,
+        area: t.area,
+        status,
+        completedItems: completed,
+        totalItems: total,
+        completedAt,
+        staffNames,
+      })
+    }
+  }
+
+  const VENUE_ORDER: Venue[] = ["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN"]
+  const venues: DailySummaryVenue[] = VENUE_ORDER.filter((v) =>
+    venueMap.has(v)
+  ).map((v) => ({ venue: v, rows: venueMap.get(v)! }))
+
+  const allRows = venues.flatMap((v) => v.rows)
+  return {
+    date: today.toISOString().split("T")[0],
+    venues,
+    totalTemplates: allRows.length,
+    totalIncomplete: allRows.filter((r) => r.status !== "COMPLETED").length,
+  }
+}

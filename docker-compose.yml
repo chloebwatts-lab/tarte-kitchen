@@ -108,6 +108,10 @@ services:
         30 20 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-sales 2>&1
         # Every 15 min — pull Deputy rosters so /labour stays fresh
         */15 * * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-deputy 2>&1
+        # Every 15 min — send overdue checklist alerts to chloe@ + shawna@
+        */15 * * * * curl -fsS -m 60 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/checklist-alerts 2>&1
+        # 18:00 AEST (08:00 UTC) — daily checklist summary to chloe@
+        0 8 * * * curl -fsS -m 60 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/daily-checklist-summary 2>&1
         CRON
         exec crond -f -l 8 -L /dev/stdout
 
