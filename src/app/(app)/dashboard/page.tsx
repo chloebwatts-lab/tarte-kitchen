@@ -7,11 +7,18 @@ import { VenueSalesTile } from "@/components/venue-sales-tile"
 import { SINGLE_VENUES } from "@/lib/venues"
 import { getLatestDailyReport } from "@/lib/actions/daily-report"
 import { DailyReportSection } from "@/components/daily-report"
+import { getDailySummaryData } from "@/lib/actions/checklist-alerts"
+import { getOverdueChecklists } from "@/lib/actions/checklist-alerts"
+import { getLiveWeekLabourSnapshot } from "@/lib/actions/labour"
+import { DashboardOpsPanel } from "@/components/dashboard-ops-panel"
 
 export default async function DashboardPage() {
-  const [stats, dailyReport, ...snapshots] = await Promise.all([
+  const [stats, dailyReport, checklistSummary, overdue, labour, ...snapshots] = await Promise.all([
     getDashboardStats(),
     getLatestDailyReport(),
+    getDailySummaryData(),
+    getOverdueChecklists(),
+    getLiveWeekLabourSnapshot(),
     ...SINGLE_VENUES.map((v) => getVenueSalesSnapshot(v)),
   ])
 
@@ -20,9 +27,16 @@ export default async function DashboardPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Overview of your kitchen costs and menu performance
+          Overview of your kitchen operations and costs
         </p>
       </div>
+
+      {/* Operations at a glance */}
+      <DashboardOpsPanel
+        checklists={{ totalTemplates: checklistSummary.totalTemplates, totalIncomplete: checklistSummary.totalIncomplete }}
+        overdue={overdue}
+        labour={labour}
+      />
 
       {/* Lightspeed end-of-day report (mirrors the emailed PDF sections) */}
       <DailyReportSection data={dailyReport} />

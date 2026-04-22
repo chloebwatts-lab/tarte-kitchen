@@ -313,6 +313,91 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
   }
 }
 
+// ─── LIGHTWEIGHT LIVE-WEEK SNAPSHOT (for dashboard widget) ──────────────────
+
+export interface LiveWeekLabourVenue {
+  venue: Venue
+  labourPct: number | null
+  scheduledWages: number | null
+  mForecast: number | null
+  hasActuals: boolean
+}
+
+/**
+ * Minimal query for the dashboard ops widget — only fetches this week's
+ * roster shifts + forecasts + actuals (if uploaded). Much lighter than
+ * getLabourDashboardData which also loads 8 past weeks.
+ */
+export async function getLiveWeekLabourSnapshot(): Promise<LiveWeekLabourVenue[]> {
+  const now = new Date()
+  const { start: liveStart } = currentTarteWeekRange(now)
+  const nextStart = new Date(liveStart)
+  nextStart.setUTCDate(nextStart.getUTCDate() + 7)
+
+  // Shift filter uses AEST offset same as getLabourDashboardData
+  const liveStartAestInstant = new Date(liveStart.getTime() - 10 * 60 * 60 * 1000)
+  const nextStartAestInstant = new Date(nextStart.getTime() - 10 * 60 * 60 * 1000)
+
+  const [connection, rosterShifts, forecasts, actuals] = await Promise.all([
+    db.deputyConnection.findFirst(),
+    db.labourShift.findMany({
+      where: {
+        source: "ROSTER",
+        shiftStart: { gte: liveStartAestInstant, lt: nextStartAestInstant },
+      },
+      select: { venue: true, hours: true, cost: true, isOpen: true },
+    }),
+    db.managerSalesForecast.findMany({
+      where: { weekStartWed: liveStart },
+      select: { venue: true, amount: true },
+    }),
+    db.labourWeekActual.findMany({
+      where: { weekStartWed: liveStart },
+      select: {
+        venue: true,
+        revenueExGst: true,
+        grossWages: true,
+        grossWagesExAdmin: true,
+        mForecast: true,
+      },
+    }),
+  ])
+
+  const superMultiplier = 1 + Number(connection?.superRate ?? 0.12)
+  const upliftMultiplier = 1 + Number(connection?.onCostUpliftRate ?? 0)
+  const openShiftRate = Number(connection?.defaultOpenShiftRate ?? 0)
+
+  const rosterByVenue = new Map<string, number>()
+  for (const s of rosterShifts) {
+    const baseCost = s.isOpen ? Number(s.hours) * openShiftRate : Number(s.cost)
+    rosterByVenue.set(s.venue, (rosterByVenue.get(s.venue) ?? 0) + baseCost * superMultiplier * upliftMultiplier)
+  }
+
+  const forecastByVenue = new Map<string, number>()
+  for (const f of forecasts) {
+    forecastByVenue.set(f.venue, Number(f.amount))
+  }
+
+  const actualsByVenue = new Map(actuals.map((a) => [a.venue, a]))
+
+  return SINGLE_VENUES.map((v) => {
+    const actual = actualsByVenue.get(v)
+    const scheduledWages = rosterByVenue.get(v) ?? null
+    const mForecast = actual?.mForecast != null
+      ? Number(actual.mForecast)
+      : forecastByVenue.get(v) ?? null
+    const wages = actual
+      ? (actual.grossWagesExAdmin != null ? Number(actual.grossWagesExAdmin) : Number(actual.grossWages))
+      : scheduledWages
+    const denom = actual?.revenueExGst != null ? Number(actual.revenueExGst) : mForecast
+    const labourPct = wages !== null && denom !== null && denom > 0
+      ? Math.round((wages / denom) * 10000) / 100
+      : null
+
+    return { venue: v, labourPct, scheduledWages, mForecast, hasActuals: !!actual }
+  })
+}
+
 function tarteLabel(weekStartWed: Date): string {
   const end = new Date(weekStartWed)
   end.setUTCDate(end.getUTCDate() + 6)
