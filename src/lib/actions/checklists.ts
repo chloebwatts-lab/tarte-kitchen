@@ -44,6 +44,7 @@ export interface ChecklistRunDetail {
     instructions: string | null
     requireTemp: boolean
     requireNote: boolean
+    hotCheck: boolean
     checkedAt: string | null
     checkedBy: string | null
     tempCelsius: number | null
@@ -226,6 +227,7 @@ export async function getChecklistRun(id: string): Promise<ChecklistRunDetail | 
       instructions: i.templateItem.instructions,
       requireTemp: i.templateItem.requireTemp,
       requireNote: i.templateItem.requireNote,
+      hotCheck: i.templateItem.hotCheck,
       checkedAt: i.checkedAt ? i.checkedAt.toISOString() : null,
       checkedBy: i.checkedBy,
       tempCelsius: i.tempCelsius !== null ? Number(i.tempCelsius) : null,
@@ -248,7 +250,7 @@ export async function forceCompleteRun(runId: string) {
     include: {
       template: { select: { name: true, isFoodSafety: true } },
       items: {
-        include: { templateItem: { select: { label: true, requireTemp: true } } },
+        include: { templateItem: { select: { label: true, requireTemp: true, hotCheck: true } } },
         orderBy: { templateItem: { sortOrder: "asc" } },
       },
     },
@@ -269,7 +271,9 @@ export async function forceCompleteRun(runId: string) {
           label: i.templateItem.label,
           tempCelsius: temp,
           requireTemp: i.templateItem.requireTemp,
-          passed: i.templateItem.requireTemp && temp !== null ? temp <= 5 : null,
+          passed: i.templateItem.requireTemp && temp !== null
+            ? i.templateItem.hotCheck ? temp >= 60 : temp <= 5
+            : null,
           note: i.note,
           checkedBy: i.checkedBy,
         }
@@ -314,7 +318,7 @@ export async function tickChecklistItem(params: {
       include: {
         template: { select: { name: true, isFoodSafety: true } },
         items: {
-          include: { templateItem: { select: { label: true, requireTemp: true } } },
+          include: { templateItem: { select: { label: true, requireTemp: true, hotCheck: true } } },
           orderBy: { templateItem: { sortOrder: "asc" } },
         },
       },
@@ -336,7 +340,9 @@ export async function tickChecklistItem(params: {
             label: i.templateItem.label,
             tempCelsius: temp,
             requireTemp: i.templateItem.requireTemp,
-            passed: i.templateItem.requireTemp && temp !== null ? temp <= 5 : null,
+            passed: i.templateItem.requireTemp && temp !== null
+            ? i.templateItem.hotCheck ? temp >= 60 : temp <= 5
+            : null,
             note: i.note,
             checkedBy: i.checkedBy,
           }
@@ -370,6 +376,7 @@ export interface FoodSafetyRun {
     checkedAt: string | null
     checkedBy: string | null
     requireTemp: boolean
+    hotCheck: boolean
     passed: boolean | null // null = temp not required or not yet entered
   }[]
 }
@@ -397,7 +404,7 @@ export async function getFoodSafetyLog(params?: {
     include: {
       template: { select: { name: true } },
       items: {
-        include: { templateItem: { select: { label: true, requireTemp: true } } },
+        include: { templateItem: { select: { label: true, requireTemp: true, hotCheck: true } } },
         orderBy: { templateItem: { sortOrder: "asc" } },
       },
     },
@@ -418,7 +425,9 @@ export async function getFoodSafetyLog(params?: {
       items: run.items.map((i) => {
         const temp = i.tempCelsius !== null ? Number(i.tempCelsius) : null
         const passed =
-          i.templateItem.requireTemp && temp !== null ? temp <= 5 : null
+          i.templateItem.requireTemp && temp !== null
+            ? i.templateItem.hotCheck ? temp >= 60 : temp <= 5
+            : null
         return {
           label: i.templateItem.label,
           tempCelsius: temp,
@@ -426,6 +435,7 @@ export async function getFoodSafetyLog(params?: {
           checkedAt: i.checkedAt ? i.checkedAt.toISOString() : null,
           checkedBy: i.checkedBy,
           requireTemp: i.templateItem.requireTemp,
+          hotCheck: i.templateItem.hotCheck,
           passed,
         }
       }),

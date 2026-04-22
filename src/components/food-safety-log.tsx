@@ -20,10 +20,11 @@ const VENUE_OPTIONS = [
   { value: "TEA_GARDEN", label: "Tea Garden" },
 ]
 
-function tempBadge(passed: boolean | null, temp: number | null) {
+function tempBadge(passed: boolean | null, temp: number | null, hotCheck: boolean) {
+  const threshold = hotCheck ? "≥60°C" : "≤5°C"
   if (passed === null) {
     return temp !== null
-      ? <span className="text-sm text-gray-500">{temp}°C</span>
+      ? <span className="text-sm text-gray-500">{temp}°C <span className="text-xs text-gray-400">({threshold})</span></span>
       : <Minus className="h-4 w-4 text-gray-300" />
   }
   if (passed) {
@@ -35,7 +36,7 @@ function tempBadge(passed: boolean | null, temp: number | null) {
   }
   return (
     <span className="inline-flex items-center gap-1 text-sm font-medium text-red-600">
-      <XCircle className="h-3.5 w-3.5" /> {temp}°C
+      <XCircle className="h-3.5 w-3.5" /> {temp}°C <span className="text-xs">({threshold})</span>
     </span>
   )
 }
@@ -213,7 +214,7 @@ export function FoodSafetyLog({ runs: initialRuns }: Props) {
                               {item.label.replace(/ — temperature check$/i, "")}
                             </td>
                             <td className="px-4 py-2.5 text-center">
-                              {tempBadge(item.passed, item.tempCelsius)}
+                              {tempBadge(item.passed, item.tempCelsius, item.hotCheck)}
                             </td>
                             <td className="px-4 py-2.5 text-gray-500 hidden sm:table-cell">
                               {item.note ?? <span className="text-gray-300">—</span>}
