@@ -2,11 +2,13 @@ export const dynamic = "force-dynamic"
 
 import { getWastageAnalytics } from "@/lib/actions/wastage-analytics"
 import { WastageAnalyticsView } from "@/components/wastage-analytics-view"
+import { BackLink } from "@/components/ui/back-link"
 
 export default async function WastageAnalyticsPage() {
   const initial = await getWastageAnalytics({ venue: "ALL", rangeDays: 28 })
   return (
     <div className="space-y-6">
+      <BackLink href="/wastage" label="Back to wastage" />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Wastage Analytics

@@ -1,8 +1,10 @@
 import { LabourUploadForm } from "@/components/labour-upload-form"
+import { BackLink } from "@/components/ui/back-link"
 
 export default function LabourUploadPage() {
   return (
     <div className="space-y-6">
+      <BackLink href="/labour" label="Back to labour" />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Upload payroll report

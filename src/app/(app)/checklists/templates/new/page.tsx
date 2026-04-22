@@ -1,8 +1,10 @@
 import { ChecklistTemplateForm } from "@/components/checklist-template-form"
+import { BackLink } from "@/components/ui/back-link"
 
 export default function NewChecklistTemplatePage() {
   return (
     <div className="space-y-6">
+      <BackLink href="/checklists" label="Back to checklists" />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           New checklist template

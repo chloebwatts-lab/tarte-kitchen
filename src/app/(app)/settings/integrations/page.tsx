@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic"
 
+import { BackLink } from "@/components/ui/back-link"
 import { getLightspeedStatus } from "@/lib/actions/lightspeed"
 import { getGmailStatus } from "@/lib/actions/gmail"
 import { getXeroStatus } from "@/lib/actions/xero"
@@ -20,6 +21,7 @@ export default async function IntegrationsPage() {
 
   return (
     <div className="space-y-6">
+      <BackLink href="/dashboard" label="Back to dashboard" />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Integrations</h1>
         <p className="mt-1 text-sm text-muted-foreground">

@@ -9,54 +9,30 @@ type InvoiceWithItems = Invoice & {
   supplier: Supplier | null
 }
 
-export async function getInvoices(filters?: {
-  status?: string
-  supplier?: string
-  venue?: string
-  dateFrom?: string
-  dateTo?: string
-}) {
-  const where: Record<string, unknown> = {}
-
-  if (filters?.status && filters.status !== "ALL") {
-    where.status = filters.status
-  }
-  if (filters?.supplier) {
-    where.supplierName = { contains: filters.supplier, mode: "insensitive" }
-  }
-  if (filters?.venue && filters.venue !== "ALL") {
-    where.venue = filters.venue
-  }
-  if (filters?.dateFrom || filters?.dateTo) {
-    where.invoiceDate = {}
-    if (filters?.dateFrom) (where.invoiceDate as Record<string, unknown>).gte = new Date(filters.dateFrom)
-    if (filters?.dateTo) (where.invoiceDate as Record<string, unknown>).lte = new Date(filters.dateTo)
-  }
-
+export async function getInvoices() {
   const invoices = await db.invoice.findMany({
-    where,
     include: {
-      supplier: true,
+      _count: { select: { lineItems: true } },
       lineItems: {
-        include: { ingredient: { include: { supplier: true } } },
-        orderBy: { sortOrder: "asc" },
+        where: { priceChanged: true },
+        select: { id: true },
       },
     },
     orderBy: { createdAt: "desc" },
   })
 
   return invoices.map((inv) => ({
-    ...inv,
-    subtotal: inv.subtotal ? Number(inv.subtotal) : null,
-    gst: inv.gst ? Number(inv.gst) : null,
-    total: inv.total ? Number(inv.total) : null,
-    lineItems: inv.lineItems.map((li) => ({
-      ...li,
-      quantity: li.quantity ? Number(li.quantity) : null,
-      unitPrice: li.unitPrice ? Number(li.unitPrice) : null,
-      lineTotal: li.lineTotal ? Number(li.lineTotal) : null,
-      currentPrice: li.currentPrice ? Number(li.currentPrice) : null,
-    })),
+    id: inv.id,
+    supplierId: inv.supplierId ?? null,
+    supplierName: inv.supplierName,
+    invoiceNumber: inv.invoiceNumber ?? null,
+    invoiceDate: inv.invoiceDate ? inv.invoiceDate.toISOString().split("T")[0] : null,
+    totalAmount: inv.total ? Number(inv.total) : null,
+    status: inv.status,
+    errorMessage: inv.errorMessage ?? null,
+    lineItemCount: inv._count.lineItems,
+    priceChanges: inv.lineItems.length,
+    createdAt: inv.createdAt.toISOString(),
   }))
 }
 
@@ -354,13 +330,45 @@ export async function disconnectGmail() {
 // true = applied, false = acknowledged/rejected.
 
 export async function getPriceAlerts() {
-  return db.invoiceLineItem.findMany({
-    where: { priceChanged: true, priceApproved: null },
+  const items = await db.invoiceLineItem.findMany({
+    where: { priceChanged: true },
     include: {
       invoice: { select: { id: true, invoiceNumber: true, invoiceDate: true, supplierName: true, supplierId: true } },
       ingredient: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: "desc" },
+    take: 100,
+  })
+
+  return items.map((li) => {
+    const unitPrice = li.unitPrice ? Number(li.unitPrice) : 0
+    const previousPrice = li.currentPrice ? Number(li.currentPrice) : null
+    const priceChangeAmount = previousPrice !== null ? unitPrice - previousPrice : null
+    const priceChangePercent =
+      previousPrice !== null && previousPrice !== 0
+        ? ((unitPrice - previousPrice) / previousPrice) * 100
+        : null
+    return {
+      id: li.id,
+      invoiceId: li.invoiceId,
+      invoiceNumber: li.invoice.invoiceNumber ?? null,
+      invoiceDate: li.invoice.invoiceDate
+        ? li.invoice.invoiceDate.toISOString().split("T")[0]
+        : null,
+      supplierName: li.invoice.supplierName,
+      supplierId: li.invoice.supplierId ?? null,
+      description: li.description,
+      ingredientId: li.ingredientId ?? null,
+      ingredientName: li.ingredient?.name ?? li.description,
+      quantity: li.quantity ? Number(li.quantity) : 0,
+      unit: li.unit ?? "",
+      unitPrice,
+      previousPrice,
+      priceChangeAmount,
+      priceChangePercent,
+      acknowledged: li.priceApproved !== null,
+      createdAt: li.createdAt.toISOString(),
+    }
   })
 }
 
