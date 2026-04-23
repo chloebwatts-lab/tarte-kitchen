@@ -47,6 +47,31 @@ model Supplier {
   itemMappings       SupplierItemMapping[]
   emailAddresses     SupplierEmail[]
   purchaseOrders     PurchaseOrder[]
+  approvedItems      ApprovedSupplierItem[]
+}
+
+// Approved supplier order forms — the "what we agreed to order from whom at
+// what price". Used to spot cross-supplier misorders and price creep vs form.
+model ApprovedSupplierItem {
+  id           String    @id @default(cuid())
+  supplierId   String
+  supplier     Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  name         String    // description as written on the supplier order form
+  packSize     String?   // e.g. "2kg", "12.5kg bag", "case of 6"
+  packPrice    Decimal   @db.Decimal(10, 2)
+  unit         String?   // normalized unit, e.g. "kg", "each", "L"
+  category     String?   // free-text grouping for the form UI
+  notes        String?
+  active       Boolean   @default(true)
+  sortOrder    Int       @default(0)
+  ingredientId String?
+  ingredient   Ingredient? @relation(fields: [ingredientId], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([supplierId, name])
+  @@index([supplierId])
+  @@index([ingredientId])
 }
 
 model SupplierEmail {
@@ -163,6 +188,7 @@ model Ingredient {
   supplierMappings     SupplierItemMapping[]
   stocktakeItems       StocktakeItem[]
   purchaseOrderLines   PurchaseOrderLine[]
+  approvedSupplierItems ApprovedSupplierItem[]
 
   @@unique([name, supplierId])
 }

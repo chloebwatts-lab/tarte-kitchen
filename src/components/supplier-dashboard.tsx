@@ -6,6 +6,7 @@ import { SupplierPriceAlerts } from "@/components/supplier-price-alerts"
 import { SupplierInvoices } from "@/components/supplier-invoices"
 import { SuppliersContent } from "@/components/suppliers-content"
 import { SupplierPriceHistory } from "@/components/supplier-price-history"
+import { SupplierOrderForms } from "@/components/supplier-order-forms"
 
 interface Supplier {
   id: string
@@ -107,6 +108,7 @@ export function SupplierDashboard({
           </TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
+          <TabsTrigger value="forms">Order Forms</TabsTrigger>
           <TabsTrigger value="history">Price History</TabsTrigger>
         </TabsList>
 
@@ -120,6 +122,12 @@ export function SupplierDashboard({
 
         <TabsContent value="suppliers">
           <SuppliersContent suppliers={suppliers} />
+        </TabsContent>
+
+        <TabsContent value="forms">
+          <SupplierOrderForms
+            suppliers={suppliers.map((s) => ({ id: s.id, name: s.name }))}
+          />
         </TabsContent>
 
         <TabsContent value="history">

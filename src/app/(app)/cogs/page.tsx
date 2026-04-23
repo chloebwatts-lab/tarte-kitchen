@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import Link from "next/link"
 import { getCogsDashboardData } from "@/lib/actions/cogs"
 import { CogsDashboard } from "@/components/cogs-dashboard"
+import { SupplierVariancePanel } from "@/components/supplier-variance-panel"
 
 export default async function CogsPage() {
   const data = await getCogsDashboardData({ weeks: 12 })
@@ -24,6 +25,7 @@ export default async function CogsPage() {
         </Link>
       </div>
       <CogsDashboard initial={data} />
+      <SupplierVariancePanel />
     </div>
   )
 }
