@@ -178,7 +178,7 @@ export default async function ChecklistsPage() {
                       <span className="ml-2 text-muted-foreground">
                         {VENUE_SHORT_LABEL[o.venue]}
                         {o.area ? ` · ${o.area}` : ""} · due by{" "}
-                        {String(o.dueByHour).padStart(2, "0")}:00 ·{" "}
+                        {String(o.dueByHour).padStart(2, "0")}:00 AEST ·{" "}
                         {o.completedItems}/{o.totalItems} done
                       </span>
                     </div>
