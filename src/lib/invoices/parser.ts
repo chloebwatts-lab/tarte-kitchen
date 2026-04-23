@@ -15,6 +15,7 @@ export interface ParsedInvoice {
   supplierAbn: string | null
   invoiceNumber: string | null
   invoiceDate: string | null // YYYY-MM-DD
+  deliveryAddress: string | null // "Ship To" / "Deliver To" — used to infer venue
   lineItems: ParsedLineItem[]
   subtotal: number | null
   gst: number | null
@@ -28,6 +29,7 @@ Return valid JSON only, no other text or markdown fences:
   "supplierAbn": "string or null",
   "invoiceNumber": "string or null",
   "invoiceDate": "YYYY-MM-DD or null",
+  "deliveryAddress": "the Ship To / Deliver To address block as a single line, or null",
   "lineItems": [
     {
       "description": "exact product name as on invoice",

@@ -1,6 +1,7 @@
 import { db } from "@/lib/db"
 import { matchLineItem, detectPriceChange } from "./matcher"
 import type { ParsedInvoice } from "./parser"
+import { venueFromDeliveryAddress } from "./venue-from-address"
 import type { InvoiceStatus } from "@/generated/prisma"
 
 export interface ProcessingResult {
@@ -21,6 +22,8 @@ export async function processInvoice(
   let unmatchedItems = 0
   let priceChanges = 0
 
+  const venue = venueFromDeliveryAddress(parsedData.deliveryAddress)
+
   // Update invoice metadata from parsed data
   await db.invoice.update({
     where: { id: invoiceId },
@@ -30,6 +33,7 @@ export async function processInvoice(
       subtotal: parsedData.subtotal,
       gst: parsedData.gst,
       total: parsedData.total,
+      venue,
       extractedData: JSON.parse(JSON.stringify(parsedData)),
     },
   })
