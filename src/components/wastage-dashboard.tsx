@@ -54,6 +54,17 @@ import {
 // TYPES
 // ============================================================
 
+const REASON_LABEL: Record<string, string> = {
+  OVERPRODUCTION: "Overproduction",
+  SPOILAGE: "Spoilage",
+  EXPIRED: "Expired",
+  DROPPED: "Dropped",
+  STAFF_MEAL: "Staff meal",
+  CUSTOMER_RETURN: "Customer return",
+  QUALITY_ISSUE: "Quality issue",
+  OTHER: "Other",
+}
+
 interface WasteEntryRow {
   id: string
   date: string
@@ -61,6 +72,7 @@ interface WasteEntryRow {
   itemName: string
   quantity: number
   unit: string
+  reason: string
   estimatedCost: number
   notes: string | null
   recordedBy: string | null
@@ -111,22 +123,40 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
   const [currentInsights, setCurrentInsights] = useState(insights)
   const [sortField, setSortField] = useState<string>("date")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
+  const [reasonFilter, setReasonFilter] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   const fetchEntries = useCallback(
-    (page: number, venue: SingleVenue | null = activeVenue) => {
+    (page: number, venue: SingleVenue | null = activeVenue, reason: string | null = reasonFilter) => {
       startTransition(async () => {
         const result = await getWasteEntries({
           page,
           pageSize: 20,
           venue: venue ?? undefined,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          reason: reason as any ?? undefined,
           search: searchQuery || undefined,
         })
         setEntries(result)
       })
     },
-    [activeVenue, searchQuery]
+    [activeVenue, searchQuery, reasonFilter]
   )
+
+  function handleReasonFilter(reason: string | null) {
+    setReasonFilter(reason)
+    startTransition(async () => {
+      const result = await getWasteEntries({
+        page: 1,
+        pageSize: 20,
+        venue: activeVenue ?? undefined,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        reason: reason as any ?? undefined,
+        search: searchQuery || undefined,
+      })
+      setEntries(result)
+    })
+  }
 
   function handleVenueSwitch(venue: SingleVenue | null) {
     setActiveVenue(venue)
@@ -337,26 +367,26 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
 
         <Card>
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Top Wasted Item</p>
-                {currentStats.topWastedItem ? (
-                  <>
-                    <p className="text-lg font-semibold truncate max-w-[160px]">
-                      {currentStats.topWastedItem.name}
-                    </p>
-                    <p className="text-sm text-red-600">
-                      ${currentStats.topWastedItem.cost.toFixed(2)}
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No data</p>
-                )}
-              </div>
-              <div className="rounded-lg bg-muted p-3">
-                <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">Top Wasted Items (this week)</p>
+              <div className="rounded-lg bg-muted p-2">
+                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
               </div>
             </div>
+            {currentStats.topWastedItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No data</p>
+            ) : (
+              <div className="space-y-1.5">
+                {currentStats.topWastedItems.slice(0, 5).map((item, i) => (
+                  <div key={item.name} className="flex items-center gap-2 text-xs">
+                    <span className="w-4 shrink-0 text-center font-medium text-muted-foreground">{i + 1}</span>
+                    <span className="min-w-0 flex-1 truncate font-medium">{item.name}</span>
+                    <span className="shrink-0 text-red-600 font-semibold">${item.cost.toFixed(0)}</span>
+                    <span className="shrink-0 text-muted-foreground">×{item.count}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -500,8 +530,8 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
         </CardHeader>
         <CardContent>
           {/* Filters */}
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row">
-            <div className="relative flex-1">
+          <div className="mb-4 space-y-2">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search items..."
@@ -509,6 +539,29 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                 onChange={(e) => handleSearch(e.target.value)}
                 className="pl-9"
               />
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => handleReasonFilter(null)}
+                className={cn(
+                  "rounded-full px-3 py-1 text-xs font-medium transition-all",
+                  reasonFilter === null ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                )}
+              >
+                All reasons
+              </button>
+              {Object.entries(REASON_LABEL).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => handleReasonFilter(key)}
+                  className={cn(
+                    "rounded-full px-3 py-1 text-xs font-medium transition-all",
+                    reasonFilter === key ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -521,6 +574,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                     { key: "date", label: "Date" },
                     ...(!activeVenue ? [{ key: "venue", label: "Venue" }] : []),
                     { key: "item", label: "Item" },
+                    { key: "reason", label: "Reason" },
                     { key: "qty", label: "Qty" },
                     { key: "cost", label: "Cost" },
                     { key: "notes", label: "Notes" },
@@ -543,7 +597,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
               <tbody>
                 {sortedEntries.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
+                    <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
                       No waste entries found.{" "}
                       <Link href="/wastage/new" className="text-primary underline">
                         Log your first entry
@@ -568,6 +622,11 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                       </td>
                     )}
                     <td className="px-3 py-2 font-medium">{entry.itemName}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <Badge variant="secondary" className="text-[10px]">
+                        {REASON_LABEL[entry.reason] ?? entry.reason}
+                      </Badge>
+                    </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       {entry.quantity} {entry.unit}
                     </td>

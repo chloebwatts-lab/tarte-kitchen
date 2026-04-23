@@ -80,10 +80,16 @@ export async function getWasteEntries(filters: WasteFilters = {}) {
 
   return {
     entries: entries.map((e) => ({
-      ...e,
-      quantity: Number(e.quantity),
-      estimatedCost: Number(e.estimatedCost),
+      id: e.id,
       date: e.date.toISOString().split("T")[0],
+      venue: e.venue,
+      itemName: e.itemName,
+      quantity: Number(e.quantity),
+      unit: e.unit,
+      reason: e.reason,
+      estimatedCost: Number(e.estimatedCost),
+      notes: e.notes,
+      recordedBy: e.recordedBy,
     })),
     total,
     page,
@@ -117,6 +123,7 @@ export interface WasteStats {
   byVenue: { venue: string; cost: number }[]
   perVenue: PerVenueWaste[]
   topWastedItem: { name: string; cost: number } | null
+  topWastedItems: { name: string; cost: number; count: number }[]
   weekOverWeekChange: number // percentage change
   alertLevel: "green" | "amber" | "red"
   byReason: { reason: string; cost: number; count: number }[]
@@ -294,19 +301,19 @@ export async function getWasteStats(
     }
   })
 
-  // Top wasted item
-  const itemCosts = new Map<string, number>()
+  // Top wasted items (ranked list)
+  const itemStats = new Map<string, { cost: number; count: number }>()
   for (const e of thisWeekEntries) {
-    itemCosts.set(e.itemName, (itemCosts.get(e.itemName) ?? 0) + Number(e.estimatedCost))
+    const s = itemStats.get(e.itemName) ?? { cost: 0, count: 0 }
+    s.cost += Number(e.estimatedCost)
+    s.count++
+    itemStats.set(e.itemName, s)
   }
-  let topWastedItem: { name: string; cost: number } | null = null
-  let maxCost = 0
-  for (const [name, cost] of itemCosts) {
-    if (cost > maxCost) {
-      maxCost = cost
-      topWastedItem = { name, cost: Math.round(cost * 100) / 100 }
-    }
-  }
+  const topWastedItems = Array.from(itemStats.entries())
+    .map(([name, { cost, count }]) => ({ name, cost: Math.round(cost * 100) / 100, count }))
+    .sort((a, b) => b.cost - a.cost)
+    .slice(0, 8)
+  const topWastedItem = topWastedItems[0] ?? null
 
   // Week over week change
   const weekOverWeekChange =
@@ -400,6 +407,7 @@ export async function getWasteStats(
     byVenue,
     perVenue,
     topWastedItem,
+    topWastedItems,
     weekOverWeekChange: Math.round(weekOverWeekChange * 100) / 100,
     alertLevel,
     byReason,
