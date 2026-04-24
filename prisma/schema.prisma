@@ -1115,3 +1115,38 @@ model PurchaseOrderLine {
   @@index([ingredientId])
   @@index([orderId])
 }
+
+// ============================================================
+// COOLING LOGS — per-batch HACCP cooling record
+// FSANZ 3.2.2A: cool from 60→21°C within 2 hr, 21→5°C within next 4 hr.
+// ============================================================
+
+model CoolingLog {
+  id            String    @id @default(cuid())
+  venue         Venue
+  /// Item being cooled, e.g. "Beef stock", "Vanilla custard".
+  itemName      String
+  /// Free-form batch indicator, e.g. "20 L pot", "8x 1L containers".
+  batchSize     String?
+  /// When the food came off the heat / went into the cool room. Single
+  /// canonical event time — defaults to now on entry, but the form allows
+  /// override for late entries (forgotten earlier batches).
+  startedAt     DateTime
+  /// Initial temperature when leaving the heat source.
+  startTempC    Decimal?  @db.Decimal(5, 2)
+  /// Two-hour reading (target ≤21 °C). Time recorded so inspectors can see
+  /// the actual interval, not just an assumed +2hr.
+  twoHourTempC  Decimal?  @db.Decimal(5, 2)
+  twoHourAt     DateTime?
+  /// Six-hour reading (target ≤5 °C).
+  sixHourTempC  Decimal?  @db.Decimal(5, 2)
+  sixHourAt     DateTime?
+  /// Fridge / cool room temp at finish, for context.
+  fridgeTempC   Decimal?  @db.Decimal(5, 2)
+  staffInitials String
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([venue, startedAt])
+}

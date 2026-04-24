@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
-import { ArrowLeft, ArrowRight, ShieldCheck, SprayCan, Thermometer } from "lucide-react"
+import { ArrowLeft, ArrowRight, ClipboardCheck, ShieldCheck, Snowflake, SprayCan, Thermometer } from "lucide-react"
 import { listChecklistTemplates, type ChecklistTemplateSummary } from "@/lib/actions/checklists"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
@@ -338,7 +338,62 @@ function CategoryPicker({
           href={`/kitchen?venue=${venue}&category=compliance`}
         />
       </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <SecondaryTile
+          title="Cooling log"
+          subtitle="Per-batch HACCP record for cooked items going into the cool room."
+          icon={<Snowflake className="h-6 w-6" strokeWidth={1.8} />}
+          href={`/kitchen/cooling?venue=${venue}`}
+        />
+        <SecondaryTile
+          title="Inspection view"
+          subtitle="One screen to hand the iPad to council — last 30 days of records."
+          icon={<ClipboardCheck className="h-6 w-6" strokeWidth={1.8} />}
+          href={`/kitchen/inspection?venue=${venue}`}
+        />
+      </div>
     </div>
+  )
+}
+
+function SecondaryTile({
+  title,
+  subtitle,
+  icon,
+  href,
+}: {
+  title: string
+  subtitle: string
+  icon: React.ReactNode
+  href: string
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex items-center gap-4 rounded-[18px] border border-[var(--tk-line)] bg-white px-5 py-4 transition active:scale-[0.997]"
+    >
+      <div
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px]"
+        style={{ background: "var(--tk-sage-soft)", color: "var(--tk-sage)" }}
+      >
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div
+          className="text-[17px] font-semibold leading-tight text-[var(--tk-charcoal)]"
+          style={{ letterSpacing: "-0.01em" }}
+        >
+          {title}
+        </div>
+        <div className="mt-0.5 text-[13px] leading-snug text-[var(--tk-ink-soft)]">
+          {subtitle}
+        </div>
+      </div>
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--tk-bg)] text-[var(--tk-ink-soft)] transition group-hover:bg-[var(--tk-charcoal)] group-hover:text-white">
+        <ArrowRight className="h-[16px] w-[16px]" />
+      </div>
+    </Link>
   )
 }
 
