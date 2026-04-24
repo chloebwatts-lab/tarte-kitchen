@@ -249,6 +249,7 @@ const TEMPLATES: Template[] = [
       { label: "Scrub sink and walls with soap and scourer, wipe with sanitiser" },
       { label: "Fill soap bottles and prepare fresh buckets" },
       { label: "Empty all bins and fit new bin bags" },
+      { label: "Wash bins inside and out", instructions: "Take all bins outside (or to wash bay). Scrub inside and out with hot soapy water and sanitiser. Allow to dry before re-lining." },
       { label: "Sweep, scrub and squeegee floors; hose sliding door, rails and step", instructions: "Bucket with hot water and bleach or floor cleaner. Use squeegee to push water to drains." },
     ],
   },
@@ -276,6 +277,7 @@ const TEMPLATES: Template[] = [
     items: [
       { label: "Sweep and mop all floors" },
       { label: "Empty and reline all bins" },
+      { label: "Wash bins inside and out", instructions: "Take all bins outside (or to wash bay). Scrub inside and out with hot soapy water and sanitiser. Allow to dry before re-lining." },
       { label: "Clean all mats" },
       { label: "Clean and drain all sinks" },
       { label: "Clean and drain dishwasher" },

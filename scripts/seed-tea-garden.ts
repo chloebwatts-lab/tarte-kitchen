@@ -118,6 +118,7 @@ const TEMPLATES = [
       { label: "Clean and drain dishwasher; wipe inside and out" },
       { label: "Scrub sink and walls with soap and scourer, wipe with sanitiser" },
       { label: "Empty all bins and fit new bin bags" },
+      { label: "Wash bins inside and out", instructions: "Take all bins outside (or to wash bay). Scrub inside and out with hot soapy water and sanitiser. Allow to dry before re-lining." },
       { label: "Flatten cardboard and put in recycling" },
       { label: "Sweep, mop and squeegee floors" },
       { label: "Fill soap bottles and prepare fresh buckets" },
