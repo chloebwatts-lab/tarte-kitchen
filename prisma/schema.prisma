@@ -1150,3 +1150,52 @@ model CoolingLog {
 
   @@index([venue, startedAt])
 }
+
+// ============================================================
+// PASTRY ROTATION LOG — per-bake prepared / sold / discarded
+// Staff fill this after each bake window so we can see waste, sell-through
+// and total daily production without reading a paper sheet.
+// ============================================================
+
+enum PastryBakeTime {
+  SIX_AM
+  NINE_AM
+  TWELVE_PM
+}
+
+model PastryProduct {
+  id        String   @id @default(cuid())
+  /// Display name — unique per venue so Burleigh and Beach House can have
+  /// the same name without colliding.
+  name      String
+  venue     Venue    @default(BOTH)
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entries   PastryRotationEntry[]
+
+  @@unique([venue, name])
+  @@index([venue, isActive, sortOrder])
+}
+
+model PastryRotationEntry {
+  id         String         @id @default(cuid())
+  venue      Venue
+  /// Day of record (AEST day). Stored as date only.
+  entryDate  DateTime       @db.Date
+  bakeTime   PastryBakeTime
+  productId  String
+  product    PastryProduct  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  prepared   Int            @default(0)
+  sold       Int            @default(0)
+  discarded  Int            @default(0)
+  staffName  String?
+  notes      String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@unique([venue, entryDate, bakeTime, productId])
+  @@index([venue, entryDate])
+}

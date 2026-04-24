@@ -6,6 +6,11 @@ import {
   listCoolingLogsForInspection,
   type CoolingLogRecord,
 } from "@/lib/actions/cooling"
+import {
+  listPastryRotationForInspection,
+  BAKE_LABEL,
+  type InspectionPastryRow,
+} from "@/lib/actions/pastry-rotation"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { InspectionPrintButton } from "@/components/kitchen/InspectionPrintButton"
 import { VENUE_LABEL, SINGLE_VENUES } from "@/lib/venues"
@@ -53,8 +58,9 @@ export default async function InspectionPage({
       : 30
   const fromDate = new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000)
 
-  const [coolingLogs, checklistRuns] = await Promise.all([
+  const [coolingLogs, pastryRows, checklistRuns] = await Promise.all([
     listCoolingLogsForInspection({ venue: venueFilter, fromDate }),
+    listPastryRotationForInspection({ venue: venueFilter, fromDate }),
     db.checklistRun.findMany({
       where: {
         runDate: { gte: fromDate },
@@ -81,45 +87,38 @@ export default async function InspectionPage({
     }),
   ])
 
-  // Group both by day
+  // Group cooling, checklist runs, and pastry rows by day
   const days = new Map<
     string,
     {
       label: string
       cooling: CoolingLogRecord[]
       runs: typeof checklistRuns
+      pastry: InspectionPastryRow[]
     }
   >()
-  for (const c of coolingLogs) {
-    const k = dayKey(c.startedAt)
-    const d = days.get(k) ?? {
-      label: formatAest(c.startedAt, {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      }),
-      cooling: [],
-      runs: [],
+  const ensureDay = (sourceDate: Date | string) => {
+    const k = dayKey(sourceDate)
+    let d = days.get(k)
+    if (!d) {
+      d = {
+        label: formatAest(sourceDate, {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+        cooling: [],
+        runs: [],
+        pastry: [],
+      }
+      days.set(k, d)
     }
-    d.cooling.push(c)
-    days.set(k, d)
+    return d
   }
-  for (const r of checklistRuns) {
-    const k = dayKey(r.runDate)
-    const d = days.get(k) ?? {
-      label: formatAest(r.runDate, {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      }),
-      cooling: [],
-      runs: [],
-    }
-    d.runs.push(r)
-    days.set(k, d)
-  }
+  for (const c of coolingLogs) ensureDay(c.startedAt).cooling.push(c)
+  for (const r of checklistRuns) ensureDay(r.runDate).runs.push(r)
+  for (const p of pastryRows) ensureDay(`${p.date}T00:00:00`).pastry.push(p)
   const orderedDays = Array.from(days.entries()).sort((a, b) =>
     b[0].localeCompare(a[0])
   )
@@ -195,7 +194,8 @@ export default async function InspectionPage({
           {venueFilter === "ALL" ? "All venues" : VENUE_LABEL[venueFilter]}
         </strong>{" "}
         · last {rangeDays} days · {coolingLogs.length} cooling logs ·{" "}
-        {checklistRuns.length} checklist runs
+        {checklistRuns.length} checklist runs · {pastryRows.length} pastry
+        entries
       </div>
 
       {orderedDays.length === 0 ? (
@@ -209,6 +209,7 @@ export default async function InspectionPage({
             label={d.label}
             cooling={d.cooling}
             runs={d.runs}
+            pastry={d.pastry}
             showVenue={venueFilter === "ALL"}
           />
         ))
@@ -283,11 +284,13 @@ function DayBlock({
   label,
   cooling,
   runs,
+  pastry,
   showVenue,
 }: {
   label: string
   cooling: CoolingLogRecord[]
   runs: InspectionRun[]
+  pastry: InspectionPastryRow[]
   showVenue: boolean
 }) {
   return (
@@ -460,6 +463,76 @@ function DayBlock({
                 </div>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {pastry.length > 0 && (
+        <div>
+          <div
+            className="tk-caps mb-2"
+            style={{ color: "var(--tk-ink-mute)", fontSize: 11 }}
+          >
+            Pastry rotation
+          </div>
+          <div className="overflow-hidden rounded-[12px] border border-[var(--tk-line)] bg-white print:border-black">
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr
+                  className="text-left text-[11px] uppercase tracking-wider text-[var(--tk-ink-mute)]"
+                  style={{ background: "var(--tk-bg)" }}
+                >
+                  {showVenue && <th className="px-3 py-2 font-semibold">Venue</th>}
+                  <th className="px-3 py-2 font-semibold">Product</th>
+                  <th className="px-3 py-2 font-semibold">Bake</th>
+                  <th className="px-3 py-2 text-right font-semibold tabular-nums">Prepared</th>
+                  <th className="px-3 py-2 text-right font-semibold tabular-nums">Sold</th>
+                  <th className="px-3 py-2 text-right font-semibold tabular-nums">Discarded</th>
+                  <th className="px-3 py-2 font-semibold">By</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pastry.map((p, i) => (
+                  <tr
+                    key={i}
+                    className="border-t border-[var(--tk-line)] align-top"
+                  >
+                    {showVenue && (
+                      <td className="px-3 py-2 text-[var(--tk-ink-soft)]">
+                        {VENUE_LABEL[p.venue as SingleVenue] ?? p.venue}
+                      </td>
+                    )}
+                    <td className="px-3 py-2 font-semibold text-[var(--tk-charcoal)]">
+                      {p.productName}
+                    </td>
+                    <td className="px-3 py-2 text-[var(--tk-ink-soft)]">
+                      {BAKE_LABEL[p.bakeTime]}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {p.prepared}
+                    </td>
+                    <td
+                      className="px-3 py-2 text-right tabular-nums"
+                      style={{ color: "var(--tk-done)" }}
+                    >
+                      {p.sold}
+                    </td>
+                    <td
+                      className="px-3 py-2 text-right tabular-nums"
+                      style={{
+                        color: p.discarded > 0 ? "var(--tk-warn)" : "var(--tk-ink)",
+                        fontWeight: p.discarded > 0 ? 600 : 400,
+                      }}
+                    >
+                      {p.discarded}
+                    </td>
+                    <td className="px-3 py-2 text-[var(--tk-ink-soft)]">
+                      {p.staffName ?? "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
