@@ -1,10 +1,11 @@
 {$DOMAIN} {
-	# /log is public — staff wastage entry, no login needed.
+	# /log and /kitchen are public — staff walk-up entry on iPads, no login.
 	# _next/static contains hashed build artefacts (JS/CSS) — safe to
-	# serve without basic-auth so the public /log page can load its
+	# serve without basic-auth so the public pages can load their
 	# bundles.  All other routes (dashboard, API, etc.) stay protected.
 	@protected {
 		not path /log /log/*
+		not path /kitchen /kitchen/*
 		not path /_next/static/*
 		not path /favicon.ico
 	}
