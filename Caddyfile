@@ -6,6 +6,7 @@
 	@protected {
 		not path /log /log/*
 		not path /kitchen /kitchen/*
+		not path /api/auth/*
 		not path /_next/static/*
 		not path /favicon.ico
 	}
