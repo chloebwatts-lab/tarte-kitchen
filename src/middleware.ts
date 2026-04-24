@@ -30,6 +30,5 @@ export const config = {
     "/checklists/:path*",
     "/orders/:path*",
     "/labour/:path*",
-    "/kitchen/:path*",
   ],
 }

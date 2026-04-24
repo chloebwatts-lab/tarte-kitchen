@@ -1,0 +1,62 @@
+/* Tarte Kitchen — iPad visual brand tokens. Scoped to /kitchen only.
+   Do not import from globals.css. */
+
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=EB+Garamond:wght@400;500;600;700&family=Cormorant+Garamond:wght@400;500;600;700&display=swap');
+
+.tk-root {
+  /* Brand */
+  --tk-sage: #b0c6c1;
+  --tk-charcoal: #3c3e3f;
+  --tk-gold: #dfc566;
+
+  /* Neutrals */
+  --tk-bg: #f6f5f2;
+  --tk-card: #ffffff;
+  --tk-line: #e8e6e0;
+  --tk-ink: #3c3e3f;
+  --tk-ink-soft: #6a6c6d;
+  --tk-ink-mute: #9ea0a0;
+
+  /* Tints */
+  --tk-sage-soft: #e3ebe8;
+  --tk-gold-soft: #f6ecc7;
+  --tk-charcoal-soft: #ededec;
+
+  /* Feedback */
+  --tk-done: #5f7f6f;
+  --tk-done-soft: #e0ebe5;
+  --tk-warn: #c06a3b;
+  --tk-warn-soft: #f5e2d6;
+
+  /* Type stacks — Google Fonts stand-ins until .woff2 files arrive:
+     Chaparral       → Source Serif 4
+     Linux Libertine → EB Garamond
+     The Seasons     → Cormorant Garamond */
+  --tk-font-display: 'Source Serif 4', 'Chaparral Pro', Georgia, serif;
+  --tk-font-body: 'EB Garamond', 'Linux Libertine', Georgia, serif;
+  --tk-font-soft: 'Cormorant Garamond', 'The Seasons', Georgia, serif;
+
+  font-family: var(--tk-font-body);
+  color: var(--tk-ink);
+  background: var(--tk-bg);
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.005em;
+}
+
+.tk-display {
+  font-family: var(--tk-font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.tk-caps {
+  font-family: var(--tk-font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tk-soft {
+  font-family: var(--tk-font-soft);
+}
