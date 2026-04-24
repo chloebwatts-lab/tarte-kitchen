@@ -360,6 +360,12 @@ function VenueDetailCard({
               )}
             </span>
           </div>
+          {row.venue === "BEACH_HOUSE" && (
+            <p className="mb-1 text-[10px] text-muted-foreground/80 italic">
+              Includes Tea Garden — stock is purchased jointly for both
+              venues, so these totals cover BH + TG combined.
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
             {[
               { label: "Food", value: row.cogsFood },

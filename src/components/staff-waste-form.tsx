@@ -12,6 +12,7 @@ type DishItem = {
   costPerUnit: number
   type: "dish"
   category: string
+  recentUseCount?: number
 }
 
 type IngredientItem = {
@@ -22,6 +23,7 @@ type IngredientItem = {
   category: string
   baseUnitType: string
   gramsPerUnit: number | null
+  recentUseCount?: number
 }
 
 type PrepItem = {
@@ -30,6 +32,11 @@ type PrepItem = {
   costPerGram: number
   costPerServe: number
   type: "prep"
+  // "serves" / "g" / "ml" / "l" — what a batch of the recipe yields.
+  // Used to decide whether the waste form should offer a "serves" unit at
+  // all: a 750g batch of hollandaise is *not* 750 serves.
+  yieldUnit?: string
+  recentUseCount?: number
 }
 
 type FormItem = DishItem | IngredientItem | PrepItem
@@ -81,8 +88,8 @@ function calcCost(item: FormItem, qty: number, unit: string): number {
       return Math.round(baseQty * item.costPerBaseUnit * 100) / 100
     }
     if (item.type === "prep") {
-      if (unit === "g") return Math.round(qty * item.costPerGram * 100) / 100
-      if (unit === "kg") return Math.round(qty * 1000 * item.costPerGram * 100) / 100
+      if (unit === "g" || unit === "ml") return Math.round(qty * item.costPerGram * 100) / 100
+      if (unit === "kg" || unit === "l") return Math.round(qty * 1000 * item.costPerGram * 100) / 100
       return Math.round(qty * item.costPerServe * 100) / 100
     }
   } catch { return 0 }
@@ -91,13 +98,24 @@ function calcCost(item: FormItem, qty: number, unit: string): number {
 
 function defaultUnit(item: FormItem): string {
   if (item.type === "dish") return "ea"
-  if (item.type === "prep") return "serves"
+  if (item.type === "prep") {
+    // Only default to "serves" when the recipe actually yields discrete
+    // serves — otherwise go with the yield unit (g / ml) so a "1" entry
+    // means 1 gram, not $0.01 of a 750g hollandaise batch.
+    if (item.yieldUnit === "serves") return "serves"
+    if (item.yieldUnit === "ml" || item.yieldUnit === "l") return "ml"
+    return "g"
+  }
   return UNIT_OPTIONS[(item as IngredientItem).baseUnitType]?.[0] ?? "ea"
 }
 
 function availableUnits(item: FormItem): string[] {
   if (item.type === "dish") return ["ea"]
-  if (item.type === "prep") return ["serves", "g", "kg"]
+  if (item.type === "prep") {
+    if (item.yieldUnit === "serves") return ["serves", "g", "kg"]
+    if (item.yieldUnit === "ml" || item.yieldUnit === "l") return ["ml", "l", "g", "kg"]
+    return ["g", "kg"]
+  }
   const ing = item as IngredientItem
   const base = UNIT_OPTIONS[ing.baseUnitType] ?? ["ea"]
   // COUNT ingredients with a known weight-per-unit can also be entered by grams
@@ -128,17 +146,32 @@ export function StaffWasteForm({ items }: Props) {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState<{ name: string; cost: number } | null>(null)
 
-  // Combine all items — plain array, no Fuse dependency
-  const allItems = useMemo<FormItem[]>(
-    () => [...items.preps, ...items.ingredients, ...items.dishes],
-    [items]
-  )
+  // Combine all items, sorted so the most-wasted-in-last-30-days float to
+  // the top — so a staffer typing "h" hits "Hollandaise" before "Herbs".
+  const allItems = useMemo<FormItem[]>(() => {
+    const combined: FormItem[] = [...items.preps, ...items.ingredients, ...items.dishes]
+    return combined.sort((a, b) => {
+      const ra = a.recentUseCount ?? 0
+      const rb = b.recentUseCount ?? 0
+      if (ra !== rb) return rb - ra
+      return a.name.localeCompare(b.name)
+    })
+  }, [items])
 
-  // Simple substring search — works everywhere, no external deps
+  // Substring + prefix-boost search. Items whose name *starts* with the
+  // query rank above items that merely contain it; within each bucket the
+  // frequency order from allItems is preserved.
   const searchResults = useMemo<FormItem[]>(() => {
     const q = searchQuery.trim().toLowerCase()
     if (!q) return allItems.slice(0, 30)
-    return allItems.filter((item) => item.name.toLowerCase().includes(q)).slice(0, 30)
+    const prefix: FormItem[] = []
+    const contains: FormItem[] = []
+    for (const item of allItems) {
+      const name = item.name.toLowerCase()
+      if (name.startsWith(q)) prefix.push(item)
+      else if (name.includes(q)) contains.push(item)
+    }
+    return [...prefix, ...contains].slice(0, 30)
   }, [searchQuery, allItems])
 
   const estimatedCost = useMemo(

@@ -46,6 +46,72 @@ function shortLabel(iso: string): string {
   return d.toLocaleDateString("en-AU", { day: "numeric", month: "short" })
 }
 
+// Plain-English pattern description. Looks at the most recent cell vs
+// the prior 4-week average and the trend direction over the window.
+// Returns null if there isn't enough data to say anything useful.
+function buildPatternExplanation(
+  cells: CogsWeekCell[],
+  suppliers: SupplierWeekCell[],
+  venueShort: string
+): string | null {
+  if (cells.length < 2) return null
+  const latest = cells[cells.length - 1]
+  const prior = cells.slice(-5, -1)
+  if (latest.cogsPct === null) return null
+
+  const priorPcts = prior
+    .map((c) => c.cogsPct)
+    .filter((v): v is number => v !== null)
+  const priorAvg =
+    priorPcts.length > 0
+      ? priorPcts.reduce((a, b) => a + b, 0) / priorPcts.length
+      : null
+
+  const parts: string[] = []
+  if (priorAvg !== null) {
+    const delta = latest.cogsPct - priorAvg
+    const dir = delta > 0.5 ? "up" : delta < -0.5 ? "down" : "flat"
+    parts.push(
+      `${venueShort} landed at ${latest.cogsPct.toFixed(1)}% this week, ` +
+        (dir === "flat"
+          ? `holding roughly where it's been (4-wk avg ${priorAvg.toFixed(1)}%).`
+          : `${dir} ${Math.abs(delta).toFixed(1)}pp on the 4-wk avg of ${priorAvg.toFixed(1)}%.`)
+    )
+  }
+
+  // Biggest category driver of the shift (where did dollars move?).
+  const categoryDeltas: { label: string; delta: number }[] = []
+  for (const c of CATEGORIES) {
+    const now = latest[c.key]
+    const was = prior.map((p) => p[c.key]).filter((v): v is number => v !== null)
+    if (now === null || was.length === 0) continue
+    const avg = was.reduce((a, b) => a + b, 0) / was.length
+    categoryDeltas.push({ label: c.label, delta: now - avg })
+  }
+  categoryDeltas.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+  const topCat = categoryDeltas[0]
+  if (topCat && Math.abs(topCat.delta) > 100) {
+    parts.push(
+      `${topCat.label} is the main driver — ` +
+        `${topCat.delta > 0 ? "up" : "down"} $${Math.abs(Math.round(topCat.delta))} vs the prior 4 weeks.`
+    )
+  }
+
+  // Supplier spike, if any.
+  const spikes = suppliers.filter((s) => s.spike).slice(0, 2)
+  if (spikes.length > 0) {
+    parts.push(
+      `Watch ${spikes.map((s) => s.supplier).join(" + ")} — spending jumped >25% vs the 4-wk avg.`
+    )
+  } else if (priorAvg !== null && latest.cogsPct - priorAvg > 1) {
+    parts.push(
+      "No single supplier is spiking, so the lift is spread across the order — tighten par levels on the top categories."
+    )
+  }
+
+  return parts.join(" ")
+}
+
 export function CogsDashboard({ initial }: { initial: CogsDashboardData }) {
   const [venue, setVenue] = useState<SingleVenue>("BURLEIGH")
   const [mode, setMode] = useState<"pct" | "dollars">("pct")
@@ -97,6 +163,29 @@ export function CogsDashboard({ initial }: { initial: CogsDashboardData }) {
 
   const suppliers: SupplierWeekCell[] = venueData?.suppliers ?? []
 
+  // Headline numbers so a manager can read the venue's state without
+  // parsing the chart first.
+  const latestCell = cells[cells.length - 1]
+  const priorCells = cells.slice(-5, -1)
+  const priorPcts = priorCells
+    .map((c) => c.cogsPct)
+    .filter((v): v is number => v !== null)
+  const priorAvgPct =
+    priorPcts.length > 0
+      ? priorPcts.reduce((a, b) => a + b, 0) / priorPcts.length
+      : null
+  const weekOverWeekPct =
+    latestCell?.cogsPct !== null &&
+    latestCell?.cogsPct !== undefined &&
+    priorAvgPct !== null
+      ? latestCell.cogsPct - priorAvgPct
+      : null
+  const patternText = buildPatternExplanation(
+    cells,
+    suppliers,
+    VENUE_SHORT_LABEL[venue]
+  )
+
   return (
     <div className="space-y-6">
       {initial.lastUpload && (
@@ -144,6 +233,79 @@ export function CogsDashboard({ initial }: { initial: CogsDashboardData }) {
           ))}
         </div>
       </div>
+
+      {latestCell && (
+        <Card>
+          <CardContent className="pt-5">
+            <div className="grid gap-4 sm:grid-cols-4">
+              <Stat
+                label={`COGS · ${VENUE_SHORT_LABEL[venue]} · latest wk`}
+                value={
+                  latestCell.cogsPct !== null
+                    ? `${latestCell.cogsPct.toFixed(1)}%`
+                    : "—"
+                }
+                sub={`w/e ${shortLabel(latestCell.weekStartWed)}`}
+                tone={bandVariant(latestCell.cogsPct)}
+              />
+              <Stat
+                label="COGS $ this week"
+                value={`$${Math.round(latestCell.totalCogs).toLocaleString()}`}
+                sub={
+                  latestCell.revenueExGst
+                    ? `on $${Math.round(latestCell.revenueExGst).toLocaleString()} revenue`
+                    : undefined
+                }
+                tone="outline"
+              />
+              <Stat
+                label="vs 4-wk avg"
+                value={
+                  weekOverWeekPct === null
+                    ? "—"
+                    : `${weekOverWeekPct > 0 ? "+" : ""}${weekOverWeekPct.toFixed(1)}pp`
+                }
+                sub={
+                  priorAvgPct !== null
+                    ? `avg ${priorAvgPct.toFixed(1)}%`
+                    : undefined
+                }
+                tone={
+                  weekOverWeekPct === null
+                    ? "outline"
+                    : weekOverWeekPct > 1
+                      ? "red"
+                      : weekOverWeekPct < -1
+                        ? "green"
+                        : "amber"
+                }
+              />
+              <Stat
+                label="Supplier spikes"
+                value={String(suppliers.filter((s) => s.spike).length)}
+                sub={
+                  suppliers.filter((s) => s.spike).length === 0
+                    ? "none this week"
+                    : suppliers
+                        .filter((s) => s.spike)
+                        .slice(0, 2)
+                        .map((s) => s.supplier)
+                        .join(" · ")
+                }
+                tone={
+                  suppliers.filter((s) => s.spike).length > 0 ? "red" : "green"
+                }
+              />
+            </div>
+            {venue === "BEACH_HOUSE" && (
+              <p className="mt-3 text-[11px] italic text-muted-foreground">
+                Beach House COGS covers Beach House + Tea Garden combined — stock is
+                purchased jointly for both venues.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="pb-2">
@@ -397,6 +559,21 @@ export function CogsDashboard({ initial }: { initial: CogsDashboardData }) {
           )}
         </CardContent>
       </Card>
+
+      {patternText && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">
+              What the pattern says · {VENUE_SHORT_LABEL[venue]}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {patternText}
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
@@ -420,5 +597,37 @@ function Num({
     >
       {v === null ? "—" : `$${Math.round(v).toLocaleString()}`}
     </td>
+  )
+}
+
+function Stat({
+  label,
+  value,
+  sub,
+  tone,
+}: {
+  label: string
+  value: string
+  sub?: string
+  tone: "green" | "amber" | "red" | "outline"
+}) {
+  const toneClass =
+    tone === "red"
+      ? "border-red-200 bg-red-50"
+      : tone === "amber"
+        ? "border-amber-200 bg-amber-50"
+        : tone === "green"
+          ? "border-emerald-200 bg-emerald-50"
+          : "border-border bg-muted/30"
+  return (
+    <div className={cn("rounded-md border p-3", toneClass)}>
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 text-xl font-semibold tabular-nums">{value}</div>
+      {sub && (
+        <div className="mt-0.5 text-[11px] text-muted-foreground">{sub}</div>
+      )}
+    </div>
   )
 }

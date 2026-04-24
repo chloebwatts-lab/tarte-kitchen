@@ -115,6 +115,14 @@ export interface PerVenueWaste {
   wasteToTopSellerRatio: number // wasteCost / topSellerRevenue
 }
 
+export interface CogsImpact {
+  weekLabel: string // e.g. "w/e 21 Apr"
+  totalCogs: number
+  wasteCost: number
+  wasteAsPctOfCogs: number
+  perVenue: { venue: SingleVenue; wasteCost: number; weekCogs: number; wasteAsPctOfCogs: number }[]
+}
+
 export interface WasteStats {
   totalWasteCost: number
   totalWasteCostLastWeek: number
@@ -130,6 +138,7 @@ export interface WasteStats {
   byDayOfWeek: { day: string; cost: number }[]
   dailyByVenue: ({ date: string } & Record<SingleVenue, number>)[]
   weeklyTrend: { week: string; wastePercent: number }[]
+  cogsImpact: CogsImpact | null
 }
 
 export async function getWasteStats(
@@ -399,6 +408,58 @@ export async function getWasteStats(
     })
     .sort((a, b) => a.week.localeCompare(b.week))
 
+  // COGS impact — align wastage with the most recent WeeklyCogs Wed-week
+  let cogsImpact: CogsImpact | null = null
+  const latestCogsWeek = await db.weeklyCogs.findFirst({
+    where: venueFilter,
+    orderBy: { weekStartWed: "desc" },
+    select: { weekStartWed: true },
+  })
+  if (latestCogsWeek) {
+    const weekWed = latestCogsWeek.weekStartWed
+    const weekEnd = new Date(weekWed)
+    weekEnd.setDate(weekEnd.getDate() + 6)
+    weekEnd.setHours(23, 59, 59, 999)
+
+    const [cogsRows, cogsWeekWaste] = await Promise.all([
+      db.weeklyCogs.findMany({ where: { ...venueFilter, weekStartWed: weekWed } }),
+      db.wasteEntry.findMany({ where: { ...venueFilter, date: { gte: weekWed, lte: weekEnd } } }),
+    ])
+
+    const totalCogs = cogsRows.reduce((s, r) => s + Number(r.totalCogs), 0)
+    const wasteByVenue = new Map<string, number>()
+    for (const e of cogsWeekWaste) {
+      wasteByVenue.set(e.venue, (wasteByVenue.get(e.venue) ?? 0) + Number(e.estimatedCost))
+    }
+    const totalWasteForCogs = Array.from(wasteByVenue.values()).reduce((s, v) => s + v, 0)
+
+    const weekEndDate = new Date(weekWed)
+    weekEndDate.setDate(weekEndDate.getDate() + 6)
+    const weekLabel = `w/e ${weekEndDate.getDate()} ${weekEndDate.toLocaleString("en-AU", { month: "short" })}`
+
+    if (totalCogs > 0) {
+      cogsImpact = {
+        weekLabel,
+        totalCogs: Math.round(totalCogs * 100) / 100,
+        wasteCost: Math.round(totalWasteForCogs * 100) / 100,
+        wasteAsPctOfCogs: Math.round((totalWasteForCogs / totalCogs) * 10000) / 100,
+        perVenue: cogsRows
+          .filter((r) => (SINGLE_VENUES as readonly string[]).includes(r.venue))
+          .map((r) => {
+            const v = r.venue as SingleVenue
+            const wasteCost = wasteByVenue.get(v) ?? 0
+            const weekCogs = Number(r.totalCogs)
+            return {
+              venue: v,
+              wasteCost: Math.round(wasteCost * 100) / 100,
+              weekCogs: Math.round(weekCogs * 100) / 100,
+              wasteAsPctOfCogs: weekCogs > 0 ? Math.round((wasteCost / weekCogs) * 10000) / 100 : 0,
+            }
+          }),
+      }
+    }
+  }
+
   return {
     totalWasteCost: Math.round(totalWasteCost * 100) / 100,
     totalWasteCostLastWeek: Math.round(totalWasteCostLastWeek * 100) / 100,
@@ -414,6 +475,7 @@ export async function getWasteStats(
     byDayOfWeek,
     dailyByVenue,
     weeklyTrend,
+    cogsImpact,
   }
 }
 
@@ -448,92 +510,102 @@ export async function getWasteInsights(): Promise<WasteInsight[]> {
   ])
 
   const insights: WasteInsight[] = []
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
-  // Rule 1: Item waste > 5% of sales volume
-  const itemWasteQty = new Map<string, { waste: number; venue: string }>()
+  // --- Rule 1: item wasted >5% of its own sales revenue ------------------
+  // Actionable ask: cut its prep quantity by that %. Projected saving = the
+  // waste cost itself.
+  const itemWaste = new Map<string, { waste: number; venue: string; days: Set<number> }>()
   for (const e of wasteEntries) {
     const key = `${e.itemName}|${e.venue}`
-    const existing = itemWasteQty.get(key) ?? { waste: 0, venue: e.venue }
+    const existing = itemWaste.get(key) ?? { waste: 0, venue: e.venue, days: new Set<number>() }
     existing.waste += Number(e.estimatedCost)
-    itemWasteQty.set(key, existing)
+    existing.days.add(e.date.getDay())
+    itemWaste.set(key, existing)
   }
   const itemSalesRevenue = new Map<string, number>()
   for (const s of salesData) {
     const key = `${s.menuItemName}|${s.venue}`
     itemSalesRevenue.set(key, (itemSalesRevenue.get(key) ?? 0) + Number(s.revenue))
   }
-  for (const [key, data] of itemWasteQty) {
+  for (const [key, data] of itemWaste) {
     const salesRev = itemSalesRevenue.get(key) ?? 0
     if (salesRev > 0) {
       const wastePct = (data.waste / salesRev) * 100
       if (wastePct > 5) {
         const [itemName, venue] = key.split("|")
+        const cutPct = Math.min(Math.round(wastePct - 2), 30)
+        const venueLabel = VENUE_SHORT_LABEL[venue as SingleVenue] ?? venue
         insights.push({
           icon: "circle-alert",
-          message: `${itemName} waste is ${wastePct.toFixed(1)}% of sales at ${venue} — review production quantities`,
+          message:
+            `${venueLabel}: cut ${itemName} prep by ~${cutPct}%. ` +
+            `Wasting ${wastePct.toFixed(1)}% of what it sells ($${data.waste.toFixed(0)} over 4 weeks) — ` +
+            `drop the daily prep target and retrain the next 7 days.`,
           estimatedImpact: data.waste,
         })
       }
     }
   }
 
-  // Rule 2: Venue comparison — any venue wastes 2x+ more of the same item than
-  // another. With 3 venues, compare each pair.
-  const venueItemWaste = new Map<string, Record<SingleVenue, number>>()
-  for (const e of wasteEntries) {
-    const existing =
-      venueItemWaste.get(e.itemName) ??
-      SINGLE_VENUES.reduce(
-        (acc, v) => ({ ...acc, [v]: 0 }),
-        {} as Record<SingleVenue, number>
-      )
-    if ((SINGLE_VENUES as readonly string[]).includes(e.venue)) {
-      existing[e.venue as SingleVenue] += Number(e.estimatedCost)
-    }
-    venueItemWaste.set(e.itemName, existing)
-  }
-  for (const [item, data] of venueItemWaste) {
-    for (let i = 0; i < SINGLE_VENUES.length; i++) {
-      for (let j = 0; j < SINGLE_VENUES.length; j++) {
-        if (i === j) continue
-        const high = SINGLE_VENUES[i]
-        const low = SINGLE_VENUES[j]
-        const hv = data[high]
-        const lv = data[low]
-        if (hv > 0 && lv > 0 && hv / lv >= 2) {
-          insights.push({
-            icon: "triangle-alert",
-            message: `${item} waste at ${VENUE_SHORT_LABEL[high]} is ${(hv / lv).toFixed(1)}x higher than ${VENUE_SHORT_LABEL[low]} — investigate`,
-            estimatedImpact: hv - lv,
-          })
-        }
-      }
+  // --- Rule 2: a single item dominates one venue's waste -----------------
+  // Surfaces the ONE item to focus on this week rather than a venue
+  // comparison.
+  const venueTotal = new Map<string, number>()
+  const venueItem = new Map<string, { item: string; cost: number }>()
+  for (const [key, data] of itemWaste) {
+    const venue = data.venue
+    venueTotal.set(venue, (venueTotal.get(venue) ?? 0) + data.waste)
+    const prev = venueItem.get(venue)
+    if (!prev || data.waste > prev.cost) {
+      venueItem.set(venue, { item: key.split("|")[0], cost: data.waste })
     }
   }
-
-  // Rule 3: Day-of-week pattern (50%+ above average)
-  const dayWaste = new Map<number, number[]>()
-  for (const e of wasteEntries) {
-    const day = e.date.getDay()
-    const existing = dayWaste.get(day) ?? []
-    existing.push(Number(e.estimatedCost))
-    dayWaste.set(day, existing)
-  }
-  const allDayCosts = Array.from(dayWaste.values()).flat()
-  const avgDailyCost = allDayCosts.length > 0 ? allDayCosts.reduce((a, b) => a + b, 0) / allDayCosts.length : 0
-  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-  for (const [day, costs] of dayWaste) {
-    const avgForDay = costs.reduce((a, b) => a + b, 0) / costs.length
-    if (avgDailyCost > 0 && avgForDay > avgDailyCost * 1.5) {
+  for (const [venue, top] of venueItem) {
+    const tot = venueTotal.get(venue) ?? 0
+    if (tot >= 50 && top.cost / tot >= 0.25) {
+      const venueLabel = VENUE_SHORT_LABEL[venue as SingleVenue] ?? venue
       insights.push({
-        icon: "calendar",
-        message: `${dayNames[day]} consistently shows higher waste — consider adjusting ${dayNames[day]} prep`,
-        estimatedImpact: (avgForDay - avgDailyCost) * 4, // monthly impact
+        icon: "triangle-alert",
+        message:
+          `${venueLabel}: ${top.item} is ${Math.round((top.cost / tot) * 100)}% of waste this month ($${top.cost.toFixed(0)}). ` +
+          `Fixing this one item cuts your waste bill by a quarter — start here.`,
+        estimatedImpact: top.cost,
       })
     }
   }
 
-  // Rule 4: Trending up for 3+ consecutive weeks
+  // --- Rule 3: repeating day-of-week spike -------------------------------
+  // If the same weekday is >50% above average, suggest shifting prep to
+  // the next day or reducing Monday bake-off.
+  const dayCost = new Map<number, { total: number; count: number }>()
+  for (const e of wasteEntries) {
+    const day = e.date.getDay()
+    const existing = dayCost.get(day) ?? { total: 0, count: 0 }
+    existing.total += Number(e.estimatedCost)
+    existing.count += 1
+    dayCost.set(day, existing)
+  }
+  const totalDays = Array.from(dayCost.values()).reduce((s, d) => s + d.count, 0)
+  const grandTotal = Array.from(dayCost.values()).reduce((s, d) => s + d.total, 0)
+  const avgPerDay = totalDays > 0 ? grandTotal / totalDays : 0
+  for (const [day, { total, count }] of dayCost) {
+    if (count === 0) continue
+    const avgForDay = total / count
+    if (avgPerDay > 0 && avgForDay > avgPerDay * 1.5) {
+      const prev = dayNames[(day + 6) % 7]
+      const monthly = (avgForDay - avgPerDay) * Math.max(1, count)
+      insights.push({
+        icon: "calendar",
+        message:
+          `${dayNames[day]}s waste ~$${avgForDay.toFixed(0)}/day — ${Math.round((avgForDay / avgPerDay - 1) * 100)}% above the weekly avg. ` +
+          `Reduce ${prev} prep of the top 2 items so less carries into ${dayNames[day]}.`,
+        estimatedImpact: monthly,
+      })
+    }
+  }
+
+  // --- Rule 4: waste trending up for 3+ consecutive weeks ---------------
   const weeklyWaste = new Map<string, number>()
   for (const e of wasteEntries) {
     const weekStart = getWeekStart(e.date)
@@ -543,24 +615,24 @@ export async function getWasteInsights(): Promise<WasteInsight[]> {
   if (sortedWeeks.length >= 3) {
     let consecutiveUp = 0
     for (let i = 1; i < sortedWeeks.length; i++) {
-      if (sortedWeeks[i][1] > sortedWeeks[i - 1][1]) {
-        consecutiveUp++
-      } else {
-        consecutiveUp = 0
-      }
+      if (sortedWeeks[i][1] > sortedWeeks[i - 1][1]) consecutiveUp++
+      else consecutiveUp = 0
     }
     if (consecutiveUp >= 2) {
       const firstVal = sortedWeeks[sortedWeeks.length - consecutiveUp - 1][1]
       const lastVal = sortedWeeks[sortedWeeks.length - 1][1]
+      const delta = lastVal - firstVal
       insights.push({
         icon: "trending-up",
-        message: `Waste trending up for ${consecutiveUp + 1} weeks — was $${firstVal.toFixed(0)}, now $${lastVal.toFixed(0)}`,
-        estimatedImpact: lastVal - firstVal,
+        message:
+          `Waste trending up ${consecutiveUp + 1} weeks running — $${firstVal.toFixed(0)} → $${lastVal.toFixed(0)}. ` +
+          `Pull this week's top 3 wasted items into the next pre-service briefing and set a daily count.`,
+        estimatedImpact: delta,
       })
     }
   }
 
-  // Rule 5: Overproduction > 50% of total waste
+  // --- Rule 5: overproduction dominates ---------------------------------
   const totalWaste = wasteEntries.reduce((sum, e) => sum + Number(e.estimatedCost), 0)
   const overproductionWaste = wasteEntries
     .filter((e) => e.reason === "OVERPRODUCTION")
@@ -568,12 +640,27 @@ export async function getWasteInsights(): Promise<WasteInsight[]> {
   if (totalWaste > 0 && overproductionWaste / totalWaste > 0.5) {
     insights.push({
       icon: "sandwich",
-      message: `Overproduction is your #1 waste category (${((overproductionWaste / totalWaste) * 100).toFixed(0)}%) — review par levels and prep forecasts`,
+      message:
+        `Overproduction = ${((overproductionWaste / totalWaste) * 100).toFixed(0)}% of waste ($${overproductionWaste.toFixed(0)}/4wk). ` +
+        `Drop every par level by 10% for one week and review — if we still run out nothing, keep the new par.`,
       estimatedImpact: overproductionWaste,
     })
   }
 
-  // Sort by estimated impact, limit to 5
+  // --- Rule 6: spoilage/expired dominates --------------------------------
+  const spoilWaste = wasteEntries
+    .filter((e) => e.reason === "SPOILAGE" || e.reason === "EXPIRED")
+    .reduce((sum, e) => sum + Number(e.estimatedCost), 0)
+  if (totalWaste > 0 && spoilWaste / totalWaste > 0.3) {
+    insights.push({
+      icon: "triangle-alert",
+      message:
+        `Spoilage/expired is ${((spoilWaste / totalWaste) * 100).toFixed(0)}% of waste ($${spoilWaste.toFixed(0)}/4wk). ` +
+        `Tighten order quantities on the biggest offenders + check FIFO labelling at the walk-in.`,
+      estimatedImpact: spoilWaste,
+    })
+  }
+
   return insights
     .sort((a, b) => b.estimatedImpact - a.estimatedImpact)
     .slice(0, 5)
@@ -640,7 +727,12 @@ export async function exportWasteCsv(filters: WasteFilters = {}): Promise<string
 // ============================================================
 
 export async function getWasteFormItems() {
-  const [dishes, ingredients, preps] = await Promise.all([
+  // Frequency boost: items wasted often in the last 30 days should float to
+  // the top of the search list so staff hit "Latte" etc. on the first letter.
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+  const [dishes, ingredients, preps, recentWaste] = await Promise.all([
     db.dish.findMany({
       where: { isActive: true },
       select: {
@@ -669,12 +761,23 @@ export async function getWasteFormItems() {
       select: {
         id: true,
         name: true,
+        yieldUnit: true,
         costPerGram: true,
         costPerServe: true,
       },
       orderBy: { name: "asc" },
     }),
+    db.wasteEntry.groupBy({
+      by: ["itemName"],
+      where: { date: { gte: thirtyDaysAgo } },
+      _count: { itemName: true },
+    }),
   ])
+
+  const useCount = new Map<string, number>()
+  for (const r of recentWaste) {
+    useCount.set(r.itemName, r._count.itemName)
+  }
 
   return {
     dishes: dishes.map((d) => ({
@@ -684,6 +787,7 @@ export async function getWasteFormItems() {
       costPerUnit: Number(d.totalCost),
       type: "dish" as const,
       category: d.menuCategory,
+      recentUseCount: useCount.get(d.name) ?? 0,
     })),
     ingredients: ingredients.map((i) => {
       const price = new Decimal(i.purchasePrice)
@@ -701,14 +805,17 @@ export async function getWasteFormItems() {
         category: i.category,
         baseUnitType: i.baseUnitType,
         gramsPerUnit: i.gramsPerUnit != null ? Number(i.gramsPerUnit) : null,
+        recentUseCount: useCount.get(i.name) ?? 0,
       }
     }),
     preps: preps.map((p) => ({
       id: p.id,
       name: p.name,
+      yieldUnit: p.yieldUnit,
       costPerGram: Number(p.costPerGram),
       costPerServe: Number(p.costPerServe),
       type: "prep" as const,
+      recentUseCount: useCount.get(p.name) ?? 0,
     })),
   }
 }

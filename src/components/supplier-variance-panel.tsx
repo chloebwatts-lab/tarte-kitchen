@@ -69,11 +69,18 @@ export function SupplierVariancePanel() {
         {!hasForms ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
             <div className="flex items-center gap-2 font-medium">
-              <AlertTriangle className="h-4 w-4" /> No approved order forms set up
+              <AlertTriangle className="h-4 w-4" /> Variance not yet active — no
+              approved order forms
             </div>
             <p className="mt-1 text-xs">
-              Head to Suppliers → Order Forms and add/paste items for Bidfood,
-              Provedores, and Fermex to start tracking variance.
+              Variance compares each invoice line against the locked-in price
+              on the supplier&apos;s approved order form. Paste the Bidfood,
+              Provedores and Fermex forms on{" "}
+              <a className="underline font-medium" href="/suppliers">
+                Suppliers → Order Forms
+              </a>{" "}
+              to switch this on. Until then invoices aren&apos;t checked for
+              price creep or wrong-supplier buys.
             </p>
           </div>
         ) : (
