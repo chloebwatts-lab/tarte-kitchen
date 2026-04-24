@@ -1,13 +1,12 @@
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
 import { db } from "@/lib/db"
 import {
   listCoolingLogsForInspection,
   type CoolingLogRecord,
 } from "@/lib/actions/cooling"
-import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
+import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { InspectionPrintButton } from "@/components/kitchen/InspectionPrintButton"
 import { VENUE_LABEL, SINGLE_VENUES } from "@/lib/venues"
 import { Venue } from "@/generated/prisma"
@@ -125,18 +124,26 @@ export default async function InspectionPage({
     b[0].localeCompare(a[0])
   )
 
+  const venueForCrumb = venueFilter === "ALL" ? "BURLEIGH" : venueFilter
+  const venueLabel =
+    venueFilter === "ALL"
+      ? "All venues"
+      : VENUE_LABEL[venueFilter].replace(/\s*\(.*\)$/, "")
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 border-b border-[var(--tk-line)] pb-4 print:hidden">
-        <Link
-          href={`/kitchen?venue=${venueFilter === "ALL" ? "BURLEIGH" : venueFilter}`}
-          className="inline-flex items-center gap-2 px-2 py-2 text-[14px] font-semibold text-[var(--tk-ink-soft)]"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Kitchen home
-        </Link>
-        <KitchenLogo size={0.9} />
-        <InspectionPrintButton />
+      <div className="flex items-center justify-between gap-4 print:hidden">
+        <div className="min-w-0 flex-1">
+          <KitchenBreadcrumb
+            crumbs={[
+              { label: "Venues", href: "/kitchen" },
+              { label: venueLabel, href: `/kitchen?venue=${venueForCrumb}` },
+              { label: "Inspection view" },
+            ]}
+          />
+        </div>
+        <div className="shrink-0">
+          <InspectionPrintButton />
+        </div>
       </div>
 
       <div className="px-1">

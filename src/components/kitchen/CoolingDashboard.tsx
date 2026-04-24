@@ -485,7 +485,7 @@ function StartForm({
   const submit = () => {
     setError(null)
     if (!itemName.trim()) return setError("Item name required")
-    if (!staffInitials.trim()) return setError("Initials required")
+    if (!staffInitials.trim()) return setError("Name required")
     startTransition(async () => {
       try {
         await createCoolingLog({
@@ -538,15 +538,12 @@ function StartForm({
             />
           </div>
           <div>
-            <FieldLabel>Initials</FieldLabel>
+            <FieldLabel>Name</FieldLabel>
             <input
               className={inputClass}
-              placeholder="CL"
-              maxLength={4}
+              placeholder="First name"
               value={staffInitials}
-              onChange={(e) =>
-                setStaffInitials(e.target.value.toUpperCase().slice(0, 4))
-              }
+              onChange={(e) => setStaffInitials(e.target.value)}
             />
           </div>
         </div>

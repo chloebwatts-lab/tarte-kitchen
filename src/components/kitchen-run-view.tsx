@@ -1,17 +1,19 @@
 "use client"
 
-import { useState, useTransition, useMemo } from "react"
+import { useState, useTransition, useMemo, useCallback } from "react"
 import Link from "next/link"
-import { ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react"
+import { ArrowRight, CheckCircle2, ShieldCheck, Camera } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { VENUE_SHORT_LABEL, VENUE_LABEL } from "@/lib/venues"
 import type { ChecklistRunDetail } from "@/lib/actions/checklists"
 import { tickChecklistItem, forceCompleteRun } from "@/lib/actions/checklists"
 import type { Venue } from "@/generated/prisma"
 import { ChecklistPhotoUpload } from "@/components/checklist-photo-upload"
-import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
 import { KitchenChecklistRow } from "@/components/kitchen/KitchenChecklistRow"
 import { KitchenSignOffRow } from "@/components/kitchen/KitchenSignOffRow"
+import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+
+const MIN_CLEANING_PHOTOS = 5
 
 type Filter = "all" | "todo" | "done"
 
@@ -27,15 +29,17 @@ export function KitchenRunView({
   const [isSubmitting, startSubmitTransition] = useTransition()
   const [submitted, setSubmitted] = useState(initial.status === "COMPLETED")
 
+  const [photoCount, setPhotoCount] = useState(initial.photos.length)
+  const handlePhotosChange = useCallback((n: number) => setPhotoCount(n), [])
+
   const completed = items.filter((i) => i.checkedAt).length
   const total = items.length
   const pct = total === 0 ? 0 : Math.round((completed / total) * 100)
   const allItemsDone = completed === total && total > 0
   const isCleaning = !initial.isFoodSafety
-  // Photos list is owned by ChecklistPhotoUpload internally; seed the
-  // visual "satisfied" indicator from the server snapshot.
-  const signOffSatisfied = initial.photos.length > 0
-  const canComplete = allItemsDone
+  const photosNeeded = isCleaning ? MIN_CLEANING_PHOTOS : 0
+  const photosSatisfied = photoCount >= photosNeeded
+  const canComplete = allItemsDone && photosSatisfied
 
   const venueLabel =
     VENUE_SHORT_LABEL[initial.venue as Venue] ?? initial.venue
@@ -45,6 +49,25 @@ export function KitchenRunView({
   const listHref = initial.area
     ? `/kitchen?venue=${initial.venue}&category=${categoryParam}&department=${encodeURIComponent(initial.area)}`
     : `/kitchen?venue=${initial.venue}&category=${categoryParam}`
+
+  const venueShort = venueFull.replace(/\s*\(.*\)$/, "")
+  const breadcrumbs = [
+    { label: "Venues", href: "/kitchen" },
+    { label: venueShort, href: `/kitchen?venue=${initial.venue}` },
+    {
+      label: category,
+      href: `/kitchen?venue=${initial.venue}&category=${categoryParam}`,
+    },
+    ...(initial.area
+      ? [
+          {
+            label: initial.area,
+            href: `/kitchen?venue=${initial.venue}&category=${categoryParam}&department=${encodeURIComponent(initial.area)}`,
+          },
+        ]
+      : []),
+    { label: initial.templateName },
+  ]
 
   const visibleItems = useMemo(() => {
     if (filter === "todo") return items.filter((i) => !i.checkedAt)
@@ -101,23 +124,8 @@ export function KitchenRunView({
 
   return (
     <div className={cn("space-y-5 pb-28", isPending && "opacity-90")}>
-      {/* Top bar */}
-      <div className="flex items-center justify-between gap-4 border-b border-[var(--tk-line)] pb-4">
-        <Link
-          href={listHref}
-          className="inline-flex items-center gap-2 px-2 py-2 text-[14px] font-semibold text-[var(--tk-ink-soft)]"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Link>
-        <KitchenLogo size={0.85} />
-        <Link
-          href={listHref}
-          className="rounded-[10px] border border-[var(--tk-line)] px-3.5 py-2 text-[13px] font-semibold text-[var(--tk-ink-soft)]"
-        >
-          Save &amp; close
-        </Link>
-      </div>
+      {/* Breadcrumb */}
+      <KitchenBreadcrumb crumbs={breadcrumbs} />
 
       {/* Title + progress */}
       <div className="flex flex-wrap items-end justify-between gap-6">
@@ -198,17 +206,17 @@ export function KitchenRunView({
         })}
       </div>
 
-      {/* Initials */}
+      {/* Name */}
       <div className="rounded-[14px] border border-[var(--tk-line)] bg-white p-3">
         <label className="flex items-center gap-3 text-[14px]">
           <span className="font-semibold text-[var(--tk-ink-soft)]">
-            Your initials
+            Your name
           </span>
           <input
             value={by}
-            onChange={(e) => setBy(e.target.value.toUpperCase().slice(0, 4))}
-            placeholder="e.g. CR"
-            className="flex-1 rounded-[10px] border border-[var(--tk-line)] bg-white px-3 py-2 text-[17px] font-semibold uppercase tabular-nums focus:border-[var(--tk-charcoal)] focus:outline-none"
+            onChange={(e) => setBy(e.target.value)}
+            placeholder="First name"
+            className="flex-1 rounded-[10px] border border-[var(--tk-line)] bg-white px-3 py-2 text-[17px] font-semibold focus:border-[var(--tk-charcoal)] focus:outline-none"
           />
         </label>
         <p className="mt-1 text-[11px] text-[var(--tk-ink-mute)]">
@@ -236,19 +244,43 @@ export function KitchenRunView({
         ))}
       </div>
 
-      {/* Final sign-off — mandatory on every cleaning checklist */}
+      {/* Final sign-off — every cleaning checklist needs MIN_CLEANING_PHOTOS
+          photos of the cleaned site before it can be marked complete. */}
       {isCleaning && filter !== "done" && (
-        <KitchenSignOffRow satisfied={signOffSatisfied}>
+        <KitchenSignOffRow satisfied={photosSatisfied}>
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+            <div className="inline-flex items-center gap-2 text-[14px] font-semibold text-[var(--tk-charcoal)]">
+              <Camera className="h-4 w-4" />
+              Site photos
+              <span
+                className="rounded-full px-2 py-0.5 text-[12px]"
+                style={{
+                  background: photosSatisfied
+                    ? "var(--tk-done-soft)"
+                    : "var(--tk-gold-soft)",
+                  color: photosSatisfied ? "var(--tk-done)" : "#8a6d1f",
+                }}
+              >
+                {photoCount} / {MIN_CLEANING_PHOTOS}
+              </span>
+            </div>
+            <span className="text-[12px] text-[var(--tk-ink-soft)]">
+              {photosSatisfied
+                ? "Minimum reached. More is fine."
+                : `${MIN_CLEANING_PHOTOS - photoCount} more required to submit.`}
+            </span>
+          </div>
           <ChecklistPhotoUpload
             runId={initial.id}
             initialPhotos={initial.photos}
             uploadedBy={by || null}
+            onPhotosChange={handlePhotosChange}
+            hideHint
           />
-          {!signOffSatisfied && (
-            <p className="mt-2 text-[12px] text-[var(--tk-ink-soft)]">
-              Take a photo of the finished station before closing the section.
-            </p>
-          )}
+          <p className="mt-2 text-[12px] text-[var(--tk-ink-soft)]">
+            Take {MIN_CLEANING_PHOTOS} photos of the cleaned area as evidence
+            before closing this section. (Council may ask to see them.)
+          </p>
         </KitchenSignOffRow>
       )}
 
@@ -294,15 +326,19 @@ export function KitchenRunView({
             <span className="font-semibold text-[var(--tk-charcoal)]">
               {total - completed} left
             </span>
-            {isCleaning && !signOffSatisfied && (
-              <span> · don&apos;t forget the sign-off photo</span>
+            {isCleaning && !photosSatisfied && (
+              <span>
+                {" "}
+                · {MIN_CLEANING_PHOTOS - photoCount} photo
+                {MIN_CLEANING_PHOTOS - photoCount === 1 ? "" : "s"} needed
+              </span>
             )}
           </div>
           <div className="flex items-center gap-2">
             {!allItemsDone && completed > 0 && !submitted && (
               <button
                 onClick={handleForceSubmit}
-                disabled={isSubmitting}
+                disabled={isSubmitting || (isCleaning && !photosSatisfied)}
                 className="rounded-[12px] border border-[var(--tk-warn)] px-4 py-3 text-[13px] font-semibold text-[var(--tk-warn)] disabled:opacity-50"
               >
                 {isSubmitting ? "Submitting…" : "Submit incomplete"}

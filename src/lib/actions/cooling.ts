@@ -89,13 +89,13 @@ export async function createCoolingLog(params: {
   notes?: string | null
 }) {
   if (!params.itemName.trim()) throw new Error("Item name is required")
-  if (!params.staffInitials.trim()) throw new Error("Initials required")
+  if (!params.staffInitials.trim()) throw new Error("Name is required")
   const row = await db.coolingLog.create({
     data: {
       venue: params.venue,
       itemName: params.itemName.trim(),
       batchSize: params.batchSize?.trim() || null,
-      staffInitials: params.staffInitials.trim().toUpperCase(),
+      staffInitials: params.staffInitials.trim(),
       startedAt: params.startedAt ?? new Date(),
       startTempC: params.startTempC ?? null,
       twoHourTempC: params.twoHourTempC ?? null,

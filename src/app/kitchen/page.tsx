@@ -1,12 +1,12 @@
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
-import { ArrowLeft, ArrowRight, ClipboardCheck, ShieldCheck, Snowflake, SprayCan, Thermometer } from "lucide-react"
+import { ArrowRight, ClipboardCheck, ShieldCheck, Snowflake, SprayCan, Thermometer } from "lucide-react"
 import { listChecklistTemplates, type ChecklistTemplateSummary } from "@/lib/actions/checklists"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
-import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
 import { KitchenStepper } from "@/components/kitchen/KitchenStepper"
 import { KitchenCategoryCard } from "@/components/kitchen/KitchenCategoryCard"
+import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { VENUE_LABEL } from "@/lib/venues"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
@@ -258,32 +258,6 @@ function DepartmentRow({
   )
 }
 
-function KitchenHeader({
-  venueLabel,
-  backHref,
-  backLabel,
-}: {
-  venueLabel: string
-  backHref: string
-  backLabel: string
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-[var(--tk-line)] pb-4">
-      <Link
-        href={backHref}
-        className="inline-flex items-center gap-2 px-2 py-2 text-[14px] font-semibold text-[var(--tk-ink-soft)]"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {backLabel}
-      </Link>
-      <KitchenLogo size={0.9} />
-      <div className="w-[140px] text-right text-[13px] font-semibold tabular-nums text-[var(--tk-ink-soft)]">
-        {venueLabel}
-      </div>
-    </div>
-  )
-}
-
 function CategoryPicker({
   templates,
   venue,
@@ -299,7 +273,12 @@ function CategoryPicker({
 
   return (
     <div className="space-y-8">
-      <KitchenHeader venueLabel={venueLabel} backHref="/kitchen" backLabel="Change venue" />
+      <KitchenBreadcrumb
+        crumbs={[
+          { label: "Venues", href: "/kitchen" },
+          { label: venueLabel },
+        ]}
+      />
       <KitchenStepper currentStep={2} />
 
       <div>
@@ -429,10 +408,12 @@ function DepartmentPicker({
 
   return (
     <div className="space-y-8">
-      <KitchenHeader
-        venueLabel={venueLabel}
-        backHref={`/kitchen?venue=${venue}`}
-        backLabel="Category"
+      <KitchenBreadcrumb
+        crumbs={[
+          { label: "Venues", href: "/kitchen" },
+          { label: venueLabel, href: `/kitchen?venue=${venue}` },
+          { label: category === "cleaning" ? "Cleaning" : "Food Temp Logs" },
+        ]}
       />
       <KitchenStepper currentStep={3} />
 
@@ -513,10 +494,16 @@ function TemplateList({
 
   return (
     <div className="space-y-8">
-      <KitchenHeader
-        venueLabel={venueLabel}
-        backHref={`/kitchen?venue=${venue}&category=${category}`}
-        backLabel="Section"
+      <KitchenBreadcrumb
+        crumbs={[
+          { label: "Venues", href: "/kitchen" },
+          { label: venueLabel, href: `/kitchen?venue=${venue}` },
+          {
+            label: category === "cleaning" ? "Cleaning" : "Food Temp Logs",
+            href: `/kitchen?venue=${venue}&category=${category}`,
+          },
+          { label: department },
+        ]}
       />
       <KitchenStepper currentStep={4} />
 

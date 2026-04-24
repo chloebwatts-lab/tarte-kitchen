@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Camera, X, Loader2, ImageIcon } from "lucide-react"
 import { saveChecklistPhoto, deleteChecklistPhoto } from "@/lib/actions/checklists"
 
@@ -14,16 +14,32 @@ interface Props {
   runId: string
   initialPhotos?: Photo[]
   uploadedBy?: string | null
+  /** Notified whenever the photo count changes — used by the parent to gate
+   *  the "complete section" button when a minimum is required. */
+  onPhotosChange?: (count: number) => void
+  /** Hides the built-in "please take at least one" warning so the parent
+   *  can show its own (e.g. "3 of 5 photos"). */
+  hideHint?: boolean
 }
 
 const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
 
-export function ChecklistPhotoUpload({ runId, initialPhotos = [], uploadedBy }: Props) {
+export function ChecklistPhotoUpload({
+  runId,
+  initialPhotos = [],
+  uploadedBy,
+  onPhotosChange,
+  hideHint,
+}: Props) {
   const [photos, setPhotos] = useState<Photo[]>(initialPhotos)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    onPhotosChange?.(photos.length)
+  }, [photos.length, onPhotosChange])
 
   if (!CLOUD_NAME || !UPLOAD_PRESET) {
     return (
@@ -131,7 +147,7 @@ export function ChecklistPhotoUpload({ runId, initialPhotos = [], uploadedBy }: 
         <p className="text-xs text-red-600">{error}</p>
       )}
 
-      {photos.length === 0 && (
+      {photos.length === 0 && !hideHint && (
         <p className="text-xs text-amber-600">
           Please take at least one photo before leaving this page.
         </p>

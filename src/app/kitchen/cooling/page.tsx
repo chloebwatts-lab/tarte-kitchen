@@ -1,13 +1,11 @@
 export const dynamic = "force-dynamic"
 
-import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
 import {
   listActiveCoolingLogs,
   type CoolingLogRecord,
 } from "@/lib/actions/cooling"
 import { CoolingDashboard } from "@/components/kitchen/CoolingDashboard"
-import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
+import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { VENUE_LABEL } from "@/lib/venues"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
@@ -27,19 +25,16 @@ export default async function CoolingPage({
 
   const logs: CoolingLogRecord[] = await listActiveCoolingLogs(venue)
 
+  const venueLabel = VENUE_LABEL[venue].replace(/\s*\(.*\)$/, "")
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 border-b border-[var(--tk-line)] pb-4">
-        <Link
-          href={`/kitchen?venue=${venue}`}
-          className="inline-flex items-center gap-2 px-2 py-2 text-[14px] font-semibold text-[var(--tk-ink-soft)]"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {VENUE_LABEL[venue]}
-        </Link>
-        <KitchenLogo size={0.9} />
-        <div className="w-[88px]" />
-      </div>
+      <KitchenBreadcrumb
+        crumbs={[
+          { label: "Venues", href: "/kitchen" },
+          { label: venueLabel, href: `/kitchen?venue=${venue}` },
+          { label: "Cooling log" },
+        ]}
+      />
 
       <div className="px-1">
         <div
