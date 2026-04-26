@@ -6,12 +6,11 @@ import { KitchenButton } from "@/components/kitchen/KitchenButton"
 import {
   savePastryRotationEntry,
   deletePastryRotationEntry,
-  BAKE_ORDER,
-  BAKE_LABEL,
   type PastryRotationDay,
   type PastryEntryRecord,
   type PastryProductRecord,
 } from "@/lib/actions/pastry-rotation"
+import { BAKE_ORDER, BAKE_LABEL } from "@/lib/pastry-rotation-constants"
 import type { PastryBakeTime } from "@/generated/prisma"
 
 function shiftDate(iso: string, days: number): string {

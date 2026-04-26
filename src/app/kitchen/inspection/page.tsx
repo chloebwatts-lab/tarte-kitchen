@@ -8,9 +8,9 @@ import {
 } from "@/lib/actions/cooling"
 import {
   listPastryRotationForInspection,
-  BAKE_LABEL,
   type InspectionPastryRow,
 } from "@/lib/actions/pastry-rotation"
+import { BAKE_LABEL } from "@/lib/pastry-rotation-constants"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { InspectionPrintButton } from "@/components/kitchen/InspectionPrintButton"
 import { VENUE_LABEL, SINGLE_VENUES } from "@/lib/venues"
