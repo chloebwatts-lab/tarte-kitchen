@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic"
 
-import { getDashboardStats } from "@/lib/actions/dashboard"
+import { getDashboardStats, getDashboardHighlights } from "@/lib/actions/dashboard"
 import { DashboardContent } from "@/components/dashboard-content"
 import { getVenueSalesSnapshot } from "@/lib/actions/venue-metrics"
 import { VenueSalesTile } from "@/components/venue-sales-tile"
@@ -11,14 +11,16 @@ import { getDailySummaryData } from "@/lib/actions/checklist-alerts"
 import { getOverdueChecklists } from "@/lib/actions/checklist-alerts"
 import { getLiveWeekLabourSnapshot } from "@/lib/actions/labour"
 import { DashboardOpsPanel } from "@/components/dashboard-ops-panel"
+import { DashboardHighlights } from "@/components/dashboard-highlights"
 
 export default async function DashboardPage() {
-  const [stats, dailyReport, checklistSummary, overdue, labour, ...snapshots] = await Promise.all([
+  const [stats, dailyReport, checklistSummary, overdue, labour, highlights, ...snapshots] = await Promise.all([
     getDashboardStats(),
     getLatestDailyReport(),
     getDailySummaryData(),
     getOverdueChecklists(),
     getLiveWeekLabourSnapshot(),
+    getDashboardHighlights(),
     ...SINGLE_VENUES.map((v) => getVenueSalesSnapshot(v)),
   ])
 
@@ -37,6 +39,9 @@ export default async function DashboardPage() {
         overdue={overdue}
         labour={labour}
       />
+
+      {/* Sales · Waste · Supplier spike */}
+      <DashboardHighlights data={highlights} />
 
       {/* Lightspeed end-of-day report (mirrors the emailed PDF sections) */}
       <DailyReportSection data={dailyReport} />
