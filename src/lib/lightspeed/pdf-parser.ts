@@ -66,7 +66,20 @@ Return valid JSON only, no other text or markdown fences:
 Important:
 - The report covers a single trading day ("Sale Closed Date is in the last 1 complete day").
   reportDate is that day in YYYY-MM-DD format (i.e. the day BEFORE the "Generated on" footer).
-- Include every site that has revenue.
+- This report covers THREE Tarte venues. Look for and include ALL of them:
+    1. "Tarte Burleigh" — appears as "Tarte Pty Ltd" in the top Revenue
+       table, but as "Tarte Burleigh" in the per-site breakdown header.
+       Always emit siteName: "Tarte Burleigh" for this venue (use the
+       breakdown name, not the legal entity name).
+    2. "Tarte Beach House"
+    3. "Tarte Market"
+  These appear in BOTH the Revenue section at the top AND in the per-site
+  Reporting Group Breakdown sections lower down. Cross-reference:
+  Revenue-table "Tarte Pty Ltd" = breakdown-header "Tarte Burleigh" — same
+  site, two labels. Merge them into ONE entry with siteName "Tarte Burleigh"
+  containing both the totals AND the breakdown categories.
+  Never skip a venue because it's thin on data — if needed, return it with
+  categories: [] and the totals from the Revenue table.
 - Include every reporting group / category shown in the per-site breakdown section,
   even if it has zero products listed.
 - For each category, list the top products with their quantity, in the order shown.
@@ -84,7 +97,7 @@ export async function parseLightspeedPdf(
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
   const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-6",
     max_tokens: 8192,
     messages: [
       {

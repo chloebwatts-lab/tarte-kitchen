@@ -145,6 +145,17 @@ export async function GET(request: Request) {
     let reportsIngested = 0
     const errors: string[] = []
     const processedVenueDates = new Set<string>()
+    // Diagnostic: every (messageId, siteName, resolvedVenue) seen this run.
+    // Burleigh debugging — when a PDF doesn't yield a Burleigh row, we want
+    // to know whether (a) the AI parser dropped the site or (b)
+    // normalizeVenueSlug failed to map it.
+    const siteDebug: Array<{
+      messageId: string
+      reportDate: string
+      siteName: string
+      resolvedVenue: string | null
+      revenue: number
+    }> = []
 
     for (const ref of messageRefs) {
       try {
@@ -172,6 +183,13 @@ export async function GET(request: Request) {
 
         for (const site of parsed.sites) {
           const venue = resolveVenue(site.siteName, locationMap)
+          siteDebug.push({
+            messageId: ref.id,
+            reportDate: dateKey,
+            siteName: site.siteName,
+            resolvedVenue: venue ?? null,
+            revenue: Number(site.totalIncTax),
+          })
           if (!venue || venue === "BOTH") {
             errors.push(
               `Message ${ref.id}: unresolved venue for site "${site.siteName}"`
@@ -277,6 +295,7 @@ export async function GET(request: Request) {
       success: true,
       messagesFound: messageRefs.length,
       reportsIngested,
+      sites: siteDebug,
       errors: errors.length > 0 ? errors : undefined,
     })
   } catch (err) {
