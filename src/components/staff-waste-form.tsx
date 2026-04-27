@@ -1,8 +1,10 @@
 "use client"
 
 import { useState, useMemo, useTransition } from "react"
-import { CheckCircle2, Search, X, Trash2 } from "lucide-react"
+import { CheckCircle2, Search, X } from "lucide-react"
 import { createWasteEntry } from "@/lib/actions/wastage"
+import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
+import { KitchenButton } from "@/components/kitchen/KitchenButton"
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -231,138 +233,176 @@ export function StaffWasteForm({ items }: Props) {
     })
   }
 
-  // Step indicator
   const step = !venue ? 1 : !selectedItem ? 2 : !quantity ? 3 : !reason ? 4 : 5
+  const ready = step >= 5
+
+  const venueOptions: { v: "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"; label: string; sub: string }[] = [
+    { v: "BURLEIGH", label: "Tarte Bakery", sub: "Burleigh Heads" },
+    { v: "BEACH_HOUSE", label: "Beach House", sub: "Currumbin" },
+    { v: "TEA_GARDEN", label: "Tea Garden", sub: "Currumbin" },
+  ]
 
   return (
-    <div className="flex flex-col min-h-svh bg-[#faf7f4]">
-
-      {/* Header */}
-      <header className="bg-[#1a1a1a] px-5 pt-12 pb-5">
-        <p className="text-[#c4a882] text-[10px] font-bold uppercase tracking-[0.2em] mb-0.5">
-          Tarte Kitchen
-        </p>
-        <div className="flex items-center justify-between">
-          <h1 className="text-white text-2xl font-bold tracking-tight">Log Waste</h1>
-          <Trash2 className="h-5 w-5 text-[#c4a882] opacity-60" />
+    <div className="space-y-6 pb-32">
+      {/* Top bar */}
+      <div className="flex items-center justify-between gap-4 border-b border-[var(--tk-line)] pb-4">
+        <div className="tk-caps" style={{ color: "var(--tk-ink-mute)" }}>
+          Step {Math.min(step, 4)} of 4
         </div>
-      </header>
-
-      {/* Progress dots */}
-      <div className="flex items-center justify-center gap-2 py-3 bg-[#faf7f4]">
-        {[1, 2, 3, 4].map((s) => (
-          <div
-            key={s}
-            className={`h-1.5 rounded-full transition-all duration-300 ${
-              s < step ? "w-6 bg-[#1a1a1a]" : s === step ? "w-6 bg-[#c4a882]" : "w-1.5 bg-gray-200"
-            }`}
-          />
-        ))}
+        <KitchenLogo size={0.9} />
+        <div className="w-[88px]" />
       </div>
 
-      <div className="flex-1 px-4 space-y-3 pb-28">
+      {/* Title */}
+      <div className="px-1">
+        <div
+          className="tk-display leading-none text-[var(--tk-charcoal)]"
+          style={{ fontSize: 44, fontWeight: 700, letterSpacing: "-0.025em" }}
+        >
+          Log waste
+        </div>
+        <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
+          Quick walk-up record of anything binned. Pick a venue, find the
+          item, enter how much was lost and why.
+        </p>
+      </div>
 
-        {/* Success banner */}
-        {success && (
-          <div className="flex items-center gap-3 rounded-2xl bg-emerald-600 px-4 py-4 shadow-lg">
-            <CheckCircle2 className="h-6 w-6 shrink-0 text-white" />
-            <div>
-              <p className="text-sm font-semibold text-white">{success.name} logged</p>
-              <p className="text-xs text-emerald-100 mt-0.5">
-                {success.cost > 0 ? `$${success.cost.toFixed(2)} waste recorded` : "Logged successfully"}
-              </p>
+      {success && (
+        <div
+          className="flex items-center gap-3 rounded-[16px] px-5 py-4"
+          style={{ background: "var(--tk-done-soft)", color: "var(--tk-done)" }}
+        >
+          <CheckCircle2 className="h-6 w-6 shrink-0" />
+          <div>
+            <div className="text-[15px] font-semibold">{success.name} logged</div>
+            <div className="mt-0.5 text-[13px]">
+              {success.cost > 0 ? `$${success.cost.toFixed(2)} waste recorded` : "Saved."}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Error */}
-        {error && (
-          <div className="rounded-2xl bg-red-500 px-4 py-3 text-sm font-medium text-white shadow-sm">
-            {error}
-          </div>
-        )}
+      {error && (
+        <div
+          className="rounded-[14px] px-5 py-3 text-[14px] font-semibold"
+          style={{ background: "var(--tk-warn-soft)", color: "var(--tk-warn)" }}
+        >
+          {error}
+        </div>
+      )}
 
-        {/* Venue */}
-        <section className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100/80">
-          <div className="px-4 pt-3.5 pb-1.5 flex items-center justify-between">
-            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">Venue</p>
-            {step === 1 && <span className="text-[10px] font-medium text-[#c4a882]">Step 1</span>}
-          </div>
-          <div className="grid grid-cols-3 gap-0 border-t border-gray-50">
-            {(
-              [
-                { v: "BURLEIGH" as const, label: "Bakery" },
-                { v: "BEACH_HOUSE" as const, label: "Beach House" },
-                { v: "TEA_GARDEN" as const, label: "Tea Garden" },
-              ]
-            ).map(({ v, label }, i, arr) => (
+      {/* Venue */}
+      <section>
+        <SectionLabel n={1} active={step === 1} done={!!venue}>
+          Venue
+        </SectionLabel>
+        <div className="grid gap-3 md:grid-cols-3">
+          {venueOptions.map(({ v, label, sub }) => {
+            const selected = venue === v
+            return (
               <button
                 key={v}
                 type="button"
                 onClick={() => setVenue(v)}
-                className={`py-4 text-sm font-bold tracking-wide transition-all ${
-                  i < arr.length - 1 ? "border-r border-gray-50" : ""
-                } ${
-                  venue === v
-                    ? "bg-[#1a1a1a] text-white"
-                    : "bg-white text-gray-400 active:bg-gray-50"
-                }`}
+                className="rounded-[18px] border bg-white px-5 py-4 text-left transition active:scale-[0.997]"
+                style={{
+                  borderColor: selected ? "var(--tk-charcoal)" : "var(--tk-line)",
+                  background: selected ? "var(--tk-charcoal)" : "white",
+                  color: selected ? "white" : "var(--tk-charcoal)",
+                  boxShadow: selected ? "0 4px 14px rgba(60,62,63,0.14)" : "none",
+                }}
               >
-                {label}
+                <div
+                  className="tk-display leading-tight"
+                  style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}
+                >
+                  {label}
+                </div>
+                <div
+                  className="mt-1 text-[13px]"
+                  style={{ color: selected ? "rgba(255,255,255,0.78)" : "var(--tk-ink-soft)" }}
+                >
+                  {sub}
+                </div>
               </button>
-            ))}
-          </div>
-        </section>
+            )
+          })}
+        </div>
+      </section>
 
-        {/* Item search */}
-        <section className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100/80">
-          <div className="px-4 pt-3.5 pb-1.5 flex items-center justify-between">
-            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">Item</p>
-            {step === 2 && <span className="text-[10px] font-medium text-[#c4a882]">Step 2</span>}
-          </div>
-
+      {/* Item */}
+      {venue && (
+        <section>
+          <SectionLabel n={2} active={step === 2} done={!!selectedItem}>
+            Item
+          </SectionLabel>
           {selectedItem ? (
-            <div className="flex items-center justify-between px-4 py-3.5 border-t border-gray-50">
-              <div>
-                <p className="text-sm font-semibold text-gray-900">{selectedItem.name}</p>
-                <p className="text-[11px] text-gray-400 mt-0.5">{itemLabel(selectedItem)}</p>
+            <div className="flex items-center justify-between gap-3 rounded-[16px] border border-[var(--tk-line)] bg-white px-5 py-4">
+              <div className="min-w-0">
+                <div
+                  className="text-[18px] font-semibold leading-snug text-[var(--tk-charcoal)]"
+                  style={{ letterSpacing: "-0.01em" }}
+                >
+                  {selectedItem.name}
+                </div>
+                <div className="mt-0.5 text-[13px] text-[var(--tk-ink-soft)]">
+                  {itemLabel(selectedItem)}
+                </div>
               </div>
               <button
                 type="button"
-                onClick={() => { setSelectedItem(null); setUnit(""); setQuantity("") }}
-                className="rounded-full bg-gray-100 p-2 text-gray-400 active:bg-gray-200"
+                onClick={() => {
+                  setSelectedItem(null)
+                  setUnit("")
+                  setQuantity("")
+                }}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--tk-bg)] text-[var(--tk-ink-soft)] active:scale-[0.95]"
+                aria-label="Clear item"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
           ) : (
-            <div className="border-t border-gray-50">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-300 pointer-events-none" />
+            <div className="overflow-hidden rounded-[16px] border border-[var(--tk-line)] bg-white">
+              <div className="relative border-b border-[var(--tk-line)]">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--tk-ink-mute)]" />
                 <input
                   type="text"
-                  placeholder="Search ingredients, preps, dishes..."
+                  placeholder="Search ingredients, preps, dishes…"
                   value={searchQuery}
-                  onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true) }}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value)
+                    setSearchOpen(true)
+                  }}
                   onFocus={() => setSearchOpen(true)}
-                  className="w-full bg-transparent py-3.5 pl-11 pr-4 text-sm text-gray-900 outline-none placeholder:text-gray-300"
+                  className="w-full bg-transparent py-4 pl-12 pr-4 text-[16px] text-[var(--tk-ink)] outline-none placeholder:text-[var(--tk-ink-mute)]"
                 />
               </div>
-              {/* Results list — rendered inline, not absolutely positioned */}
               {searchOpen && (
-                <div className="max-h-64 overflow-y-auto border-t border-gray-100">
+                <div className="max-h-[320px] overflow-y-auto">
                   {searchResults.length === 0 ? (
-                    <p className="px-4 py-4 text-sm text-gray-400">No items found</p>
+                    <p className="px-5 py-5 text-[14px] text-[var(--tk-ink-soft)]">
+                      No items found
+                    </p>
                   ) : (
                     searchResults.map((item) => (
                       <button
                         key={`${item.type}-${item.id}`}
                         type="button"
                         onClick={() => handleSelectItem(item)}
-                        className="flex w-full items-center justify-between px-4 py-3 text-left border-b border-gray-50 last:border-0 active:bg-gray-50"
+                        className="flex w-full items-center justify-between border-b border-[var(--tk-line)] px-5 py-3.5 text-left transition last:border-0 active:bg-[var(--tk-bg)]"
                       >
-                        <span className="text-sm text-gray-900">{item.name}</span>
-                        <span className="ml-3 shrink-0 rounded-full bg-gray-50 px-2.5 py-0.5 text-[11px] text-gray-400">
+                        <span className="text-[15px] text-[var(--tk-charcoal)]">
+                          {item.name}
+                        </span>
+                        <span
+                          className="ml-3 shrink-0 rounded-full px-2.5 py-0.5 text-[12px] font-semibold uppercase tracking-wider"
+                          style={{
+                            background: "var(--tk-sage-soft)",
+                            color: "var(--tk-done)",
+                            letterSpacing: "0.06em",
+                          }}
+                        >
                           {itemLabel(item)}
                         </span>
                       </button>
@@ -373,96 +413,180 @@ export function StaffWasteForm({ items }: Props) {
             </div>
           )}
         </section>
+      )}
 
-        {/* Quantity + Unit */}
-        {selectedItem && (
-          <section className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100/80">
-            <div className="px-4 pt-3.5 pb-1.5 flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">Quantity</p>
-              {step === 3 && <span className="text-[10px] font-medium text-[#c4a882]">Step 3</span>}
-            </div>
-            <div className="flex items-stretch border-t border-gray-50">
-              <input
-                type="number"
-                inputMode="decimal"
-                step="any"
-                min="0"
-                placeholder="0"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                className="flex-1 bg-transparent py-4 px-4 text-3xl font-bold text-gray-900 outline-none placeholder:text-gray-200"
-                style={{ WebkitAppearance: "none", MozAppearance: "textfield" } as React.CSSProperties}
-              />
-              {availableUnits(selectedItem).length > 1 ? (
-                <select
-                  value={unit}
-                  onChange={(e) => setUnit(e.target.value)}
-                  className="border-l border-gray-50 bg-transparent px-4 text-base font-semibold text-gray-500 outline-none w-20 text-center"
-                >
-                  {availableUnits(selectedItem).map((u) => (
-                    <option key={u} value={u}>{u}</option>
-                  ))}
-                </select>
-              ) : (
-                <div className="flex items-center border-l border-gray-50 px-4 text-base font-semibold text-gray-400">
-                  {unit}
-                </div>
-              )}
-            </div>
-          </section>
-        )}
+      {/* Quantity */}
+      {selectedItem && (
+        <section>
+          <SectionLabel n={3} active={step === 3} done={!!quantity && Number(quantity) > 0}>
+            Quantity
+          </SectionLabel>
+          <div className="flex items-stretch overflow-hidden rounded-[16px] border border-[var(--tk-line)] bg-white">
+            <input
+              type="number"
+              inputMode="decimal"
+              step="any"
+              min="0"
+              placeholder="0"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              className="tk-display flex-1 bg-transparent px-5 py-4 text-[40px] font-bold leading-none text-[var(--tk-charcoal)] outline-none placeholder:text-[var(--tk-ink-mute)]"
+              style={{
+                WebkitAppearance: "none",
+                MozAppearance: "textfield",
+                letterSpacing: "-0.025em",
+              } as React.CSSProperties}
+            />
+            {availableUnits(selectedItem).length > 1 ? (
+              <select
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                className="w-24 border-l border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 text-[18px] font-semibold text-[var(--tk-charcoal)] outline-none"
+              >
+                {availableUnits(selectedItem).map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="flex items-center border-l border-[var(--tk-line)] bg-[var(--tk-bg)] px-5 text-[18px] font-semibold text-[var(--tk-charcoal)]">
+                {unit}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
-        {/* Reason */}
-        {selectedItem && quantity && Number(quantity) > 0 && (
-          <section className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100/80">
-            <div className="px-4 pt-3.5 pb-2 flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">Reason</p>
-              {step === 4 && <span className="text-[10px] font-medium text-[#c4a882]">Step 4</span>}
-            </div>
-            <div className="grid grid-cols-4 gap-1.5 px-3 pb-3">
-              {WASTE_REASONS.map((r) => (
+      {/* Reason */}
+      {selectedItem && quantity && Number(quantity) > 0 && (
+        <section>
+          <SectionLabel n={4} active={step === 4} done={!!reason}>
+            Reason
+          </SectionLabel>
+          <div className="grid gap-2.5 sm:grid-cols-4">
+            {WASTE_REASONS.map((r) => {
+              const selected = reason === r.value
+              return (
                 <button
                   key={r.value}
                   type="button"
                   onClick={() => setReason(r.value)}
-                  className={`flex flex-col items-center gap-1 rounded-xl py-2.5 px-1 text-center transition-all ${
-                    reason === r.value
-                      ? "bg-[#1a1a1a] text-white shadow-sm"
-                      : "bg-gray-50 text-gray-500 active:bg-gray-100"
-                  }`}
+                  className="flex min-h-[80px] flex-col items-center justify-center gap-1.5 rounded-[14px] border px-2 py-3 text-center transition active:scale-[0.98]"
+                  style={{
+                    borderColor: selected ? "var(--tk-charcoal)" : "var(--tk-line)",
+                    background: selected ? "var(--tk-charcoal)" : "white",
+                    color: selected ? "white" : "var(--tk-ink)",
+                  }}
                 >
-                  <span className="text-base leading-none">{r.icon}</span>
-                  <span className="text-[10px] font-medium leading-tight">{r.label}</span>
+                  <span className="text-[22px] leading-none">{r.icon}</span>
+                  <span className="text-[12px] font-semibold leading-tight">
+                    {r.label}
+                  </span>
                 </button>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Cost preview */}
-        {estimatedCost > 0 && (
-          <div className="bg-[#1a1a1a] rounded-2xl px-5 py-4 flex items-center justify-between shadow">
-            <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Est. cost</span>
-            <span className="text-xl font-bold text-[#c4a882]">${estimatedCost.toFixed(2)}</span>
+              )
+            })}
           </div>
-        )}
-      </div>
+        </section>
+      )}
+
+      {/* Cost preview */}
+      {estimatedCost > 0 && (
+        <div
+          className="flex items-center justify-between rounded-[16px] px-6 py-4"
+          style={{ background: "var(--tk-sage)", color: "white" }}
+        >
+          <span
+            className="tk-caps"
+            style={{ color: "rgba(255,255,255,0.8)", letterSpacing: "0.14em" }}
+          >
+            Estimated cost
+          </span>
+          <span
+            className="tk-display tabular-nums leading-none"
+            style={{ fontSize: 30, fontWeight: 700, letterSpacing: "-0.02em" }}
+          >
+            ${estimatedCost.toFixed(2)}
+          </span>
+        </div>
+      )}
 
       {/* Sticky submit */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-[#faf7f4] from-70% to-transparent px-4 pb-8 pt-6">
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={isPending || step < 5}
-          className={`w-full rounded-2xl py-4 text-sm font-bold tracking-wide shadow-lg transition-all active:scale-[0.98] ${
-            step >= 5
-              ? "bg-[#1a1a1a] text-white"
-              : "bg-gray-200 text-gray-400 shadow-none"
-          } disabled:opacity-50`}
-        >
-          {isPending ? "Saving..." : "Log Waste"}
-        </button>
+      <div
+        className="fixed inset-x-0 bottom-0 border-t border-[var(--tk-line)]"
+        style={{
+          background: "rgba(246,245,242,0.94)",
+          backdropFilter: "blur(12px)",
+        }}
+      >
+        <div className="mx-auto flex max-w-[1194px] items-center justify-between gap-4 px-6 py-3 md:px-10">
+          <div className="text-[13px] text-[var(--tk-ink-soft)]">
+            {ready ? (
+              <span>
+                Ready to log{" "}
+                <span className="font-semibold text-[var(--tk-charcoal)]">
+                  ${estimatedCost.toFixed(2)}
+                </span>
+              </span>
+            ) : (
+              <span>
+                {!venue && "Pick a venue to start"}
+                {venue && !selectedItem && "Now find the item"}
+                {selectedItem && (!quantity || Number(quantity) <= 0) && "Enter quantity"}
+                {selectedItem && quantity && Number(quantity) > 0 && !reason && "Pick a reason"}
+              </span>
+            )}
+          </div>
+          <KitchenButton
+            variant="primary"
+            size="lg"
+            onClick={handleSubmit}
+            disabled={isPending || !ready}
+          >
+            {isPending ? "Saving…" : "Log waste"}
+          </KitchenButton>
+        </div>
       </div>
+    </div>
+  )
+}
+
+function SectionLabel({
+  n,
+  active,
+  done,
+  children,
+}: {
+  n: number
+  active: boolean
+  done: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <div className="mb-2 flex items-center gap-2">
+      <span
+        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold tabular-nums"
+        style={{
+          background: done
+            ? "var(--tk-done-soft)"
+            : active
+              ? "var(--tk-charcoal)"
+              : "var(--tk-bg)",
+          color: done
+            ? "var(--tk-done)"
+            : active
+              ? "white"
+              : "var(--tk-ink-mute)",
+        }}
+      >
+        {n}
+      </span>
+      <span
+        className="tk-caps"
+        style={{ color: "var(--tk-ink-soft)", letterSpacing: "0.12em" }}
+      >
+        {children}
+      </span>
     </div>
   )
 }
