@@ -44,6 +44,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/src/generated ./src/generated
 
+# Writable dir for invoice PDF storage. Owned by the runtime user so the
+# Gmail invoice cron can mkdir per-supplier subfolders without EACCES.
+# Mount a docker volume here in docker-compose so PDFs survive deploys.
+RUN mkdir -p /app/data/invoices && chown -R nextjs:nodejs /app/data
+
 USER nextjs
 
 EXPOSE 3000

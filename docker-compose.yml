@@ -53,6 +53,12 @@ services:
       DEPUTY_INSTALL: ${DEPUTY_INSTALL:-}
     ports:
       - "127.0.0.1:3000:3000"
+    volumes:
+      # Persist downloaded supplier-invoice PDFs across deploys so the
+      # Suppliers page can re-open them later. The check-invoices cron
+      # mkdir's per-supplier subdirs here, so it must be writable by uid
+      # 1001 (the nextjs user from Dockerfile).
+      - invoice_pdfs:/app/data
 
   migrate:
     build:
@@ -119,3 +125,4 @@ volumes:
   pgdata:
   caddy_data:
   caddy_config:
+  invoice_pdfs:
