@@ -57,8 +57,13 @@ export async function parseInvoicePdf(pdfBuffer: Buffer): Promise<ParsedInvoice>
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
   const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-6",
     max_tokens: 4096,
+    // Force pure JSON output: a system prompt + an assistant prefill of
+    // "{" together stop Sonnet from emitting "Looking at this invoice..."
+    // style preambles that break JSON.parse.
+    system:
+      "You are a strict JSON extractor. Output ONLY a single JSON object — no preamble, no commentary, no markdown fences. Your entire response must be valid JSON that can be passed directly to JSON.parse.",
     messages: [
       {
         role: "user",
@@ -77,6 +82,7 @@ export async function parseInvoicePdf(pdfBuffer: Buffer): Promise<ParsedInvoice>
           },
         ],
       },
+      { role: "assistant", content: "{" },
     ],
   })
 
@@ -85,10 +91,18 @@ export async function parseInvoicePdf(pdfBuffer: Buffer): Promise<ParsedInvoice>
     throw new Error("No text response from Claude API")
   }
 
-  // Strip markdown fences if present
-  let jsonStr = textBlock.text.trim()
+  // Re-prepend the brace we prefilled, then defensively strip fences and
+  // recover from any leaked preamble by slicing the outermost {...}.
+  let jsonStr = ("{" + textBlock.text).trim()
   if (jsonStr.startsWith("```")) {
     jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "")
+  }
+  if (!jsonStr.startsWith("{")) {
+    const first = jsonStr.indexOf("{")
+    const last = jsonStr.lastIndexOf("}")
+    if (first >= 0 && last > first) {
+      jsonStr = jsonStr.slice(first, last + 1)
+    }
   }
 
   const parsed = JSON.parse(jsonStr) as ParsedInvoice

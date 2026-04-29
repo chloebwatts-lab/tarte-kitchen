@@ -99,6 +99,13 @@ export async function parseLightspeedPdf(
   const response = await client.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 8192,
+    // Belt-and-braces JSON-only enforcement. Sonnet sometimes opens with
+    // "Looking at this report..." which then fails JSON.parse — observed
+    // 2026-04-27 on a real EOD email. The system prompt + the leading "{"
+    // assistant turn together force the response to start with valid JSON
+    // and contain nothing else.
+    system:
+      "You are a strict JSON extractor. Output ONLY a single JSON object — no preamble, no commentary, no markdown fences. Your entire response must be valid JSON that can be passed directly to JSON.parse.",
     messages: [
       {
         role: "user",
@@ -114,6 +121,12 @@ export async function parseLightspeedPdf(
           { type: "text", text: EXTRACTION_PROMPT },
         ],
       },
+      {
+        // Prefilling the assistant turn with "{" makes Claude continue
+        // mid-JSON; we re-prepend the brace before parsing.
+        role: "assistant",
+        content: "{",
+      },
     ],
   })
 
@@ -122,9 +135,18 @@ export async function parseLightspeedPdf(
     throw new Error("No text response from Claude API")
   }
 
-  let jsonStr = textBlock.text.trim()
+  // Strip code fences if any leaked through, and recover from "Looking at
+  // this report..." style preambles by extracting the outermost {...}.
+  let jsonStr = ("{" + textBlock.text).trim()
   if (jsonStr.startsWith("```")) {
     jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "")
+  }
+  if (!jsonStr.startsWith("{")) {
+    const first = jsonStr.indexOf("{")
+    const last = jsonStr.lastIndexOf("}")
+    if (first >= 0 && last > first) {
+      jsonStr = jsonStr.slice(first, last + 1)
+    }
   }
 
   interface RawSite {
