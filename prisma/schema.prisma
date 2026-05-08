@@ -1199,3 +1199,56 @@ model PastryRotationEntry {
   @@unique([venue, entryDate, bakeTime, productId])
   @@index([venue, entryDate])
 }
+
+// ============================================================
+// COUNCIL INSPECTION FOLDER — documents the EHO expects on-site
+// (FSS certificate, pest reports, floor plan, training records, etc).
+// Stored as bytea so deploys/rebuilds don't lose them and we don't need
+// blob storage for what's a handful of small PDFs per venue per year.
+// ============================================================
+
+enum CouncilDocumentType {
+  FOOD_BUSINESS_LICENCE
+  FSS_CERTIFICATE
+  FSS_NOTIFICATION
+  PEST_CONTROL_REPORT
+  FLOOR_PLAN
+  TRAINING_RECORD
+  CALIBRATION_RECORD
+  CLEANING_SCHEDULE
+  ALLERGEN_TRAINING
+  HACCP_PLAN
+  RECALL_PROCEDURE
+  GREASE_TRAP_RECORD
+  EAT_SAFE_RATING
+  SUPPLIER_APPROVAL
+  INCIDENT_LOG
+  OTHER
+}
+
+model CouncilDocument {
+  id          String              @id @default(cuid())
+  venue       Venue
+  type        CouncilDocumentType
+  /// Display title — e.g. "FSS Certificate – John Smith" or "Pest control – Q2 2026".
+  title       String
+  description String?
+  /// Date the document was issued / signed (for cert / pest report date).
+  issuedOn    DateTime?           @db.Date
+  /// Expiry date (for FSS — 5 years from issue, licence — annual).
+  /// Used to surface red expiry warnings on the council page.
+  expiresOn   DateTime?           @db.Date
+
+  /// Original filename, MIME type, byte size, and the file itself.
+  fileName    String
+  mimeType    String
+  fileSize    Int
+  data        Bytes
+
+  uploadedBy  String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([venue, type])
+  @@index([venue, expiresOn])
+}

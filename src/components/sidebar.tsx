@@ -22,6 +22,7 @@ import {
   Trash2,
   Receipt,
   Settings,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +42,7 @@ const navItems = [
   { label: "Labour", href: "/labour", icon: Users },
   { label: "COGS", href: "/cogs", icon: Receipt },
   { label: "Reports", href: "/reports", icon: BarChart3 },
+  { label: "Council Folder", href: "/council", icon: ShieldCheck },
   { label: "Settings", href: "/settings/integrations", icon: Settings },
 ];
 

@@ -1,11 +1,16 @@
 {$DOMAIN} {
 	# /log and /kitchen are public — staff walk-up entry on iPads, no login.
+	# /council is public so the GCCC EHO can reach the password gate without
+	# needing the staff basic-auth password (it has its own COUNCIL_PASSWORD
+	# layer inside the app).
 	# _next/static contains hashed build artefacts (JS/CSS) — safe to
 	# serve without basic-auth so the public pages can load their
 	# bundles.  All other routes (dashboard, API, etc.) stay protected.
 	@protected {
 		not path /log /log/*
 		not path /kitchen /kitchen/*
+		not path /council /council/*
+		not path /api/council/*
 		not path /api/auth/*
 		not path /_next/static/*
 		not path /favicon.ico
