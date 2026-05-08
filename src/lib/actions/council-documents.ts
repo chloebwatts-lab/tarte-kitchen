@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { isCouncilAuthed } from "@/lib/council-auth"
-import { CouncilDocumentType, Venue } from "@/generated/prisma"
+import { CouncilDocumentType, Venue } from "@/generated/prisma/enums"
 
 const SINGLE_VENUES: Venue[] = ["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN"]
 

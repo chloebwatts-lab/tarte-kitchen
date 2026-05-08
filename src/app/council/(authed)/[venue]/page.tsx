@@ -17,7 +17,7 @@ import {
   ArrowLeft,
 } from "lucide-react"
 import { db } from "@/lib/db"
-import { CouncilDocumentType, Venue } from "@/generated/prisma"
+import { CouncilDocumentType, Venue } from "@/generated/prisma/enums"
 import { SINGLE_VENUES, VENUE_LABEL } from "@/lib/venues"
 import { UploadDocumentDialog } from "@/components/council/upload-document-dialog"
 import { DeleteDocumentButton } from "@/components/council/delete-document-button"

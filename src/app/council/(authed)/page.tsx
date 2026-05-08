@@ -2,7 +2,7 @@ import Link from "next/link"
 import { ShieldCheck, AlertTriangle, FileText, ArrowRight } from "lucide-react"
 import { db } from "@/lib/db"
 import { SINGLE_VENUES, VENUE_LABEL } from "@/lib/venues"
-import { Venue } from "@/generated/prisma"
+import { Venue } from "@/generated/prisma/enums"
 
 export const dynamic = "force-dynamic"
 

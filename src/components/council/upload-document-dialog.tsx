@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { Plus, X, Upload } from "lucide-react"
-import { CouncilDocumentType, Venue } from "@/generated/prisma"
+import { CouncilDocumentType, Venue } from "@/generated/prisma/enums"
 import { uploadCouncilDocument } from "@/lib/actions/council-documents"
 
 const TYPE_LABEL: Record<CouncilDocumentType, string> = {
