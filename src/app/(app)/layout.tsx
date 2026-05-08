@@ -23,6 +23,7 @@ const pageTitles: Record<string, string> = {
   "/labour": "Labour",
   "/labour/upload": "Upload payroll",
   "/wastage/analytics": "Wastage Analytics",
+  "/reviews": "Google Reviews",
 };
 
 function getPageTitle(pathname: string): string {

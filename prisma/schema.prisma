@@ -1252,3 +1252,141 @@ model CouncilDocument {
   @@index([venue, type])
   @@index([venue, expiresOn])
 }
+
+// ============================================================
+// GOOGLE REVIEWS — pulled daily from the Places API for each
+// venue, then tagged by Claude (sentiment + themes + staff
+// mentions). Drives /reviews dashboard and Friday weekly summary
+// email.
+// ============================================================
+
+enum ReviewSentiment {
+  POSITIVE
+  NEGATIVE
+  MIXED
+  NEUTRAL
+}
+
+enum ReviewTheme {
+  FOOD_QUALITY
+  COFFEE
+  PASTRY
+  SERVICE
+  SPEED
+  AMBIENCE
+  VALUE
+  CLEANLINESS
+  STAFF_PRAISE
+  STAFF_COMPLAINT
+  WAIT_TIME
+  ALLERGEN
+  KIDS
+  DIETARY
+  RESERVATION
+  OTHER
+}
+
+/// Snapshot per venue — refreshed every fetch with current
+/// aggregate rating + total user-rating count, so we can chart
+/// rating trend over time.
+model GoogleVenuePlace {
+  id               String   @id @default(cuid())
+  venue            Venue    @unique
+  placeId          String   @unique
+  displayName      String
+  formattedAddress String
+
+  // Latest snapshot (overwritten each fetch)
+  rating           Decimal? @db.Decimal(3, 2)
+  ratingCount      Int?
+  lastFetchedAt    DateTime?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  reviews          GoogleReview[]
+  ratingHistory    GoogleRatingSnapshot[]
+}
+
+/// Rating + count snapshot, one row per fetch — used to chart
+/// rating drift week-over-week without losing history.
+model GoogleRatingSnapshot {
+  id          String   @id @default(cuid())
+  placeId     String
+  place       GoogleVenuePlace @relation(fields: [placeId], references: [placeId], onDelete: Cascade)
+  venue       Venue
+  rating      Decimal? @db.Decimal(3, 2)
+  ratingCount Int?
+  fetchedAt   DateTime @default(now())
+
+  @@index([venue, fetchedAt])
+}
+
+model GoogleReview {
+  id                String   @id @default(cuid())
+  placeId           String
+  place             GoogleVenuePlace @relation(fields: [placeId], references: [placeId], onDelete: Cascade)
+  /// Denormalised for fast per-venue queries.
+  venue             Venue
+
+  /// Google's review name path — opaque but stable. Used as the
+  /// dedupe key on ingest.
+  googleReviewId    String   @unique
+
+  // Content
+  authorName        String?
+  authorUri         String?
+  authorPhotoUri    String?
+  rating            Int      // 1–5
+  text              String?
+  originalText      String?
+  languageCode      String?
+
+  /// Absolute timestamp. The new Places API returns this on most
+  /// reviews; if missing we fall back to fetchedAt and store the
+  /// original relative description ("6 months ago") for display.
+  publishTime       DateTime
+  relativePublishTime String?
+
+  // Owner reply (the venue's response, if any)
+  replyText         String?
+  replyTime         DateTime?
+
+  // ── Tagging (Claude pass on ingest) ─────────────────────────
+  sentiment         ReviewSentiment?
+  themes            ReviewTheme[]    @default([])
+  /// Free-form staff names extracted from the review text
+  /// (lower-cased, deduped).
+  staffMentions     String[]         @default([])
+  /// One-sentence Claude summary so the dashboard list is
+  /// scannable without reading every full review.
+  taggedSummary     String?
+  taggedAt          DateTime?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([venue, publishTime])
+  @@index([venue, rating])
+  @@index([venue, sentiment])
+}
+
+/// Weekly summary generated each Friday morning by Claude and
+/// emailed to the manager. Stored so the dashboard can show
+/// "last week's themes" without re-running the LLM.
+model GoogleReviewWeeklySummary {
+  id           String   @id @default(cuid())
+  /// Monday of the week being summarised (AEST).
+  weekStart    DateTime @db.Date
+  /// Sunday end of the same week.
+  weekEnd      DateTime @db.Date
+  reviewCount  Int
+  /// Per-venue + overall summary, plus highlights, written by
+  /// Claude. Body is Markdown.
+  body         String
+  emailedTo    String?
+  emailedAt    DateTime?
+  createdAt    DateTime @default(now())
+
+  @@unique([weekStart])
+}
