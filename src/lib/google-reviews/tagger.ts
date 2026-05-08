@@ -58,23 +58,29 @@ export async function tagReview(input: {
     model: "claude-sonnet-4-6",
     max_tokens: 400,
     system: SYSTEM_PROMPT,
-    messages: [
-      { role: "user", content: userMessage },
-      { role: "assistant", content: "{" },
-    ],
+    messages: [{ role: "user", content: userMessage }],
   })
 
-  const text = res.content
+  const raw = res.content
     .filter((b): b is Extract<typeof b, { type: "text" }> => b.type === "text")
     .map((b) => b.text)
     .join("")
+    .trim()
 
-  const raw = "{" + text
+  // Strip ``` fences if Claude wrapped its output, and extract the
+  // outermost {...} so any preamble like "Here's the JSON:" gets cut.
+  const stripped = raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/```\s*$/i, "")
+    .trim()
+  const first = stripped.indexOf("{")
+  const last = stripped.lastIndexOf("}")
+  const jsonText =
+    first >= 0 && last > first ? stripped.slice(first, last + 1) : stripped
+
   let parsed: unknown
   try {
-    // Trim anything after the closing brace, in case Claude added stray output
-    const lastBrace = raw.lastIndexOf("}")
-    parsed = JSON.parse(lastBrace >= 0 ? raw.slice(0, lastBrace + 1) : raw)
+    parsed = JSON.parse(jsonText)
   } catch (e) {
     throw new Error(
       `Tagger returned non-JSON: ${raw.slice(0, 200)} (${(e as Error).message})`
