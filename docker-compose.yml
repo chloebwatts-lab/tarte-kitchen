@@ -38,7 +38,9 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       # Google Places API (server-side; IP-restricted to this droplet)
       GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY}
-      REVIEW_SUMMARY_RECIPIENT: ${REVIEW_SUMMARY_RECIPIENT:-accounts@tarte.com.au}
+      # Sensitive weekly digest recipient — chloe@ only, never accounts@.
+      WEEKLY_DIGEST_RECIPIENT: ${WEEKLY_DIGEST_RECIPIENT:-chloe@tarte.com.au}
+      REVIEW_SUMMARY_RECIPIENT: ${REVIEW_SUMMARY_RECIPIENT:-chloe@tarte.com.au}
       # Sheets wastage ingest
       WASTAGE_SHEET_ID: ${WASTAGE_SHEET_ID}
       # Xero (accounting / labour)
@@ -123,8 +125,10 @@ services:
         0 8 * * * curl -fsS -m 60 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/daily-checklist-summary 2>&1
         # 09:00 AEST (23:00 UTC) — pull Google reviews + Claude-tag any new ones
         0 23 * * * curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-reviews 2>&1
-        # Friday 08:00 AEST (22:00 UTC Thu) — weekly review summary email
-        0 22 * * 4 curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/weekly-review-summary 2>&1
+        # Friday 08:00 AEST (22:00 UTC Thu) — unified weekly business digest
+        # (reviews + sales + wages + COGS + wastage + supplier price spikes
+        # + top sellers) → emailed to chloe@. See tarte_friday_digest.md memory.
+        0 22 * * 4 curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/weekly-digest 2>&1
         CRON
         exec crond -f -l 8 -L /dev/stdout
 

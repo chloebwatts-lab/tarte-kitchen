@@ -1,0 +1,725 @@
+/**
+ * Friday weekly digest aggregator. Builds the structured snapshot that
+ * gets handed to Claude for narrative synthesis.
+ *
+ * Section cadence:
+ *   - Reviews / sales / wastage / supplier price spikes: Mon → Sun
+ *     (the "review week").
+ *   - Labour + COGS: most recent completed Wed → Tue payroll cycle
+ *     (Chloe uploads the labour PDF Thursdays, so by Friday morning
+ *     the freshest complete week is the one ending the prior Tuesday).
+ *
+ * Per the dept-wage-targets memory we group raw wage fields into
+ * combined buckets when comparing to band targets — never show Chef
+ * vs KP separately when the target is the pair, and fold wagesBarista
+ * into FOH for Beach House.
+ */
+
+import { db } from "@/lib/db"
+import { Venue, ReviewSentiment } from "@/generated/prisma/enums"
+
+const SINGLE_VENUES: Venue[] = [
+  Venue.BURLEIGH,
+  Venue.BEACH_HOUSE,
+  Venue.TEA_GARDEN,
+]
+
+const VENUE_LABEL: Record<Venue, string> = {
+  BURLEIGH: "Burleigh",
+  BEACH_HOUSE: "Beach House",
+  TEA_GARDEN: "Tea Garden",
+  BOTH: "All",
+}
+
+// Department-wage targets (per tarte_dept_wage_targets.md).
+const WAGE_TARGETS: Record<
+  "BURLEIGH" | "BEACH_HOUSE",
+  Record<string, { min: number; max: number; label: string }>
+> = {
+  BURLEIGH: {
+    chefsKp: { min: 11.5, max: 12.0, label: "Chefs + KP" },
+    fohBarista: { min: 20.5, max: 21.0, label: "FOH + Barista" },
+    pastry: { min: 4.75, max: 5.25, label: "Pastry" },
+  },
+  BEACH_HOUSE: {
+    chefsKp: { min: 12.5, max: 13.5, label: "Chefs + KP" },
+    foh: { min: 21.5, max: 22.5, label: "FOH (incl. Barista)" },
+    pastry: { min: 2.5, max: 3.0, label: "Pastry" },
+  },
+}
+
+export interface WeeklyDigestSnapshot {
+  weekStart: string // YYYY-MM-DD AEST
+  weekEnd: string // YYYY-MM-DD AEST
+  labourWeekStart: string | null
+  labourWeekEnd: string | null
+
+  reviews: ReviewsSection
+  priceSpikes: PriceSpikesSection
+  wastage: WastageSection
+  cogs: CogsSection
+  labour: LabourSection
+  topSellers: TopSellersSection
+  sales: SalesSection
+}
+
+interface ReviewsSection {
+  totalCount: number
+  averageRating: number | null
+  perVenue: Array<{
+    venue: string
+    count: number
+    averageThisWeek: number | null
+    aggregateRating: number | null
+    aggregateTotalRatings: number | null
+    sentimentBreakdown: Record<string, number>
+    topThemes: string[]
+    staffMentioned: string[]
+    notable: Array<{
+      rating: number
+      sentiment: string | null
+      author: string | null
+      summary: string | null
+      text: string | null
+    }>
+  }>
+  overallNegatives: Array<{
+    venue: string
+    rating: number
+    author: string | null
+    summary: string | null
+    text: string | null
+  }>
+}
+
+interface PriceSpikesSection {
+  count: number
+  items: Array<{
+    ingredient: string
+    supplier: string | null
+    oldPrice: number
+    newPrice: number
+    changePct: number
+    changedAt: string
+  }>
+}
+
+interface WastageSection {
+  totalDollarsThisWeek: number
+  totalDollarsLastWeek: number
+  wowChangePct: number | null
+  perVenue: Array<{ venue: string; total: number }>
+  topItems: Array<{
+    name: string
+    venue: string
+    occurrences: number
+    totalDollars: number
+    totalQty: number
+    unit: string
+    reason: string | null
+  }>
+  recurringOffenders: Array<{ name: string; daysSeen: number; venues: string[] }>
+}
+
+interface CogsSection {
+  weekStartWed: string | null
+  perVenue: Array<{
+    venue: string
+    revenueExGst: number | null
+    totalCogs: number
+    cogsPct: number | null
+    targetPct: number | null
+    delta: number | null
+    biggestCategory: { name: string; dollars: number } | null
+  }>
+}
+
+interface LabourSection {
+  weekStartWed: string | null
+  perVenue: Array<{
+    venue: string
+    revenueExGst: number | null
+    grossWages: number
+    overallPct: number | null
+    departmentGroups: Array<{
+      label: string
+      dollars: number
+      pct: number | null
+      target: { min: number; max: number } | null
+      status: "ok" | "amber" | "red" | "no-target"
+    }>
+  }>
+}
+
+interface TopSellersSection {
+  perVenue: Array<{
+    venue: string
+    byQuantity: Array<{ name: string; qty: number; revenue: number }>
+    byRevenue: Array<{ name: string; qty: number; revenue: number }>
+    risers: string[]
+  }>
+}
+
+interface SalesSection {
+  totalThisWeek: number
+  totalLastWeek: number
+  wowChangePct: number | null
+  perVenue: Array<{
+    venue: string
+    thisWeek: number
+    lastWeek: number
+    wowPct: number | null
+  }>
+}
+
+// ─── Date helpers ────────────────────────────────────────────────────
+
+interface MonSunWeek {
+  start: Date
+  end: Date
+  startKey: string
+  endKey: string
+}
+
+export function lastCompletedMonSun(now = new Date()): MonSunWeek {
+  const aest = new Date(
+    now.toLocaleString("en-US", { timeZone: "Australia/Sydney" })
+  )
+  const weekday = ((aest.getDay() + 6) % 7) + 1 // Mon=1..Sun=7
+  const sunday = new Date(aest)
+  sunday.setDate(sunday.getDate() - weekday)
+  sunday.setHours(23, 59, 59, 999)
+  const monday = new Date(sunday)
+  monday.setDate(monday.getDate() - 6)
+  monday.setHours(0, 0, 0, 0)
+  return {
+    start: monday,
+    end: sunday,
+    startKey: dateKey(monday),
+    endKey: dateKey(sunday),
+  }
+}
+
+function dateKey(d: Date): string {
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, "0")
+  const dd = String(d.getDate()).padStart(2, "0")
+  return `${yyyy}-${mm}-${dd}`
+}
+
+// ─── Section builders ────────────────────────────────────────────────
+
+async function buildReviewsSection(week: MonSunWeek): Promise<ReviewsSection> {
+  const [thisWeekReviews, places] = await Promise.all([
+    db.googleReview.findMany({
+      where: { publishTime: { gte: week.start, lte: week.end } },
+      orderBy: [{ rating: "asc" }, { publishTime: "desc" }],
+    }),
+    db.googleVenuePlace.findMany(),
+  ])
+
+  const perVenue: ReviewsSection["perVenue"] = SINGLE_VENUES.map((v) => {
+    const venueReviews = thisWeekReviews.filter((r) => r.venue === v)
+    const place = places.find((p) => p.venue === v)
+    const themeCount = new Map<string, number>()
+    const sentimentBreakdown: Record<string, number> = {}
+    const staff = new Set<string>()
+    for (const r of venueReviews) {
+      for (const t of r.themes) themeCount.set(t, (themeCount.get(t) ?? 0) + 1)
+      if (r.sentiment)
+        sentimentBreakdown[r.sentiment] =
+          (sentimentBreakdown[r.sentiment] ?? 0) + 1
+      for (const s of r.staffMentions) staff.add(s)
+    }
+    return {
+      venue: VENUE_LABEL[v],
+      count: venueReviews.length,
+      averageThisWeek: venueReviews.length
+        ? venueReviews.reduce((s, r) => s + r.rating, 0) / venueReviews.length
+        : null,
+      aggregateRating: place?.rating != null ? Number(place.rating) : null,
+      aggregateTotalRatings: place?.ratingCount ?? null,
+      sentimentBreakdown,
+      topThemes: Array.from(themeCount.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 4)
+        .map(([t]) => t),
+      staffMentioned: Array.from(staff),
+      notable: venueReviews.slice(0, 3).map((r) => ({
+        rating: r.rating,
+        sentiment: r.sentiment,
+        author: r.authorName,
+        summary: r.taggedSummary,
+        text: r.text ? truncate(r.text, 400) : null,
+      })),
+    }
+  })
+
+  const overallNegatives = thisWeekReviews
+    .filter(
+      (r) =>
+        r.sentiment === ReviewSentiment.NEGATIVE ||
+        r.sentiment === ReviewSentiment.MIXED ||
+        r.rating <= 3
+    )
+    .slice(0, 6)
+    .map((r) => ({
+      venue: VENUE_LABEL[r.venue],
+      rating: r.rating,
+      author: r.authorName,
+      summary: r.taggedSummary,
+      text: r.text ? truncate(r.text, 400) : null,
+    }))
+
+  return {
+    totalCount: thisWeekReviews.length,
+    averageRating: thisWeekReviews.length
+      ? thisWeekReviews.reduce((s, r) => s + r.rating, 0) /
+        thisWeekReviews.length
+      : null,
+    perVenue,
+    overallNegatives,
+  }
+}
+
+async function buildPriceSpikes(week: MonSunWeek): Promise<PriceSpikesSection> {
+  const history = await db.priceHistory.findMany({
+    where: { changedAt: { gte: week.start, lte: week.end } },
+    include: {
+      ingredient: { select: { name: true, supplier: { select: { name: true } } } },
+    },
+    orderBy: { changedAt: "desc" },
+  })
+
+  const items = history
+    .map((h) => {
+      const oldP = Number(h.oldPrice)
+      const newP = Number(h.newPrice)
+      const changePct = oldP > 0 ? ((newP - oldP) / oldP) * 100 : 0
+      return {
+        ingredient: h.ingredient.name,
+        supplier: h.ingredient.supplier?.name ?? null,
+        oldPrice: oldP,
+        newPrice: newP,
+        changePct,
+        changedAt: h.changedAt.toISOString(),
+      }
+    })
+    .filter((x) => Math.abs(x.changePct) >= 5)
+    .sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct))
+    .slice(0, 10)
+
+  return { count: items.length, items }
+}
+
+async function buildWastage(week: MonSunWeek): Promise<WastageSection> {
+  const lastWeek: MonSunWeek = {
+    start: new Date(week.start.getTime() - 7 * 86400000),
+    end: new Date(week.end.getTime() - 7 * 86400000),
+    startKey: "",
+    endKey: "",
+  }
+
+  const [thisWeekEntries, lastWeekEntries] = await Promise.all([
+    db.wasteEntry.findMany({
+      where: { date: { gte: week.start, lte: week.end } },
+    }),
+    db.wasteEntry.findMany({
+      where: { date: { gte: lastWeek.start, lte: lastWeek.end } },
+      select: { estimatedCost: true },
+    }),
+  ])
+
+  const totalDollarsThisWeek = thisWeekEntries.reduce(
+    (s, e) => s + Number(e.estimatedCost),
+    0
+  )
+  const totalDollarsLastWeek = lastWeekEntries.reduce(
+    (s, e) => s + Number(e.estimatedCost),
+    0
+  )
+
+  const perVenueMap = new Map<Venue, number>()
+  for (const e of thisWeekEntries) {
+    perVenueMap.set(
+      e.venue,
+      (perVenueMap.get(e.venue) ?? 0) + Number(e.estimatedCost)
+    )
+  }
+
+  // Top items by total $
+  const byItem = new Map<
+    string,
+    {
+      name: string
+      venue: string
+      occurrences: number
+      totalDollars: number
+      totalQty: number
+      unit: string
+      dayKeys: Set<string>
+      reasons: Map<string, number>
+    }
+  >()
+  for (const e of thisWeekEntries) {
+    const key = `${e.itemName.toLowerCase()}|${e.venue}`
+    const cur = byItem.get(key) ?? {
+      name: e.itemName,
+      venue: VENUE_LABEL[e.venue],
+      occurrences: 0,
+      totalDollars: 0,
+      totalQty: 0,
+      unit: e.unit,
+      dayKeys: new Set<string>(),
+      reasons: new Map<string, number>(),
+    }
+    cur.occurrences++
+    cur.totalDollars += Number(e.estimatedCost)
+    cur.totalQty += Number(e.quantity)
+    cur.dayKeys.add(dateKey(e.date))
+    cur.reasons.set(e.reason, (cur.reasons.get(e.reason) ?? 0) + 1)
+    byItem.set(key, cur)
+  }
+  const topItems = Array.from(byItem.values())
+    .sort((a, b) => b.totalDollars - a.totalDollars)
+    .slice(0, 8)
+    .map((x) => ({
+      name: x.name,
+      venue: x.venue,
+      occurrences: x.occurrences,
+      totalDollars: x.totalDollars,
+      totalQty: x.totalQty,
+      unit: x.unit,
+      reason:
+        Array.from(x.reasons.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ??
+        null,
+    }))
+
+  // Recurring offenders — same itemName showing up on 3+ different days
+  const offenderMap = new Map<
+    string,
+    { name: string; dayKeys: Set<string>; venues: Set<string> }
+  >()
+  for (const e of thisWeekEntries) {
+    const k = e.itemName.toLowerCase()
+    const cur = offenderMap.get(k) ?? {
+      name: e.itemName,
+      dayKeys: new Set<string>(),
+      venues: new Set<string>(),
+    }
+    cur.dayKeys.add(dateKey(e.date))
+    cur.venues.add(VENUE_LABEL[e.venue])
+    offenderMap.set(k, cur)
+  }
+  const recurringOffenders = Array.from(offenderMap.values())
+    .filter((x) => x.dayKeys.size >= 3)
+    .sort((a, b) => b.dayKeys.size - a.dayKeys.size)
+    .slice(0, 5)
+    .map((x) => ({
+      name: x.name,
+      daysSeen: x.dayKeys.size,
+      venues: Array.from(x.venues),
+    }))
+
+  return {
+    totalDollarsThisWeek,
+    totalDollarsLastWeek,
+    wowChangePct:
+      totalDollarsLastWeek > 0
+        ? ((totalDollarsThisWeek - totalDollarsLastWeek) /
+            totalDollarsLastWeek) *
+          100
+        : null,
+    perVenue: SINGLE_VENUES.map((v) => ({
+      venue: VENUE_LABEL[v],
+      total: perVenueMap.get(v) ?? 0,
+    })),
+    topItems,
+    recurringOffenders,
+  }
+}
+
+async function buildCogs(): Promise<CogsSection> {
+  // Most recent week that has cogs data for any venue
+  const latest = await db.weeklyCogs.findFirst({
+    orderBy: { weekStartWed: "desc" },
+    select: { weekStartWed: true },
+  })
+  if (!latest)
+    return { weekStartWed: null, perVenue: [] }
+
+  const rows = await db.weeklyCogs.findMany({
+    where: { weekStartWed: latest.weekStartWed },
+  })
+
+  const perVenue: CogsSection["perVenue"] = SINGLE_VENUES.map((v) => {
+    const r = rows.find((x) => x.venue === v)
+    if (!r)
+      return {
+        venue: VENUE_LABEL[v],
+        revenueExGst: null,
+        totalCogs: 0,
+        cogsPct: null,
+        targetPct: null,
+        delta: null,
+        biggestCategory: null,
+      }
+    const cats: Array<{ name: string; dollars: number }> = []
+    if (r.cogsFood != null)
+      cats.push({ name: "Food", dollars: Number(r.cogsFood) })
+    if (r.cogsCoffee != null)
+      cats.push({ name: "Coffee", dollars: Number(r.cogsCoffee) })
+    if (r.cogsConsumables != null)
+      cats.push({ name: "Consumables", dollars: Number(r.cogsConsumables) })
+    const sorted = cats.sort((a, b) => b.dollars - a.dollars)
+    return {
+      venue: VENUE_LABEL[v],
+      revenueExGst: r.revenueExGst ? Number(r.revenueExGst) : null,
+      totalCogs: Number(r.totalCogs),
+      cogsPct: r.cogsPct ? Number(r.cogsPct) : null,
+      targetPct: r.cogsTargetPct ? Number(r.cogsTargetPct) : null,
+      delta:
+        r.cogsPct && r.cogsTargetPct
+          ? Number(r.cogsPct) - Number(r.cogsTargetPct)
+          : null,
+      biggestCategory: sorted[0] ?? null,
+    }
+  })
+
+  return {
+    weekStartWed: dateKey(latest.weekStartWed),
+    perVenue,
+  }
+}
+
+async function buildLabour(): Promise<LabourSection> {
+  const latest = await db.labourWeekActual.findFirst({
+    orderBy: { weekStartWed: "desc" },
+    select: { weekStartWed: true },
+  })
+  if (!latest) return { weekStartWed: null, perVenue: [] }
+
+  const rows = await db.labourWeekActual.findMany({
+    where: { weekStartWed: latest.weekStartWed },
+  })
+
+  const perVenue: LabourSection["perVenue"] = SINGLE_VENUES.map((v) => {
+    const r = rows.find((x) => x.venue === v)
+    if (!r)
+      return {
+        venue: VENUE_LABEL[v],
+        revenueExGst: null,
+        grossWages: 0,
+        overallPct: null,
+        departmentGroups: [],
+      }
+    const rev = r.revenueExGst ? Number(r.revenueExGst) : null
+    const gross = Number(r.grossWages)
+    const overallPct = rev && rev > 0 ? (gross / rev) * 100 : null
+
+    const groups: LabourSection["perVenue"][number]["departmentGroups"] = []
+    const targets = (WAGE_TARGETS as Record<string, typeof WAGE_TARGETS["BURLEIGH"]>)[v]
+
+    function addGroup(
+      label: string,
+      dollars: number,
+      target: { min: number; max: number } | null
+    ) {
+      const pct = rev && rev > 0 ? (dollars / rev) * 100 : null
+      let status: "ok" | "amber" | "red" | "no-target" = "no-target"
+      if (pct != null && target) {
+        if (pct >= target.min && pct <= target.max) status = "ok"
+        else if (
+          pct < target.min - 0.5 ||
+          pct > target.max + 0.5
+        )
+          status = "red"
+        else status = "amber"
+      }
+      groups.push({ label, dollars, pct, target, status })
+    }
+
+    if (v === Venue.BURLEIGH) {
+      const chefsKp = Number(r.wagesChef ?? 0) + Number(r.wagesKp ?? 0)
+      const fohBar = Number(r.wagesFoh ?? 0) + Number(r.wagesBarista ?? 0)
+      const pastry = Number(r.wagesPastry ?? 0)
+      addGroup("Chefs + KP", chefsKp, targets?.chefsKp ?? null)
+      addGroup("FOH + Barista", fohBar, targets?.fohBarista ?? null)
+      addGroup("Pastry", pastry, targets?.pastry ?? null)
+    } else if (v === Venue.BEACH_HOUSE) {
+      const chefsKp = Number(r.wagesChef ?? 0) + Number(r.wagesKp ?? 0)
+      const foh = Number(r.wagesFoh ?? 0) + Number(r.wagesBarista ?? 0)
+      const pastry = Number(r.wagesPastry ?? 0)
+      addGroup("Chefs + KP", chefsKp, targets?.chefsKp ?? null)
+      addGroup("FOH (incl. Barista)", foh, targets?.foh ?? null)
+      addGroup("Pastry", pastry, targets?.pastry ?? null)
+    } else {
+      // Tea Garden — targets TBD per memory; just show raw groupings.
+      const chefsKp = Number(r.wagesChef ?? 0) + Number(r.wagesKp ?? 0)
+      const foh = Number(r.wagesFoh ?? 0) + Number(r.wagesBarista ?? 0)
+      const pastry = Number(r.wagesPastry ?? 0)
+      addGroup("Chefs + KP", chefsKp, null)
+      addGroup("FOH (incl. Barista)", foh, null)
+      if (pastry > 0) addGroup("Pastry", pastry, null)
+    }
+
+    return {
+      venue: VENUE_LABEL[v],
+      revenueExGst: rev,
+      grossWages: gross,
+      overallPct,
+      departmentGroups: groups,
+    }
+  })
+
+  return { weekStartWed: dateKey(latest.weekStartWed), perVenue }
+}
+
+async function buildTopSellers(
+  week: MonSunWeek
+): Promise<TopSellersSection> {
+  const [thisWeekRows, lastWeekRows] = await Promise.all([
+    db.dailySales.findMany({
+      where: { date: { gte: week.start, lte: week.end } },
+      select: {
+        venue: true,
+        menuItemName: true,
+        quantitySold: true,
+        revenue: true,
+      },
+    }),
+    db.dailySales.findMany({
+      where: {
+        date: {
+          gte: new Date(week.start.getTime() - 7 * 86400000),
+          lte: new Date(week.end.getTime() - 7 * 86400000),
+        },
+      },
+      select: { venue: true, menuItemName: true, quantitySold: true },
+    }),
+  ])
+
+  type Agg = { qty: number; revenue: number }
+  const perVenueOut = SINGLE_VENUES.map((v) => {
+    const tw = new Map<string, Agg>()
+    for (const r of thisWeekRows.filter((x) => x.venue === v)) {
+      const cur = tw.get(r.menuItemName) ?? { qty: 0, revenue: 0 }
+      cur.qty += r.quantitySold
+      cur.revenue += Number(r.revenue)
+      tw.set(r.menuItemName, cur)
+    }
+    const lw = new Map<string, number>()
+    for (const r of lastWeekRows.filter((x) => x.venue === v)) {
+      lw.set(r.menuItemName, (lw.get(r.menuItemName) ?? 0) + r.quantitySold)
+    }
+    const byQuantity = Array.from(tw.entries())
+      .map(([name, a]) => ({ name, qty: a.qty, revenue: a.revenue }))
+      .sort((a, b) => b.qty - a.qty)
+      .slice(0, 10)
+    const byRevenue = Array.from(tw.entries())
+      .map(([name, a]) => ({ name, qty: a.qty, revenue: a.revenue }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10)
+
+    const lastTopNames = new Set(
+      Array.from(lw.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([n]) => n)
+    )
+    const risers = byQuantity
+      .filter((x) => !lastTopNames.has(x.name))
+      .slice(0, 5)
+      .map((x) => x.name)
+
+    return {
+      venue: VENUE_LABEL[v],
+      byQuantity,
+      byRevenue,
+      risers,
+    }
+  })
+
+  return { perVenue: perVenueOut }
+}
+
+async function buildSales(week: MonSunWeek): Promise<SalesSection> {
+  const lastWeekStart = new Date(week.start.getTime() - 7 * 86400000)
+  const lastWeekEnd = new Date(week.end.getTime() - 7 * 86400000)
+
+  const [thisWeekSummaries, lastWeekSummaries] = await Promise.all([
+    db.dailySalesSummary.findMany({
+      where: { date: { gte: week.start, lte: week.end } },
+      select: { venue: true, totalRevenueExGst: true },
+    }),
+    db.dailySalesSummary.findMany({
+      where: { date: { gte: lastWeekStart, lte: lastWeekEnd } },
+      select: { venue: true, totalRevenueExGst: true },
+    }),
+  ])
+
+  const sumBy = (rows: typeof thisWeekSummaries, v?: Venue) =>
+    rows
+      .filter((r) => (v ? r.venue === v : true))
+      .reduce((s, r) => s + Number(r.totalRevenueExGst), 0)
+
+  const perVenue = SINGLE_VENUES.map((v) => {
+    const thisW = sumBy(thisWeekSummaries, v)
+    const lastW = sumBy(lastWeekSummaries, v)
+    return {
+      venue: VENUE_LABEL[v],
+      thisWeek: thisW,
+      lastWeek: lastW,
+      wowPct: lastW > 0 ? ((thisW - lastW) / lastW) * 100 : null,
+    }
+  })
+
+  const totalThisWeek = sumBy(thisWeekSummaries)
+  const totalLastWeek = sumBy(lastWeekSummaries)
+
+  return {
+    totalThisWeek,
+    totalLastWeek,
+    wowChangePct:
+      totalLastWeek > 0
+        ? ((totalThisWeek - totalLastWeek) / totalLastWeek) * 100
+        : null,
+    perVenue,
+  }
+}
+
+function truncate(s: string, n: number): string {
+  return s.length > n ? s.slice(0, n) + "…" : s
+}
+
+export async function buildWeeklyDigestSnapshot(
+  now = new Date()
+): Promise<WeeklyDigestSnapshot> {
+  const week = lastCompletedMonSun(now)
+  const [reviews, priceSpikes, wastage, cogs, labour, topSellers, sales] =
+    await Promise.all([
+      buildReviewsSection(week),
+      buildPriceSpikes(week),
+      buildWastage(week),
+      buildCogs(),
+      buildLabour(),
+      buildTopSellers(week),
+      buildSales(week),
+    ])
+
+  return {
+    weekStart: week.startKey,
+    weekEnd: week.endKey,
+    labourWeekStart: labour.weekStartWed,
+    labourWeekEnd: labour.weekStartWed
+      ? dateKey(new Date(new Date(labour.weekStartWed).getTime() + 6 * 86400000))
+      : null,
+    reviews,
+    priceSpikes,
+    wastage,
+    cogs,
+    labour,
+    topSellers,
+    sales,
+  }
+}

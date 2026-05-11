@@ -12,15 +12,18 @@ import { getOverdueChecklists } from "@/lib/actions/checklist-alerts"
 import { getLiveWeekLabourSnapshot } from "@/lib/actions/labour"
 import { DashboardOpsPanel } from "@/components/dashboard-ops-panel"
 import { DashboardHighlights } from "@/components/dashboard-highlights"
+import { WeeklyDigestPanel } from "@/components/weekly-digest-panel"
+import { db } from "@/lib/db"
 
 export default async function DashboardPage() {
-  const [stats, dailyReport, checklistSummary, overdue, labour, highlights, ...snapshots] = await Promise.all([
+  const [stats, dailyReport, checklistSummary, overdue, labour, highlights, latestDigest, ...snapshots] = await Promise.all([
     getDashboardStats(),
     getLatestDailyReport(),
     getDailySummaryData(),
     getOverdueChecklists(),
     getLiveWeekLabourSnapshot(),
     getDashboardHighlights(),
+    db.weeklyDigest.findFirst({ orderBy: { weekStart: "desc" } }),
     ...SINGLE_VENUES.map((v) => getVenueSalesSnapshot(v)),
   ])
 
@@ -42,6 +45,9 @@ export default async function DashboardPage() {
 
       {/* Sales · Waste · Supplier spike */}
       <DashboardHighlights data={highlights} />
+
+      {/* Last Friday's weekly digest (inline preview) */}
+      {latestDigest && <WeeklyDigestPanel digest={latestDigest} />}
 
       {/* Lightspeed end-of-day report (mirrors the emailed PDF sections) */}
       <DailyReportSection data={dailyReport} />
