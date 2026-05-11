@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import type { Dish, PriceHistory, Ingredient } from "@/generated/prisma/client"
 import { SINGLE_VENUES, VENUE_SHORT_LABEL, type SingleVenue } from "@/lib/venues"
 import { startOfTarteWeekUtc } from "@/lib/dates"
+import { buildCanonicalizer } from "@/lib/wastage/canonical"
 
 export interface DashboardHighlights {
   // --- Sales today vs forecast (week-prorated) -----------------------
@@ -63,6 +64,8 @@ export async function getDashboardHighlights(): Promise<DashboardHighlights> {
     thisWeekWaste,
     lastWeekWaste,
     supplierLines,
+    allDishes,
+    allPreps,
   ] = await Promise.all([
     db.dailySalesSummary.findMany({
       where: { date: todayStart },
@@ -86,7 +89,11 @@ export async function getDashboardHighlights(): Promise<DashboardHighlights> {
       },
       orderBy: { weekStartWed: "asc" },
     }),
+    db.dish.findMany({ select: { name: true } }),
+    db.preparation.findMany({ select: { name: true } }),
   ])
+
+  const canon = buildCanonicalizer(allDishes, allPreps)
 
   // --- Sales today vs daily target -----------------------------------
   const todayByVenue = new Map<SingleVenue, number>()
@@ -127,9 +134,10 @@ export async function getDashboardHighlights(): Promise<DashboardHighlights> {
       : null
   const itemMap = new Map<string, { cost: number; venue: string }>()
   for (const e of thisWeekWaste) {
-    const cur = itemMap.get(e.itemName) ?? { cost: 0, venue: e.venue }
+    const name = canon(e.itemName)
+    const cur = itemMap.get(name) ?? { cost: 0, venue: e.venue }
     cur.cost += Number(e.estimatedCost)
-    itemMap.set(e.itemName, cur)
+    itemMap.set(name, cur)
   }
   const topItemEntry = Array.from(itemMap.entries()).sort(
     (a, b) => b[1].cost - a[1].cost

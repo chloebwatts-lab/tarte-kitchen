@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import Decimal from "decimal.js"
 import { Venue, WasteReason } from "@/generated/prisma"
 import { SINGLE_VENUES, VENUE_SHORT_LABEL, type SingleVenue } from "@/lib/venues"
+import { buildCanonicalizer } from "@/lib/wastage/canonical"
 
 // ============================================================
 // WASTE ENTRY CRUD
@@ -170,6 +171,8 @@ export async function getWasteStats(
     revenueThisWeek,
     revenueLastWeek,
     topSellersThisWeek,
+    allDishes,
+    allPreps,
   ] = await Promise.all([
     db.wasteEntry.findMany({
       where: { ...venueFilter, date: { gte: thisWeekStart } },
@@ -202,7 +205,11 @@ export async function getWasteStats(
       orderBy: { _sum: { revenue: "desc" } },
       take: 30,
     }),
+    db.dish.findMany({ select: { name: true } }),
+    db.preparation.findMany({ select: { name: true } }),
   ])
+
+  const canon = buildCanonicalizer(allDishes, allPreps)
 
   // Total waste cost this week
   const totalWasteCost = thisWeekEntries.reduce(
@@ -310,13 +317,16 @@ export async function getWasteStats(
     }
   })
 
-  // Top wasted items (ranked list)
+  // Top wasted items (ranked list) — group by canonical name so the same
+  // physical item under different aliases (e.g. "Croissant - Almond" and
+  // "Almond Croissant - Each") rolls up into one row.
   const itemStats = new Map<string, { cost: number; count: number }>()
   for (const e of thisWeekEntries) {
-    const s = itemStats.get(e.itemName) ?? { cost: 0, count: 0 }
+    const name = canon(e.itemName)
+    const s = itemStats.get(name) ?? { cost: 0, count: 0 }
     s.cost += Number(e.estimatedCost)
     s.count++
-    itemStats.set(e.itemName, s)
+    itemStats.set(name, s)
   }
   const topWastedItems = Array.from(itemStats.entries())
     .map(([name, { cost, count }]) => ({ name, cost: Math.round(cost * 100) / 100, count }))
@@ -500,24 +510,29 @@ export async function getWasteInsights(): Promise<WasteInsight[]> {
   const fourWeeksAgo = new Date(now)
   fourWeeksAgo.setDate(now.getDate() - 28)
 
-  const [wasteEntries, salesData] = await Promise.all([
+  const [wasteEntries, salesData, allDishes, allPreps] = await Promise.all([
     db.wasteEntry.findMany({
       where: { date: { gte: fourWeeksAgo } },
     }),
     db.dailySales.findMany({
       where: { date: { gte: fourWeeksAgo } },
     }),
+    db.dish.findMany({ select: { name: true } }),
+    db.preparation.findMany({ select: { name: true } }),
   ])
+
+  const canon = buildCanonicalizer(allDishes, allPreps)
 
   const insights: WasteInsight[] = []
   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
   // --- Rule 1: item wasted >5% of its own sales revenue ------------------
   // Actionable ask: cut its prep quantity by that %. Projected saving = the
-  // waste cost itself.
+  // waste cost itself. Both sides keyed by canonical name so a waste row on
+  // "Almond Croissant - Each" lines up with sales on "Croissant - Almond".
   const itemWaste = new Map<string, { waste: number; venue: string; days: Set<number> }>()
   for (const e of wasteEntries) {
-    const key = `${e.itemName}|${e.venue}`
+    const key = `${canon(e.itemName)}|${e.venue}`
     const existing = itemWaste.get(key) ?? { waste: 0, venue: e.venue, days: new Set<number>() }
     existing.waste += Number(e.estimatedCost)
     existing.days.add(e.date.getDay())
@@ -525,7 +540,7 @@ export async function getWasteInsights(): Promise<WasteInsight[]> {
   }
   const itemSalesRevenue = new Map<string, number>()
   for (const s of salesData) {
-    const key = `${s.menuItemName}|${s.venue}`
+    const key = `${canon(s.menuItemName)}|${s.venue}`
     itemSalesRevenue.set(key, (itemSalesRevenue.get(key) ?? 0) + Number(s.revenue))
   }
   for (const [key, data] of itemWaste) {
@@ -774,9 +789,16 @@ export async function getWasteFormItems() {
     }),
   ])
 
+  // Frequency boost spans every alias of an item — "Croissant - Almond" and
+  // "Almond Croissant - Each" both bump the same dish/prep up the search list.
+  const canon = buildCanonicalizer(
+    dishes.map((d) => ({ name: d.name })),
+    preps.map((p) => ({ name: p.name })),
+  )
   const useCount = new Map<string, number>()
   for (const r of recentWaste) {
-    useCount.set(r.itemName, r._count.itemName)
+    const k = canon(r.itemName)
+    useCount.set(k, (useCount.get(k) ?? 0) + r._count.itemName)
   }
 
   return {
@@ -787,7 +809,7 @@ export async function getWasteFormItems() {
       costPerUnit: Number(d.totalCost),
       type: "dish" as const,
       category: d.menuCategory,
-      recentUseCount: useCount.get(d.name) ?? 0,
+      recentUseCount: useCount.get(canon(d.name)) ?? 0,
     })),
     ingredients: ingredients.map((i) => {
       const price = new Decimal(i.purchasePrice)
@@ -805,7 +827,7 @@ export async function getWasteFormItems() {
         category: i.category,
         baseUnitType: i.baseUnitType,
         gramsPerUnit: i.gramsPerUnit != null ? Number(i.gramsPerUnit) : null,
-        recentUseCount: useCount.get(i.name) ?? 0,
+        recentUseCount: useCount.get(canon(i.name)) ?? 0,
       }
     }),
     preps: preps.map((p) => ({
@@ -815,7 +837,7 @@ export async function getWasteFormItems() {
       costPerGram: Number(p.costPerGram),
       costPerServe: Number(p.costPerServe),
       type: "prep" as const,
-      recentUseCount: useCount.get(p.name) ?? 0,
+      recentUseCount: useCount.get(canon(p.name)) ?? 0,
     })),
   }
 }

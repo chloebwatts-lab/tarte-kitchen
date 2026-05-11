@@ -3,6 +3,7 @@
 import { db } from "@/lib/db"
 import { Venue, WasteReason } from "@/generated/prisma"
 import { SINGLE_VENUES } from "@/lib/venues"
+import { buildCanonicalizer } from "@/lib/wastage/canonical"
 
 // ============================================================================
 // Types
@@ -109,6 +110,12 @@ export async function getWastageAnalytics(params: {
     where: { ...venueFilter, date: { gte: start } },
   })
 
+  const [allDishes, allPreps] = await Promise.all([
+    db.dish.findMany({ select: { name: true } }),
+    db.preparation.findMany({ select: { name: true } }),
+  ])
+  const canon = buildCanonicalizer(allDishes, allPreps)
+
   // ---------- Totals ----------
   const totalCost = entries.reduce((s, e) => s + Number(e.estimatedCost), 0)
   const totalEntries = entries.length
@@ -212,9 +219,12 @@ export async function getWastageAnalytics(params: {
     }
   >()
   for (const e of entries) {
-    const key = e.ingredientId ?? e.dishId ?? e.itemName
+    // Prefer FK identity, but free-text rows fall back to the canonical name
+    // so "Almond Croissant - Each" lines up with "Croissant - Almond".
+    const display = canon(e.itemName)
+    const key = e.ingredientId ?? e.dishId ?? display
     const existing = itemMap.get(key) ?? {
-      itemName: e.itemName,
+      itemName: display,
       cost: 0,
       quantity: 0,
       unit: e.unit,
@@ -242,7 +252,7 @@ export async function getWastageAnalytics(params: {
   const recentMap = new Map<string, number>()
   const priorMap = new Map<string, number>()
   for (const e of entries) {
-    const key = e.itemName
+    const key = canon(e.itemName)
     const cost = Number(e.estimatedCost)
     if (e.date >= recentStart) {
       recentMap.set(key, (recentMap.get(key) ?? 0) + cost)
