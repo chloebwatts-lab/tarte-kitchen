@@ -101,10 +101,11 @@ function calcCost(item: FormItem, qty: number, unit: string): number {
 function defaultUnit(item: FormItem): string {
   if (item.type === "dish") return "ea"
   if (item.type === "prep") {
-    // Only default to "serves" when the recipe actually yields discrete
-    // serves — otherwise go with the yield unit (g / ml) so a "1" entry
-    // means 1 gram, not $0.01 of a 750g hollandaise batch.
+    // Match the yield unit so a "1" entry means one piece for an
+    // ea-yielding recipe (mini cookie, scone), one serve for a serve-
+    // yielding recipe, and one gram/ml for bulk recipes (hollandaise).
     if (item.yieldUnit === "serves") return "serves"
+    if (item.yieldUnit === "ea") return "ea"
     if (item.yieldUnit === "ml" || item.yieldUnit === "l") return "ml"
     return "g"
   }
@@ -115,6 +116,7 @@ function availableUnits(item: FormItem): string[] {
   if (item.type === "dish") return ["ea"]
   if (item.type === "prep") {
     if (item.yieldUnit === "serves") return ["serves", "g", "kg"]
+    if (item.yieldUnit === "ea") return ["ea", "g", "kg"]
     if (item.yieldUnit === "ml" || item.yieldUnit === "l") return ["ml", "l", "g", "kg"]
     return ["g", "kg"]
   }
