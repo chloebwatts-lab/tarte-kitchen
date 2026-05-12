@@ -73,9 +73,11 @@ export function WeeklyDigestPanel({ digest }: { digest: DigestRow }) {
         <summary className="cursor-pointer text-xs font-medium text-emerald-700 hover:underline">
           Read the full digest
         </summary>
-        <pre className="mt-3 max-h-[480px] overflow-auto whitespace-pre-wrap rounded-md bg-stone-50 p-3 text-xs leading-relaxed text-stone-700">
-          {digest.body}
-        </pre>
+        {/* body is generated server-side HTML from our own renderer — safe to inject */}
+        <div
+          className="mt-3 max-h-[640px] overflow-auto rounded-md bg-stone-50 p-3"
+          dangerouslySetInnerHTML={{ __html: digest.body }}
+        />
       </details>
     </section>
   )

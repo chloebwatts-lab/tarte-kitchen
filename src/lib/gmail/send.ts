@@ -58,6 +58,71 @@ export async function sendEmail(params: {
   }
 }
 
+/**
+ * Send a multipart/alternative email with both an HTML body and a
+ * plain-text fallback. Use for richly-formatted reports (weekly digest,
+ * etc.) — clients that can't render HTML get the text version.
+ */
+export async function sendHtmlEmail(params: {
+  to: string | string[]
+  subject: string
+  html: string
+  text: string
+}) {
+  const connection = await getActiveGmailConnection()
+  if (!connection) {
+    throw new Error("No Gmail connection — connect in Settings → Integrations")
+  }
+
+  const accessToken = await getValidGmailAccessToken()
+  const toList = Array.isArray(params.to) ? params.to.join(", ") : params.to
+  const boundary = `tarte_${Date.now().toString(36)}_${Math.random()
+    .toString(36)
+    .slice(2)}`
+
+  const raw = [
+    `To: ${toList}`,
+    `From: ${connection.email}`,
+    `Subject: ${params.subject}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    ``,
+    `--${boundary}`,
+    `Content-Type: text/plain; charset="UTF-8"`,
+    `Content-Transfer-Encoding: 7bit`,
+    ``,
+    params.text,
+    ``,
+    `--${boundary}`,
+    `Content-Type: text/html; charset="UTF-8"`,
+    `Content-Transfer-Encoding: 7bit`,
+    ``,
+    params.html,
+    ``,
+    `--${boundary}--`,
+    ``,
+  ].join("\r\n")
+
+  const base64 = Buffer.from(raw, "utf-8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "")
+
+  const res = await fetch(`${GMAIL_API}/messages/send`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ raw: base64 }),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Gmail HTML send failed (${res.status}): ${text}`)
+  }
+}
+
 export async function sendFoodSafetyEmail(params: {
   venue: Venue
   templateName: string

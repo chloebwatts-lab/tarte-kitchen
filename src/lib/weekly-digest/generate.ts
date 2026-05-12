@@ -1,83 +1,129 @@
 /**
- * Friday weekly digest — Claude turns the aggregator snapshot into a
- * single phone-readable Markdown email for Chloe.
+ * Friday weekly digest — produces a polished HTML email for Chloe.
  *
- * The aggregator does the maths; Claude does the narrative + prioritisation.
- * Tone: lead with substance, plain English, specific numbers, no filler.
- * Negative-news-first per section if applicable.
+ * Two-stage design:
+ *   1. Aggregator (this file's `buildWeeklyDigestSnapshot`) does the maths.
+ *   2. Claude generates ONLY narrative bits (headline + per-section
+ *      subtitles + action items) as JSON. The renderer
+ *      (`html-renderer.ts`) lays out the actual email using the
+ *      structured data, so the layout is reliable and the AI never
+ *      hand-writes tables/HTML.
+ *
+ * Recipient is owner-only — never accounts@. See tarte_recipients.md.
  */
 
 import Anthropic from "@anthropic-ai/sdk"
 import { db } from "@/lib/db"
-import { sendEmail } from "@/lib/gmail/send"
+import { sendHtmlEmail } from "@/lib/gmail/send"
 import {
   buildWeeklyDigestSnapshot,
   type WeeklyDigestSnapshot,
 } from "./aggregator"
+import {
+  renderDigestHtml,
+  renderDigestText,
+  type DigestNarrative,
+} from "./html-renderer"
 
-const SYSTEM_PROMPT = `You write Tarte Kitchen's Friday morning business digest. Recipient: Chloe (owner), reads it on her phone before opening Monday.
+const NARRATIVE_SYSTEM = `You write the narrative bits for Tarte Kitchen's Friday weekly digest. The renderer lays out tables, tiles and structure separately — your job is JUST the prose. Output strict JSON only — no preamble, no code fences.
 
-Output format — Markdown only, no preamble, no code fences.
+Schema:
+{
+  "headline": string,           // 1-2 sentences, lead with the single most important thing to act on
+  "sectionNotes": {
+    "sales"?: string,           // 1-2 sentence interpretation, e.g. "Burleigh down 7% on quieter weekday mornings"
+    "wages"?: string,
+    "cogs"?: string,
+    "wastage"?: string,
+    "prices"?: string,
+    "topSellers"?: string,
+    "reviews"?: string
+  },
+  "actionItems": string[]       // 3-6 concrete actions ranked by impact
+}
 
-Required sections, in this order:
+Tone rules:
+- Owner-to-owner. Confident, direct, plain English. No "great week!" filler.
+- Reference specific numbers from the data (the renderer is already showing tables — your prose should call out the most important number in each section).
+- If a section has no data, set its note to a short explanation ("No POS sync this week — labour ratio can't be cross-checked.") so the reader knows why it's empty rather than guessing.
+- Negative news first within each section if relevant.
+- Phone-readable: keep each section note under ~30 words. Headline under 50.
+- Action items: each one specific and doable this week (e.g. "Re-quote olive oil — Bidfood up 18% since April"). Avoid generic advice ("monitor wastage closely").`
 
-# Tarte weekly — {weekStart} to {weekEnd}
-
-## Headline (2-3 lines)
-The single most important thing about the week. Lead with what to action, not what to celebrate.
-
-## Sales movement
-Total revenue this week vs last week (per venue + overall). Use exact $ figures. Flag any venue with >5% WoW drop.
-
-## Wages vs target
-For each venue, list each department group with $ and % of revenue, comparing to the target band. Use ✅ inside band, ⚠️ within 0.5pp, 🚩 outside. If a row is over by >1pp, add a one-line "Likely cause / fix" guess.
-
-## COGS
-Per venue COGS % vs target. Flag biggest category mover.
-
-## Wastage
-Total $ wasted this week, WoW delta. Top 5 items by $. Highlight any recurring offenders (3+ days same item).
-
-## Supplier price increases
-Top 5 increases this week by % or absolute $. If something jumped >15% flag for re-quote.
-
-## Top sellers
-Per venue, top 5 by quantity. Note any new entrants vs last week.
-
-## Google reviews
-Aggregate star + this-week star + count, per venue. List every ≤3★ review verbatim (short quote, attribute by first name). 2-3 lines on themes and any staff praise/criticism.
-
-## Action list (3-6 bullets)
-Concrete actions Chloe could take this week, ranked by impact.
-
-Rules:
-- Specific numbers always. Never "sales were good" — say "sales $32,180 ex-GST, up 4.2%".
-- Owner tone: confident, direct, no preachy framing.
-- If a section has no data, write "(no data this week)" rather than skip — keeps the structure stable.
-- Negative news first within each section if applicable.
-- Keep total length under ~2,500 words.`
-
-export async function generateWeeklyDigest(
+async function generateNarrative(
   snapshot: WeeklyDigestSnapshot
-): Promise<string> {
+): Promise<DigestNarrative> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   const res = await client.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 4000,
-    system: SYSTEM_PROMPT,
+    max_tokens: 1500,
+    system: NARRATIVE_SYSTEM,
     messages: [
       {
         role: "user",
-        content: `Here is this week's data snapshot. Generate the Friday digest:\n\n${JSON.stringify(snapshot, null, 2)}`,
+        content: `Generate the digest narrative for this snapshot:\n\n${JSON.stringify(snapshot, null, 2)}`,
       },
     ],
   })
-  const body = res.content
+
+  const raw = res.content
     .filter((b): b is Extract<typeof b, { type: "text" }> => b.type === "text")
     .map((b) => b.text)
     .join("")
     .trim()
-  return body
+
+  const stripped = raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/```\s*$/i, "")
+    .trim()
+  const first = stripped.indexOf("{")
+  const last = stripped.lastIndexOf("}")
+  const jsonText =
+    first >= 0 && last > first ? stripped.slice(first, last + 1) : stripped
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(jsonText)
+  } catch (e) {
+    throw new Error(
+      `Narrative returned non-JSON: ${raw.slice(0, 300)} (${(e as Error).message})`
+    )
+  }
+  return normaliseNarrative(parsed)
+}
+
+function normaliseNarrative(o: unknown): DigestNarrative {
+  const obj = (o ?? {}) as Record<string, unknown>
+  const sectionNotesRaw = (obj.sectionNotes ?? {}) as Record<string, unknown>
+  const noteKeys = [
+    "sales",
+    "wages",
+    "cogs",
+    "wastage",
+    "prices",
+    "topSellers",
+    "reviews",
+  ] as const
+  const sectionNotes: DigestNarrative["sectionNotes"] = {}
+  for (const k of noteKeys) {
+    const v = sectionNotesRaw[k]
+    if (typeof v === "string" && v.trim().length > 0) sectionNotes[k] = v.trim()
+  }
+  const actions = Array.isArray(obj.actionItems)
+    ? obj.actionItems
+        .filter((x): x is string => typeof x === "string")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+        .slice(0, 8)
+    : []
+  return {
+    headline:
+      typeof obj.headline === "string" && obj.headline.trim().length > 0
+        ? obj.headline.trim()
+        : "Weekly digest is below.",
+    sectionNotes,
+    actionItems: actions,
+  }
 }
 
 export interface RunWeeklyDigestArgs {
@@ -95,7 +141,6 @@ export async function runWeeklyDigest(args: RunWeeklyDigestArgs): Promise<{
   reused: boolean
 }> {
   const snapshot = await buildWeeklyDigestSnapshot(args.now)
-
   const weekStartDate = new Date(`${snapshot.weekStart}T00:00:00Z`)
   const weekEndDate = new Date(`${snapshot.weekEnd}T00:00:00Z`)
 
@@ -105,9 +150,9 @@ export async function runWeeklyDigest(args: RunWeeklyDigestArgs): Promise<{
 
   let digest = existing
   if (!digest || args.forceRegenerate) {
-    const body = await generateWeeklyDigest(snapshot)
+    const narrative = await generateNarrative(snapshot)
+    const html = renderDigestHtml(snapshot, narrative)
 
-    // Per-venue overall labour % avg (skip nulls)
     const labourPcts = snapshot.labour.perVenue
       .map((v) => v.overallPct)
       .filter((x): x is number => x != null)
@@ -130,9 +175,10 @@ export async function runWeeklyDigest(args: RunWeeklyDigestArgs): Promise<{
         : null,
       wastageTotal: snapshot.wastage.totalDollarsThisWeek,
       priceSpikeCount: snapshot.priceSpikes.count,
-      body,
-      // Prisma 7 accepts plain JSON for Json fields
-      sourceJson: snapshot as unknown as object,
+      body: html,
+      sourceJson: { snapshot, narrative } as unknown as object,
+      // Clear the emailedAt so the new (regenerated) digest gets re-sent.
+      ...(args.forceRegenerate ? { emailedTo: null, emailedAt: null } : {}),
     }
 
     digest = existing
@@ -143,10 +189,19 @@ export async function runWeeklyDigest(args: RunWeeklyDigestArgs): Promise<{
   let emailedTo = digest.emailedTo
   let emailedAt = digest.emailedAt
   if (!digest.emailedAt && args.recipient) {
-    await sendEmail({
+    const stored = (digest.sourceJson ?? null) as {
+      snapshot?: WeeklyDigestSnapshot
+      narrative?: DigestNarrative
+    } | null
+    const fallbackText = stored?.snapshot && stored?.narrative
+      ? renderDigestText(stored.snapshot, stored.narrative)
+      : "Open https://kitchen.tarte.com.au/dashboard to view this week's digest."
+
+    await sendHtmlEmail({
       to: args.recipient,
-      subject: `Tarte weekly — ${snapshot.weekStart} to ${snapshot.weekEnd}`,
-      body: digest.body,
+      subject: `Tarte weekly — ${formatSubjectRange(snapshot.weekStart, snapshot.weekEnd)}`,
+      html: digest.body,
+      text: fallbackText,
     })
     const updated = await db.weeklyDigest.update({
       where: { id: digest.id },
@@ -164,4 +219,11 @@ export async function runWeeklyDigest(args: RunWeeklyDigestArgs): Promise<{
     emailedAt: emailedAt?.toISOString() ?? null,
     reused: !!existing && !args.forceRegenerate,
   }
+}
+
+function formatSubjectRange(start: string, end: string): string {
+  const s = new Date(`${start}T00:00:00`)
+  const e = new Date(`${end}T00:00:00`)
+  const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" }
+  return `${s.toLocaleDateString("en-AU", opts)} – ${e.toLocaleDateString("en-AU", opts)}`
 }
