@@ -49,7 +49,11 @@ function getKey(): string {
 }
 
 async function fetchPlaceWithReviews(placeId: string): Promise<RawPlace> {
-  const url = `${PLACES_API_BASE}/places/${encodeURIComponent(placeId)}`
+  // reviewsSort=NEWEST — without this Google returns "most relevant"
+  // reviews, which means a 3-month-old viral review can stay in the
+  // top 5 forever and brand-new reviews never surface. We always want
+  // the freshest 5 so the daily sync actually picks up new arrivals.
+  const url = `${PLACES_API_BASE}/places/${encodeURIComponent(placeId)}?reviewsSort=NEWEST`
   const fields = [
     "id",
     "displayName",

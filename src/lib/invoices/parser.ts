@@ -82,7 +82,6 @@ export async function parseInvoicePdf(pdfBuffer: Buffer): Promise<ParsedInvoice>
           },
         ],
       },
-      { role: "assistant", content: "{" },
     ],
   })
 
@@ -91,9 +90,9 @@ export async function parseInvoicePdf(pdfBuffer: Buffer): Promise<ParsedInvoice>
     throw new Error("No text response from Claude API")
   }
 
-  // Re-prepend the brace we prefilled, then defensively strip fences and
-  // recover from any leaked preamble by slicing the outermost {...}.
-  let jsonStr = ("{" + textBlock.text).trim()
+  // Sonnet 4.6 rejects assistant-message prefill; rely on the system
+  // prompt + outermost-brace extraction below.
+  let jsonStr = textBlock.text.trim()
   if (jsonStr.startsWith("```")) {
     jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "")
   }
