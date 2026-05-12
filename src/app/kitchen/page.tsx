@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
-import { ArrowRight, ClipboardCheck, Croissant, ShieldCheck, Snowflake, SprayCan, Thermometer } from "lucide-react"
+import { ArrowRight, ClipboardCheck, ClipboardList, Croissant, ShieldCheck, Snowflake, SprayCan, Thermometer } from "lucide-react"
 import { listChecklistTemplates, type ChecklistTemplateSummary } from "@/lib/actions/checklists"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { KitchenStepper } from "@/components/kitchen/KitchenStepper"
@@ -318,7 +318,13 @@ function CategoryPicker({
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <SecondaryTile
+          title="Prep walk-through"
+          subtitle="Tomorrow's prep, one tap at a time."
+          icon={<ClipboardList className="h-6 w-6" strokeWidth={1.8} />}
+          href={`/kitchen/prep?venue=${venue}`}
+        />
         <SecondaryTile
           title="Pastry rotation"
           subtitle="Log prepared / sold / discarded per bake."
