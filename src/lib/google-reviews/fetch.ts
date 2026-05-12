@@ -49,11 +49,12 @@ function getKey(): string {
 }
 
 async function fetchPlaceWithReviews(placeId: string): Promise<RawPlace> {
-  // reviewsSort=NEWEST — without this Google returns "most relevant"
-  // reviews, which means a 3-month-old viral review can stay in the
-  // top 5 forever and brand-new reviews never surface. We always want
-  // the freshest 5 so the daily sync actually picks up new arrivals.
-  const url = `${PLACES_API_BASE}/places/${encodeURIComponent(placeId)}?reviewsSort=NEWEST`
+  // The Places API v1 doesn't expose a review-sort param — Google always
+  // returns its top-5 "most relevant" reviews, which means a viral old
+  // review can squat the top of the list and brand-new reviews may not
+  // surface until they outrank it. Limitation we live with for now —
+  // if needed we can backfill history via Outscraper.
+  const url = `${PLACES_API_BASE}/places/${encodeURIComponent(placeId)}`
   const fields = [
     "id",
     "displayName",
