@@ -37,10 +37,24 @@ export function PrepWalkthrough({
   const finished = remaining === 0 && lines.length > 0
 
   if (lines.length === 0) {
+    // Two reasons we'd land here: (a) genuinely nothing forecast (rare —
+    // would imply zero same-weekday sales in the last 8 weeks), or (b)
+    // the upstream sales feed is empty for the lookback window, which
+    // is the usual culprit and the user can't fix from this screen.
+    const looksLikeDataGap = sheet.unmatchedForecast.length === 0
     return (
       <EmptyState
-        message="No preps needed for this date — the forecast came back empty."
         venue={venue}
+        title={
+          looksLikeDataGap
+            ? "No sales data for the forecast window"
+            : "Nothing to prep this date"
+        }
+        body={
+          looksLikeDataGap
+            ? "The prep sheet builds from the last 4 same-weekday sales. No matching sales are in the database for the lookback window — usually means the POS sync is behind. Ask a manager to check Lightspeed sync."
+            : "No same-weekday sales matched a preparation. Either nothing on the menu uses a tracked prep, or component recipes need to be filled in."
+        }
       />
     )
   }
@@ -395,20 +409,25 @@ function FinishedState({
 }
 
 function EmptyState({
-  message,
+  title,
+  body,
   venue,
 }: {
-  message: string
+  title: string
+  body: string
   venue: Venue
 }) {
   return (
     <div className="rounded-[24px] border border-dashed border-[var(--tk-line)] bg-white p-10 text-center">
-      <p className="text-[15px] font-semibold text-[var(--tk-charcoal)]">
-        {message}
+      <p className="text-[16px] font-semibold text-[var(--tk-charcoal)]">
+        {title}
+      </p>
+      <p className="mx-auto mt-3 max-w-xl text-[14px] leading-snug text-[var(--tk-ink-soft)]">
+        {body}
       </p>
       <a
         href={`/kitchen?venue=${venue}`}
-        className="mt-4 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[14px] font-medium text-white"
+        className="mt-5 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[14px] font-medium text-white"
         style={{ background: "var(--tk-charcoal)" }}
       >
         Back to kitchen
