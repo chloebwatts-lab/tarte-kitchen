@@ -283,31 +283,80 @@ async function buildReviewsSection(week: MonSunWeek): Promise<ReviewsSection> {
 }
 
 async function buildPriceSpikes(week: MonSunWeek): Promise<PriceSpikesSection> {
-  const history = await db.priceHistory.findMany({
-    where: { changedAt: { gte: week.start, lte: week.end } },
-    include: {
-      ingredient: { select: { name: true, supplier: { select: { name: true } } } },
+  // We query InvoiceLineItem (not PriceHistory) because PriceHistory only
+  // captures *applied* changes — i.e. ones a human clicked through in the
+  // suppliers UI. Most price changes sit pending review. For the digest
+  // we want everything the parser detected this week so Chloe sees the
+  // real movement, not just the rows already acknowledged.
+  //
+  // Each line has `priceChanged=true` when the invoice unit price
+  // differed from the matched ingredient's purchasePrice at parse time,
+  // and `currentPrice` stores what the previous master price was at that
+  // moment (despite the field name).
+  const lines = await db.invoiceLineItem.findMany({
+    where: {
+      priceChanged: true,
+      ingredientId: { not: null },
+      invoice: {
+        invoiceDate: { gte: week.start, lte: week.end },
+      },
     },
-    orderBy: { changedAt: "desc" },
+    include: {
+      ingredient: {
+        select: {
+          name: true,
+          supplier: { select: { name: true } },
+        },
+      },
+      invoice: {
+        select: { invoiceDate: true, supplierName: true },
+      },
+    },
+    take: 200,
   })
 
-  const items = history
-    .map((h) => {
-      const oldP = Number(h.oldPrice)
-      const newP = Number(h.newPrice)
-      const changePct = oldP > 0 ? ((newP - oldP) / oldP) * 100 : 0
-      return {
-        ingredient: h.ingredient.name,
-        supplier: h.ingredient.supplier?.name ?? null,
+  // Dedupe: a single ingredient may appear on multiple invoices the same
+  // week; keep the biggest absolute % move per ingredient.
+  const bestByIngredient = new Map<
+    string,
+    {
+      ingredient: string
+      supplier: string | null
+      oldPrice: number
+      newPrice: number
+      changePct: number
+      changedAt: string
+    }
+  >()
+  for (const l of lines) {
+    if (l.unitPrice == null || l.currentPrice == null) continue
+    const oldP = Number(l.currentPrice)
+    const newP = Number(l.unitPrice)
+    if (oldP <= 0) continue
+    const changePct = ((newP - oldP) / oldP) * 100
+    // Skip changes ≥200% — almost always a unit mismatch (case price vs
+    // single-unit price), not a real spike.
+    if (Math.abs(changePct) >= 200) continue
+    if (Math.abs(changePct) < 5) continue
+
+    const key = l.ingredientId ?? l.ingredient?.name ?? l.description
+    const existing = bestByIngredient.get(key)
+    if (!existing || Math.abs(changePct) > Math.abs(existing.changePct)) {
+      bestByIngredient.set(key, {
+        ingredient: l.ingredient?.name ?? l.description,
+        supplier:
+          l.ingredient?.supplier?.name ?? l.invoice?.supplierName ?? null,
         oldPrice: oldP,
         newPrice: newP,
         changePct,
-        changedAt: h.changedAt.toISOString(),
-      }
-    })
-    .filter((x) => Math.abs(x.changePct) >= 5)
+        changedAt: (l.invoice?.invoiceDate ?? new Date()).toISOString(),
+      })
+    }
+  }
+
+  const items = Array.from(bestByIngredient.values())
     .sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct))
-    .slice(0, 10)
+    .slice(0, 12)
 
   return { count: items.length, items }
 }
