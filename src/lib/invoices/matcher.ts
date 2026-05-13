@@ -136,20 +136,64 @@ export async function matchLineItem(
     }
   }
 
-  // 4. Cross-supplier fuzzy — search the whole ingredient master list.
-  // Tighter threshold (0.28) so we don't match "Olive Oil Garlic" to
-  // every olive oil variant in the system; we want a clear winner.
-  // Uses module-level cache so we don't refetch + rebuild Fuse for
-  // every line item in the run.
+  // 4. Cross-supplier token-overlap match.
+  // For each ingredient, check whether ALL words in its name appear as
+  // tokens in the (normalised) description. This catches the common
+  // case where supplier descriptions add noise:
+  //   "ACAI MIX SCOOPABLE AMAZONIA 10kg" → ingredient "Acai"
+  //   "BAGUETTE Semi Sourdough 480g"     → ingredient "Baguette"
+  //   "ALMONDS RAW KERNELS"              → ingredient "Almonds"
+  //   "MILK Lab Coconut 1L"              → ingredient "Coconut milk"
+  // Whole-string fuzzy can't do this — too much noise dilutes the
+  // signal. Token-overlap is precise: every ingredient token must be
+  // present. Multi-word ingredients (e.g. "white chocolate") get
+  // preferred over single-word ("chocolate") because they're more
+  // specific — we rank by ingredient-name length.
   const normalised = normaliseDescription(invoiceDescription)
+  const descTokens = new Set(normalised.split(/\s+/).filter((t) => t.length >= 3))
+  if (descTokens.size === 0) return { matched: false }
+
   const { list, fuse } = await getAllIngredientsFuse()
   if (list.length === 0) return { matched: false }
 
+  let bestTokenMatch: { id: string; name: string; specificity: number } | null = null
+  for (const ing of list) {
+    const ingTokens = ing.name
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((t) => t.length >= 3)
+    if (ingTokens.length === 0) continue
+    // Every ingredient-name token must be present in the description.
+    const allPresent = ingTokens.every((t) => descTokens.has(t))
+    if (!allPresent) continue
+    // Specificity = sum of token lengths. "Rice vinegar" (12) beats
+    // "Rice" (4) when the description contains both.
+    const specificity = ingTokens.reduce((s, t) => s + t.length, 0)
+    if (!bestTokenMatch || specificity > bestTokenMatch.specificity) {
+      bestTokenMatch = { id: ing.id, name: ing.name, specificity }
+    }
+  }
+
+  if (bestTokenMatch) {
+    const newMapping = await db.supplierItemMapping.create({
+      data: {
+        supplierId,
+        ingredientId: bestTokenMatch.id,
+        invoiceDescription,
+      },
+    })
+    return {
+      matched: true,
+      ingredientId: bestTokenMatch.id,
+      mappingId: newMapping.id,
+    }
+  }
+
+  // 5. Cross-supplier fuzzy as a final fallback (tight threshold —
+  // typo recovery, not generic matching).
   const results = fuse.search(normalised)
   const top = results[0]
   if (top && top.score !== undefined && top.score < 0.28) {
-    // Auto-create the supplier mapping so the next invoice from this
-    // supplier matches instantly without going through fuzzy again.
     const newMapping = await db.supplierItemMapping.create({
       data: {
         supplierId,
