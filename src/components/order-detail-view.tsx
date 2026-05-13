@@ -24,6 +24,7 @@ import {
   updateOrderLines,
   submitOrder,
   cancelOrder,
+  sendOrderEmail,
 } from "@/lib/actions/orders"
 
 interface LocalLine {
@@ -67,6 +68,7 @@ export function OrderDetailView({ initial }: { initial: OrderDetail }) {
   )
   const [isPending, startTransition] = useTransition()
   const [copied, setCopied] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
 
   const status = initial.status
   const meta = STATUS_META[status] ?? STATUS_META.DRAFT
@@ -168,6 +170,26 @@ export function OrderDetailView({ initial }: { initial: OrderDetail }) {
       body: initial.emailBody,
     })
     window.location.href = `mailto:${initial.emailTo}?${params.toString()}`
+  }
+
+  function sendViaGmail() {
+    if (!initial.emailTo) return
+    const alreadySent = !!initial.emailSentAt
+    const confirmMsg = alreadySent
+      ? `Resend this order email to ${initial.emailTo}?`
+      : `Send this order email to ${initial.emailTo} now?`
+    if (!confirm(confirmMsg)) return
+    setSendError(null)
+    startTransition(async () => {
+      try {
+        await sendOrderEmail({ orderId: initial.id })
+        router.refresh()
+      } catch (err) {
+        setSendError(
+          err instanceof Error ? err.message : "Send failed — try again or copy/paste."
+        )
+      }
+    })
   }
 
   return (
@@ -283,12 +305,24 @@ export function OrderDetailView({ initial }: { initial: OrderDetail }) {
       {!canEdit && initial.emailBody && (
         <Card>
           <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="inline-flex items-center gap-1.5 text-sm font-medium">
                 <Mail className="h-4 w-4" />
                 Order email
+                {initial.emailSentAt && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Sent{" "}
+                    {new Date(initial.emailSentAt).toLocaleString("en-AU", {
+                      day: "numeric",
+                      month: "short",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                )}
               </CardTitle>
-              <div className="flex gap-1.5">
+              <div className="flex flex-wrap gap-1.5">
                 <button
                   onClick={copyEmailBody}
                   className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
@@ -299,16 +333,32 @@ export function OrderDetailView({ initial }: { initial: OrderDetail }) {
                 {initial.emailTo && (
                   <button
                     onClick={openMailto}
-                    className="inline-flex items-center gap-1 rounded-md bg-gray-900 px-2 py-1 text-xs font-medium text-white hover:bg-gray-800"
+                    className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
                   >
                     <Mail className="h-3 w-3" />
                     Open in mail
+                  </button>
+                )}
+                {initial.emailTo && (
+                  <button
+                    onClick={sendViaGmail}
+                    disabled={isPending}
+                    className="inline-flex items-center gap-1 rounded-md bg-gray-900 px-2 py-1 text-xs font-medium text-white hover:bg-gray-800 disabled:opacity-60"
+                  >
+                    <Send className="h-3 w-3" />
+                    {initial.emailSentAt ? "Resend via Gmail" : "Send via Gmail"}
                   </button>
                 )}
               </div>
             </div>
           </CardHeader>
           <CardContent>
+            {sendError && (
+              <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                <span className="font-medium">Gmail send failed:</span>{" "}
+                {sendError}
+              </div>
+            )}
             <div className="rounded-md border border-border bg-muted/30 p-3 text-xs">
               <div className="mb-2 grid grid-cols-[80px_1fr] gap-y-1">
                 <span className="text-muted-foreground">To</span>

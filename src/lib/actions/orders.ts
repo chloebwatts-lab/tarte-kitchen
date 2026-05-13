@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { Venue } from "@/generated/prisma"
 import { SINGLE_VENUES } from "@/lib/venues"
+import { sendEmail } from "@/lib/gmail/send"
 import Decimal from "decimal.js"
 
 // ============================================================================
@@ -37,6 +38,7 @@ export interface OrderDetail {
   emailSubject: string | null
   emailTo: string | null
   emailBody: string | null
+  emailSentAt: string | null
   submittedAt: string | null
   lines: {
     id: string
@@ -427,6 +429,7 @@ export async function getOrder(id: string): Promise<OrderDetail | null> {
     emailSubject: o.emailSubject,
     emailTo: o.emailTo,
     emailBody: o.emailBody,
+    emailSentAt: o.emailSentAt?.toISOString() ?? null,
     submittedAt: o.submittedAt?.toISOString() ?? null,
     lines: o.lines.map((l) => ({
       id: l.id,
@@ -585,4 +588,54 @@ export async function cancelOrder(orderId: string) {
   })
   revalidatePath("/orders")
   revalidatePath(`/orders/${orderId}`)
+}
+
+/**
+ * Send the snapshot email through the connected Gmail account.
+ *
+ * Separated from `submitOrder` deliberately. Submit marks the order
+ * SUBMITTED and freezes a snapshot of the body so it survives later
+ * line edits — that part can fire whether or not Gmail is reachable.
+ * Actually delivering the email is an explicit second click in the UI
+ * so a half-finished tap doesn't accidentally fire off to a real
+ * supplier, and so re-sends are possible after a Gmail outage.
+ *
+ * Idempotency: re-running this on an already-sent order just resends
+ * — `emailSentAt` is overwritten with the latest timestamp. If the
+ * caller doesn't want that, gate on `emailSentAt` in the UI before
+ * showing the button.
+ */
+export async function sendOrderEmail(params: { orderId: string }) {
+  const order = await db.purchaseOrder.findUnique({
+    where: { id: params.orderId },
+    select: {
+      id: true,
+      status: true,
+      emailSubject: true,
+      emailTo: true,
+      emailBody: true,
+    },
+  })
+  if (!order) throw new Error("Order not found")
+  if (order.status !== "SUBMITTED")
+    throw new Error("Only submitted orders can be emailed")
+  if (!order.emailTo)
+    throw new Error("No supplier email on file — set one in Suppliers first")
+  if (!order.emailSubject || !order.emailBody)
+    throw new Error("No email snapshot on file — re-submit the order to rebuild it")
+
+  await sendEmail({
+    to: order.emailTo,
+    subject: order.emailSubject,
+    body: order.emailBody,
+  })
+
+  await db.purchaseOrder.update({
+    where: { id: params.orderId },
+    data: { emailSentAt: new Date() },
+  })
+
+  revalidatePath("/orders")
+  revalidatePath(`/orders/${params.orderId}`)
+  return { to: order.emailTo, subject: order.emailSubject }
 }

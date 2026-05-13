@@ -1086,6 +1086,11 @@ model PurchaseOrder {
   emailSubject String?
   emailTo      String?
   emailBody    String?
+  /// Set when the snapshot was actually delivered via the Gmail
+  /// integration. Distinct from `submittedAt`: a SUBMITTED order whose
+  /// `emailSentAt` is null means the user still has to send the email
+  /// manually (copy/paste or mailto).
+  emailSentAt  DateTime?
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
