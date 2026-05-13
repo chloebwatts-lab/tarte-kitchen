@@ -76,11 +76,19 @@ export function SupplierDashboard({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Suppliers</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Invoice monitoring, price tracking, and supplier management
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Suppliers</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Invoice monitoring, price tracking, and supplier management
+          </p>
+        </div>
+        <a
+          href="/suppliers/replies"
+          className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+        >
+          Recent supplier replies →
+        </a>
       </div>
 
       {unacknowledgedCount > 0 && (
