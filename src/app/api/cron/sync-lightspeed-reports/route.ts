@@ -140,7 +140,9 @@ export async function GET(request: Request) {
     }
 
     const query = `${fromQuery} has:attachment filename:pdf${afterQuery}`
-    const messageRefs = await searchMessages(accessToken, query, 50)
+    // 500 cap — backfills can run over 6+ weeks of daily EOD emails.
+    // searchMessages paginates internally so this is safe.
+    const messageRefs = await searchMessages(accessToken, query, 500)
 
     let reportsIngested = 0
     const errors: string[] = []

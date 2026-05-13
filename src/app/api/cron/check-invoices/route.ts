@@ -140,7 +140,9 @@ export async function GET(request: Request) {
 
     const query = `${fromQuery} has:attachment filename:pdf${afterQuery}`
 
-    const messageRefs = await searchMessages(accessToken, query, 50)
+    // 500 cap — invoice volume can spike on Mondays / after backfills.
+    // searchMessages paginates internally so this is safe.
+    const messageRefs = await searchMessages(accessToken, query, 500)
 
     let invoicesProcessed = 0
     let priceChangesDetected = 0

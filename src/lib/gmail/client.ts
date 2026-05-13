@@ -37,25 +37,48 @@ export function getHeader(message: GmailMessage, name: string): string | undefin
   )?.value
 }
 
+/**
+ * Searches Gmail. `maxResults` is the hard cap on what we'll return —
+ * we paginate via Gmail's `nextPageToken` to collect up to that many
+ * messages. The 500-page per request hard cap from Gmail still applies
+ * per page, so for `maxResults=500` we make 1-5 round trips. Important
+ * for backfills: the previous "first 50 only" behaviour silently
+ * dropped older invoices when there were more than 50 unread.
+ */
 export async function searchMessages(
   accessToken: string,
   query: string,
   maxResults = 50
 ): Promise<Array<{ id: string; threadId: string }>> {
-  const url = new URL(`${GMAIL_API}/messages`)
-  url.searchParams.set("q", query)
-  url.searchParams.set("maxResults", String(maxResults))
+  const out: Array<{ id: string; threadId: string }> = []
+  let pageToken: string | undefined
 
-  const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  })
+  while (out.length < maxResults) {
+    const url = new URL(`${GMAIL_API}/messages`)
+    url.searchParams.set("q", query)
+    // Gmail's per-request max is 500; ask for what we need vs that cap.
+    const remaining = maxResults - out.length
+    url.searchParams.set("maxResults", String(Math.min(remaining, 500)))
+    if (pageToken) url.searchParams.set("pageToken", pageToken)
 
-  if (!res.ok) {
-    throw new Error(`Gmail search failed: ${res.status} ${await res.text()}`)
+    const res = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    if (!res.ok) {
+      throw new Error(`Gmail search failed: ${res.status} ${await res.text()}`)
+    }
+    const data = (await res.json()) as {
+      messages?: Array<{ id: string; threadId: string }>
+      nextPageToken?: string
+    }
+    if (data.messages?.length) {
+      out.push(...data.messages)
+    }
+    if (!data.nextPageToken || !data.messages?.length) break
+    pageToken = data.nextPageToken
   }
 
-  const data = await res.json()
-  return data.messages ?? []
+  return out.slice(0, maxResults)
 }
 
 export async function getMessage(
