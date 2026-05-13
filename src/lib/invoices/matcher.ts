@@ -11,6 +11,49 @@ interface NoMatch {
   matched: false
 }
 
+// ─── Cross-supplier ingredient cache ───────────────────────────────
+// The "all ingredients" lookup is the same for every line in a cron
+// run. Fetching it once per call (1000+ lines × 500 ingredients each)
+// is what OOMd the app during the rematch backfill. We cache the
+// snapshot + the built Fuse index for 60s — long enough to cover the
+// longest cron run, short enough that fresh ingredients added in the
+// UI show up reliably.
+
+interface AllIngredientCache {
+  list: Array<{
+    id: string
+    name: string
+    supplierProductCode: string | null
+  }>
+  fuse: Fuse<{ id: string; name: string; supplierProductCode: string | null }>
+  expiresAt: number
+}
+
+let allIngredientCache: AllIngredientCache | null = null
+
+async function getAllIngredientsFuse(): Promise<AllIngredientCache> {
+  const now = Date.now()
+  if (allIngredientCache && allIngredientCache.expiresAt > now) {
+    return allIngredientCache
+  }
+  const list = await db.ingredient.findMany({
+    select: { id: true, name: true, supplierProductCode: true },
+  })
+  const fuse = new Fuse(list, {
+    keys: ["name", "supplierProductCode"],
+    threshold: 0.28,
+    includeScore: true,
+    distance: 60,
+  })
+  allIngredientCache = { list, fuse, expiresAt: now + 60_000 }
+  return allIngredientCache
+}
+
+/** Expose for tests / hot-reload safety. */
+export function clearMatcherCache() {
+  allIngredientCache = null
+}
+
 /**
  * Maps invoice line descriptions to TK ingredients. Strategy is a
  * cascade — exact-mapped first, then fuzzy-mapped, then fuzzy against
@@ -96,18 +139,12 @@ export async function matchLineItem(
   // 4. Cross-supplier fuzzy — search the whole ingredient master list.
   // Tighter threshold (0.28) so we don't match "Olive Oil Garlic" to
   // every olive oil variant in the system; we want a clear winner.
+  // Uses module-level cache so we don't refetch + rebuild Fuse for
+  // every line item in the run.
   const normalised = normaliseDescription(invoiceDescription)
-  const allIngredients = await db.ingredient.findMany({
-    select: { id: true, name: true, supplierProductCode: true },
-  })
-  if (allIngredients.length === 0) return { matched: false }
+  const { list, fuse } = await getAllIngredientsFuse()
+  if (list.length === 0) return { matched: false }
 
-  const fuse = new Fuse(allIngredients, {
-    keys: ["name", "supplierProductCode"],
-    threshold: 0.28,
-    includeScore: true,
-    distance: 60,
-  })
   const results = fuse.search(normalised)
   const top = results[0]
   if (top && top.score !== undefined && top.score < 0.28) {

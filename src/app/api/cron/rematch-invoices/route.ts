@@ -21,68 +21,83 @@ export async function GET(req: NextRequest) {
     return new Response("Unauthorized", { status: 401 })
   }
   const url = new URL(req.url)
-  const limit = Math.max(
+  const totalLimit = Math.max(
     1,
-    Math.min(5000, Number(url.searchParams.get("limit") ?? "5000"))
+    Math.min(10000, Number(url.searchParams.get("limit") ?? "10000"))
   )
-
-  const unmatched = await db.invoiceLineItem.findMany({
-    where: { ingredientId: null },
-    include: {
-      invoice: { select: { supplierId: true } },
-    },
-    take: limit,
-  })
+  const batchSize = 200
 
   let attempted = 0
   let newlyMatched = 0
   let newPriceChanges = 0
   const errors: string[] = []
+  let processed = 0
 
-  for (const line of unmatched) {
-    if (!line.invoice?.supplierId) continue
-    attempted++
-    try {
-      const match = await matchLineItem(
-        line.description,
-        line.invoice.supplierId
-      )
-      if (!match.matched) continue
-      newlyMatched++
+  // Page through unmatched lines. Each batch fetches min(batchSize, remaining)
+  // and we advance a cursor by lineItem.id (cuid is lexicographically
+  // sortable so a simple `cursor` pagination keeps memory flat).
+  let cursor: string | undefined
+  while (processed < totalLimit) {
+    const remaining = totalLimit - processed
+    const take = Math.min(batchSize, remaining)
+    const batch = await db.invoiceLineItem.findMany({
+      where: { ingredientId: null },
+      include: { invoice: { select: { supplierId: true } } },
+      orderBy: { id: "asc" },
+      take,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+    })
+    if (batch.length === 0) break
 
-      let priceChanged = false
-      let currentPrice: number | null = null
-      if (line.unitPrice != null) {
-        const priceResult = await detectPriceChange(
-          match.ingredientId,
-          Number(line.unitPrice)
+    for (const line of batch) {
+      processed++
+      if (!line.invoice?.supplierId) continue
+      attempted++
+      try {
+        const match = await matchLineItem(
+          line.description,
+          line.invoice.supplierId
         )
-        if (priceResult.changed) {
-          priceChanged = true
-          currentPrice = priceResult.previousPrice
-          newPriceChanges++
-        }
-      }
+        if (!match.matched) continue
+        newlyMatched++
 
-      await db.invoiceLineItem.update({
-        where: { id: line.id },
-        data: {
-          ingredientId: match.ingredientId,
-          mappingId: match.mappingId,
-          priceChanged,
-          currentPrice,
-        },
-      })
-    } catch (e) {
-      errors.push(
-        `${line.id}: ${e instanceof Error ? e.message : String(e)}`
-      )
+        let priceChanged = false
+        let currentPrice: number | null = null
+        if (line.unitPrice != null) {
+          const priceResult = await detectPriceChange(
+            match.ingredientId,
+            Number(line.unitPrice)
+          )
+          if (priceResult.changed) {
+            priceChanged = true
+            currentPrice = priceResult.previousPrice
+            newPriceChanges++
+          }
+        }
+
+        await db.invoiceLineItem.update({
+          where: { id: line.id },
+          data: {
+            ingredientId: match.ingredientId,
+            mappingId: match.mappingId,
+            priceChanged,
+            currentPrice,
+          },
+        })
+      } catch (e) {
+        errors.push(
+          `${line.id}: ${e instanceof Error ? e.message : String(e)}`
+        )
+      }
     }
+
+    cursor = batch[batch.length - 1].id
+    if (batch.length < take) break
   }
 
   return Response.json({
     ok: true,
-    candidates: unmatched.length,
+    processed,
     attempted,
     newlyMatched,
     newPriceChanges,
