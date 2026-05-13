@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db"
 import { Venue } from "@/generated/prisma"
+import { currentTarteWeekRange, tarteWeekLabel, startOfTarteWeekUtc } from "@/lib/dates"
 
 export interface TopSeller {
   name: string
@@ -12,7 +13,13 @@ export interface TopSeller {
 export interface VenueSalesSnapshot {
   venue: Venue
   today: { revenueExGst: number; covers: number; averageSpend: number } | null
-  last7: { revenueExGst: number; covers: number; averageSpend: number }
+  /** Current Tarte trading week (Wed→Tue) to date — matches the weekly digest framing. */
+  thisWeek: {
+    revenueExGst: number
+    covers: number
+    averageSpend: number
+    label: string // e.g. "Wed 29 Apr – Tue 5 May"
+  }
   last28: { revenueExGst: number; covers: number; averageSpend: number }
   topSellersQty: TopSeller[]
   topSellersRevenue: TopSeller[]
@@ -34,13 +41,13 @@ export async function getVenueSalesSnapshot(
   venue: Venue
 ): Promise<VenueSalesSnapshot> {
   const today = startOfAestDay(0)
-  const d7 = startOfAestDay(7)
   const d28 = startOfAestDay(28)
   const d14 = startOfAestDay(14)
+  const { start: weekStart, end: weekEnd } = currentTarteWeekRange()
 
   const [
     todaySummary,
-    last7Summaries,
+    thisWeekSummaries,
     last28Summaries,
     last14Summaries,
     topByQty,
@@ -50,7 +57,7 @@ export async function getVenueSalesSnapshot(
       where: { date_venue: { date: today, venue } },
     }),
     db.dailySalesSummary.findMany({
-      where: { venue, date: { gte: d7 } },
+      where: { venue, date: { gte: weekStart, lt: weekEnd } },
     }),
     db.dailySalesSummary.findMany({
       where: { venue, date: { gte: d28 } },
@@ -61,21 +68,21 @@ export async function getVenueSalesSnapshot(
     }),
     db.dailySales.groupBy({
       by: ["menuItemName"],
-      where: { venue, date: { gte: d7 } },
+      where: { venue, date: { gte: weekStart, lt: weekEnd } },
       _sum: { quantitySold: true, revenue: true },
       orderBy: { _sum: { quantitySold: "desc" } },
       take: 10,
     }),
     db.dailySales.groupBy({
       by: ["menuItemName"],
-      where: { venue, date: { gte: d7 } },
+      where: { venue, date: { gte: weekStart, lt: weekEnd } },
       _sum: { quantitySold: true, revenue: true },
       orderBy: { _sum: { revenue: "desc" } },
       take: 10,
     }),
   ])
 
-  const sumSummaries = (rows: typeof last7Summaries) => {
+  const sumSummaries = (rows: typeof thisWeekSummaries) => {
     const revenueExGst = rows.reduce(
       (s, r) => s + Number(r.totalRevenueExGst),
       0
@@ -89,6 +96,8 @@ export async function getVenueSalesSnapshot(
     }
   }
 
+  const weekTotals = sumSummaries(thisWeekSummaries)
+
   return {
     venue,
     today: todaySummary
@@ -100,7 +109,10 @@ export async function getVenueSalesSnapshot(
             Math.round(Number(todaySummary.averageSpend) * 100) / 100,
         }
       : null,
-    last7: sumSummaries(last7Summaries),
+    thisWeek: {
+      ...weekTotals,
+      label: tarteWeekLabel(startOfTarteWeekUtc(new Date())),
+    },
     last28: sumSummaries(last28Summaries),
     topSellersQty: topByQty.map((r) => ({
       name: r.menuItemName,
@@ -116,7 +128,7 @@ export async function getVenueSalesSnapshot(
       date: s.date.toISOString().split("T")[0],
       revenueExGst: Math.round(Number(s.totalRevenueExGst) * 100) / 100,
     })),
-    voids: last7Summaries.reduce((s, r) => s + r.totalVoids, 0),
-    comps: last7Summaries.reduce((s, r) => s + r.totalComps, 0),
+    voids: thisWeekSummaries.reduce((s, r) => s + r.totalVoids, 0),
+    comps: thisWeekSummaries.reduce((s, r) => s + r.totalComps, 0),
   }
 }

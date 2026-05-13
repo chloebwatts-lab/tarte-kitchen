@@ -2,12 +2,10 @@
  * Friday weekly digest aggregator. Builds the structured snapshot that
  * gets handed to Claude for narrative synthesis.
  *
- * Section cadence:
- *   - Reviews / sales / wastage / supplier price spikes: Mon → Sun
- *     (the "review week").
- *   - Labour + COGS: most recent completed Wed → Tue payroll cycle
- *     (Chloe uploads the labour PDF Thursdays, so by Friday morning
- *     the freshest complete week is the one ending the prior Tuesday).
+ * The whole digest is anchored to Tarte's trading week (Wed → Tue) via
+ * `lastCompletedTarteWeek()` — by Friday 08:00 AEST the freshest closed
+ * week is the Wed → Tue that ended on Tuesday, which is also the
+ * payroll cycle Chloe's labour PDF covers.
  *
  * Per the dept-wage-targets memory we group raw wage fields into
  * combined buckets when comparing to band targets — never show Chef
@@ -17,6 +15,7 @@
 
 import { db } from "@/lib/db"
 import { Venue, ReviewSentiment } from "@/generated/prisma/enums"
+import { lastCompletedTarteWeek } from "@/lib/dates"
 
 const SINGLE_VENUES: Venue[] = [
   Venue.BURLEIGH,
@@ -174,42 +173,20 @@ interface SalesSection {
 
 // ─── Date helpers ────────────────────────────────────────────────────
 
-interface MonSunWeek {
+interface DigestWeek {
   start: Date
   end: Date
   startKey: string
   endKey: string
 }
 
-export function lastCompletedMonSun(now = new Date()): MonSunWeek {
-  const aest = new Date(
-    now.toLocaleString("en-US", { timeZone: "Australia/Sydney" })
-  )
-  const weekday = ((aest.getDay() + 6) % 7) + 1 // Mon=1..Sun=7
-  const sunday = new Date(aest)
-  sunday.setDate(sunday.getDate() - weekday)
-  sunday.setHours(23, 59, 59, 999)
-  const monday = new Date(sunday)
-  monday.setDate(monday.getDate() - 6)
-  monday.setHours(0, 0, 0, 0)
-  return {
-    start: monday,
-    end: sunday,
-    startKey: dateKey(monday),
-    endKey: dateKey(sunday),
-  }
-}
-
 function dateKey(d: Date): string {
-  const yyyy = d.getFullYear()
-  const mm = String(d.getMonth() + 1).padStart(2, "0")
-  const dd = String(d.getDate()).padStart(2, "0")
-  return `${yyyy}-${mm}-${dd}`
+  return d.toISOString().split("T")[0]
 }
 
 // ─── Section builders ────────────────────────────────────────────────
 
-async function buildReviewsSection(week: MonSunWeek): Promise<ReviewsSection> {
+async function buildReviewsSection(week: DigestWeek): Promise<ReviewsSection> {
   const [thisWeekReviews, places] = await Promise.all([
     db.googleReview.findMany({
       where: { publishTime: { gte: week.start, lte: week.end } },
@@ -282,7 +259,7 @@ async function buildReviewsSection(week: MonSunWeek): Promise<ReviewsSection> {
   }
 }
 
-async function buildPriceSpikes(week: MonSunWeek): Promise<PriceSpikesSection> {
+async function buildPriceSpikes(week: DigestWeek): Promise<PriceSpikesSection> {
   // We query InvoiceLineItem (not PriceHistory) because PriceHistory only
   // captures *applied* changes — i.e. ones a human clicked through in the
   // suppliers UI. Most price changes sit pending review. For the digest
@@ -361,8 +338,8 @@ async function buildPriceSpikes(week: MonSunWeek): Promise<PriceSpikesSection> {
   return { count: items.length, items }
 }
 
-async function buildWastage(week: MonSunWeek): Promise<WastageSection> {
-  const lastWeek: MonSunWeek = {
+async function buildWastage(week: DigestWeek): Promise<WastageSection> {
+  const lastWeek: DigestWeek = {
     start: new Date(week.start.getTime() - 7 * 86400000),
     end: new Date(week.end.getTime() - 7 * 86400000),
     startKey: "",
@@ -625,7 +602,7 @@ async function buildLabour(): Promise<LabourSection> {
 }
 
 async function buildTopSellers(
-  week: MonSunWeek
+  week: DigestWeek
 ): Promise<TopSellersSection> {
   const [thisWeekRows, lastWeekRows] = await Promise.all([
     db.dailySales.findMany({
@@ -692,7 +669,7 @@ async function buildTopSellers(
   return { perVenue: perVenueOut }
 }
 
-async function buildSales(week: MonSunWeek): Promise<SalesSection> {
+async function buildSales(week: DigestWeek): Promise<SalesSection> {
   const lastWeekStart = new Date(week.start.getTime() - 7 * 86400000)
   const lastWeekEnd = new Date(week.end.getTime() - 7 * 86400000)
 
@@ -744,7 +721,7 @@ function truncate(s: string, n: number): string {
 export async function buildWeeklyDigestSnapshot(
   now = new Date()
 ): Promise<WeeklyDigestSnapshot> {
-  const week = lastCompletedMonSun(now)
+  const week = lastCompletedTarteWeek(now)
   const [reviews, priceSpikes, wastage, cogs, labour, topSellers, sales] =
     await Promise.all([
       buildReviewsSection(week),

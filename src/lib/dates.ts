@@ -42,6 +42,30 @@ export function currentTarteWeekRange(now = new Date()): { start: Date; end: Dat
 }
 
 /**
+ * The most recently completed Tarte trading week (Wed → Tue). Use this
+ * for any "the week just ended" summary that runs after Tuesday close —
+ * the Friday weekly digest is the canonical caller.
+ *
+ * Returns start = Wed 00:00 (UTC date labelled as the AEST Wed) and
+ * end = the same week's Tue 23:59:59.999 UTC, plus yyyy-mm-dd keys.
+ */
+export function lastCompletedTarteWeek(now = new Date()): {
+  start: Date
+  end: Date
+  startKey: string
+  endKey: string
+} {
+  const thisWed = startOfTarteWeekUtc(now)
+  const start = new Date(thisWed)
+  start.setUTCDate(start.getUTCDate() - 7)
+  const end = new Date(start)
+  end.setUTCDate(end.getUTCDate() + 6)
+  end.setUTCHours(23, 59, 59, 999)
+  const toKey = (d: Date) => d.toISOString().split("T")[0]
+  return { start, end, startKey: toKey(start), endKey: toKey(end) }
+}
+
+/**
  * The 2-week window we sync from Deputy's Roster (live + next).
  * Returns Unix seconds for Deputy's search API. The window bounds are
  * the **actual UTC instants** of Wed 00:00 AEST → 2 weeks later, so

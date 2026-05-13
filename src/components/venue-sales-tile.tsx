@@ -48,12 +48,14 @@ export function VenueSalesTile({ snapshot }: { snapshot: VenueSalesSnapshot }) {
             </p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Last 7d</p>
+            <p className="text-xs text-muted-foreground" title={snapshot.thisWeek.label}>
+              This week (Wed–Tue)
+            </p>
             <p className="text-lg font-semibold">
-              ${snapshot.last7.revenueExGst.toFixed(0)}
+              ${snapshot.thisWeek.revenueExGst.toFixed(0)}
             </p>
             <p className="text-xs text-muted-foreground">
-              {snapshot.last7.covers} covers · ${snapshot.last7.averageSpend.toFixed(1)}
+              {snapshot.thisWeek.covers} covers · ${snapshot.thisWeek.averageSpend.toFixed(1)}
               /cover
             </p>
           </div>
@@ -118,7 +120,7 @@ export function VenueSalesTile({ snapshot }: { snapshot: VenueSalesSnapshot }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Top by quantity (7d)
+              Top by quantity (this week)
             </p>
             {snapshot.topSellersQty.length === 0 ? (
               <p className="text-xs text-muted-foreground">—</p>
@@ -140,7 +142,7 @@ export function VenueSalesTile({ snapshot }: { snapshot: VenueSalesSnapshot }) {
           </div>
           <div>
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Top by revenue (7d)
+              Top by revenue (this week)
             </p>
             {snapshot.topSellersRevenue.length === 0 ? (
               <p className="text-xs text-muted-foreground">—</p>
