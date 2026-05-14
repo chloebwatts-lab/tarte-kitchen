@@ -673,7 +673,16 @@ async function buildSales(week: DigestWeek): Promise<SalesSection> {
   const lastWeekStart = new Date(week.start.getTime() - 7 * 86400000)
   const lastWeekEnd = new Date(week.end.getTime() - 7 * 86400000)
 
-  const [thisWeekSummaries, lastWeekSummaries] = await Promise.all([
+  // Prefer Louise Kilgour's Mge-PDF revenue (LabourWeekActual.revenueExGst).
+  // It includes online sales + event revenue that Lightspeed POS misses.
+  // Fall back to summing DailySalesSummary if the PDF hasn't been uploaded
+  // for that week yet (digest may run before Thursday upload).
+  const [
+    thisWeekSummaries,
+    lastWeekSummaries,
+    thisWeekLouise,
+    lastWeekLouise,
+  ] = await Promise.all([
     db.dailySalesSummary.findMany({
       where: { date: { gte: week.start, lte: week.end } },
       select: { venue: true, totalRevenueExGst: true },
@@ -682,16 +691,33 @@ async function buildSales(week: DigestWeek): Promise<SalesSection> {
       where: { date: { gte: lastWeekStart, lte: lastWeekEnd } },
       select: { venue: true, totalRevenueExGst: true },
     }),
+    db.labourWeekActual.findMany({
+      where: { weekStartWed: week.start },
+      select: { venue: true, revenueExGst: true },
+    }),
+    db.labourWeekActual.findMany({
+      where: { weekStartWed: lastWeekStart },
+      select: { venue: true, revenueExGst: true },
+    }),
   ])
 
-  const sumBy = (rows: typeof thisWeekSummaries, v?: Venue) =>
-    rows
-      .filter((r) => (v ? r.venue === v : true))
-      .reduce((s, r) => s + Number(r.totalRevenueExGst), 0)
+  const sumSummariesBy = (rows: typeof thisWeekSummaries, v: Venue) =>
+    rows.filter((r) => r.venue === v).reduce((s, r) => s + Number(r.totalRevenueExGst), 0)
+
+  const louiseFor = (rows: typeof thisWeekLouise, v: Venue): number | null => {
+    const row = rows.find((r) => r.venue === v)
+    return row?.revenueExGst != null ? Number(row.revenueExGst) : null
+  }
+
+  const revenueFor = (
+    louiseRows: typeof thisWeekLouise,
+    summaryRows: typeof thisWeekSummaries,
+    v: Venue
+  ) => louiseFor(louiseRows, v) ?? sumSummariesBy(summaryRows, v)
 
   const perVenue = SINGLE_VENUES.map((v) => {
-    const thisW = sumBy(thisWeekSummaries, v)
-    const lastW = sumBy(lastWeekSummaries, v)
+    const thisW = revenueFor(thisWeekLouise, thisWeekSummaries, v)
+    const lastW = revenueFor(lastWeekLouise, lastWeekSummaries, v)
     return {
       venue: VENUE_LABEL[v],
       thisWeek: thisW,
@@ -700,8 +726,8 @@ async function buildSales(week: DigestWeek): Promise<SalesSection> {
     }
   })
 
-  const totalThisWeek = sumBy(thisWeekSummaries)
-  const totalLastWeek = sumBy(lastWeekSummaries)
+  const totalThisWeek = perVenue.reduce((s, p) => s + p.thisWeek, 0)
+  const totalLastWeek = perVenue.reduce((s, p) => s + p.lastWeek, 0)
 
   return {
     totalThisWeek,
