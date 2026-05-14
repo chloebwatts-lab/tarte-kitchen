@@ -201,17 +201,15 @@ export async function matchLineItem(
   }
 
   if (bestTokenMatch) {
-    const newMapping = await db.supplierItemMapping.create({
-      data: {
-        supplierId,
-        ingredientId: bestTokenMatch.id,
-        invoiceDescription,
-      },
-    })
+    const mappingId = await safeCreateMapping(
+      supplierId,
+      invoiceDescription,
+      bestTokenMatch.id
+    )
     return {
       matched: true,
       ingredientId: bestTokenMatch.id,
-      mappingId: newMapping.id,
+      mappingId,
     }
   }
 
@@ -220,21 +218,41 @@ export async function matchLineItem(
   const results = fuse.search(normalised)
   const top = results[0]
   if (top && top.score !== undefined && top.score < 0.28) {
-    const newMapping = await db.supplierItemMapping.create({
-      data: {
-        supplierId,
-        ingredientId: top.item.id,
-        invoiceDescription,
-      },
-    })
+    const mappingId = await safeCreateMapping(
+      supplierId,
+      invoiceDescription,
+      top.item.id
+    )
     return {
       matched: true,
       ingredientId: top.item.id,
-      mappingId: newMapping.id,
+      mappingId,
     }
   }
 
   return { matched: false }
+}
+
+/**
+ * Try to create a supplier mapping; if one already exists (e.g. an
+ * ignored mapping the user rejected), return null so the line still
+ * gets matched but we don't fight the existing record. The line's
+ * `ingredientId` is set on the line item itself, so this is purely
+ * about the future auto-match short-circuit in step 1.
+ */
+async function safeCreateMapping(
+  supplierId: string,
+  invoiceDescription: string,
+  ingredientId: string
+): Promise<string | null> {
+  try {
+    const created = await db.supplierItemMapping.create({
+      data: { supplierId, ingredientId, invoiceDescription },
+    })
+    return created.id
+  } catch {
+    return null
+  }
 }
 
 /**
