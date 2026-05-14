@@ -852,12 +852,20 @@ model SupplierItemMapping {
   ingredient         Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
   invoiceUnit        String?
   conversionFactor   Decimal?   @db.Decimal(12, 6)
+  /// User has rejected this mapping as incorrect (e.g. "Milk Bun 100g"
+  /// from Pixel Bread was auto-mapped to "Milk Bun (BreadTop)" — a
+  /// different product). Ignored mappings short-circuit nothing — the
+  /// matcher skips them so re-runs can find a correct match.
+  ignored            Boolean    @default(false)
+  ignoredAt          DateTime?
+  ignoredBy          String?
   lastUsed           DateTime   @default(now())
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
   @@unique([supplierId, invoiceDescription])
   @@index([ingredientId])
+  @@index([supplierId, ignored])
 }
 
 // ============================================================

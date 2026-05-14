@@ -23,9 +23,15 @@ interface AllIngredientCache {
   list: Array<{
     id: string
     name: string
+    supplierId: string | null
     supplierProductCode: string | null
   }>
-  fuse: Fuse<{ id: string; name: string; supplierProductCode: string | null }>
+  fuse: Fuse<{
+    id: string
+    name: string
+    supplierId: string | null
+    supplierProductCode: string | null
+  }>
   expiresAt: number
 }
 
@@ -37,7 +43,7 @@ async function getAllIngredientsFuse(): Promise<AllIngredientCache> {
     return allIngredientCache
   }
   const list = await db.ingredient.findMany({
-    select: { id: true, name: true, supplierProductCode: true },
+    select: { id: true, name: true, supplierId: true, supplierProductCode: true },
   })
   const fuse = new Fuse(list, {
     keys: ["name", "supplierProductCode"],
@@ -72,7 +78,7 @@ export async function matchLineItem(
   invoiceDescription: string,
   supplierId: string
 ): Promise<MatchResult | NoMatch> {
-  // 1. Check exact mapping
+  // 1. Exact mapping (skip ignored ones — user rejected them)
   const mapping = await db.supplierItemMapping.findUnique({
     where: {
       supplierId_invoiceDescription: {
@@ -82,7 +88,7 @@ export async function matchLineItem(
     },
   })
 
-  if (mapping) {
+  if (mapping && !mapping.ignored) {
     return {
       matched: true,
       ingredientId: mapping.ingredientId,
@@ -90,11 +96,12 @@ export async function matchLineItem(
     }
   }
 
-  // 2. Case-insensitive mapping match
+  // 2. Case-insensitive mapping match (also skip ignored)
   const fuzzyMapping = await db.supplierItemMapping.findFirst({
     where: {
       supplierId,
       invoiceDescription: { equals: invoiceDescription, mode: "insensitive" },
+      ignored: false,
     },
   })
 
@@ -136,38 +143,57 @@ export async function matchLineItem(
     }
   }
 
-  // 4. Cross-supplier token-overlap match.
+  // 4. Cross-supplier token-overlap match (with stemming).
   // For each ingredient, check whether ALL words in its name appear as
-  // tokens in the (normalised) description. This catches the common
-  // case where supplier descriptions add noise:
-  //   "ACAI MIX SCOOPABLE AMAZONIA 10kg" → ingredient "Acai"
-  //   "BAGUETTE Semi Sourdough 480g"     → ingredient "Baguette"
-  //   "ALMONDS RAW KERNELS"              → ingredient "Almonds"
-  //   "MILK Lab Coconut 1L"              → ingredient "Coconut milk"
-  // Whole-string fuzzy can't do this — too much noise dilutes the
-  // signal. Token-overlap is precise: every ingredient token must be
-  // present. Multi-word ingredients (e.g. "white chocolate") get
-  // preferred over single-word ("chocolate") because they're more
-  // specific — we rank by ingredient-name length.
+  // tokens in the (normalised, stemmed) description. Catches:
+  //   "ACAI MIX SCOOPABLE AMAZONIA 10kg" → "Acai"
+  //   "BAGUETTE Semi Sourdough 480g"     → "Baguette"
+  //   "TOMATO MEDIUM KG"                 → "Tomatoes"     (stem strips plurals)
+  //   "CHIVE bunch"                      → "Chives"
+  // Multi-word ingredients win over single-word via specificity rank.
+  //
+  // Brand guard: parenthetical brand tags in ingredient names
+  // ("Milk Bun (BreadTop)") indicate brand-specific products. We only
+  // match those when the brand token also appears in the description
+  // OR when the invoice's supplier matches the ingredient's supplier.
   const normalised = normaliseDescription(invoiceDescription)
-  const descTokens = new Set(normalised.split(/\s+/).filter((t) => t.length >= 3))
-  if (descTokens.size === 0) return { matched: false }
+  const descStems = new Set(
+    normalised.split(/\s+/).filter((t) => t.length >= 3).map(stem)
+  )
+  if (descStems.size === 0) return { matched: false }
 
   const { list, fuse } = await getAllIngredientsFuse()
   if (list.length === 0) return { matched: false }
 
   let bestTokenMatch: { id: string; name: string; specificity: number } | null = null
   for (const ing of list) {
-    const ingTokens = ing.name
-      .toLowerCase()
+    const ingNameLower = ing.name.toLowerCase()
+    // Tokens for matching (length ≥3, stemmed).
+    const ingTokens = ingNameLower
+      .replace(/[()]/g, " ")
       .split(/\s+/)
       .filter((t) => t.length >= 3)
+      .map(stem)
     if (ingTokens.length === 0) continue
-    // Every ingredient-name token must be present in the description.
-    const allPresent = ingTokens.every((t) => descTokens.has(t))
+    // Every ingredient-name token (incl. parenthetical brand) must be
+    // present in the description. "Milk Bun (BreadTop)" needs all of
+    // milk + bun + breadtop in the description to match.
+    const allPresent = ingTokens.every((t) => descStems.has(t))
     if (!allPresent) continue
+    // Cross-supplier guard: if the ingredient has a supplier set and
+    // it's NOT the current invoice's supplier, only allow the match if
+    // the ingredient name doesn't carry a brand tag (parenthetical).
+    // This stops "Milk Bun (BreadTop)" from matching Pixel Bread
+    // invoices when there's no BreadTop branding on the description.
+    if (
+      ing.supplierId &&
+      ing.supplierId !== supplierId &&
+      /\([^)]+\)/.test(ing.name)
+    ) {
+      continue
+    }
     // Specificity = sum of token lengths. "Rice vinegar" (12) beats
-    // "Rice" (4) when the description contains both.
+    // "Rice" (4) when description contains both.
     const specificity = ingTokens.reduce((s, t) => s + t.length, 0)
     if (!bestTokenMatch || specificity > bestTokenMatch.specificity) {
       bestTokenMatch = { id: ing.id, name: ing.name, specificity }
@@ -209,6 +235,32 @@ export async function matchLineItem(
   }
 
   return { matched: false }
+}
+
+/**
+ * Cheap English stemmer for the token matcher — collapses common
+ * singular/plural variants without pulling in a real Porter stemmer.
+ * Solves things like supplier "TOMATO" vs ingredient "Tomatoes",
+ * "CHIVE" vs "Chives", "PEAR" vs "Pears", "POTATO" vs "Potatoes".
+ *
+ * Conservative — only modifies words of length ≥4 so we don't mangle
+ * short ones (e.g. "tea" stays "tea").
+ */
+function stem(t: string): string {
+  if (t.length < 4) return t
+  // -ies → -y (cherries → cherry)
+  if (t.endsWith("ies") && t.length >= 5) return t.slice(0, -3) + "y"
+  // -oes → -o (tomatoes → tomato, potatoes → potato; also catches mangoes)
+  if (t.endsWith("oes") && t.length >= 5) return t.slice(0, -2)
+  // -ves → -f (loaves → loaf, leaves → leaf)
+  if (t.endsWith("ves") && t.length >= 5) return t.slice(0, -3) + "f"
+  // -es after s/x/z/ch/sh (boxes → box, dishes → dish, churches → church)
+  if (t.endsWith("es") && /(s|x|z|ch|sh)es$/.test(t)) return t.slice(0, -2)
+  // -s plural (pears → pear, almonds → almond, chives → chive). Skip
+  // -ss (kiss), -us (lupus), and short tokens to avoid mangling.
+  if (t.endsWith("s") && t.length >= 4 && !t.endsWith("ss") && !t.endsWith("us"))
+    return t.slice(0, -1)
+  return t
 }
 
 /**

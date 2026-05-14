@@ -275,6 +275,63 @@ export async function rejectPriceChange(lineItemId: string) {
   return true
 }
 
+/**
+ * Stronger reject: marks this line as rejected AND flags the underlying
+ * supplier-item mapping as ignored, so future invoices from the same
+ * supplier with the same description don't auto-match to this (wrong)
+ * ingredient again. Also un-flags the line (priceChanged=false,
+ * ingredientId/mappingId cleared) so the rematch endpoint can take
+ * another shot at it with a clean slate.
+ */
+export async function rejectAndIgnoreMapping(lineItemId: string) {
+  const line = await db.invoiceLineItem.findUnique({
+    where: { id: lineItemId },
+    select: {
+      id: true,
+      mappingId: true,
+      invoiceId: true,
+      description: true,
+      invoice: { select: { supplierId: true } },
+    },
+  })
+  if (!line) throw new Error("Line not found")
+
+  // Mark mapping as ignored — by id if we have one, otherwise by
+  // (supplier, description) lookup.
+  if (line.mappingId) {
+    await db.supplierItemMapping.update({
+      where: { id: line.mappingId },
+      data: { ignored: true, ignoredAt: new Date() },
+    })
+  } else if (line.invoice?.supplierId) {
+    await db.supplierItemMapping
+      .updateMany({
+        where: {
+          supplierId: line.invoice.supplierId,
+          invoiceDescription: line.description,
+        },
+        data: { ignored: true, ignoredAt: new Date() },
+      })
+      .catch(() => null)
+  }
+
+  // Reset the line so the next rematch can try fresh.
+  await db.invoiceLineItem.update({
+    where: { id: lineItemId },
+    data: {
+      priceApproved: false,
+      priceChanged: false,
+      ingredientId: null,
+      mappingId: null,
+      currentPrice: null,
+    },
+  })
+
+  revalidatePath("/suppliers")
+  revalidatePath("/invoices")
+  return { ok: true }
+}
+
 export async function approveAllPriceChanges(invoiceId: string) {
   const lineItems = await db.invoiceLineItem.findMany({
     where: {

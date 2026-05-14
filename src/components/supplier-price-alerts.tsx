@@ -12,12 +12,14 @@ import {
   CheckCheck,
   ArrowRightLeft,
   AlertTriangle,
+  X,
 } from "lucide-react"
 import {
   acknowledgeAlert,
   acknowledgeAllAlerts,
   applyAndAcknowledgeAlert,
   applyAllPriceChanges,
+  rejectAndIgnoreMapping,
 } from "@/lib/actions/invoices"
 
 interface PriceAlert {
@@ -57,6 +59,20 @@ export function SupplierPriceAlerts({ alerts }: { alerts: PriceAlert[] }) {
   function handleApplyAndAcknowledge(id: string) {
     startTransition(async () => {
       await applyAndAcknowledgeAlert(id)
+      router.refresh()
+    })
+  }
+
+  function handleReject(id: string, ingredientName: string, supplierName: string) {
+    if (
+      !confirm(
+        `Reject this match? "${ingredientName}" (${supplierName}) won't be linked to this invoice description again — future invoices will re-run through the matcher.`
+      )
+    ) {
+      return
+    }
+    startTransition(async () => {
+      await rejectAndIgnoreMapping(id)
       router.refresh()
     })
   }
@@ -127,6 +143,9 @@ export function SupplierPriceAlerts({ alerts }: { alerts: PriceAlert[] }) {
               alert={alert}
               onAcknowledge={() => handleAcknowledge(alert.id)}
               onApply={() => handleApplyAndAcknowledge(alert.id)}
+              onReject={() =>
+                handleReject(alert.id, alert.ingredientName, alert.supplierName)
+              }
               isPending={isPending}
             />
           ))}
@@ -157,12 +176,14 @@ function AlertRow({
   alert,
   onAcknowledge,
   onApply,
+  onReject,
   isPending,
   dimmed,
 }: {
   alert: PriceAlert
   onAcknowledge?: () => void
   onApply?: () => void
+  onReject?: () => void
   isPending: boolean
   dimmed?: boolean
 }) {
@@ -224,6 +245,18 @@ function AlertRow({
 
         {!dimmed && onAcknowledge && onApply && (
           <div className="flex gap-1">
+            {onReject && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onReject}
+                disabled={isPending}
+                title="Reject — wrong match. Future invoices with this description won't auto-link to this ingredient."
+                className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
