@@ -186,8 +186,8 @@ export async function sendFoodSafetyEmail(params: {
 
   const subject =
     breaches.length > 0
-      ? `[Tarte] HACCP ${params.templateName} — ${venueLabel} — ${params.runDate} — ${breaches.length} BREACH`
-      : `[Tarte] HACCP ${params.templateName} — ${venueLabel} — ${params.runDate} — All pass`
+      ? `[Tarte] HACCP ${params.templateName} - ${venueLabel} - ${params.runDate} - ${breaches.length} BREACH`
+      : `[Tarte] HACCP ${params.templateName} - ${venueLabel} - ${params.runDate} - All pass`
 
   return sendEmail({ to: "accounts@tarte.com.au", subject, body })
 }
@@ -220,7 +220,7 @@ export async function sendChecklistAlertEmail(params: {
   ].join("\n")
   return sendEmail({
     to: params.to,
-    subject: `[Tarte] ${params.templateName} — ${venueLabel} — overdue`,
+    subject: `[Tarte] ${params.templateName} - ${venueLabel} - overdue`,
     body,
   })
 }
@@ -294,8 +294,8 @@ export async function sendDailySummaryEmail(params: {
 
   const subject =
     params.totalIncomplete === 0
-      ? `[Tarte] Daily checklists — ${dateHuman} — All done ✓`
-      : `[Tarte] Daily checklists — ${dateHuman} — ${params.totalIncomplete} incomplete`
+      ? `[Tarte] Daily checklists - ${dateHuman} - All done`
+      : `[Tarte] Daily checklists - ${dateHuman} - ${params.totalIncomplete} incomplete`
 
   return sendEmail({ to: "chloe@tarte.com.au", subject, body })
 }

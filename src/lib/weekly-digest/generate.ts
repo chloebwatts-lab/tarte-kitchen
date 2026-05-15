@@ -199,7 +199,7 @@ export async function runWeeklyDigest(args: RunWeeklyDigestArgs): Promise<{
 
     await sendHtmlEmail({
       to: args.recipient,
-      subject: `Tarte weekly — ${formatSubjectRange(snapshot.weekStart, snapshot.weekEnd)}`,
+      subject: `Tarte weekly: ${formatSubjectRange(snapshot.weekStart, snapshot.weekEnd)}`,
       html: digest.body,
       text: fallbackText,
     })
@@ -225,5 +225,5 @@ function formatSubjectRange(start: string, end: string): string {
   const s = new Date(`${start}T00:00:00`)
   const e = new Date(`${end}T00:00:00`)
   const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" }
-  return `${s.toLocaleDateString("en-AU", opts)} – ${e.toLocaleDateString("en-AU", opts)}`
+  return `${s.toLocaleDateString("en-AU", opts)} - ${e.toLocaleDateString("en-AU", opts)}`
 }

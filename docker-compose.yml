@@ -119,10 +119,14 @@ services:
         30 20 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-sales 2>&1
         # Every 15 min — pull Deputy rosters so /labour stays fresh
         */15 * * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-deputy 2>&1
-        # Every 15 min — send overdue checklist alerts to chloe@ + shawna@
-        */15 * * * * curl -fsS -m 60 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/checklist-alerts 2>&1
+        # PAUSED 2026-05-15 per Chloe: too much email noise. Checklist /
+        # temp-log status stays visible on the dashboard (DashboardOpsPanel)
+        # and will be folded into the Friday weekly digest. To re-enable,
+        # uncomment both lines and restart the cron container.
+        # Every 15 min — overdue checklist alerts to chloe@ + shawna@
+        # */15 * * * * curl -fsS -m 60 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/checklist-alerts 2>&1
         # 18:00 AEST (08:00 UTC) — daily checklist summary to chloe@
-        0 8 * * * curl -fsS -m 60 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/daily-checklist-summary 2>&1
+        # 0 8 * * * curl -fsS -m 60 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/daily-checklist-summary 2>&1
         # 09:00 AEST (23:00 UTC) — pull Google reviews + Claude-tag any new ones
         0 23 * * * curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-reviews 2>&1
         # Friday 08:00 AEST (22:00 UTC Thu) — unified weekly business digest
