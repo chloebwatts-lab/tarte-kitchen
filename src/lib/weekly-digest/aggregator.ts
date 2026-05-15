@@ -60,6 +60,7 @@ export interface WeeklyDigestSnapshot {
   labour: LabourSection
   topSellers: TopSellersSection
   sales: SalesSection
+  operations: OperationsSection
 }
 
 interface ReviewsSection {
@@ -157,6 +158,31 @@ interface TopSellersSection {
     byRevenue: Array<{ name: string; qty: number; revenue: number }>
     risers: string[]
   }>
+}
+
+interface OperationsSection {
+  perVenue: Array<{
+    venue: string
+    runsCompleted: number
+    overdueAlerts: number
+    tempReadings: number
+    tempBreaches: Array<{
+      template: string
+      label: string
+      tempCelsius: number
+      hotCheck: boolean
+      runDate: string
+    }>
+  }>
+  cooling: {
+    total: number
+    breaches: Array<{
+      venue: string
+      itemName: string
+      reason: string
+      startedAt: string
+    }>
+  }
 }
 
 interface SalesSection {
@@ -740,6 +766,103 @@ async function buildSales(week: DigestWeek): Promise<SalesSection> {
   }
 }
 
+async function buildOperations(week: DigestWeek): Promise<OperationsSection> {
+  const [runs, alerts, tempItems, coolingLogs] = await Promise.all([
+    db.checklistRun.findMany({
+      where: {
+        runDate: { gte: week.start, lte: week.end },
+        status: "COMPLETED",
+      },
+      select: { venue: true },
+    }),
+    db.checklistAlert.findMany({
+      where: { runDate: { gte: week.start, lte: week.end } },
+      select: { venue: true },
+    }),
+    db.checklistRunItem.findMany({
+      where: {
+        tempCelsius: { not: null },
+        run: { runDate: { gte: week.start, lte: week.end } },
+      },
+      select: {
+        tempCelsius: true,
+        run: { select: { venue: true, runDate: true } },
+        templateItem: {
+          select: {
+            label: true,
+            hotCheck: true,
+            template: { select: { name: true } },
+          },
+        },
+      },
+    }),
+    db.coolingLog.findMany({
+      where: { startedAt: { gte: week.start, lte: week.end } },
+      select: {
+        venue: true,
+        itemName: true,
+        startedAt: true,
+        twoHourTempC: true,
+        sixHourTempC: true,
+      },
+    }),
+  ])
+
+  const perVenue = SINGLE_VENUES.map((v) => {
+    const venueTemps = tempItems.filter((t) => t.run.venue === v)
+    const breaches = venueTemps
+      .map((t) => {
+        const temp = Number(t.tempCelsius)
+        const hot = t.templateItem.hotCheck
+        const failed = hot ? temp < 60 : temp > 5
+        return failed
+          ? {
+              template: t.templateItem.template.name,
+              label: t.templateItem.label,
+              tempCelsius: temp,
+              hotCheck: hot,
+              runDate: t.run.runDate.toISOString().split("T")[0],
+            }
+          : null
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+    return {
+      venue: VENUE_LABEL[v],
+      runsCompleted: runs.filter((r) => r.venue === v).length,
+      overdueAlerts: alerts.filter((a) => a.venue === v).length,
+      tempReadings: venueTemps.length,
+      tempBreaches: breaches,
+    }
+  })
+
+  const coolingBreaches = coolingLogs
+    .map((c) => {
+      const twoHr = c.twoHourTempC != null ? Number(c.twoHourTempC) : null
+      const sixHr = c.sixHourTempC != null ? Number(c.sixHourTempC) : null
+      const reasons: string[] = []
+      if (twoHr != null && twoHr > 21)
+        reasons.push(`2h temp ${twoHr.toFixed(1)}°C (target ≤21°C)`)
+      if (sixHr != null && sixHr > 5)
+        reasons.push(`6h temp ${sixHr.toFixed(1)}°C (target ≤5°C)`)
+      if (reasons.length === 0) return null
+      return {
+        venue: VENUE_LABEL[c.venue],
+        itemName: c.itemName,
+        reason: reasons.join(" · "),
+        startedAt: c.startedAt.toISOString(),
+      }
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+
+  return {
+    perVenue,
+    cooling: {
+      total: coolingLogs.length,
+      breaches: coolingBreaches,
+    },
+  }
+}
+
 function truncate(s: string, n: number): string {
   return s.length > n ? s.slice(0, n) + "…" : s
 }
@@ -748,7 +871,7 @@ export async function buildWeeklyDigestSnapshot(
   now = new Date()
 ): Promise<WeeklyDigestSnapshot> {
   const week = lastCompletedTarteWeek(now)
-  const [reviews, priceSpikes, wastage, cogs, labour, topSellers, sales] =
+  const [reviews, priceSpikes, wastage, cogs, labour, topSellers, sales, operations] =
     await Promise.all([
       buildReviewsSection(week),
       buildPriceSpikes(week),
@@ -757,6 +880,7 @@ export async function buildWeeklyDigestSnapshot(
       buildLabour(),
       buildTopSellers(week),
       buildSales(week),
+      buildOperations(week),
     ])
 
   return {
@@ -773,5 +897,6 @@ export async function buildWeeklyDigestSnapshot(
     labour,
     topSellers,
     sales,
+    operations,
   }
 }

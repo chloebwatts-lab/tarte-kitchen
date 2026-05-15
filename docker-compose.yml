@@ -133,6 +133,12 @@ services:
         # (reviews + sales + wages + COGS + wastage + supplier price spikes
         # + top sellers) → emailed to chloe@. See tarte_friday_digest.md memory.
         0 22 * * 4 curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/weekly-digest 2>&1
+        # Thursday 07:00 AEST (21:00 UTC Wed) — auto-pull Louise's "Reports"
+        # email from accounts@ Gmail (3 PDFs + 2 xlsx) into LabourWeekActual
+        # + WeeklyCogs, so Friday's digest has the actuals without Chloe
+        # having to upload Thursday afternoon. Failure / partial → email
+        # chloe@ with a link to /labour/upload for manual recovery.
+        0 21 * * 3 curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/pull-louise-reports 2>&1
         CRON
         exec crond -f -l 8 -L /dev/stdout
 

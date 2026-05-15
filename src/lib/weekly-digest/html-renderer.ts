@@ -28,6 +28,7 @@ export interface DigestNarrative {
     prices?: string
     topSellers?: string
     reviews?: string
+    operations?: string
   }
   /// 3-6 concrete action bullets, ranked by impact.
   actionItems: string[]
@@ -362,6 +363,87 @@ function wastageSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrati
     ${offenders}`
 }
 
+function operationsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative) {
+  const venueRows = snapshot.operations.perVenue
+    .map((v) => {
+      const breachCount = v.tempBreaches.length
+      const breachColor = breachCount === 0 ? C.green : C.red
+      const overdueColor = v.overdueAlerts === 0 ? C.green : C.amber
+      return `
+        <tr>
+          <td style="padding:8px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.ink};">${escapeHtml(v.venue)}</td>
+          <td style="padding:8px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.ink};text-align:right;font-variant-numeric:tabular-nums;">${v.runsCompleted}</td>
+          <td style="padding:8px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${overdueColor};text-align:right;font-variant-numeric:tabular-nums;font-weight:${v.overdueAlerts === 0 ? 400 : 600};">${v.overdueAlerts}</td>
+          <td style="padding:8px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.ink};text-align:right;font-variant-numeric:tabular-nums;">${v.tempReadings}</td>
+          <td style="padding:8px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${breachColor};text-align:right;font-variant-numeric:tabular-nums;font-weight:${breachCount === 0 ? 400 : 600};">${breachCount}</td>
+        </tr>`
+    })
+    .join("")
+
+  const allTempBreaches = snapshot.operations.perVenue.flatMap((v) =>
+    v.tempBreaches.map((b) => ({ ...b, venue: v.venue }))
+  )
+
+  const tempBreachList =
+    allTempBreaches.length > 0
+      ? `<div style="margin:12px 18px 0;padding:12px 14px;background:${C.redSoft};border-radius:6px;border:1px solid ${C.red}33;">
+          <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.red};font-weight:600;">Temp breaches</div>
+          <div style="margin-top:6px;font-size:13px;color:${C.ink};line-height:1.5;">
+            ${allTempBreaches
+              .slice(0, 8)
+              .map(
+                (b) =>
+                  `<strong>${escapeHtml(b.venue)}</strong> — ${escapeHtml(b.label)} (${escapeHtml(b.template)}): <strong>${b.tempCelsius.toFixed(1)}°C</strong> · ${b.hotCheck ? "hot ≥60°C required" : "cold ≤5°C required"} · ${escapeHtml(b.runDate)}`
+              )
+              .join("<br/>")}
+            ${allTempBreaches.length > 8 ? `<br/><span style="color:${C.inkMute};">+ ${allTempBreaches.length - 8} more</span>` : ""}
+          </div>
+        </div>`
+      : ""
+
+  const coolingBreachList =
+    snapshot.operations.cooling.breaches.length > 0
+      ? `<div style="margin:12px 18px 0;padding:12px 14px;background:${C.redSoft};border-radius:6px;border:1px solid ${C.red}33;">
+          <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.red};font-weight:600;">Cooling-log breaches (FSANZ 3.2.2A)</div>
+          <div style="margin-top:6px;font-size:13px;color:${C.ink};line-height:1.5;">
+            ${snapshot.operations.cooling.breaches
+              .slice(0, 6)
+              .map(
+                (c) =>
+                  `<strong>${escapeHtml(c.venue)}</strong> — ${escapeHtml(c.itemName)}: ${escapeHtml(c.reason)}`
+              )
+              .join("<br/>")}
+          </div>
+        </div>`
+      : ""
+
+  const coolingTotal = snapshot.operations.cooling.total
+  const coolingFootnote =
+    coolingTotal > 0
+      ? `<div style="padding:10px 18px 0;font-size:12px;color:${C.inkMute};">${coolingTotal} cooling log${coolingTotal === 1 ? "" : "s"} started this week · ${snapshot.operations.cooling.breaches.length} breach${snapshot.operations.cooling.breaches.length === 1 ? "" : "es"}.</div>`
+      : ""
+
+  return `
+    ${sectionHeader("Food safety & ops", narrative.sectionNotes.operations)}
+    <div style="padding:14px 18px 0;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:8px;border-collapse:collapse;overflow:hidden;">
+        <thead>
+          <tr style="background:${C.borderSoft};">
+            <th style="padding:9px 14px;text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Venue</th>
+            <th style="padding:9px 14px;text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Runs done</th>
+            <th style="padding:9px 14px;text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Overdue</th>
+            <th style="padding:9px 14px;text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Temps logged</th>
+            <th style="padding:9px 14px;text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Breaches</th>
+          </tr>
+        </thead>
+        <tbody>${venueRows}</tbody>
+      </table>
+    </div>
+    ${tempBreachList}
+    ${coolingBreachList}
+    ${coolingFootnote}`
+}
+
 function priceSpikesSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative) {
   if (snapshot.priceSpikes.count === 0) {
     return `${sectionHeader("Supplier price changes", narrative.sectionNotes.prices)}
@@ -533,6 +615,7 @@ export function renderDigestHtml(
         <tr><td style="padding-top:18px;">${wagesSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${cogsSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${wastageSection(snapshot, narrative)}</td></tr>
+        <tr><td style="padding-top:18px;">${operationsSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${priceSpikesSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${topSellersSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${reviewsSection(snapshot, narrative)}</td></tr>
@@ -588,6 +671,24 @@ export function renderDigestText(
   )
   for (const w of snapshot.wastage.topItems.slice(0, 6)) {
     lines.push(`  ${w.name} — ${fmtMoneyFine(w.totalDollars)} (${w.occurrences}× · ${w.venue})`)
+  }
+  lines.push(``)
+  lines.push(`FOOD SAFETY & OPS`)
+  for (const v of snapshot.operations.perVenue) {
+    lines.push(
+      `  ${v.venue.padEnd(14)} ${v.runsCompleted} runs · ${v.overdueAlerts} overdue · ${v.tempReadings} temps · ${v.tempBreaches.length} breach${v.tempBreaches.length === 1 ? "" : "es"}`
+    )
+  }
+  const allBreaches = snapshot.operations.perVenue.flatMap((v) =>
+    v.tempBreaches.map((b) => ({ ...b, venue: v.venue }))
+  )
+  for (const b of allBreaches.slice(0, 6)) {
+    lines.push(
+      `  ! ${b.venue} — ${b.label}: ${b.tempCelsius.toFixed(1)}°C (${b.hotCheck ? "≥60°C reqd" : "≤5°C reqd"}) ${b.runDate}`
+    )
+  }
+  if (snapshot.operations.cooling.breaches.length > 0) {
+    lines.push(`  Cooling breaches: ${snapshot.operations.cooling.breaches.length} of ${snapshot.operations.cooling.total} logs`)
   }
   if (snapshot.priceSpikes.count > 0) {
     lines.push(``)
