@@ -67,15 +67,16 @@ const DEPT_GROUPS: Record<string, DeptGroup[]> = {
   ],
 }
 
-// Within target → green. Within 0.5pp of either edge → amber. Beyond → red.
+// Wage targets are one-sided: under-band is a win (cheaper labour, more
+// margin), within or under = green; <=0.5pp over = amber; further over = red.
 function deptBandVariant(
   pct: number | null,
   target: [number, number] | null
 ): "green" | "amber" | "red" | "outline" {
   if (pct === null || target === null) return "outline"
-  const [lo, hi] = target
-  if (pct >= lo && pct <= hi) return "green"
-  if (pct >= lo - 0.5 && pct <= hi + 0.5) return "amber"
+  const [, hi] = target
+  if (pct <= hi) return "green"
+  if (pct <= hi + 0.5) return "amber"
   return "red"
 }
 

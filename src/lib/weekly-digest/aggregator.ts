@@ -580,13 +580,12 @@ async function buildLabour(): Promise<LabourSection> {
       const pct = rev && rev > 0 ? (dollars / rev) * 100 : null
       let status: "ok" | "amber" | "red" | "no-target" = "no-target"
       if (pct != null && target) {
-        if (pct >= target.min && pct <= target.max) status = "ok"
-        else if (
-          pct < target.min - 0.5 ||
-          pct > target.max + 0.5
-        )
-          status = "red"
-        else status = "amber"
+        // For wage targets, only overspend is bad. Coming in under the
+        // band is fine — cheaper labour, more margin. Only flag amber/
+        // red when we exceed the top of the band.
+        if (pct <= target.max) status = "ok"
+        else if (pct <= target.max + 0.5) status = "amber"
+        else status = "red"
       }
       groups.push({ label, dollars, pct, target, status })
     }
