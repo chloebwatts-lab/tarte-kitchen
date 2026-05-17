@@ -333,6 +333,7 @@ async function buildPriceSpikes(week: DigestWeek): Promise<PriceSpikesSection> {
       ingredientId: { not: null },
       invoice: {
         invoiceDate: { gte: week.start, lte: week.end },
+        status: { notIn: ["ERROR", "STATEMENT"] },
       },
     },
     include: {

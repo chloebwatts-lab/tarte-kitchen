@@ -797,6 +797,11 @@ enum InvoiceStatus {
   APPROVED
   REJECTED
   ERROR
+  /// Document is a supplier monthly statement (e.g. Provedores "MAY 2026"),
+  /// not a delivery invoice. Stored for audit but excluded from all spend /
+  /// variance aggregations — otherwise the month's deliveries get
+  /// double-counted.
+  STATEMENT
 }
 
 model Invoice {

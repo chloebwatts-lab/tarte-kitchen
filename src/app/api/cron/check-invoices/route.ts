@@ -223,6 +223,28 @@ export async function GET(request: Request) {
             },
           })
 
+          // Monthly statements (e.g. Provedores "MAY 2026") summarise the
+          // month's deliveries; running them through processInvoice would
+          // double-count spend and try to fuzzy-match "INVOICE CHxxxxxx"
+          // line descriptions against ingredients. Short-circuit to
+          // STATEMENT status — stored for audit, excluded from totals.
+          if (parsed.documentType === "STATEMENT") {
+            await db.invoice.update({
+              where: { id: invoice.id },
+              data: {
+                status: "STATEMENT",
+                invoiceNumber: parsed.invoiceNumber,
+                invoiceDate: parsed.invoiceDate
+                  ? new Date(parsed.invoiceDate)
+                  : null,
+                total: parsed.total,
+                extractedData: JSON.parse(JSON.stringify(parsed)),
+                processedAt: new Date(),
+              },
+            })
+            continue
+          }
+
           try {
             // Process line items, detect price changes
             const result = await processInvoice(

@@ -64,7 +64,11 @@ export async function getSupplierVariance(params?: {
 
   const [invoices, approvedItems] = await Promise.all([
     db.invoice.findMany({
-      where: { invoiceDate: { gte: since }, supplierId: { not: null } },
+      where: {
+        invoiceDate: { gte: since },
+        supplierId: { not: null },
+        status: { notIn: ["ERROR", "STATEMENT"] },
+      },
       include: {
         supplier: true,
         lineItems: true,

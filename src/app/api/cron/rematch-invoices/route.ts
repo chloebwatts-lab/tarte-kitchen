@@ -41,7 +41,10 @@ export async function GET(req: NextRequest) {
     const remaining = totalLimit - processed
     const take = Math.min(batchSize, remaining)
     const batch = await db.invoiceLineItem.findMany({
-      where: { ingredientId: null },
+      where: {
+        ingredientId: null,
+        invoice: { status: { notIn: ["ERROR", "STATEMENT"] } },
+      },
       include: { invoice: { select: { supplierId: true } } },
       orderBy: { id: "asc" },
       take,
