@@ -770,6 +770,22 @@ model CogsSupplierLine {
 }
 
 // ============================================================
+// LIVE SPEND TRACKING
+// ============================================================
+
+/// Per-venue COGS % target the live spend tracker grades the running
+/// weekly invoice spend against. Manager forecast × targetPct = weekly
+/// budget cap. Burleigh and BEACH_HOUSE seeded; TEA_GARDEN tracks with
+/// BEACH_HOUSE for COGS but has its own row so future split is cheap.
+model VenueCogsTarget {
+  venue     Venue    @id
+  targetPct Decimal  @db.Decimal(5, 2)
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
 // INVOICE MONITORING
 // ============================================================
 

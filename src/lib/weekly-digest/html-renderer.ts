@@ -319,6 +319,82 @@ function cogsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative)
     </div>`
 }
 
+function spendPacingSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative) {
+  const sp = snapshot.spendPacing
+  const paceLabel: Record<typeof sp.buckets[number]["paceStatus"], { label: string; bg: string; fg: string }> = {
+    "on-track": { label: "On track", bg: C.greenSoft, fg: C.green },
+    watch: { label: "Watch", bg: C.amberSoft, fg: C.amber },
+    over: { label: "Over budget pace", bg: C.redSoft, fg: C.red },
+    "no-forecast": { label: "No forecast", bg: C.borderSoft, fg: C.inkMute },
+  }
+  const bucketRows = sp.buckets
+    .map((b) => {
+      const p = paceLabel[b.paceStatus]
+      const remainingPctOfBudget =
+        b.budget && b.budget > 0 && b.remaining != null
+          ? (b.remaining / b.budget) * 100
+          : null
+      return `
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:14px;color:${C.ink};font-weight:600;">${escapeHtml(b.label)}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.inkSoft};text-align:right;font-variant-numeric:tabular-nums;">${fmtMoney(b.forecastRevenue)}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.inkSoft};text-align:right;font-variant-numeric:tabular-nums;">${fmtMoney(b.budget)}<div style="font-size:11px;color:${C.inkMute};">@ ${b.targetPct.toFixed(0)}%</div></td>
+          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:14px;color:${C.ink};text-align:right;font-variant-numeric:tabular-nums;font-weight:600;">${fmtMoney(b.spentToDate)}${b.estimatedMissingSpend > 0 ? `<div style="font-size:11px;color:${C.amber};">+${fmtMoney(b.estimatedMissingSpend)} est missing</div>` : ""}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:14px;color:${C.ink};text-align:right;font-variant-numeric:tabular-nums;">${fmtMoney(b.remaining)}${remainingPctOfBudget != null ? `<div style="font-size:11px;color:${C.inkMute};">${remainingPctOfBudget.toFixed(0)}% of cap</div>` : ""}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};text-align:right;">
+            <div style="font-size:14px;color:${C.ink};font-variant-numeric:tabular-nums;font-weight:600;">${fmtMoney(b.projectedEndOfWeek)}</div>
+            <div style="display:inline-block;margin-top:2px;padding:2px 8px;background:${p.bg};color:${p.fg};border-radius:4px;font-size:11px;font-weight:600;">${p.label}</div>
+          </td>
+        </tr>`
+    })
+    .join("")
+
+  const problemRows = sp.coverageProblems
+    .slice(0, 10)
+    .map(
+      (c) => `
+        <tr>
+          <td style="padding:7px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.ink};">${escapeHtml(c.canonicalName)}</td>
+          <td style="padding:7px 14px;border-bottom:1px solid ${C.borderSoft};font-size:12px;color:${C.inkSoft};">${c.daysSinceLast == null ? "never received" : `${c.daysSinceLast}d ago (expected every ${c.expectedIntervalDays}d)`}</td>
+          <td style="padding:7px 14px;border-bottom:1px solid ${C.borderSoft};font-size:11px;color:${C.inkMute};">${escapeHtml(c.note ?? "")}</td>
+        </tr>`
+    )
+    .join("")
+
+  return `
+    ${sectionHeader(
+      `Live spend — week in progress (day ${sp.dayOfWeek} of 7)`,
+      narrative.sectionNotes.cogs ? undefined : "Pacing on this week's invoice spend vs forecasted revenue × COGS target."
+    )}
+    <div style="padding:14px 18px 4px;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:8px;border-collapse:collapse;overflow:hidden;">
+        <thead>
+          <tr style="background:${C.borderSoft};">
+            <th style="padding:9px 14px;text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Bucket</th>
+            <th style="padding:9px 14px;text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Forecast rev</th>
+            <th style="padding:9px 14px;text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Budget</th>
+            <th style="padding:9px 14px;text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Spent to date</th>
+            <th style="padding:9px 14px;text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Remaining</th>
+            <th style="padding:9px 14px;text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Pace to end</th>
+          </tr>
+        </thead>
+        <tbody>${bucketRows}</tbody>
+      </table>
+      ${
+        sp.coverageProblems.length > 0
+          ? `
+        <div style="margin-top:14px;background:${C.redSoft};border:1px solid ${C.red};border-radius:8px;padding:10px 14px;">
+          <div style="font-size:12px;color:${C.red};font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Coverage gaps (${sp.coverageProblems.length})</div>
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:collapse;">
+            ${problemRows}
+          </table>
+          <div style="margin-top:6px;font-size:11px;color:${C.inkSoft};">These suppliers aren't sending invoices to accounts@. Spend tracker has padded estimated $ into the pacing above where 4-wk avg data exists.</div>
+        </div>`
+          : ""
+      }
+    </div>`
+}
+
 function wastageSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative) {
   const topItemRows = snapshot.wastage.topItems
     .slice(0, 8)
@@ -614,6 +690,7 @@ export function renderDigestHtml(
         <tr><td>${salesSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${wagesSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${cogsSection(snapshot, narrative)}</td></tr>
+        <tr><td style="padding-top:18px;">${spendPacingSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${wastageSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${operationsSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${priceSpikesSection(snapshot, narrative)}</td></tr>

@@ -61,6 +61,37 @@ export interface WeeklyDigestSnapshot {
   topSellers: TopSellersSection
   sales: SalesSection
   operations: OperationsSection
+  /// Pacing snapshot for the CURRENT (in-flight) trading week — what
+  /// the kitchen has spent on invoices so far this week and what's
+  /// left in the cap. Distinct from `cogs` (which is the just-closed
+  /// week's xlsx-sourced actuals).
+  spendPacing: SpendPacingSection
+}
+
+interface SpendPacingSection {
+  weekStartWed: string
+  weekEndTue: string
+  dayOfWeek: number
+  daysElapsedFull: number
+  buckets: Array<{
+    bucket: "BURLEIGH" | "CURRUMBIN"
+    label: string
+    forecastRevenue: number | null
+    targetPct: number
+    budget: number | null
+    spentToDate: number
+    estimatedMissingSpend: number
+    projectedEndOfWeek: number
+    remaining: number | null
+    paceStatus: "on-track" | "watch" | "over" | "no-forecast"
+  }>
+  coverageProblems: Array<{
+    canonicalName: string
+    status: "overdue" | "missing"
+    daysSinceLast: number | null
+    expectedIntervalDays: number
+    note?: string
+  }>
 }
 
 interface ReviewsSection {
@@ -870,7 +901,7 @@ export async function buildWeeklyDigestSnapshot(
   now = new Date()
 ): Promise<WeeklyDigestSnapshot> {
   const week = lastCompletedTarteWeek(now)
-  const [reviews, priceSpikes, wastage, cogs, labour, topSellers, sales, operations] =
+  const [reviews, priceSpikes, wastage, cogs, labour, topSellers, sales, operations, spendPacing] =
     await Promise.all([
       buildReviewsSection(week),
       buildPriceSpikes(week),
@@ -880,6 +911,7 @@ export async function buildWeeklyDigestSnapshot(
       buildTopSellers(week),
       buildSales(week),
       buildOperations(week),
+      buildSpendPacing(),
     ])
 
   return {
@@ -897,5 +929,41 @@ export async function buildWeeklyDigestSnapshot(
     topSellers,
     sales,
     operations,
+    spendPacing,
+  }
+}
+
+async function buildSpendPacing(): Promise<SpendPacingSection> {
+  // Import lazily to keep this file's tree-shaking clean — the
+  // aggregator is also imported by build-time paths.
+  const { getCurrentWeekSpend } = await import("@/lib/spend/current-week")
+  const snap = await getCurrentWeekSpend()
+  return {
+    weekStartWed: snap.weekStartWed,
+    weekEndTue: snap.weekEndTue,
+    dayOfWeek: snap.dayOfWeek,
+    daysElapsedFull: snap.daysElapsedFull,
+    buckets: snap.buckets.map((b) => ({
+      bucket: b.bucket,
+      label: b.label,
+      forecastRevenue: b.forecastRevenue,
+      targetPct: Number(b.targetPct),
+      budget: b.budget,
+      spentToDate: b.spentToDate,
+      estimatedMissingSpend: b.estimatedMissingSpend,
+      projectedEndOfWeek: b.projectedEndOfWeek,
+      remaining: b.remaining,
+      paceStatus: b.paceStatus,
+    })),
+    coverageProblems: snap.coverage
+      .filter((c) => c.status === "overdue" || c.status === "missing")
+      .filter((c) => c.critical)
+      .map((c) => ({
+        canonicalName: c.canonicalName,
+        status: c.status as "overdue" | "missing",
+        daysSinceLast: c.daysSinceLast,
+        expectedIntervalDays: c.expectedIntervalDays,
+        note: c.note,
+      })),
   }
 }

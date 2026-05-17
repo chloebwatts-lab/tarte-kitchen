@@ -130,17 +130,31 @@ export function extractPdfAttachments(message: GmailMessage): PdfAttachmentInfo[
     "application/vnd.ms-excel",
   ])
 
+  // Some suppliers (Pacific Wholesale, The Provedores, etc.) send PDF
+  // attachments with mimeType "application/octet-stream" instead of
+  // "application/pdf". Trust the filename in that case so we don't
+  // silently drop the invoice. Discovered 2026-05-17 — both suppliers'
+  // invoice flows had broken on 14/15 Apr when their billing provider
+  // switched mimetype headers.
+  function isPdfAttachment(part: GmailMessagePart): boolean {
+    if (!part.body?.attachmentId || !part.mimeType) return false
+    if (pdfTypes.has(part.mimeType)) return true
+    if (
+      part.mimeType === "application/octet-stream" &&
+      /\.(pdf|xlsx?)$/i.test(part.filename ?? "")
+    ) {
+      return true
+    }
+    return false
+  }
+
   function walkParts(parts: GmailMessagePart[]) {
     for (const part of parts) {
-      if (
-        part.body?.attachmentId &&
-        part.mimeType &&
-        pdfTypes.has(part.mimeType)
-      ) {
+      if (isPdfAttachment(part)) {
         attachments.push({
-          attachmentId: part.body.attachmentId,
+          attachmentId: part.body!.attachmentId!,
           filename: part.filename || "invoice.pdf",
-          mimeType: part.mimeType,
+          mimeType: part.mimeType!,
         })
       }
       if (part.parts) {

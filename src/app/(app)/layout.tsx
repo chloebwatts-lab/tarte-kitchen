@@ -22,6 +22,8 @@ const pageTitles: Record<string, string> = {
   "/orders": "Orders",
   "/labour": "Labour",
   "/labour/upload": "Upload payroll",
+  "/spend": "Live Spend",
+  "/cogs": "COGS",
   "/wastage/analytics": "Wastage Analytics",
   "/reviews": "Google Reviews",
 };
