@@ -802,6 +802,10 @@ enum InvoiceStatus {
   /// variance aggregations — otherwise the month's deliveries get
   /// double-counted.
   STATEMENT
+  /// Content-level duplicate of an already-ingested invoice (same supplier
+  /// + invoice number, different Gmail message — typically a forward).
+  /// Stored for audit, excluded from spend / variance sums.
+  DUPLICATE
 }
 
 model Invoice {

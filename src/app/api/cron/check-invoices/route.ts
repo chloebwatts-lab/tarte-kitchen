@@ -245,6 +245,49 @@ export async function GET(request: Request) {
             continue
           }
 
+          // Content-level dedup: catches the same invoice arriving from
+          // multiple Gmail addresses (forwards). The gmailMessageId @unique
+          // constraint only catches the exact same email twice. Match on
+          // (supplierId, invoiceNumber) — the strongest signal — and fall
+          // back to (supplierId, invoiceDate, total) when invoiceNumber is
+          // missing.
+          if (parsed.invoiceNumber || (parsed.invoiceDate && parsed.total != null)) {
+            const existing = await db.invoice.findFirst({
+              where: {
+                id: { not: invoice.id },
+                supplierId: supplier.id,
+                status: { notIn: ["ERROR", "DUPLICATE"] },
+                ...(parsed.invoiceNumber
+                  ? { invoiceNumber: parsed.invoiceNumber }
+                  : {
+                      invoiceNumber: null,
+                      invoiceDate: parsed.invoiceDate
+                        ? new Date(parsed.invoiceDate)
+                        : null,
+                      total: parsed.total,
+                    }),
+              },
+              select: { id: true, invoiceNumber: true },
+            })
+            if (existing) {
+              await db.invoice.update({
+                where: { id: invoice.id },
+                data: {
+                  status: "DUPLICATE",
+                  invoiceNumber: parsed.invoiceNumber,
+                  invoiceDate: parsed.invoiceDate
+                    ? new Date(parsed.invoiceDate)
+                    : null,
+                  total: parsed.total,
+                  extractedData: JSON.parse(JSON.stringify(parsed)),
+                  processedAt: new Date(),
+                  errorMessage: `Duplicate of invoice ${existing.id}${existing.invoiceNumber ? ` (${existing.invoiceNumber})` : ""}`,
+                },
+              })
+              continue
+            }
+          }
+
           try {
             // Process line items, detect price changes
             const result = await processInvoice(

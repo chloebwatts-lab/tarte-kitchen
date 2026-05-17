@@ -119,7 +119,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     db.invoice.findMany({
       where: {
         invoiceDate: { gte: start, lt: end },
-        status: { notIn: ["ERROR", "STATEMENT"] },
+        status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE"] },
       },
       select: {
         id: true,
@@ -146,7 +146,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       where: {
         invoiceDate: { gte: start, lt: end },
         venue: null,
-        status: { notIn: ["ERROR", "STATEMENT"] },
+        status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE"] },
       },
       select: {
         id: true,
@@ -160,7 +160,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     db.invoice.groupBy({
       by: ["supplierName"],
       _max: { invoiceDate: true },
-      where: { status: { notIn: ["ERROR", "STATEMENT"] } },
+      where: { status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE"] } },
     }),
   ])
 
