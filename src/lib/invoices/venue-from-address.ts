@@ -24,3 +24,30 @@ export function venueFromDeliveryAddress(
 
   return null
 }
+
+/**
+ * Per-supplier venue fallback for invoices where the delivery address
+ * doesn't parse (PDF formatting varies wildly across suppliers). Only
+ * use for suppliers that deliver to a single venue — adding a multi-venue
+ * supplier here would silently mis-route deliveries.
+ *
+ * Match is case-insensitive prefix-match on supplier name, so "Paramount
+ * Liquor" / "Paramount Liquor Pty Ltd" both resolve.
+ */
+const SINGLE_VENUE_SUPPLIERS: Array<{ prefix: string; venue: Venue }> = [
+  // Liquor — Beach House only (Burleigh isn't licensed for spirits in the
+  // same way; per Chris 2026-05-17 all Paramount deliveries are Beach
+  // House / Currumbin).
+  { prefix: "paramount liquor", venue: "BEACH_HOUSE" },
+]
+
+export function defaultVenueForSupplier(
+  supplierName: string | null | undefined
+): Venue | null {
+  if (!supplierName) return null
+  const s = supplierName.toLowerCase()
+  for (const rule of SINGLE_VENUE_SUPPLIERS) {
+    if (s.startsWith(rule.prefix)) return rule.venue
+  }
+  return null
+}
