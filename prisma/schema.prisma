@@ -860,6 +860,12 @@ model InvoiceLineItem {
   currentPrice    Decimal?    @db.Decimal(12, 4)
   priceChanged    Boolean     @default(false)
   priceApproved   Boolean?
+  /// Pack/unit differs from the ingredient's stored purchase unit. Must be
+  /// resolved (confirm conversion or remap) before the price can be applied.
+  unitChanged     Boolean     @default(false)
+  /// Auto-parsed from the line description (e.g. "Kale Carton 5kg" → 5).
+  /// Pre-fills the conversion-confirm field on the unit-changed bucket.
+  suggestedConversionFactor Decimal? @db.Decimal(12, 6)
   sortOrder       Int         @default(0)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt

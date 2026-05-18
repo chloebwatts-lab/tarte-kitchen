@@ -57,10 +57,29 @@ interface IngredientOption {
   name: string
 }
 
+interface UnitChangedAlert {
+  id: string
+  invoiceId: string
+  invoiceNumber: string | null
+  invoiceDate: string | null
+  supplierName: string
+  supplierId: string | null
+  description: string
+  ingredientId: string | null
+  ingredientName: string
+  storedUnit: string
+  storedQuantity: number
+  storedUnitPrice: number
+  invoiceUnit: string
+  invoiceUnitPrice: number
+  suggestedConversionFactor: number | null
+}
+
 interface Props {
   suppliers: Supplier[]
   invoices: InvoiceSummary[]
   alerts: PriceAlert[]
+  unitChangedAlerts: UnitChangedAlert[]
   alertCount: number
   ingredients: IngredientOption[]
 }
@@ -69,10 +88,12 @@ export function SupplierDashboard({
   suppliers,
   invoices,
   alerts,
+  unitChangedAlerts,
   alertCount,
   ingredients,
 }: Props) {
-  const unacknowledgedCount = alerts.filter((a) => !a.acknowledged).length
+  const unacknowledgedCount =
+    alerts.filter((a) => !a.acknowledged).length + unitChangedAlerts.length
 
   return (
     <div className="space-y-6">
@@ -121,7 +142,7 @@ export function SupplierDashboard({
         </TabsList>
 
         <TabsContent value="alerts">
-          <SupplierPriceAlerts alerts={alerts} />
+          <SupplierPriceAlerts alerts={alerts} unitChangedAlerts={unitChangedAlerts} />
         </TabsContent>
 
         <TabsContent value="invoices">

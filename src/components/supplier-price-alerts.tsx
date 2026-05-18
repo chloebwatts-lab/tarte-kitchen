@@ -1,6 +1,6 @@
 "use client"
 
-import { useTransition } from "react"
+import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,7 @@ import {
   CheckCheck,
   ArrowRightLeft,
   AlertTriangle,
+  Ruler,
   X,
 } from "lucide-react"
 import {
@@ -19,6 +20,7 @@ import {
   acknowledgeAllAlerts,
   applyAndAcknowledgeAlert,
   applyAllPriceChanges,
+  confirmConversion,
   rejectAndIgnoreMapping,
 } from "@/lib/actions/invoices"
 
@@ -42,7 +44,31 @@ interface PriceAlert {
   createdAt: string
 }
 
-export function SupplierPriceAlerts({ alerts }: { alerts: PriceAlert[] }) {
+interface UnitChangedAlert {
+  id: string
+  invoiceId: string
+  invoiceNumber: string | null
+  invoiceDate: string | null
+  supplierName: string
+  supplierId: string | null
+  description: string
+  ingredientId: string | null
+  ingredientName: string
+  storedUnit: string
+  storedQuantity: number
+  storedUnitPrice: number
+  invoiceUnit: string
+  invoiceUnitPrice: number
+  suggestedConversionFactor: number | null
+}
+
+export function SupplierPriceAlerts({
+  alerts,
+  unitChangedAlerts = [],
+}: {
+  alerts: PriceAlert[]
+  unitChangedAlerts?: UnitChangedAlert[]
+}) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
@@ -91,7 +117,7 @@ export function SupplierPriceAlerts({ alerts }: { alerts: PriceAlert[] }) {
     })
   }
 
-  if (alerts.length === 0) {
+  if (alerts.length === 0 && unitChangedAlerts.length === 0) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
@@ -107,6 +133,25 @@ export function SupplierPriceAlerts({ alerts }: { alerts: PriceAlert[] }) {
 
   return (
     <div className="space-y-4">
+      {unitChangedAlerts.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Ruler className="h-4 w-4 text-amber-600" />
+            <p className="text-sm font-medium text-amber-900">
+              Pack / unit changed — needs remap ({unitChangedAlerts.length})
+            </p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            These lines came in with a different unit to what's stored, so the
+            price isn't comparable like-for-like. Confirm how many stored units
+            are in one invoice unit and the price flows through normally.
+          </p>
+          {unitChangedAlerts.map((alert) => (
+            <UnitChangedRow key={alert.id} alert={alert} isPending={isPending} />
+          ))}
+        </div>
+      )}
+
       {unacknowledged.length > 0 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
@@ -277,6 +322,101 @@ function AlertRow({
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function UnitChangedRow({
+  alert,
+  isPending,
+}: {
+  alert: UnitChangedAlert
+  isPending: boolean
+}) {
+  const router = useRouter()
+  const [localPending, startLocal] = useTransition()
+  const [factor, setFactor] = useState<string>(
+    alert.suggestedConversionFactor != null
+      ? String(alert.suggestedConversionFactor)
+      : ""
+  )
+  const [error, setError] = useState<string | null>(null)
+
+  const busy = isPending || localPending
+  const parsed = parseFloat(factor)
+  const valid = Number.isFinite(parsed) && parsed > 0
+
+  function submit() {
+    setError(null)
+    if (!valid) {
+      setError("Enter a positive number")
+      return
+    }
+    startLocal(async () => {
+      try {
+        await confirmConversion(alert.id, parsed)
+        router.refresh()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e))
+      }
+    })
+  }
+
+  const impliedStoredPrice = valid ? alert.invoiceUnitPrice * parsed : null
+
+  return (
+    <div className="rounded-lg border border-amber-200 bg-amber-50/40 p-3 space-y-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-sm font-medium">{alert.ingredientName}</span>
+        <Badge variant="secondary" className="text-[10px]">
+          {alert.supplierName}
+        </Badge>
+        {alert.invoiceNumber && (
+          <span className="text-xs text-muted-foreground">#{alert.invoiceNumber}</span>
+        )}
+      </div>
+      <div className="text-xs text-muted-foreground">
+        Stored: ${alert.storedUnitPrice.toFixed(2)}/{alert.storedUnit}
+        {" · "}
+        Invoice: ${alert.invoiceUnitPrice.toFixed(2)}/{alert.invoiceUnit || "?"}
+        {" · "}
+        <span className="italic">&ldquo;{alert.description}&rdquo;</span>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <label className="text-xs text-muted-foreground">
+          1 {alert.invoiceUnit || "invoice unit"} =
+        </label>
+        <input
+          type="number"
+          step="any"
+          min={0}
+          value={factor}
+          onChange={(e) => setFactor(e.target.value)}
+          disabled={busy}
+          className="w-24 rounded border border-amber-300 bg-white px-2 py-1 text-xs"
+          placeholder="e.g. 5"
+        />
+        <span className="text-xs text-muted-foreground">
+          {alert.storedUnit || "stored unit"}
+          {valid && impliedStoredPrice !== null && (
+            <>
+              {" → "}
+              <span className="font-medium text-foreground">
+                ${impliedStoredPrice.toFixed(2)}/{alert.storedUnit}
+              </span>
+            </>
+          )}
+        </span>
+        <Button size="sm" onClick={submit} disabled={busy || !valid}>
+          {alert.suggestedConversionFactor != null ? "Confirm" : "Save conversion"}
+        </Button>
+      </div>
+      {alert.suggestedConversionFactor != null && (
+        <p className="text-[11px] text-amber-800">
+          Suggested from description — confirm or adjust before saving.
+        </p>
+      )}
+      {error && <p className="text-[11px] text-rose-600">{error}</p>}
     </div>
   )
 }

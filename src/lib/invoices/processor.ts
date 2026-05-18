@@ -1,11 +1,12 @@
 import { db } from "@/lib/db"
-import { matchLineItem, detectPriceChange } from "./matcher"
+import { matchLineItem } from "./matcher"
 import type { ParsedInvoice } from "./parser"
 import {
   venueFromDeliveryAddress,
   defaultVenueForSupplier,
 } from "./venue-from-address"
 import type { InvoiceStatus } from "@/generated/prisma"
+import { evaluatePriceChange } from "./units"
 
 export interface ProcessingResult {
   invoiceId: string
@@ -50,26 +51,53 @@ export async function processInvoice(
     let ingredientId: string | null = null
     let mappingId: string | null = null
     let priceChanged = false
+    let unitChanged = false
     let currentPrice: number | null = null
+    let suggestedConversionFactor: number | null = null
 
     if (matchResult.matched) {
       matchedItems++
       ingredientId = matchResult.ingredientId
       mappingId = matchResult.mappingId
 
-      // Check for price changes
-      const priceResult = await detectPriceChange(ingredientId, lineItem.unitPrice)
-
-      if (priceResult.changed) {
-        priceChanges++
-        priceChanged = true
-        currentPrice = priceResult.previousPrice
+      const ing = await db.ingredient.findUnique({
+        where: { id: ingredientId },
+        select: { purchasePrice: true, purchaseQuantity: true, purchaseUnit: true },
+      })
+      // If the matcher reused a SupplierItemMapping it may already carry a
+      // conversion factor (a one-tap confirm from a prior invoice).
+      let mappingConversion: number | null = null
+      if (mappingId) {
+        const mapping = await db.supplierItemMapping.findUnique({
+          where: { id: mappingId },
+          select: { conversionFactor: true },
+        })
+        mappingConversion = mapping?.conversionFactor ? Number(mapping.conversionFactor) : null
+      }
+      if (ing) {
+        const evaluation = evaluatePriceChange(
+          {
+            purchaseUnit: ing.purchaseUnit,
+            purchaseQuantity: Number(ing.purchaseQuantity),
+            purchasePrice: Number(ing.purchasePrice),
+          },
+          {
+            unit: lineItem.unit,
+            unitPrice: lineItem.unitPrice,
+            description: lineItem.description,
+          },
+          mappingConversion
+        )
+        priceChanged = evaluation.priceChanged
+        unitChanged = evaluation.unitChanged
+        currentPrice = evaluation.currentPrice
+        suggestedConversionFactor = evaluation.suggestedConversionFactor
+        if (priceChanged) priceChanges++
       }
     } else {
       unmatchedItems++
     }
 
-    // Create the line item record
     await db.invoiceLineItem.create({
       data: {
         invoiceId,
@@ -81,7 +109,9 @@ export async function processInvoice(
         ingredientId,
         mappingId,
         priceChanged,
+        unitChanged,
         currentPrice,
+        suggestedConversionFactor,
       },
     })
   }

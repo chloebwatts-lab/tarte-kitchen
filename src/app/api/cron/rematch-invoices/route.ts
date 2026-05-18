@@ -10,7 +10,8 @@
 
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
-import { matchLineItem, detectPriceChange } from "@/lib/invoices/matcher"
+import { matchLineItem } from "@/lib/invoices/matcher"
+import { evaluatePriceChange } from "@/lib/invoices/units"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 1500
@@ -65,16 +66,41 @@ export async function GET(req: NextRequest) {
         newlyMatched++
 
         let priceChanged = false
+        let unitChanged = false
         let currentPrice: number | null = null
+        let suggestedConversionFactor: number | null = null
         if (line.unitPrice != null) {
-          const priceResult = await detectPriceChange(
-            match.ingredientId,
-            Number(line.unitPrice)
-          )
-          if (priceResult.changed) {
-            priceChanged = true
-            currentPrice = priceResult.previousPrice
-            newPriceChanges++
+          const ing = await db.ingredient.findUnique({
+            where: { id: match.ingredientId },
+            select: { purchasePrice: true, purchaseQuantity: true, purchaseUnit: true },
+          })
+          let mappingConversion: number | null = null
+          if (match.mappingId) {
+            const mapping = await db.supplierItemMapping.findUnique({
+              where: { id: match.mappingId },
+              select: { conversionFactor: true },
+            })
+            mappingConversion = mapping?.conversionFactor ? Number(mapping.conversionFactor) : null
+          }
+          if (ing) {
+            const evaluation = evaluatePriceChange(
+              {
+                purchaseUnit: ing.purchaseUnit,
+                purchaseQuantity: Number(ing.purchaseQuantity),
+                purchasePrice: Number(ing.purchasePrice),
+              },
+              {
+                unit: line.unit,
+                unitPrice: Number(line.unitPrice),
+                description: line.description,
+              },
+              mappingConversion
+            )
+            priceChanged = evaluation.priceChanged
+            unitChanged = evaluation.unitChanged
+            currentPrice = evaluation.currentPrice
+            suggestedConversionFactor = evaluation.suggestedConversionFactor
+            if (priceChanged) newPriceChanges++
           }
         }
 
@@ -84,7 +110,9 @@ export async function GET(req: NextRequest) {
             ingredientId: match.ingredientId,
             mappingId: match.mappingId,
             priceChanged,
+            unitChanged,
             currentPrice,
+            suggestedConversionFactor,
           },
         })
       } catch (e) {
