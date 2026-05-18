@@ -526,6 +526,43 @@ export async function syncDeputyTimesheets() {
     where: { source: "TIMESHEET", shiftStart: { gte: windowStart } },
   })
 
+  // Build an employeeId → effective hourly rate map from this window's
+  // ROSTER rows. Deputy stores Cost on Roster (Cost ÷ TotalTime = the
+  // employee's rostered hourly rate including any awards / penalty
+  // loadings the manager applied at rostering time). This is the best
+  // proxy for what their unapproved timesheet should be costed at —
+  // far more accurate than Employee.PayRate (which is often 0 in Deputy
+  // because the real rate lives on EmployeeAgreement/Appointment).
+  //
+  // Salaried staff have Roster Cost = lump-sum on a 1h placeholder
+  // shift, which would yield an absurd hourly rate ($500+/hr) — exclude
+  // those by rate-capping at $150/hr.
+  const rosterRows = await db.labourShift.findMany({
+    where: {
+      source: "ROSTER",
+      shiftStart: { gte: windowStart },
+      cost: { gt: 0 },
+      hours: { gt: 0 },
+    },
+    select: { employeeId: true, cost: true, hours: true },
+  })
+  const rateAccum = new Map<string, { cost: number; hours: number }>()
+  for (const r of rosterRows) {
+    if (!r.employeeId) continue
+    const hrs = Number(r.hours)
+    const cst = Number(r.cost)
+    const rate = hrs > 0 ? cst / hrs : 0
+    if (rate <= 0 || rate > 150) continue // skip salary placeholders
+    const acc = rateAccum.get(r.employeeId) ?? { cost: 0, hours: 0 }
+    acc.cost += cst
+    acc.hours += hrs
+    rateAccum.set(r.employeeId, acc)
+  }
+  const rateMap = new Map<string, number>()
+  for (const [empId, { cost, hours }] of rateAccum) {
+    if (hours > 0) rateMap.set(empId, cost / hours)
+  }
+
   let upserted = 0
   let skipped = 0
   const skippedOpUnits = new Map<number, number>()
@@ -555,19 +592,23 @@ export async function syncDeputyTimesheets() {
     const emp = empMap.get(t.Employee)
     const empRate =
       typeof emp?.PayRate === "number" && emp.PayRate > 0 ? emp.PayRate : null
-    // Deputy only fills in Cost when the timesheet is approved (Wed
-    // morning after the trading week closes). For unapproved/in-flight
-    // rows we estimate from PayRate × hours so the live tracker has
-    // something to work with mid-week. Salaried staff have PayRate=0
-    // → estimate is 0, which is correct (their cost lives on the
-    // separate "Salary X" placeholder employee).
+    // Pay-rate cascade for unapproved timesheets:
+    //   1. Approved Cost (gospel from Deputy, post-payroll)
+    //   2. Roster-derived rate × hours (best estimate mid-week — see rateMap)
+    //   3. Employee.PayRate × hours (fallback, often missing)
+    //   4. Raw Deputy Cost field (usually 0 pre-approval)
+    // Salaried staff fall through to 4 → 0, which is correct (their cost
+    // lives on the "Salary X" placeholder employee's Roster row).
+    const rosterRate = rateMap.get(String(t.Employee))
     const cost = t.Approved && typeof t.Cost === "number" && t.Cost > 0
       ? t.Cost
-      : empRate !== null
-        ? empRate * hoursNum
-        : typeof t.Cost === "number"
-          ? t.Cost
-          : 0
+      : rosterRate !== undefined
+        ? rosterRate * hoursNum
+        : empRate !== null
+          ? empRate * hoursNum
+          : typeof t.Cost === "number"
+            ? t.Cost
+            : 0
 
     await db.labourShift.create({
       data: {
