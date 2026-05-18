@@ -5,19 +5,26 @@ import { getLightspeedStatus } from "@/lib/actions/lightspeed"
 import { getGmailStatus } from "@/lib/actions/gmail"
 import { getXeroStatus } from "@/lib/actions/xero"
 import { getDeputyStatus } from "@/lib/actions/deputy"
+import { getGbpConnectionStatus } from "@/lib/gbp/token"
 import { LightspeedConnection } from "@/components/lightspeed-connection"
 import { GmailConnection } from "@/components/gmail-connection"
 import { XeroConnection } from "@/components/xero-connection"
 import { DeputyConnection } from "@/components/deputy-connection"
+import { GbpConnection } from "@/components/gbp-connection"
 
 export default async function IntegrationsPage() {
-  const [lightspeedStatus, gmailStatus, xeroStatus, deputyStatus] =
+  const [lightspeedStatus, gmailStatus, xeroStatus, deputyStatus, gbpStatus] =
     await Promise.all([
       getLightspeedStatus(),
       getGmailStatus(),
       getXeroStatus(),
       getDeputyStatus(),
+      getGbpConnectionStatus(),
     ])
+
+  const googleOauthConfigured = Boolean(
+    process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET
+  )
 
   return (
     <div className="space-y-6">
@@ -29,10 +36,8 @@ export default async function IntegrationsPage() {
         </p>
       </div>
       <XeroConnection status={xeroStatus} />
-      <GmailConnection
-        status={gmailStatus}
-        configured={Boolean(process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET)}
-      />
+      <GmailConnection status={gmailStatus} configured={googleOauthConfigured} />
+      <GbpConnection status={gbpStatus} configured={googleOauthConfigured} />
       <LightspeedConnection status={lightspeedStatus} />
       <DeputyConnection
         status={deputyStatus}

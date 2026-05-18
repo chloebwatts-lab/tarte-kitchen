@@ -1,23 +1,46 @@
 import { NextRequest } from "next/server"
 import { ingestAllVenues } from "@/lib/google-reviews/fetch"
+import { ingestAllVenuesGbp } from "@/lib/gbp/fetch"
+import { getActiveGbpConnection } from "@/lib/gbp/token"
 
 export const dynamic = "force-dynamic"
+export const maxDuration = 300
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization")
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 })
   }
+
+  // The Places API path stays unconditional: it owns the aggregate
+  // rating snapshot (GBP doesn't expose it) and acts as a fallback if
+  // GBP is disconnected or partially bound. When the GBP connection is
+  // live, we run it too — it returns *all* reviews paginated, beating
+  // the 5-cap Places window. Content-identity dedup in both fetchers
+  // keeps overlap from creating duplicate rows.
+  let gbp: Awaited<ReturnType<typeof ingestAllVenuesGbp>> | null = null
+  let gbpError: string | null = null
+  const gbpConnection = await getActiveGbpConnection()
+  if (gbpConnection) {
+    try {
+      gbp = await ingestAllVenuesGbp()
+    } catch (e) {
+      gbpError = e instanceof Error ? e.message : String(e)
+    }
+  }
+
   try {
-    const results = await ingestAllVenues()
+    const places = await ingestAllVenues()
     return Response.json({
       ok: true,
       runAt: new Date().toISOString(),
-      results,
+      gbp,
+      gbpError,
+      places,
     })
   } catch (e) {
     return Response.json(
-      { error: e instanceof Error ? e.message : String(e) },
+      { error: e instanceof Error ? e.message : String(e), gbpError, gbp },
       { status: 500 }
     )
   }
