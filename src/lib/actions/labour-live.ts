@@ -185,6 +185,13 @@ export async function getLiveLabourSnapshot(): Promise<LiveSnapshot> {
     const todayRevenue = revByDay.get(`${venue}|${todayAest}`) ?? 0
     const revenueToDate = lockedRevenue + todayRevenue
 
+    // If today's POS data hasn't synced yet (Lightspeed EOD email lands
+    // overnight), use today's day-of-week median so the projection
+    // doesn't lose a whole day of revenue. Once the EOD email lands and
+    // the sync writes a row, the real number replaces this on next load.
+    const todayDate = new Date(`${todayAest}T00:00:00Z`)
+    const todayDow = todayDate.getUTCDay()
+
     // Forecast for the remaining days, in priority order:
     //   1. Day-of-week median from the prior 4 Tarte weeks — handles the
     //      Mon-and-Tue-are-slow-days reality. Best accuracy when we have
@@ -209,19 +216,19 @@ export async function getLiveLabourSnapshot(): Promise<LiveSnapshot> {
         : sorted[mid]
     }
 
+    // Days needing a forecast: any remaining day + today if today has
+    // no POS data yet.
+    const daysNeedingForecast: string[] = [...remainingDays]
+    if (todayRevenue === 0) daysNeedingForecast.unshift(todayAest)
+
     let remainingForecast = 0
-    let usingHistoryForecast = true
-    for (const remainingDateStr of remainingDays) {
-      const remDate = new Date(`${remainingDateStr}T00:00:00Z`)
-      const dow = remDate.getUTCDay()
+    for (const dateStr of daysNeedingForecast) {
+      const d = new Date(`${dateStr}T00:00:00Z`)
+      const dow = d.getUTCDay()
       const samples = historyByDow.get(dow) ?? []
       if (samples.length >= 2) {
         remainingForecast += median(samples)
       } else {
-        // Lose the day-of-week per-venue history → fall back to manager's
-        // forecast or locked-day average. We mark the whole flag for the
-        // diagnostic but per-day fallback is fine.
-        usingHistoryForecast = false
         const forecastRow = forecasts.find((f) => f.venue === venue)
         const weeklyForecast = forecastRow ? Number(forecastRow.amount) : null
         if (weeklyForecast && weeklyForecast > 0) {
@@ -231,8 +238,7 @@ export async function getLiveLabourSnapshot(): Promise<LiveSnapshot> {
         }
       }
     }
-    // Quiet the unused-warning when nothing fell through.
-    void usingHistoryForecast
+    void todayDow // referenced for readability; computed but not used directly
     const revenueProjected = revenueToDate + remainingForecast
 
     const overallProjectedPct =
