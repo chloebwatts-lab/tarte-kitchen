@@ -135,10 +135,14 @@ export async function getLiveLabourSnapshot(): Promise<LiveSnapshot> {
         labourToDate += cost
         bucketSpent[bucket] += cost
       } else {
-        // ROSTER row — only counts toward the "remaining" projection
-        // for shifts that start in the future. Past rostered shifts
-        // are already covered by their TIMESHEET row.
-        if (s.shiftStart.getTime() > now.getTime()) {
+        // ROSTER rows: two reasons to include in the projection.
+        //   1. Shift hasn't started yet — it's genuinely "remaining".
+        //   2. Salary X placeholder — represents a weekly fixed cost
+        //      that doesn't have a matching Timesheet row, so without
+        //      this we'd under-count by the salaried staff's wages.
+        const isSalaryPlaceholder = s.area?.toLowerCase().startsWith("salary") ?? false
+        const isFuture = s.shiftStart.getTime() > now.getTime()
+        if (isFuture || isSalaryPlaceholder) {
           labourRemaining += cost
           bucketRoster[bucket] += cost
         }
