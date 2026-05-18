@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
-import { listOpUnits, syncDeputyTimesheets } from "@/lib/deputy/client"
+import { listOpUnits, syncDeputyAll } from "@/lib/deputy/client"
 import { encrypt } from "@/lib/encryption"
 import type { Venue } from "@/generated/prisma"
 
@@ -168,7 +168,7 @@ export async function setDeputyLocationVenue(params: {
 }
 
 export async function triggerDeputySync() {
-  const result = await syncDeputyTimesheets()
+  const result = await syncDeputyAll()
   revalidatePath("/labour")
   revalidatePath("/settings/integrations")
   return result

@@ -159,8 +159,26 @@ export async function listOpUnits(): Promise<DeputyOpUnit[]> {
   return deputyFetch<DeputyOpUnit[]>("/api/v1/resource/OperationalUnit")
 }
 
+/**
+ * Paginate through every Employee row. Deputy's default page size is 500.
+ * Tarte has well over that — without paging we'd be missing salaried staff
+ * whose names then degrade to "Employee #NNN" placeholders and whose
+ * lump-sum Roster cost can't be attributed correctly.
+ */
 export async function listEmployees(): Promise<DeputyEmployee[]> {
-  return deputyFetch<DeputyEmployee[]>("/api/v1/resource/Employee")
+  const PAGE = 500
+  const out: DeputyEmployee[] = []
+  for (let start = 0; ; start += PAGE) {
+    const page = await deputyFetch<DeputyEmployee[]>(
+      `/api/v1/resource/Employee?start=${start}`
+    )
+    if (!Array.isArray(page) || page.length === 0) break
+    out.push(...page)
+    if (page.length < PAGE) break
+    // Safety cap so a misbehaving server can't put us in an infinite loop.
+    if (start >= 10000) break
+  }
+  return out
 }
 
 export interface DeputyPlanSales {
@@ -254,13 +272,27 @@ export async function listTimesheetsSince(
  * This function intentionally does NOT backfill history — syncing every
  * shift forever creates noise without signal.
  */
+/**
+ * Build the OperationalUnit → { venue, name } lookup from the JSON column
+ * the user set up in /settings/integrations. Name is captured so each
+ * shift row carries the area string ("Kitchen", "FOH", "Salary X", etc.)
+ * that the department-bucket labour % math needs.
+ */
+function loadLocationMap(
+  locations: unknown
+): Map<number, { venue: Venue; name: string }> {
+  const map = new Map<number, { venue: Venue; name: string }>()
+  for (const row of (locations as
+    | { id: number; venue: Venue; name?: string }[]
+    | undefined) ?? []) {
+    map.set(row.id, { venue: row.venue, name: row.name ?? "" })
+  }
+  return map
+}
+
 export async function syncDeputyRoster() {
   const connection = await getConnection()
-  const locMap = new Map<number, Venue>()
-  for (const row of (connection.locations as { id: number; venue: Venue }[]) ??
-    []) {
-    locMap.set(row.id, row.venue)
-  }
+  const locMap = loadLocationMap(connection.locations)
   if (locMap.size === 0) {
     throw new Error(
       "No Deputy location mappings configured — visit Settings → Integrations → Deputy"
@@ -302,8 +334,8 @@ export async function syncDeputyRoster() {
   let skipped = 0
   const skippedOpUnits = new Map<number, number>()
   for (const r of rosters) {
-    const venue = locMap.get(r.OperationalUnit)
-    if (!venue) {
+    const loc = locMap.get(r.OperationalUnit)
+    if (!loc) {
       skipped += 1
       skippedOpUnits.set(
         r.OperationalUnit,
@@ -347,12 +379,13 @@ export async function syncDeputyRoster() {
         deputyId: `roster-${r.Id}`,
         employeeName: emp?.DisplayName ?? `Employee #${r.Employee}`,
         employeeId: String(r.Employee),
-        venue,
+        venue: loc.venue,
         shiftStart: new Date(startMs),
         shiftEnd: new Date(endMs),
         hours: safeDecimal(hoursNum),
         cost: safeDecimal(effectiveCost),
         payRate: safeDecimalOrNull(empRate),
+        area: loc.name || null,
         approved: false,
         isOpen,
         source: "ROSTER",
@@ -367,8 +400,9 @@ export async function syncDeputyRoster() {
   // so manual overrides (source=MANUAL) still win.
   const forecastByKey = new Map<string, number>() // "<venue>|<wedIso>" → $
   for (const ps of planSales) {
-    const venue = locMap.get(ps.OperationalUnit)
-    if (!venue) continue
+    const loc = locMap.get(ps.OperationalUnit)
+    if (!loc) continue
+    const venue = loc.venue
     const d = new Date(ps.Timestamp * 1000)
     const wedStart = startOfTarteWeekUtc(d)
     const key = `${venue}|${wedStart.toISOString().split("T")[0]}`
@@ -429,6 +463,136 @@ export async function syncDeputyRoster() {
   }
 }
 
-// Legacy alias — the old action button + cron endpoint called this name.
-// Points at the new Roster-based sync so /api/cron/sync-deputy keeps working.
-export const syncDeputyTimesheets = syncDeputyRoster
+/**
+ * Pull actual Timesheet rows from Deputy for the current Tarte trading
+ * week (Wed → Tue). Unlike the Roster sync, these capture *live* clock-in
+ * / clock-out activity — they materialise the second a barista scans in,
+ * regardless of approval status. That's what the live FOH tracker needs.
+ *
+ * Approved timesheets settle into payroll on Wednesday; the data we read
+ * here is the same shape Deputy stores from the moment the shift opens.
+ *
+ * Cost handling matches Deputy's own convention: salaried staff have
+ * `Cost = 0` on their timesheet rows (their weekly salary lives on a
+ * separate "Salary X" placeholder employee). Open shifts have no
+ * timesheet row at all — they only exist on Roster.
+ */
+export async function syncDeputyTimesheets() {
+  const connection = await getConnection()
+  const locMap = loadLocationMap(connection.locations)
+  if (locMap.size === 0) {
+    throw new Error(
+      "No Deputy location mappings configured — visit Settings → Integrations → Deputy"
+    )
+  }
+
+  const { startOfTarteWeekUtc } = await import("@/lib/dates")
+  // Pull from the start of last Tarte week so anything that landed
+  // late (approval after Tuesday close) still re-syncs cleanly.
+  const wedAest = startOfTarteWeekUtc(new Date())
+  const lastWedAest = new Date(wedAest)
+  lastWedAest.setUTCDate(lastWedAest.getUTCDate() - 7)
+  // Subtract 10h to project back into actual UTC instant of Wed 00:00 AEST.
+  const sinceUnix =
+    Math.floor(lastWedAest.getTime() / 1000) - 10 * 3600
+
+  const [timesheets, employees] = await Promise.all([
+    listTimesheetsSince(sinceUnix),
+    listEmployees(),
+  ])
+  const empMap = new Map(employees.map((e) => [e.Id, e]))
+
+  const safeDecimal = (v: unknown): InstanceType<typeof Decimal> =>
+    new Decimal(typeof v === "number" || typeof v === "string" ? v : 0)
+  const safeDecimalOrNull = (
+    v: unknown
+  ): InstanceType<typeof Decimal> | null =>
+    v == null ? null : safeDecimal(v)
+
+  // Idempotent: replace the window's TIMESHEET rows so updates from
+  // mid-shift edits (clock-out time corrections, manager adjustments)
+  // are picked up cleanly.
+  const windowStart = new Date(sinceUnix * 1000)
+  await db.labourShift.deleteMany({
+    where: { source: "TIMESHEET", shiftStart: { gte: windowStart } },
+  })
+
+  let upserted = 0
+  let skipped = 0
+  const skippedOpUnits = new Map<number, number>()
+  for (const t of timesheets) {
+    const loc = locMap.get(t.OperationalUnit)
+    if (!loc) {
+      skipped += 1
+      skippedOpUnits.set(
+        t.OperationalUnit,
+        (skippedOpUnits.get(t.OperationalUnit) ?? 0) + 1
+      )
+      continue
+    }
+    const startMs = Number(t.StartTime) * 1000
+    const endMs = Number(t.EndTime) * 1000
+    if (!Number.isFinite(startMs)) {
+      skipped += 1
+      continue
+    }
+    // Open / in-progress shifts have no EndTime yet. Use now() for the
+    // elapsed-hours calc so the live tracker can see accruing labour.
+    const effectiveEndMs = Number.isFinite(endMs) && endMs > 0 ? endMs : Date.now()
+    const hoursNum =
+      typeof t.TotalTime === "number" && t.TotalTime > 0
+        ? t.TotalTime
+        : (effectiveEndMs - startMs) / 1000 / 3600
+    const emp = empMap.get(t.Employee)
+    const empRate =
+      typeof emp?.PayRate === "number" && emp.PayRate > 0 ? emp.PayRate : null
+    // For Timesheet rows we TRUST what Deputy stored. Cost=0 means the
+    // employee is salaried (their weekly cost sits on a "Salary X"
+    // placeholder row instead). Don't re-derive from PayRate — that
+    // would double-count salaried staff.
+    const cost = typeof t.Cost === "number" ? t.Cost : 0
+
+    await db.labourShift.create({
+      data: {
+        deputyId: `timesheet-${t.Id}`,
+        employeeName: emp?.DisplayName ?? `Employee #${t.Employee}`,
+        employeeId: String(t.Employee),
+        venue: loc.venue,
+        shiftStart: new Date(startMs),
+        shiftEnd: new Date(effectiveEndMs),
+        hours: safeDecimal(hoursNum),
+        cost: safeDecimal(cost),
+        payRate: safeDecimalOrNull(empRate),
+        area: loc.name || null,
+        approved: Boolean(t.Approved),
+        isOpen: false, // Open shifts never have Timesheet rows
+        source: "TIMESHEET",
+      },
+    })
+    upserted += 1
+  }
+
+  if (skippedOpUnits.size > 0) {
+    console.log(
+      "[deputy/timesheets] skipped op-units (not in locMap):",
+      Object.fromEntries(skippedOpUnits.entries())
+    )
+  }
+
+  return {
+    upserted,
+    skipped,
+    total: timesheets.length,
+    windowStart: windowStart.toISOString().split("T")[0],
+  }
+}
+
+/**
+ * Run both syncs (roster + timesheets) in sequence. Called by the
+ * /api/cron/sync-deputy endpoint and by the Settings "Sync now" button.
+ */
+export async function syncDeputyAll() {
+  const roster = await syncDeputyRoster()
+  const timesheets = await syncDeputyTimesheets()
+  return { roster, timesheets }
+}

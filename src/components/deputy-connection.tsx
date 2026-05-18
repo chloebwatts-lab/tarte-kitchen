@@ -94,7 +94,8 @@ export function DeputyConnection({ status, configured }: Props) {
       try {
         const r = await triggerDeputySync()
         setSyncResult(
-          `Synced — ${r.upserted} shifts (${r.skipped} skipped, no venue mapping)`
+          `Synced — ${r.roster.upserted} roster + ${r.timesheets.upserted} timesheet shifts ` +
+            `(${r.roster.skipped + r.timesheets.skipped} skipped, no venue mapping)`
         )
       } catch (e) {
         setSyncResult(`Error: ${(e as Error).message}`)

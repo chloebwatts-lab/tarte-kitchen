@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic"
 
-import { syncDeputyTimesheets } from "@/lib/deputy/client"
+import { syncDeputyAll } from "@/lib/deputy/client"
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization")
@@ -8,7 +8,7 @@ export async function GET(request: Request) {
     return new Response("Unauthorized", { status: 401 })
   }
   try {
-    const result = await syncDeputyTimesheets()
+    const result = await syncDeputyAll()
     return Response.json(result)
   } catch (e) {
     return Response.json(
