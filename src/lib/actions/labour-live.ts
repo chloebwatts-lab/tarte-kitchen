@@ -67,30 +67,54 @@ export async function getLiveLabourSnapshot(): Promise<LiveSnapshot> {
   const { start: weekStart, end: weekEnd } = currentTarteWeekRange(now)
   const todayAest = aestDateKey(now)
 
+  // Day-of-week revenue history: pull the prior 4 Tarte weeks so we can
+  // forecast each remaining day from its actual same-DOW history rather
+  // than the naive `× 7/days_locked` average that overstates Mon + Tue
+  // by treating them like Sat + Sun.
+  const historyStart = new Date(weekStart)
+  historyStart.setUTCDate(historyStart.getUTCDate() - 28)
+
   // Pull everything for the week in a few targeted queries.
-  const [labourShifts, salesSummaries, forecasts] = await Promise.all([
-    db.labourShift.findMany({
-      where: {
-        shiftStart: { gte: weekStart, lt: weekEnd },
-      },
-      select: {
-        venue: true,
-        area: true,
-        cost: true,
-        source: true,
-        shiftStart: true,
-        shiftEnd: true,
-      },
-    }),
-    db.dailySalesSummary.findMany({
-      where: { date: { gte: weekStart, lt: weekEnd } },
-      select: { venue: true, date: true, totalRevenueExGst: true },
-    }),
-    db.managerSalesForecast.findMany({
-      where: { weekStartWed: weekStart },
-      select: { venue: true, amount: true },
-    }),
-  ])
+  const [labourShifts, salesSummaries, forecasts, history, connection] =
+    await Promise.all([
+      db.labourShift.findMany({
+        where: {
+          shiftStart: { gte: weekStart, lt: weekEnd },
+        },
+        select: {
+          venue: true,
+          area: true,
+          cost: true,
+          source: true,
+          shiftStart: true,
+          shiftEnd: true,
+        },
+      }),
+      db.dailySalesSummary.findMany({
+        where: { date: { gte: weekStart, lt: weekEnd } },
+        select: { venue: true, date: true, totalRevenueExGst: true },
+      }),
+      db.managerSalesForecast.findMany({
+        where: { weekStartWed: weekStart },
+        select: { venue: true, amount: true },
+      }),
+      db.dailySalesSummary.findMany({
+        where: { date: { gte: historyStart, lt: weekStart } },
+        select: { venue: true, date: true, totalRevenueExGst: true },
+      }),
+      db.deputyConnection.findFirst({
+        select: { superRate: true, onCostUpliftRate: true },
+      }),
+    ])
+
+  // Labour multiplier: Deputy's raw Cost excludes super + workers'-comp
+  // /payroll tax. Louise's PDF (the source of truth we project toward)
+  // does include them. Apply both rates from DeputyConnection so the
+  // live projection lands at gross-wages.
+  const labourMultiplier =
+    1 +
+    Number(connection?.superRate ?? 0.12) +
+    Number(connection?.onCostUpliftRate ?? 0)
 
   // Daily revenue map: key = "<venue>|<yyyy-mm-dd>" → $
   const revByDay = new Map<string, number>()
@@ -130,7 +154,10 @@ export async function getLiveLabourSnapshot(): Promise<LiveSnapshot> {
     }
     for (const s of venueShifts) {
       const bucket = bucketFor(venue, s.area)
-      const cost = Number(s.cost)
+      // Apply on-cost multiplier (super + workers' comp + payroll tax)
+      // so the projection lines up with Louise's gross-wages PDF rather
+      // than Deputy's raw scheduled-cost figure.
+      const cost = Number(s.cost) * labourMultiplier
       if (s.source === "TIMESHEET") {
         labourToDate += cost
         bucketSpent[bucket] += cost
@@ -158,19 +185,54 @@ export async function getLiveLabourSnapshot(): Promise<LiveSnapshot> {
     const todayRevenue = revByDay.get(`${venue}|${todayAest}`) ?? 0
     const revenueToDate = lockedRevenue + todayRevenue
 
-    // Forecast for the remaining days: pro-rate the manager's weekly
-    // forecast by remaining-day count. Falls back to extrapolating
-    // from the average locked-day revenue if no forecast exists.
-    const forecastRow = forecasts.find((f) => f.venue === venue)
-    const weeklyForecast = forecastRow ? Number(forecastRow.amount) : null
-    let remainingForecast = 0
-    if (weeklyForecast && weeklyForecast > 0) {
-      const dailyForecast = weeklyForecast / 7
-      remainingForecast = dailyForecast * remainingDays.length
-    } else if (lockedDays.length > 0) {
-      const avgLocked = lockedRevenue / lockedDays.length
-      remainingForecast = avgLocked * remainingDays.length
+    // Forecast for the remaining days, in priority order:
+    //   1. Day-of-week median from the prior 4 Tarte weeks — handles the
+    //      Mon-and-Tue-are-slow-days reality. Best accuracy when we have
+    //      historical data.
+    //   2. Manager's Deputy forecast pro-rated equally — fallback when
+    //      we don't have enough history.
+    //   3. Average of locked days — last-resort fallback.
+    const venueHistory = history.filter((h) => h.venue === venue)
+    const historyByDow = new Map<number, number[]>()
+    for (const h of venueHistory) {
+      const dow = h.date.getUTCDay() // 0=Sun ... 6=Sat
+      const arr = historyByDow.get(dow) ?? []
+      arr.push(Number(h.totalRevenueExGst))
+      historyByDow.set(dow, arr)
     }
+    const median = (arr: number[]): number => {
+      if (arr.length === 0) return 0
+      const sorted = [...arr].sort((a, b) => a - b)
+      const mid = Math.floor(sorted.length / 2)
+      return sorted.length % 2 === 0
+        ? (sorted[mid - 1] + sorted[mid]) / 2
+        : sorted[mid]
+    }
+
+    let remainingForecast = 0
+    let usingHistoryForecast = true
+    for (const remainingDateStr of remainingDays) {
+      const remDate = new Date(`${remainingDateStr}T00:00:00Z`)
+      const dow = remDate.getUTCDay()
+      const samples = historyByDow.get(dow) ?? []
+      if (samples.length >= 2) {
+        remainingForecast += median(samples)
+      } else {
+        // Lose the day-of-week per-venue history → fall back to manager's
+        // forecast or locked-day average. We mark the whole flag for the
+        // diagnostic but per-day fallback is fine.
+        usingHistoryForecast = false
+        const forecastRow = forecasts.find((f) => f.venue === venue)
+        const weeklyForecast = forecastRow ? Number(forecastRow.amount) : null
+        if (weeklyForecast && weeklyForecast > 0) {
+          remainingForecast += weeklyForecast / 7
+        } else if (lockedDays.length > 0) {
+          remainingForecast += lockedRevenue / lockedDays.length
+        }
+      }
+    }
+    // Quiet the unused-warning when nothing fell through.
+    void usingHistoryForecast
     const revenueProjected = revenueToDate + remainingForecast
 
     const overallProjectedPct =
