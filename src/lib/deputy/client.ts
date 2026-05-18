@@ -245,22 +245,31 @@ export async function listRosterBetween(
 export async function listTimesheetsSince(
   sinceUnix: number
 ): Promise<DeputyTimesheet[]> {
-  // Deputy's /QUERY search shape: { search: { <alias>: { field, type, data } } }
-  // where `type` ∈ eq|ne|gt|ge|lt|le|like|in and `data` is the raw value
-  // (integer for timestamp fields). Using `stringValue` returned 400.
-  return deputyFetch<DeputyTimesheet[]>(
-    "/api/v1/resource/Timesheet/QUERY",
-    {
-      method: "POST",
-      body: {
-        search: {
-          s1: { field: "StartTime", type: "ge", data: sinceUnix },
+  // Deputy's /QUERY caps at 500 rows per call. Page via `start` until we
+  // get a short page. Tarte has 500+ timesheets per week once both
+  // venues + cafe + tea garden are clocking in.
+  const PAGE = 500
+  const out: DeputyTimesheet[] = []
+  for (let start = 0; start < 10000; start += PAGE) {
+    const page = await deputyFetch<DeputyTimesheet[]>(
+      "/api/v1/resource/Timesheet/QUERY",
+      {
+        method: "POST",
+        body: {
+          search: {
+            s1: { field: "StartTime", type: "ge", data: sinceUnix },
+          },
+          max: PAGE,
+          start,
+          sort: { StartTime: "asc" },
         },
-        max: 500,
-        sort: { StartTime: "asc" },
-      },
-    }
-  )
+      }
+    )
+    if (!Array.isArray(page) || page.length === 0) break
+    out.push(...page)
+    if (page.length < PAGE) break
+  }
+  return out
 }
 
 /**
@@ -546,11 +555,19 @@ export async function syncDeputyTimesheets() {
     const emp = empMap.get(t.Employee)
     const empRate =
       typeof emp?.PayRate === "number" && emp.PayRate > 0 ? emp.PayRate : null
-    // For Timesheet rows we TRUST what Deputy stored. Cost=0 means the
-    // employee is salaried (their weekly cost sits on a "Salary X"
-    // placeholder row instead). Don't re-derive from PayRate — that
-    // would double-count salaried staff.
-    const cost = typeof t.Cost === "number" ? t.Cost : 0
+    // Deputy only fills in Cost when the timesheet is approved (Wed
+    // morning after the trading week closes). For unapproved/in-flight
+    // rows we estimate from PayRate × hours so the live tracker has
+    // something to work with mid-week. Salaried staff have PayRate=0
+    // → estimate is 0, which is correct (their cost lives on the
+    // separate "Salary X" placeholder employee).
+    const cost = t.Approved && typeof t.Cost === "number" && t.Cost > 0
+      ? t.Cost
+      : empRate !== null
+        ? empRate * hoursNum
+        : typeof t.Cost === "number"
+          ? t.Cost
+          : 0
 
     await db.labourShift.create({
       data: {
