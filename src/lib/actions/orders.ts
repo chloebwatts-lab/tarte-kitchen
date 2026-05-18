@@ -153,18 +153,20 @@ export async function suggestOrders(params: {
   const venues =
     venue === "ALL" ? ([...SINGLE_VENUES] as Venue[]) : ([venue] as Venue[])
 
-  // Pull every ingredient that has a supplier + par level — these are the
-  // candidates for auto-ordering.
+  // Pull every ingredient that has a supplier set. Candidates for auto-ordering
+  // are those with EITHER per-venue IngredientPar rows OR legacy parLevel.
   const ingredients = await db.ingredient.findMany({
-    where: {
-      supplierId: { not: null },
-      parLevel: { not: null },
-    },
+    where: { supplierId: { not: null } },
     include: {
       supplier: { select: { id: true, name: true, email: true } },
+      pars: { where: { venue: { in: venues } } },
     },
   })
-  if (ingredients.length === 0) return []
+  // Filter to ones that actually have a par for at least one venue we're suggesting.
+  const orderable = ingredients.filter(
+    (i) => i.pars.length > 0 || (i.parLevel != null && Number(i.parLevel) > 0)
+  )
+  if (orderable.length === 0) return []
 
   // Latest submitted stocktake per (venue, ingredient) — we only trust a
   // submitted stocktake for "on hand". Draft counts are ignored.
@@ -238,13 +240,23 @@ export async function suggestOrders(params: {
   // Group into per-supplier suggestions (one group per (supplier, venue))
   const groups = new Map<string, OrderSuggestion>()
 
-  for (const ing of ingredients) {
+  for (const ing of orderable) {
     if (!ing.supplier) continue
     const baseType = ing.baseUnitType as "WEIGHT" | "VOLUME" | "COUNT"
-    const parBase = ing.parUnit
-      ? toBaseUnits(Number(ing.parLevel ?? 0), ing.parUnit, baseType)
-      : Number(ing.parLevel ?? 0)
-    if (parBase <= 0) continue
+    // Build a per-venue par map. Per-venue IngredientPar wins; if none for
+    // a given venue, fall back to legacy Ingredient.parLevel (applied as
+    // BURLEIGH only — that's how we backfilled).
+    const parByVenue = new Map<Venue, number>()
+    for (const p of ing.pars) {
+      const base = toBaseUnits(Number(p.parLevel), p.parUnit, baseType)
+      parByVenue.set(p.venue, base)
+    }
+    if (!parByVenue.has("BURLEIGH") && ing.parLevel != null) {
+      const base = ing.parUnit
+        ? toBaseUnits(Number(ing.parLevel), ing.parUnit, baseType)
+        : Number(ing.parLevel)
+      parByVenue.set("BURLEIGH", base)
+    }
 
     const unitCostBase =
       Number(ing.baseUnitsPerPurchase) > 0
@@ -252,6 +264,8 @@ export async function suggestOrders(params: {
         : 0
 
     for (const v of venues) {
+      const parBase = parByVenue.get(v) ?? 0
+      if (parBase <= 0) continue
       const onHand = onHandByVenue.get(v)?.get(ing.id)?.base ?? null
       const usageSince = usageByVenue.get(v)?.get(ing.id) ?? 0
       const forwardForecast = forecastByVenue.get(v)?.get(ing.id) ?? 0

@@ -25,6 +25,7 @@ import {
   Settings,
   ShieldCheck,
   Star,
+  Gauge,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +36,7 @@ const navItems = [
   { label: "Menu Items", href: "/dishes", icon: UtensilsCrossed },
   { label: "Suppliers", href: "/suppliers", icon: Truck },
   { label: "Orders", href: "/orders", icon: ShoppingCart },
+  { label: "Par Levels", href: "/par-levels", icon: Gauge },
   { label: "Prep Sheet", href: "/prep-sheet", icon: ClipboardList },
   { label: "Stocktake", href: "/stocktake", icon: Boxes },
   { label: "Wastage", href: "/wastage", icon: Trash2 },
