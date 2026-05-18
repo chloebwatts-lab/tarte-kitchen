@@ -1,0 +1,1960 @@
+{
+  "forms": [
+    {
+      "supplier": "Bidfood",
+      "items": [
+        {
+          "category": "Dairy",
+          "name": "Butter Salted (Anchor)",
+          "packSize": "5 kg",
+          "packPrice": 83.48,
+          "unitPrice": 16.696,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Butter Salted (Yardefarm)",
+          "packSize": "0.5 kg",
+          "packPrice": 7.76,
+          "unitPrice": 15.52,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Butter Salted Catchoice (Yardefarm)",
+          "packSize": "0.500 kg",
+          "packPrice": 6.69,
+          "unitPrice": 13.38,
+          "unit": "kg",
+          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+        },
+        {
+          "category": "Dairy",
+          "name": "Butter Unsalted (Nz)",
+          "packSize": "25 kg",
+          "packPrice": 335.0,
+          "unitPrice": 13.4,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Cheese Grana Padano D.O.P (App 4.5Kg) (Alfinasovr)",
+          "packSize": "Kg",
+          "packPrice": 34.2,
+          "unitPrice": 34.2,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Cheese Philadelphia Original Spreadable (Philadelphia)",
+          "packSize": "1 kg",
+          "packPrice": 21.88,
+          "unitPrice": 21.88,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Cheese Ricotta Basket (Fresco)",
+          "packSize": "1 kg",
+          "packPrice": 11.15,
+          "unitPrice": 11.15,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Cheese Shredded Tasty (Mainland)",
+          "packSize": "2 kg",
+          "packPrice": 28.5,
+          "unitPrice": 14.25,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Cheese Slices Burger Hi Melt 96'S (Puredairy)",
+          "packSize": "2.27 kg",
+          "packPrice": 27.79,
+          "unitPrice": 12.2423,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Cheese Slices Provolone Dolce Mild (Delre)",
+          "packSize": "1 kg",
+          "packPrice": 32.0,
+          "unitPrice": 32.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Coconut Milk Uht Calcium Fortified (Milklab)",
+          "packSize": "8 L",
+          "packPrice": 31.6,
+          "unitPrice": 3.95,
+          "unit": "L"
+        },
+        {
+          "category": "Dairy",
+          "name": "Cream Thickened (Bulla)",
+          "packSize": "5 L",
+          "packPrice": 37.5,
+          "unitPrice": 7.5,
+          "unit": "L"
+        },
+        {
+          "category": "Dairy",
+          "name": "Egg Yolk Reduced Solids Frozen (Sunnyqueen)",
+          "packSize": "10 kg",
+          "packPrice": 138.48,
+          "unitPrice": 13.848,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Ghee New Zealand (Puresoul)",
+          "packSize": "10 L",
+          "packPrice": 154.92,
+          "unitPrice": 15.492,
+          "unit": "L"
+        },
+        {
+          "category": "Dairy",
+          "name": "Ice Cream Vanilla (Bulla)",
+          "packSize": "4 L",
+          "packPrice": 13.52,
+          "unitPrice": 3.38,
+          "unit": "L"
+        },
+        {
+          "category": "Dairy",
+          "name": "Ice Cream Vanilla Supreme (Everest)",
+          "packSize": "5 L",
+          "packPrice": 29.0,
+          "unitPrice": 5.8,
+          "unit": "L"
+        },
+        {
+          "category": "Dairy",
+          "name": "Ice Cream Vanilla With Lid (Yardefarm)",
+          "packSize": "5 L",
+          "packPrice": 15.0,
+          "unitPrice": 3.0,
+          "unit": "L"
+        },
+        {
+          "category": "Dairy",
+          "name": "Milk Buttermilk (D-Farmers)",
+          "packSize": "0.6 L",
+          "packPrice": 3.95,
+          "unitPrice": 6.5833,
+          "unit": "L"
+        },
+        {
+          "category": "Dairy",
+          "name": "Milk Condensed Sweetened (Nestle)",
+          "packSize": "0.395 kg",
+          "packPrice": 3.59,
+          "unitPrice": 9.0886,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Milk Soya Bon (Bonsoy)",
+          "packSize": "6 L",
+          "packPrice": 21.0,
+          "unitPrice": 3.5,
+          "unit": "L"
+        },
+        {
+          "category": "Dairy",
+          "name": "Milk Uht Almond Barista (Adc)",
+          "packSize": "12 L",
+          "packPrice": 36.84,
+          "unitPrice": 3.07,
+          "unit": "L"
+        },
+        {
+          "category": "Dairy",
+          "name": "Milk Uht Oat Barista (Adc)",
+          "packSize": "12 L",
+          "packPrice": 33.36,
+          "unitPrice": 2.78,
+          "unit": "L"
+        },
+        {
+          "category": "Dairy",
+          "name": "Pancake Mix Buttermilk (Edlyn)",
+          "packSize": "10 kg",
+          "packPrice": 51.58,
+          "unitPrice": 5.158,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Peanut Butter Smooth (Bega)",
+          "packSize": "2 kg",
+          "packPrice": 24.64,
+          "unitPrice": 12.32,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Yoghurt Greek Style Plain 0.5% Fat (Chobani)",
+          "packSize": "2 kg",
+          "packPrice": 13.3,
+          "unitPrice": 6.65,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Baking Paper roll",
+          "packSize": "",
+          "packPrice": 25.05,
+          "unitPrice": null,
+          "unit": "",
+          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Chocolate Couverture Piccoli White Blancor (Lindt)",
+          "packSize": "2.5 kg",
+          "packPrice": 82.93,
+          "unitPrice": 33.172,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Flour Bakers (Gemofthewest)",
+          "packSize": "12.5 kg",
+          "packPrice": 17.8,
+          "unitPrice": 1.424,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Flour Bakers Superb (Allied)",
+          "packSize": "12.5 kg",
+          "packPrice": 19.32,
+          "unitPrice": 1.5456,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Flour Plain (Gemofthewest)",
+          "packSize": "12.5 kg",
+          "packPrice": 15.6,
+          "unitPrice": 1.248,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Flour Self Raising (Gemofthewest)",
+          "packSize": "12.5 kg",
+          "packPrice": 17.47,
+          "unitPrice": 1.3976,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Fondant Soft White (Allied)",
+          "packSize": "15 kg",
+          "packPrice": 83.18,
+          "unitPrice": 5.5453,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Icing Sugar Soft Mixture (Bundaberg)",
+          "packSize": "15 kg",
+          "packPrice": 31.5,
+          "unitPrice": 2.1,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Paste Vanilla Bean Organic (Queen)",
+          "packSize": "0.32 kg",
+          "packPrice": 30.18,
+          "unitPrice": 94.3125,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Spread Chocolate Hazelnut (Nutella)",
+          "packSize": "3 kg",
+          "packPrice": 46.0,
+          "unitPrice": 15.3333,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Sugar Caster (Bundaberg)",
+          "packSize": "15 kg",
+          "packPrice": 27.9,
+          "unitPrice": 1.86,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Sugar Caster (Bundaberg)",
+          "packSize": "25 kg",
+          "packPrice": 40.9,
+          "unitPrice": 1.636,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Sugar Palm Dark (Pandaroo)",
+          "packSize": "0.500 kg",
+          "packPrice": 3.04,
+          "unitPrice": 6.08,
+          "unit": "kg",
+          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+        },
+        {
+          "category": "Nuts",
+          "name": "Almonds Flaked (Catchoice)",
+          "packSize": "1 kg",
+          "packPrice": 22.15,
+          "unitPrice": 22.15,
+          "unit": "kg"
+        },
+        {
+          "category": "Nuts",
+          "name": "Almonds Raw Kernels (Catchoice)",
+          "packSize": "1 kg",
+          "packPrice": 20.68,
+          "unitPrice": 20.68,
+          "unit": "kg"
+        },
+        {
+          "category": "Nuts",
+          "name": "Cashews Raw (Catchoice)",
+          "packSize": "1 kg",
+          "packPrice": 21.0,
+          "unitPrice": 21.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Nuts",
+          "name": "Coconut Shredded (Longthread) (Catchoice)",
+          "packSize": "1 kg",
+          "packPrice": 14.3,
+          "unitPrice": 14.3,
+          "unit": "kg"
+        },
+        {
+          "category": "Nuts",
+          "name": "Pistachio Kernels No Shell (Catchoice)",
+          "packSize": "1 kg",
+          "packPrice": 65.0,
+          "unitPrice": 65.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Acai Mix Scoopable (Amazonia)",
+          "packSize": "10 kg",
+          "packPrice": 109.94,
+          "unitPrice": 10.994,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Almond Meal Blanched (Almondco)",
+          "packSize": "10 kg",
+          "packPrice": 169.0,
+          "unitPrice": 16.9,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Apple Pur\u00e9e (Riviana)",
+          "packSize": "3.00 kg",
+          "packPrice": 15.48,
+          "unitPrice": 5.16,
+          "unit": "kg",
+          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+        },
+        {
+          "category": "Pantry",
+          "name": "Biscuits Arrowroot Egg Dairy Gluten Free (Leda)",
+          "packSize": "1.64 kg",
+          "packPrice": 2.43,
+          "unitPrice": 1.4817,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Cherries Sour Pitted (Frutex)",
+          "packSize": "A12",
+          "packPrice": 42.53,
+          "unitPrice": 42.53,
+          "unit": "can"
+        },
+        {
+          "category": "Pantry",
+          "name": "Cinnamon Quills (Kriokrush)",
+          "packSize": "0.200 kg",
+          "packPrice": 18.14,
+          "unitPrice": 90.7,
+          "unit": "kg",
+          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+        },
+        {
+          "category": "Pantry",
+          "name": "Cranberries Dried Sweetened (Catchoice)",
+          "packSize": "1 kg",
+          "packPrice": 13.0,
+          "unitPrice": 13.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Creme Fraiche (Tatua)",
+          "packSize": "0.5 kg",
+          "packPrice": 11.27,
+          "unitPrice": 22.54,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Garlic Granules (Catchoice)",
+          "packSize": "1 kg",
+          "packPrice": 14.9,
+          "unitPrice": 14.9,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Honey Pure (Allowrie)",
+          "packSize": "3 kg",
+          "packPrice": 23.5,
+          "unitPrice": 7.8333,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Mango Pur\u00e9e (Suntrop)",
+          "packSize": "1.00 kg",
+          "packPrice": 6.9,
+          "unitPrice": 6.9,
+          "unit": "kg",
+          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+        },
+        {
+          "category": "Pantry",
+          "name": "Maple Syrup Pure Canadian Premium Grade (Queen)",
+          "packSize": "1 L",
+          "packPrice": 30.5,
+          "unitPrice": 30.5,
+          "unit": "L"
+        },
+        {
+          "category": "Pantry",
+          "name": "Mayonnaise (Kewpie)",
+          "packSize": "1 kg",
+          "packPrice": 11.82,
+          "unitPrice": 11.82,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Mirin Cooking Wine Kikkoman (Manjo)",
+          "packSize": "0.6 L",
+          "packPrice": 7.9,
+          "unitPrice": 13.1667,
+          "unit": "L"
+        },
+        {
+          "category": "Pantry",
+          "name": "Mustard Dijon (Frenchmaid)",
+          "packSize": "2.20 kg",
+          "packPrice": 17.69,
+          "unitPrice": 8.04,
+          "unit": "kg",
+          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+        },
+        {
+          "category": "Pantry",
+          "name": "Pasta Linguini No. 1 (San Remo)",
+          "packSize": "10.00 kg",
+          "packPrice": 12.73,
+          "unitPrice": 1.27,
+          "unit": "kg",
+          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+        },
+        {
+          "category": "Pantry",
+          "name": "Pepper Black Cracked (Catchoice)",
+          "packSize": "0.75 kg",
+          "packPrice": 20.0,
+          "unitPrice": 26.6667,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Pesto Basil Gluten Free (Fresh) (Casademare)",
+          "packSize": "2 kg",
+          "packPrice": 30.59,
+          "unitPrice": 15.295,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Pulp Passionfruit (Catchoice)",
+          "packSize": "1.00 kg",
+          "packPrice": 8.34,
+          "unitPrice": 8.34,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Pulp Passionfruit Seedless (Sunnyside)",
+          "packSize": "1 kg",
+          "packPrice": 14.5,
+          "unitPrice": 14.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Raspberries Whole Freeze Dried (Fresh As)",
+          "packSize": "0.150 kg",
+          "packPrice": 42.25,
+          "unitPrice": 281.67,
+          "unit": "kg",
+          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+        },
+        {
+          "category": "Pantry",
+          "name": "Salt Sea Flakes Natural (Cornish)",
+          "packSize": "1 kg",
+          "packPrice": 27.0,
+          "unitPrice": 27.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Sauce Soy Tamari Gluten Free (Akari)",
+          "packSize": "1.80 L",
+          "packPrice": 18.83,
+          "unitPrice": 10.46,
+          "unit": "L",
+          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+        },
+        {
+          "category": "Pantry",
+          "name": "Seeds Mustard Yellow (Kriokrush)",
+          "packSize": "0.500 kg",
+          "packPrice": 7.72,
+          "unitPrice": 15.44,
+          "unit": "kg",
+          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+        },
+        {
+          "category": "Pantry",
+          "name": "Seeds Sesame (Catchoice)",
+          "packSize": "1.00 kg",
+          "packPrice": 8.86,
+          "unitPrice": 8.86,
+          "unit": "kg",
+          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+        },
+        {
+          "category": "Pantry",
+          "name": "Seeds Sunflower Kernels (Catchoice)",
+          "packSize": "1.00 kg",
+          "packPrice": 6.49,
+          "unitPrice": 6.49,
+          "unit": "kg",
+          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+        },
+        {
+          "category": "Pantry",
+          "name": "Stock Real Vegetable (Campbells)",
+          "packSize": "1.00 L",
+          "packPrice": 3.85,
+          "unitPrice": 3.85,
+          "unit": "L",
+          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+        },
+        {
+          "category": "Pantry",
+          "name": "Vinegar Apple Cider (Cornwells)",
+          "packSize": "2.00 L",
+          "packPrice": 11.4,
+          "unitPrice": 5.7,
+          "unit": "L",
+          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+        },
+        {
+          "category": "Pantry",
+          "name": "Vinegar Rice (Marukan)",
+          "packSize": "1.80 L",
+          "packPrice": 7.94,
+          "unitPrice": 4.41,
+          "unit": "L",
+          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+        },
+        {
+          "category": "Pantry",
+          "name": "Vinegar White Imitation (Edlyn)",
+          "packSize": "4 L",
+          "packPrice": 4.98,
+          "unitPrice": 1.245,
+          "unit": "L"
+        },
+        {
+          "category": "Pantry",
+          "name": "Vinegar White Imitation (Edlyn)",
+          "packSize": "20 L",
+          "packPrice": 24.62,
+          "unitPrice": 1.231,
+          "unit": "L"
+        },
+        {
+          "category": "Oils",
+          "name": "Oil Grapeseed (Chefchoice)",
+          "packSize": "1 L",
+          "packPrice": 11.5,
+          "unitPrice": 11.5,
+          "unit": "L"
+        },
+        {
+          "category": "Oils",
+          "name": "Oil Olive Extra Virgin (Sandhurst)",
+          "packSize": "10 L",
+          "packPrice": 146.08,
+          "unitPrice": 14.608,
+          "unit": "L"
+        },
+        {
+          "category": "Frozen",
+          "name": "Banana Chunks Iqf (Entyce)",
+          "packSize": "10 kg",
+          "packPrice": 7.68,
+          "unitPrice": 0.768,
+          "unit": "kg"
+        },
+        {
+          "category": "Frozen",
+          "name": "Banana Sliced Iqf (Speedyberry)",
+          "packSize": "1 kg",
+          "packPrice": 5.8,
+          "unitPrice": 5.8,
+          "unit": "kg"
+        },
+        {
+          "category": "Frozen",
+          "name": "Blueberries Iqf (Catchoice)",
+          "packSize": "1 kg",
+          "packPrice": 10.03,
+          "unitPrice": 10.03,
+          "unit": "kg"
+        },
+        {
+          "category": "Frozen",
+          "name": "Chips 7 mm Shoestring Stealth Skin On (Lamb Weston)",
+          "packSize": "16.26 kg",
+          "packPrice": 68.23,
+          "unitPrice": 4.19,
+          "unit": "kg",
+          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+        },
+        {
+          "category": "Frozen",
+          "name": "Chips 7Mm Shoestring Stealth Skin On X7280 (Lambweston)",
+          "packSize": "16.26 kg",
+          "packPrice": 71.15,
+          "unitPrice": 4.3758,
+          "unit": "kg"
+        },
+        {
+          "category": "Frozen",
+          "name": "Crab Meat Spanner Ckd (A) (Oceanpacific)",
+          "packSize": "0.5 kg",
+          "packPrice": 53.58,
+          "unitPrice": 107.16,
+          "unit": "kg"
+        },
+        {
+          "category": "Frozen",
+          "name": "Mango Chunks Iqf (Entyce)",
+          "packSize": "10 kg",
+          "packPrice": 12.39,
+          "unitPrice": 1.239,
+          "unit": "kg"
+        },
+        {
+          "category": "Frozen",
+          "name": "Mango Diced Chunks Iqf (Natures)",
+          "packSize": "1 kg",
+          "packPrice": 7.24,
+          "unitPrice": 7.24,
+          "unit": "kg"
+        },
+        {
+          "category": "Frozen",
+          "name": "Passionfruit Pulp (Catchoice)",
+          "packSize": "1.00 kg",
+          "packPrice": 8.34,
+          "unitPrice": 8.34,
+          "unit": "kg",
+          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+        },
+        {
+          "category": "Frozen",
+          "name": "Peas (Mccain)",
+          "packSize": "2 kg",
+          "packPrice": 8.89,
+          "unitPrice": 4.445,
+          "unit": "kg"
+        },
+        {
+          "category": "Frozen",
+          "name": "Raspberries Iqf (Catchoice)",
+          "packSize": "1 kg",
+          "packPrice": 17.68,
+          "unitPrice": 17.68,
+          "unit": "kg"
+        },
+        {
+          "category": "Frozen",
+          "name": "Smoked Salmon Sliced Atlantic (I) (Seacrest)",
+          "packSize": "1 kg",
+          "packPrice": 35.54,
+          "unitPrice": 35.54,
+          "unit": "kg"
+        },
+        {
+          "category": "Frozen",
+          "name": "Strawberries Iqf (Catchoice)",
+          "packSize": "1 kg",
+          "packPrice": 8.01,
+          "unitPrice": 8.01,
+          "unit": "kg"
+        },
+        {
+          "category": "Beverages",
+          "name": "Aperol Aperitif 11% (Aperol)",
+          "packSize": "0.7 L",
+          "packPrice": 29.87,
+          "unitPrice": 42.6714,
+          "unit": "L"
+        },
+        {
+          "category": "Beverages",
+          "name": "De Bortoli King Valley Prosecco 11.5% (Debortoli)",
+          "packSize": "0.75 L",
+          "packPrice": 11.21,
+          "unitPrice": 14.9467,
+          "unit": "L"
+        },
+        {
+          "category": "Beverages",
+          "name": "El Jimador Blanco Tequila 38% (Eljimador)",
+          "packSize": "0.7 L",
+          "packPrice": 57.91,
+          "unitPrice": 82.7286,
+          "unit": "L"
+        },
+        {
+          "category": "Beverages",
+          "name": "Juice Lemon Premium 100% Grove (Onlyjuice)",
+          "packSize": "2 L",
+          "packPrice": 9.37,
+          "unitPrice": 4.685,
+          "unit": "L"
+        },
+        {
+          "category": "Beverages",
+          "name": "Juice Lime (Grove)",
+          "packSize": "1 L",
+          "packPrice": 10.3,
+          "unitPrice": 10.3,
+          "unit": "L"
+        },
+        {
+          "category": "Beverages",
+          "name": "Mineral Water Sparkling Glass (Santavittoria)",
+          "packSize": "12 L",
+          "packPrice": 40.28,
+          "unitPrice": 3.3567,
+          "unit": "L"
+        },
+        {
+          "category": "Beverages",
+          "name": "Sauce Red Hot Original Buffalo Wings (Franks)",
+          "packSize": "3.78 L",
+          "packPrice": 40.0,
+          "unitPrice": 10.582,
+          "unit": "L"
+        },
+        {
+          "category": "Beverages",
+          "name": "Spring Water Square Bottle (Nupure)",
+          "packSize": "14.4 L",
+          "packPrice": 13.89,
+          "unitPrice": 0.9646,
+          "unit": "L"
+        },
+        {
+          "category": "Beverages",
+          "name": "Triple G Australian Dry Gin 40% (Tripleg)",
+          "packSize": "0.7 L",
+          "packPrice": 47.49,
+          "unitPrice": 67.8429,
+          "unit": "L"
+        },
+        {
+          "category": "Cleaning",
+          "name": "Bleach (Catclean)",
+          "packSize": "5 L",
+          "packPrice": 12.5,
+          "unitPrice": 2.5,
+          "unit": "L"
+        },
+        {
+          "category": "Cleaning",
+          "name": "Cleaner Floor With Ammonia (Catclean)",
+          "packSize": "5 L",
+          "packPrice": 19.5,
+          "unitPrice": 3.9,
+          "unit": "L"
+        },
+        {
+          "category": "Cleaning",
+          "name": "Cleaner Grill & Hot Plate (Catclean)",
+          "packSize": "5 L",
+          "packPrice": 24.93,
+          "unitPrice": 4.986,
+          "unit": "L"
+        },
+        {
+          "category": "Cleaning",
+          "name": "Cutlery Pack- Wooden Knife/Fork/Napkin Wrap (Biopak)",
+          "packSize": "100 units",
+          "packPrice": 12.87,
+          "unitPrice": 0.13,
+          "unit": "unit",
+          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+        },
+        {
+          "category": "Cleaning",
+          "name": "Detergent Dishwashing (Catclean)",
+          "packSize": "5 L",
+          "packPrice": 22.9,
+          "unitPrice": 4.58,
+          "unit": "L"
+        },
+        {
+          "category": "Cleaning",
+          "name": "Gloves Vinyl Blue Large Powder Free (Workplace)",
+          "packSize": "100 units",
+          "packPrice": 3.4,
+          "unitPrice": 0.034,
+          "unit": "unit"
+        },
+        {
+          "category": "Cleaning",
+          "name": "Wipes Roll Heavy Duty Blue 50 X 30Cm Perf (Catclean)",
+          "packSize": "90 units",
+          "packPrice": 14.9,
+          "unitPrice": 0.1656,
+          "unit": "unit"
+        },
+        {
+          "category": "Packaging",
+          "name": "Bags Garbage 120Lt Heavy Duty (Pni)",
+          "packSize": "25 units",
+          "packPrice": 6.11,
+          "unitPrice": 0.2444,
+          "unit": "unit"
+        },
+        {
+          "category": "Packaging",
+          "name": "Bags Garbage 72-80Lt Ex Heavy Duty Black (Catclean)",
+          "packSize": "25 units",
+          "packPrice": 6.3,
+          "unitPrice": 0.252,
+          "unit": "unit"
+        },
+        {
+          "category": "Packaging",
+          "name": "Clingwrap Dispenser (Catchoice)",
+          "packSize": "600M X 45Cm",
+          "packPrice": 26.41,
+          "unitPrice": 26.41,
+          "unit": "roll"
+        },
+        {
+          "category": "Packaging",
+          "name": "Cups Cold Plastic 420Ml Clear Biocup (Biopak)",
+          "packSize": "50 units",
+          "packPrice": 8.99,
+          "unitPrice": 0.1798,
+          "unit": "unit"
+        },
+        {
+          "category": "Packaging",
+          "name": "Cups Cold Plastic 500Ml Clear Biocup (Biopak)",
+          "packSize": "50 units",
+          "packPrice": 10.59,
+          "unitPrice": 0.2118,
+          "unit": "unit"
+        },
+        {
+          "category": "Packaging",
+          "name": "Cups Paper 237Ml 8Oz 90Mm Single Wall White (Catchoice)",
+          "packSize": "50 units",
+          "packPrice": 4.49,
+          "unitPrice": 0.0898,
+          "unit": "unit"
+        },
+        {
+          "category": "Packaging",
+          "name": "Foodtrays No 3 Kraft Brown Medium 180X134x40mm (Alfresco)",
+          "packSize": "25 units",
+          "packPrice": 2.89,
+          "unitPrice": 0.1156,
+          "unit": "unit"
+        },
+        {
+          "category": "Packaging",
+          "name": "Foodtrays Small Kraft 131X91x50mm (Catchoice)",
+          "packSize": "50 units",
+          "packPrice": 4.9,
+          "unitPrice": 0.098,
+          "unit": "unit"
+        },
+        {
+          "category": "Packaging",
+          "name": "Lids Dome With Hole To Suit 300/700Ml Cups Pla (Biopak)",
+          "packSize": "100 units",
+          "packPrice": 8.95,
+          "unitPrice": 0.0895,
+          "unit": "unit"
+        },
+        {
+          "category": "Packaging",
+          "name": "Lids Flat To Suit 300/700Ml Cold Cups X Slot (Biopak)",
+          "packSize": "100 units",
+          "packPrice": 6.33,
+          "unitPrice": 0.0633,
+          "unit": "unit"
+        },
+        {
+          "category": "Packaging",
+          "name": "Napkins Quilted Dinner White Gt Fold (Softchoice)",
+          "packSize": "100 units",
+          "packPrice": 5.29,
+          "unitPrice": 0.0529,
+          "unit": "unit"
+        },
+        {
+          "category": "Packaging",
+          "name": "Paper Towel Hand Ultraslim Luxury 24X23cm (Indulgence)",
+          "packSize": "2400 units",
+          "packPrice": 48.84,
+          "unitPrice": 0.0204,
+          "unit": "unit"
+        },
+        {
+          "category": "Packaging",
+          "name": "Paper Towel Ultraslim Multifold Advanced H4 (Tork)",
+          "packSize": "3000 units",
+          "packPrice": 60.84,
+          "unitPrice": 0.0203,
+          "unit": "unit"
+        },
+        {
+          "category": "Packaging",
+          "name": "Tortillas Flour 10\" (Catchoice)",
+          "packSize": "12 units",
+          "packPrice": 4.08,
+          "unitPrice": 0.34,
+          "unit": "unit"
+        }
+      ]
+    },
+    {
+      "supplier": "Fermex",
+      "items": [
+        {
+          "category": "Dairy",
+          "name": "Butter Salted 25kg",
+          "packSize": "25kg",
+          "packPrice": 354.0,
+          "unitPrice": 14.16,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Butter Unsalted NZ 25kg",
+          "packSize": "25kg",
+          "packPrice": 302.0,
+          "unitPrice": 12.08,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Greek Yoghurt",
+          "packSize": "2kg",
+          "packPrice": 8.4,
+          "unitPrice": 4.2,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Philadelphia Cream Cheese",
+          "packSize": "2kg",
+          "packPrice": 27.0,
+          "unitPrice": 13.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Shredded Tasty Cheese",
+          "packSize": "2kg",
+          "packPrice": 23.5,
+          "unitPrice": 11.75,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Tourage French Butter Sheets",
+          "packSize": "10 x 1 kg",
+          "packPrice": 180.0,
+          "unitPrice": 18.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Bakels Apito Lemon Paste",
+          "packSize": "1 kg",
+          "packPrice": 50.0,
+          "unitPrice": 50.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Bakers Flour (Manildra)",
+          "packSize": "12.5 kg",
+          "packPrice": 15.1,
+          "unitPrice": 1.21,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Caster Sugar (Bundaberg)",
+          "packSize": "25kg",
+          "packPrice": 45.0,
+          "unitPrice": 1.8,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Caster Sugar (Bundaberg) - small pack",
+          "packSize": "15 kg",
+          "packPrice": 30.0,
+          "unitPrice": 2.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Flour Euro Type 55 (Laucke)",
+          "packSize": "12.5 kg",
+          "packPrice": 19.9,
+          "unitPrice": 1.59,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Gluten Free Flour (BTA)",
+          "packSize": "10 kg",
+          "packPrice": 50.0,
+          "unitPrice": 5.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Hazelnut paste",
+          "packSize": "13 kg",
+          "packPrice": 137.5,
+          "unitPrice": 10.58,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Icing Sugar Pure (Bundaberg)",
+          "packSize": "15 kg",
+          "packPrice": 34.5,
+          "unitPrice": 2.3,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "IRCA Chococream Pistachio 15%",
+          "packSize": "5 kg",
+          "packPrice": 127.5,
+          "unitPrice": 25.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Plain Flour (Manildra)",
+          "packSize": "12.5 kg",
+          "packPrice": 14.75,
+          "unitPrice": 1.18,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Vanilla Bean Paste",
+          "packSize": "320g",
+          "packPrice": 14.06,
+          "unitPrice": 43.93,
+          "unit": "kg"
+        },
+        {
+          "category": "Nuts",
+          "name": "Almond Flakes/Sliced Blanched",
+          "packSize": "8kg",
+          "packPrice": 145.0,
+          "unitPrice": 18.12,
+          "unit": "kg"
+        },
+        {
+          "category": "Nuts",
+          "name": "Almond Meal Blanched (Almondco)",
+          "packSize": "10.00 kg",
+          "packPrice": 145.0,
+          "unitPrice": 14.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Nuts",
+          "name": "Pecan Large Pieces Organic Aus",
+          "packSize": "12kg",
+          "packPrice": 255.0,
+          "unitPrice": 21.25,
+          "unit": "kg"
+        },
+        {
+          "category": "Nuts",
+          "name": "Pecan nut Halves",
+          "packSize": "13.61kg",
+          "packPrice": 350.0,
+          "unitPrice": 25.71,
+          "unit": "kg"
+        },
+        {
+          "category": "Nuts",
+          "name": "Pistachio Kernels Raw (PISTRAW10)",
+          "packSize": "11.34 kg",
+          "packPrice": 685.0,
+          "unitPrice": 60.41,
+          "unit": "kg"
+        },
+        {
+          "category": "Nuts",
+          "name": "Walnut Halves & pieces",
+          "packSize": "11.34kg",
+          "packPrice": 117.0,
+          "unitPrice": 10.31,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Mutti Passata",
+          "packSize": "3 x 3 kg",
+          "packPrice": 49.5,
+          "unitPrice": 5.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Olives Black",
+          "packSize": "3 kg",
+          "packPrice": 18.5,
+          "unitPrice": 6.17,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Sesame Seed",
+          "packSize": "15 kg",
+          "packPrice": 96.5,
+          "unitPrice": 6.43,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Bay Leaves",
+          "packSize": "1kg",
+          "packPrice": 26.5,
+          "unitPrice": 26.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Chilli Powder",
+          "packSize": "1kg",
+          "packPrice": 15.5,
+          "unitPrice": 15.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Chives Flakes",
+          "packSize": "1kg",
+          "packPrice": 31.5,
+          "unitPrice": 31.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Cloves Ground",
+          "packSize": "1kg",
+          "packPrice": 31.5,
+          "unitPrice": 31.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Cloves Whole",
+          "packSize": "1kg",
+          "packPrice": 46.5,
+          "unitPrice": 46.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Coriander Ground",
+          "packSize": "1kg",
+          "packPrice": 14.9,
+          "unitPrice": 14.9,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Curry Powder Mild",
+          "packSize": "1kg",
+          "packPrice": 14.5,
+          "unitPrice": 14.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Dill tips",
+          "packSize": "1kg",
+          "packPrice": 48.0,
+          "unitPrice": 48.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Garam Masala",
+          "packSize": "1 kg",
+          "packPrice": 19.5,
+          "unitPrice": 19.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Garlic Powder",
+          "packSize": "1 kg",
+          "packPrice": 15.0,
+          "unitPrice": 15.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Mixed Spice",
+          "packSize": "1 kg",
+          "packPrice": 15.5,
+          "unitPrice": 15.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Nutmeg Ground",
+          "packSize": "500g",
+          "packPrice": 12.5,
+          "unitPrice": 25.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Paprika Ground",
+          "packSize": "1 kg",
+          "packPrice": 12.5,
+          "unitPrice": 12.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Paprika Smoked",
+          "packSize": "1 kg",
+          "packPrice": 19.5,
+          "unitPrice": 19.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Parsley Flakes",
+          "packSize": "1 kg",
+          "packPrice": 30.5,
+          "unitPrice": 30.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Pepper White",
+          "packSize": "1 kg",
+          "packPrice": 34.5,
+          "unitPrice": 34.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Poppy Seed",
+          "packSize": "15 kg",
+          "packPrice": 156.5,
+          "unitPrice": 10.43,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Rosemary Leaves",
+          "packSize": "1 kg",
+          "packPrice": 18.5,
+          "unitPrice": 18.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Sumac Ground",
+          "packSize": "1 kg",
+          "packPrice": 22.5,
+          "unitPrice": 22.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Thyme Leaves",
+          "packSize": "1 kg",
+          "packPrice": 23.5,
+          "unitPrice": 23.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Spices",
+          "name": "Turmeric Ground",
+          "packSize": "1kg",
+          "packPrice": 14.9,
+          "unitPrice": 14.9,
+          "unit": "kg"
+        },
+        {
+          "category": "Oils",
+          "name": "Canola Oil Spray (Healthy Bakers)",
+          "packSize": "12 x 450 g",
+          "packPrice": 44.75,
+          "unitPrice": 8.29,
+          "unit": "kg"
+        },
+        {
+          "category": "Oils",
+          "name": "Canola Oil Spray (Prochef)",
+          "packSize": "400g",
+          "packPrice": 2.08,
+          "unitPrice": 5.2,
+          "unit": "kg"
+        },
+        {
+          "category": "Oils",
+          "name": "Olive Oil Extra Virgin",
+          "packSize": "4 L",
+          "packPrice": 55.0,
+          "unitPrice": 13.75,
+          "unit": "L"
+        },
+        {
+          "category": "Oils",
+          "name": "Rice Bran Oil (Simply)",
+          "packSize": "20L",
+          "packPrice": 80.0,
+          "unitPrice": 4.0,
+          "unit": "L"
+        },
+        {
+          "category": "Frozen",
+          "name": "IQF Strawberries",
+          "packSize": "10 kg",
+          "packPrice": 62.0,
+          "unitPrice": 6.2,
+          "unit": "kg"
+        },
+        {
+          "category": "Frozen",
+          "name": "Raspberries",
+          "packSize": "1kg",
+          "packPrice": 11.5,
+          "unitPrice": 11.5,
+          "unit": "kg"
+        }
+      ]
+    },
+    {
+      "supplier": "Provedores",
+      "items": [
+        {
+          "category": "Dairy",
+          "name": "Cheese Holy Cow Mozarella Shredded",
+          "packSize": "2kg",
+          "packPrice": 24.6,
+          "unitPrice": 12.3,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Cheese Maasdam sliced Swiss style 2 x 500g",
+          "packSize": "500g",
+          "packPrice": 20.88,
+          "unitPrice": 20.88,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Cheese marinated Goat Feta",
+          "packSize": "2kg",
+          "packPrice": 50.0,
+          "unitPrice": 25.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "CHEESE Ricotta Basket Cryovac NSW",
+          "packSize": "2.2kg (4)",
+          "packPrice": 21.4,
+          "unitPrice": 9.73,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Cream Thickened",
+          "packSize": "5L",
+          "packPrice": 34.9,
+          "unitPrice": 6.98,
+          "unit": "kg"
+        },
+        {
+          "category": "Dairy",
+          "name": "Cr\u00e8me fraiche",
+          "packSize": "500gm",
+          "packPrice": 11.2,
+          "unitPrice": 22.4,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Baking powder trumps",
+          "packSize": "2kg",
+          "packPrice": 13.4,
+          "unitPrice": 6.7,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "CHOCOLATE Picolli White Drops 2.5kg (4)",
+          "packSize": "2.5kg",
+          "packPrice": 89.8,
+          "unitPrice": 35.92,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Glucose",
+          "packSize": "5kg (2)",
+          "packPrice": 39.0,
+          "unitPrice": 7.8,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "MALTED Milk Powder",
+          "packSize": "1.5 kg (6)",
+          "packPrice": 25.6,
+          "unitPrice": 17.06,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "SUGAR Brown",
+          "packSize": "15kg",
+          "packPrice": 35.9,
+          "unitPrice": 2.39,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "SUGAR Raw",
+          "packSize": "15kg",
+          "packPrice": 32.2,
+          "unitPrice": 2.15,
+          "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Syrup Maple 100% 4L (Provedores)",
+          "packSize": "4L (4)",
+          "packPrice": 90.0,
+          "unitPrice": 22.5,
+          "unit": "L"
+        },
+        {
+          "category": "Pantry",
+          "name": "AGAVE Organic Syrup",
+          "packSize": "1L (6)",
+          "packPrice": 13.5,
+          "unitPrice": 13.5,
+          "unit": "L"
+        },
+        {
+          "category": "Pantry",
+          "name": "CAPERS",
+          "packSize": "2kg (6)",
+          "packPrice": 16.4,
+          "unitPrice": 8.2,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "CHILLI Crushed (flakes)",
+          "packSize": "1kg (6)",
+          "packPrice": 8.12,
+          "unitPrice": 8.12,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Fried Shallots",
+          "packSize": "1 kg",
+          "packPrice": 9.0,
+          "unitPrice": 9.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "GINGER Crushed (jar)",
+          "packSize": "1kg (6)",
+          "packPrice": 5.5,
+          "unitPrice": 5.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "HERB Fennel Seed",
+          "packSize": "450g (6)",
+          "packPrice": 8.9,
+          "unitPrice": 19.78,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "HONEY Caters Superbee",
+          "packSize": "3kg (4)",
+          "packPrice": 22.5,
+          "unitPrice": 7.5,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Macadamia Pieces",
+          "packSize": "11.34kg",
+          "packPrice": 285.0,
+          "unitPrice": 25.13,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "NUT Almond Natural Kernals",
+          "packSize": "1kg (10)",
+          "packPrice": 18.8,
+          "unitPrice": 18.8,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "NUT Cashews Raw Whole",
+          "packSize": "1kg (10)",
+          "packPrice": 20.0,
+          "unitPrice": 20.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Oats Rolled",
+          "packSize": "25kg",
+          "packPrice": 88.88,
+          "unitPrice": 3.55,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Onion Powder",
+          "packSize": "400g",
+          "packPrice": 6.8,
+          "unitPrice": 14.17,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Oregano",
+          "packSize": "1kg",
+          "packPrice": 19.0,
+          "unitPrice": 19.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "PEANUT Butter Smooth",
+          "packSize": "2 kg (4)",
+          "packPrice": 24.45,
+          "unitPrice": 12.22,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Potato Starch 25kg",
+          "packSize": "25kg",
+          "packPrice": 88.8,
+          "unitPrice": 3.55,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "SAUCE Fish (Squid brand)",
+          "packSize": "725 ml (12)",
+          "packPrice": 3.25,
+          "unitPrice": 4.48,
+          "unit": "unit"
+        },
+        {
+          "category": "Pantry",
+          "name": "Sauce Sriracha Hot chilli sauce",
+          "packSize": "740ml (12)",
+          "packPrice": 9.0,
+          "unitPrice": 12.16,
+          "unit": "L"
+        },
+        {
+          "category": "Pantry",
+          "name": "SEA SALT Flakes (1kg #1)",
+          "packSize": "1kg",
+          "packPrice": 14.0,
+          "unitPrice": 14.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "SEA SALT Flakes (1kg #2)",
+          "packSize": "1kg",
+          "packPrice": 12.7,
+          "unitPrice": 12.7,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "SPICE Allspice (ground)",
+          "packSize": "400g (6)",
+          "packPrice": 17.5,
+          "unitPrice": 43.75,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "SYRUP Maple 100%",
+          "packSize": "1L (6)",
+          "packPrice": 23.5,
+          "unitPrice": 23.5,
+          "unit": "L"
+        },
+        {
+          "category": "Pantry",
+          "name": "VEGEMITE",
+          "packSize": "2.5 kg (4)",
+          "packPrice": 42.5,
+          "unitPrice": 17.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Pantry",
+          "name": "Vinegar Red Wine",
+          "packSize": "5L",
+          "packPrice": 15.6,
+          "unitPrice": 3.12,
+          "unit": "L"
+        },
+        {
+          "category": "Oils",
+          "name": "OIL Cottonseed PHAT",
+          "packSize": "20L",
+          "packPrice": 58.9,
+          "unitPrice": 2.94,
+          "unit": "L"
+        },
+        {
+          "category": "Oils",
+          "name": "OIL Grapeseed",
+          "packSize": "1L (12)",
+          "packPrice": 12.6,
+          "unitPrice": 12.6,
+          "unit": "L"
+        },
+        {
+          "category": "Oils",
+          "name": "OIL Olive Pomace",
+          "packSize": "4L (4)",
+          "packPrice": 46.0,
+          "unitPrice": 11.5,
+          "unit": "L"
+        },
+        {
+          "category": "Oils",
+          "name": "Oil vegetable",
+          "packSize": "2L",
+          "packPrice": 10.9,
+          "unitPrice": 5.45,
+          "unit": "L"
+        },
+        {
+          "category": "Frozen",
+          "name": "ICE CREAM Vanilla Swan Confectionary Tub",
+          "packSize": "10L",
+          "packPrice": 19.85,
+          "unitPrice": 1.99,
+          "unit": "L"
+        },
+        {
+          "category": "Frozen",
+          "name": "Melange Vegetable mix",
+          "packSize": "1.5kg",
+          "packPrice": 8.8,
+          "unitPrice": 5.86,
+          "unit": "kg"
+        },
+        {
+          "category": "Frozen",
+          "name": "PEAS Frozen",
+          "packSize": "2kg (6)",
+          "packPrice": 8.0,
+          "unitPrice": 4.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Frozen",
+          "name": "Pomegranate Arils (frozen)",
+          "packSize": "1kg",
+          "packPrice": 19.0,
+          "unitPrice": 19.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Frozen",
+          "name": "Raspberries IQF 1kg (Provedores)",
+          "packSize": "1kg (10)",
+          "packPrice": 18.0,
+          "unitPrice": 18.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Frozen",
+          "name": "Salmon Smoked Sliced Ocean King Imported 1kg",
+          "packSize": "1kg (12)",
+          "packPrice": 35.0,
+          "unitPrice": 35.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Beverages",
+          "name": "Barista Almond",
+          "packSize": "1L x 12",
+          "packPrice": 33.2,
+          "unitPrice": 2.76,
+          "unit": "L"
+        },
+        {
+          "category": "Beverages",
+          "name": "Barista Oat",
+          "packSize": "1L x 12",
+          "packPrice": 33.2,
+          "unitPrice": 2.76,
+          "unit": "L"
+        },
+        {
+          "category": "Beverages",
+          "name": "JUICE Lemon",
+          "packSize": "2L (6)",
+          "packPrice": 6.8,
+          "unitPrice": 3.4,
+          "unit": "L"
+        },
+        {
+          "category": "Beverages",
+          "name": "JUICE Lime",
+          "packSize": "2L (6)",
+          "packPrice": 14.0,
+          "unitPrice": 7.0,
+          "unit": "L"
+        },
+        {
+          "category": "Beverages",
+          "name": "MATCHA Latte Powder",
+          "packSize": "500gm (10)",
+          "packPrice": 50.0,
+          "unitPrice": 100.0,
+          "unit": "kg"
+        },
+        {
+          "category": "Beverages",
+          "name": "MILK Soy Bonsoy",
+          "packSize": "1L x 6",
+          "packPrice": 19.8,
+          "unitPrice": 3.3,
+          "unit": "L"
+        },
+        {
+          "category": "Beverages",
+          "name": "Milo",
+          "packSize": "1.9kg",
+          "packPrice": 31.4,
+          "unitPrice": 16.52,
+          "unit": "kg"
+        },
+        {
+          "category": "Cleaning",
+          "name": "Bag Garbage Heavy Duty 120L x 25",
+          "packSize": "120L x 25 (4)",
+          "packPrice": 6.0,
+          "unitPrice": 0.24,
+          "unit": "unit"
+        },
+        {
+          "category": "Cleaning",
+          "name": "BAG Garbage Heavy Duty 73L",
+          "packSize": "73L x 25 (10)",
+          "packPrice": 4.0,
+          "unitPrice": 0.16,
+          "unit": "unit"
+        },
+        {
+          "category": "Cleaning",
+          "name": "BLEACH",
+          "packSize": "5 L",
+          "packPrice": 9.5,
+          "unitPrice": 1.9,
+          "unit": "L"
+        },
+        {
+          "category": "Cleaning",
+          "name": "DISHLIQUID20",
+          "packSize": "20 L",
+          "packPrice": 41.4,
+          "unitPrice": 2.07,
+          "unit": "L"
+        },
+        {
+          "category": "Cleaning",
+          "name": "DISHWASHING Automatic Machine Liquid",
+          "packSize": "20 L",
+          "packPrice": 83.9,
+          "unitPrice": 4.19,
+          "unit": "L"
+        },
+        {
+          "category": "Cleaning",
+          "name": "Floor Tile Cleaner 5L",
+          "packSize": "5L (4)",
+          "packPrice": 29.0,
+          "unitPrice": 5.8,
+          "unit": "L"
+        },
+        {
+          "category": "Cleaning",
+          "name": "GRILL Oven Cleaner",
+          "packSize": "5 L",
+          "packPrice": 13.0,
+          "unitPrice": 2.6,
+          "unit": "L"
+        },
+        {
+          "category": "Cleaning",
+          "name": "Handwash Pink Pearl 5L",
+          "packSize": "5L (4)",
+          "packPrice": 16.5,
+          "unitPrice": 3.3,
+          "unit": "L"
+        },
+        {
+          "category": "Cleaning",
+          "name": "Toilet Roll Inv Wrapped 48 x 2 Ply",
+          "packSize": "48 x 2 ply",
+          "packPrice": 36.5,
+          "unitPrice": 36.5,
+          "unit": "pack"
+        },
+        {
+          "category": "Cleaning",
+          "name": "WIPES Heavy Duty Blue Roll (45m)",
+          "packSize": "30 x 50cm",
+          "packPrice": 10.0,
+          "unitPrice": 10.0,
+          "unit": "unit"
+        },
+        {
+          "category": "Packaging",
+          "name": "CLING Wrap (with cutter box)",
+          "packSize": "45cm x 600m (6)",
+          "packPrice": 25.5,
+          "unitPrice": 25.5,
+          "unit": "roll"
+        },
+        {
+          "category": "Packaging",
+          "name": "CUP Clear 16oz 500ml Green Stripe BetaEco RPET",
+          "packSize": "x 1000",
+          "packPrice": 97.0,
+          "unitPrice": 0.097,
+          "unit": "unit"
+        },
+        {
+          "category": "Packaging",
+          "name": "NAPKIN Dinner White GT Fold",
+          "packSize": "100's (10)",
+          "packPrice": 3.0,
+          "unitPrice": 0.03,
+          "unit": "unit"
+        },
+        {
+          "category": "Packaging",
+          "name": "TRAY #1 BetaBoard Kraft",
+          "packSize": "x 500",
+          "packPrice": 42.0,
+          "unitPrice": 0.084,
+          "unit": "unit"
+        },
+        {
+          "category": "Packaging",
+          "name": "TRAY #3 Betaboard Kraft",
+          "packSize": "x 240",
+          "packPrice": 27.0,
+          "unitPrice": 0.1125,
+          "unit": "unit"
+        }
+      ]
+    }
+  ],
+  "_updated": "2026-05-18",
+  "_notes": "Source of truth for ApprovedSupplierItem in /suppliers. Each item has category, name, packSize, packPrice (per-pack inc), unitPrice (per-base \u2014 kg/L/unit), unit. notes are free-text."
+}
