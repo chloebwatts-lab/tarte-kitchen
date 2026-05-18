@@ -34,22 +34,49 @@ export async function GET(request: Request) {
     return Response.json({ error: "No locations configured" }, { status: 400 })
   }
 
-  // Yesterday in AEST (UTC+10)
+  // Default: sync yesterday (AEST). Optional ?days=N includes the last N
+  // AEST dates ending today inclusive, so the live FOH tracker can hit
+  // /api/cron/sync-sales?days=2 every 30 min to keep today's running
+  // total fresh alongside yesterday's locked totals.
+  const url = new URL(request.url)
+  const daysParam = url.searchParams.get("days")
+  const days = daysParam ? Math.max(1, Math.min(7, parseInt(daysParam, 10) || 1)) : 1
+
   const now = new Date()
   const aestOffset = 10 * 60 * 60 * 1000
   const aestNow = new Date(now.getTime() + aestOffset)
-  const yesterday = new Date(aestNow)
-  yesterday.setDate(yesterday.getDate() - 1)
-  const dateStr = yesterday.toISOString().split("T")[0]
-  const dateObj = new Date(dateStr)
+  const datesToSync: { dateStr: string; dateObj: Date }[] = []
+  if (days === 1) {
+    // Original behaviour — yesterday only.
+    const d = new Date(aestNow)
+    d.setDate(d.getDate() - 1)
+    const ds = d.toISOString().split("T")[0]
+    datesToSync.push({ dateStr: ds, dateObj: new Date(ds) })
+  } else {
+    // days=2 → yesterday + today, days=3 → 2-days-ago + yesterday + today, etc.
+    for (let offset = days - 1; offset >= 0; offset--) {
+      const d = new Date(aestNow)
+      d.setDate(d.getDate() - offset)
+      const ds = d.toISOString().split("T")[0]
+      datesToSync.push({ dateStr: ds, dateObj: new Date(ds) })
+    }
+  }
+  // The single-date legacy variables stay defined for the first iteration
+  // below; we'll re-bind them inside a loop further down.
+  let dateStr = datesToSync[0].dateStr
+  let dateObj = datesToSync[0].dateObj
 
   const results: Array<{
     venue: string
+    date: string
     itemCount: number
     skipped?: boolean
     reason?: string
   }> = []
 
+  for (const { dateStr: ds, dateObj: dob } of datesToSync) {
+    dateStr = ds
+    dateObj = dob
   for (const location of locations) {
     try {
       const venue = (normalizeVenueSlug(location.venue) ??
@@ -65,6 +92,7 @@ export async function GET(request: Request) {
       if (existingEmailSummary?.source === "EMAIL") {
         results.push({
           venue: location.venue,
+          date: dateStr,
           itemCount: 0,
           skipped: true,
           reason: "EMAIL source present",
@@ -164,12 +192,21 @@ export async function GET(request: Request) {
 
       await calculateTheoreticalUsage(dateObj, venue)
 
-      results.push({ venue: location.venue, itemCount: grouped.length })
+      results.push({
+        venue: location.venue,
+        date: dateStr,
+        itemCount: grouped.length,
+      })
     } catch (err) {
-      console.error(`Error syncing sales for ${location.name}:`, err)
-      results.push({ venue: location.venue, itemCount: -1 })
+      console.error(`Error syncing sales for ${location.name} on ${dateStr}:`, err)
+      results.push({ venue: location.venue, date: dateStr, itemCount: -1 })
     }
   }
+  }
 
-  return Response.json({ success: true, date: dateStr, results })
+  return Response.json({
+    success: true,
+    dates: datesToSync.map((d) => d.dateStr),
+    results,
+  })
 }
