@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import {
   bulkUpsertPars,
+  refreshAutoParsFromInvoices,
   type ParSuggestionRow,
 } from "@/lib/actions/par-levels"
 import type { Venue } from "@/generated/prisma"
@@ -22,6 +23,8 @@ export function ParLevelsView({ rows }: { rows: ParSuggestionRow[] }) {
   const [filter, setFilter] = useState("")
   const [showOnlyDiffs, setShowOnlyDiffs] = useState(false)
   const [saving, startSave] = useTransition()
+  const [refreshing, startRefresh] = useTransition()
+  const [refreshSummary, setRefreshSummary] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase()
@@ -149,6 +152,22 @@ export function ParLevelsView({ rows }: { rows: ParSuggestionRow[] }) {
             Only show ingredients where suggested ≠ current
           </label>
           <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={refreshing}
+              onClick={() => {
+                startRefresh(async () => {
+                  const r = await refreshAutoParsFromInvoices()
+                  setRefreshSummary(
+                    `Updated ${r.parsUpserted} pars across ${r.ingredientsProcessed} ingredients (skipped ${r.skippedManual} chef-set)`
+                  )
+                  router.refresh()
+                })
+              }}
+            >
+              {refreshing ? "Computing…" : "Auto-par from invoices"}
+            </Button>
             {SINGLE_VENUES.map((v) => (
               <Button
                 key={v}
@@ -164,6 +183,11 @@ export function ParLevelsView({ rows }: { rows: ParSuggestionRow[] }) {
             </Button>
           </div>
         </CardContent>
+        {refreshSummary && (
+          <div className="border-t bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+            {refreshSummary}
+          </div>
+        )}
       </Card>
 
       {byCategory.length === 0 && (
@@ -275,6 +299,9 @@ export function ParLevelsView({ rows }: { rows: ParSuggestionRow[] }) {
                                 )}
                                 {cur != null && sourceTag === "MANUAL" && (
                                   <Badge variant="outline" className="text-[9px]">manual</Badge>
+                                )}
+                                {cur != null && sourceTag === "AUTO_INVOICE" && (
+                                  <Badge variant="outline" className="text-[9px]">auto</Badge>
                                 )}
                               </div>
                             </td>

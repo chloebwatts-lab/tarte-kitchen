@@ -222,8 +222,9 @@ model IngredientPar {
 }
 
 enum ParSource {
-  SUGGESTED
-  MANUAL
+  SUGGESTED      // legacy: from theoretical-usage suggestion engine
+  MANUAL         // chef saved this value — never overwrite without confirmation
+  AUTO_INVOICE   // computed from invoice purchase history (avg weekly qty over last 8 wk)
 }
 
 // Track every price change
@@ -1176,8 +1177,15 @@ model PurchaseOrderLine {
   id           String        @id @default(cuid())
   orderId      String
   order        PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  ingredientId String
-  ingredient   Ingredient    @relation(fields: [ingredientId], references: [id])
+  /// Optional — set when the line is a known TK ingredient (powers price-change
+  /// detection on invoice match-back). When ordering an ApprovedSupplierItem
+  /// that hasn't been linked to an Ingredient yet, this stays null and
+  /// `description` carries the supplier-form text.
+  ingredientId String?
+  ingredient   Ingredient?   @relation(fields: [ingredientId], references: [id])
+  /// Free-text description as it appears on the supplier order form. Required
+  /// so emailed POs are readable even when no Ingredient is linked.
+  description  String?
   quantity     Decimal       @db.Decimal(12, 3)
   unit         String
   unitPrice    Decimal       @db.Decimal(12, 4)

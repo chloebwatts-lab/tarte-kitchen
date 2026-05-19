@@ -341,7 +341,11 @@ export async function createDraftOrder(params: {
   expectedDate?: string
   notes?: string
   lines: {
-    ingredientId: string
+    /** Set when the line maps to a known TK ingredient. Optional — when null
+     * the line is identified by `description` only (e.g. supplier-form item
+     * not yet linked to an ingredient). */
+    ingredientId?: string | null
+    description?: string | null
     quantity: number
     unit: string
     unitPrice: number
@@ -364,7 +368,8 @@ export async function createDraftOrder(params: {
       notes: params.notes,
       lines: {
         create: params.lines.map((l) => ({
-          ingredientId: l.ingredientId,
+          ingredientId: l.ingredientId ?? null,
+          description: l.description ?? null,
           quantity: new Decimal(l.quantity),
           unit: l.unit,
           unitPrice: new Decimal(l.unitPrice),
@@ -447,9 +452,9 @@ export async function getOrder(id: string): Promise<OrderDetail | null> {
     submittedAt: o.submittedAt?.toISOString() ?? null,
     lines: o.lines.map((l) => ({
       id: l.id,
-      ingredientId: l.ingredientId,
-      ingredientName: l.ingredient.name,
-      supplierCode: l.ingredient.supplierProductCode,
+      ingredientId: l.ingredientId ?? "",
+      ingredientName: l.ingredient?.name ?? l.description ?? "(unlinked)",
+      supplierCode: l.ingredient?.supplierProductCode ?? null,
       quantity: Number(l.quantity),
       unit: l.unit,
       unitPrice: Number(l.unitPrice),
@@ -562,10 +567,11 @@ export async function submitOrder(params: {
     `Please deliver the below to Tarte (${order.venue.replace(/_/g, " ")}):`,
     ``,
     ...order.lines.map((l) => {
-      const code = l.ingredient.supplierProductCode
+      const code = l.ingredient?.supplierProductCode
         ? ` [${l.ingredient.supplierProductCode}]`
         : ""
-      return `  ${Number(l.quantity)} ${l.unit} × ${l.ingredient.name}${code}`
+      const label = l.ingredient?.name ?? l.description ?? "(unlinked item)"
+      return `  ${Number(l.quantity)} ${l.unit} × ${label}${code}`
     }),
     ``,
     `Total (ex GST): $${Number(order.subtotal).toFixed(2)}`,

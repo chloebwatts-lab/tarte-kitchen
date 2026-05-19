@@ -162,6 +162,144 @@ export async function getParSuggestions(): Promise<ParSuggestionRow[]> {
   return rows
 }
 
+/**
+ * Recompute auto-pars from invoice purchase history.
+ *
+ * For every ingredient with an invoice line in the last `windowWeeks` (default 8):
+ *   - Group matched invoice lines by venue
+ *   - Sum total quantity bought, divide by windowWeeks → weekly average qty
+ *   - Round up to whole packs (so we always order in whole packs)
+ *
+ * Stores the result on `IngredientPar` with source=AUTO_INVOICE.
+ *
+ * **Never overwrites** a MANUAL row — chef tuning wins. AUTO_INVOICE rows
+ * are refreshed each call so the par tracks reality as buying habits shift.
+ */
+export async function refreshAutoParsFromInvoices(opts?: {
+  windowWeeks?: number
+  /** When true, refresh even rows whose source is MANUAL. Off by default. */
+  overwriteManual?: boolean
+}): Promise<{
+  ingredientsProcessed: number
+  parsUpserted: number
+  skippedManual: number
+}> {
+  const windowWeeks = opts?.windowWeeks ?? 8
+  const overwriteManual = opts?.overwriteManual ?? false
+  const cutoff = new Date()
+  cutoff.setUTCDate(cutoff.getUTCDate() - windowWeeks * 7)
+
+  // Pull invoice line items in window with matched ingredients and a venue.
+  // Group by (ingredientId, venue) summing quantity in the line's own unit.
+  // We then convert to base units against the ingredient's purchase unit
+  // before applying pack rounding.
+  const rows = await db.invoiceLineItem.findMany({
+    where: {
+      ingredientId: { not: null },
+      quantity: { not: null },
+      invoice: {
+        invoiceDate: { gte: cutoff },
+        status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE"] },
+        venue: { not: null },
+      },
+    },
+    select: {
+      ingredientId: true,
+      quantity: true,
+      unit: true,
+      invoice: { select: { venue: true } },
+    },
+  })
+
+  // Aggregate
+  type Key = string // `${venue}|${ingredientId}`
+  const totalBaseByKey = new Map<Key, number>()
+  const ingredientIds = new Set<string>()
+  for (const r of rows) {
+    if (!r.ingredientId || !r.invoice.venue || r.quantity == null) continue
+    ingredientIds.add(r.ingredientId)
+    totalBaseByKey.set(
+      `${r.invoice.venue}|${r.ingredientId}`,
+      (totalBaseByKey.get(`${r.invoice.venue}|${r.ingredientId}`) ?? 0) +
+        Number(r.quantity)
+    )
+  }
+  if (ingredientIds.size === 0)
+    return { ingredientsProcessed: 0, parsUpserted: 0, skippedManual: 0 }
+
+  // Fetch the matched ingredients (need pack info + existing par rows)
+  const ingredients = await db.ingredient.findMany({
+    where: { id: { in: Array.from(ingredientIds) } },
+    select: {
+      id: true,
+      purchaseQuantity: true,
+      purchaseUnit: true,
+      baseUnitType: true,
+      pars: { select: { venue: true, source: true } },
+    },
+  })
+
+  let parsUpserted = 0
+  let skippedManual = 0
+  for (const ing of ingredients) {
+    const packQty = Number(ing.purchaseQuantity)
+    const baseType = ing.baseUnitType as "WEIGHT" | "VOLUME" | "COUNT"
+    const manualVenues = new Set(
+      ing.pars
+        .filter((p) => p.source === "MANUAL")
+        .map((p) => p.venue as Venue)
+    )
+
+    for (const venue of LIVE_VENUES) {
+      const key: Key = `${venue}|${ing.id}`
+      const totalQty = totalBaseByKey.get(key)
+      if (!totalQty || totalQty <= 0) continue
+
+      // Weekly avg in the invoice line's unit. Invoice lines for this
+      // ingredient should be using the same unit family as the ingredient's
+      // purchaseUnit (kg / L / each), so the values are directly comparable.
+      const weeklyQty = totalQty / windowWeeks
+      // Round up to whole packs
+      const parQty = packQty > 0
+        ? Math.max(1, Math.ceil(weeklyQty / packQty)) * packQty
+        : weeklyQty
+
+      if (manualVenues.has(venue) && !overwriteManual) {
+        skippedManual++
+        continue
+      }
+      // Suppress baseType-unused lint
+      void baseType
+
+      await db.ingredientPar.upsert({
+        where: { ingredientId_venue: { ingredientId: ing.id, venue } },
+        create: {
+          ingredientId: ing.id,
+          venue,
+          parLevel: Math.round(parQty * 1000) / 1000,
+          parUnit: ing.purchaseUnit,
+          source: "AUTO_INVOICE",
+          notes: `Auto from invoices: ${weeklyQty.toFixed(2)} ${ing.purchaseUnit}/wk avg over ${windowWeeks} wk`,
+        },
+        update: {
+          parLevel: Math.round(parQty * 1000) / 1000,
+          parUnit: ing.purchaseUnit,
+          source: "AUTO_INVOICE",
+          notes: `Auto from invoices: ${weeklyQty.toFixed(2)} ${ing.purchaseUnit}/wk avg over ${windowWeeks} wk`,
+        },
+      })
+      parsUpserted++
+    }
+  }
+  revalidatePath("/par-levels")
+  revalidatePath("/orders")
+  return {
+    ingredientsProcessed: ingredients.length,
+    parsUpserted,
+    skippedManual,
+  }
+}
+
 export async function bulkUpsertPars(
   items: Array<{
     ingredientId: string
