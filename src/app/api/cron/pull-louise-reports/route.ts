@@ -145,11 +145,17 @@ async function ingestOne(
     }
   }
 
-  // Idempotency check — skip if we've already ingested an upload tagged
-  // with this Gmail message id.
+  // Idempotency check — skip if we've already ingested THIS attachment
+  // (by its full tagged filename). Bug fix 2026-05-21: previous version
+  // matched on `startsWith: tag`, which silently dropped the 2nd, 3rd…
+  // attachment of any email that bundled multiple files of the same kind
+  // (e.g. Louise's Thursday email packs Burleigh + Currumbin + Tea Garden
+  // labour PDFs *and* two COGS xlsx — only the first of each kind was
+  // ingested, the rest were marked "duplicate"). Matching the full
+  // filename means each attachment dedupes against itself only.
   if (kind === "labour-pdf") {
     const existing = await db.labourUpload.findFirst({
-      where: { filename: { startsWith: tag } },
+      where: { filename },
     })
     if (existing) {
       return {
@@ -161,7 +167,7 @@ async function ingestOne(
     }
   } else {
     const existing = await db.cogsUpload.findFirst({
-      where: { filename: { startsWith: tag } },
+      where: { filename },
     })
     if (existing) {
       return {

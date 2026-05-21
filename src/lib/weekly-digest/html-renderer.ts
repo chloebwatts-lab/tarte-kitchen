@@ -288,16 +288,19 @@ function cogsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative)
       const tone = delta == null ? "—" : delta > 1 ? "red" : delta > 0 ? "amber" : "green"
       const toneColor = tone === "red" ? C.red : tone === "amber" ? C.amber : tone === "green" ? C.green : C.inkMute
       const toneBg = tone === "red" ? C.redSoft : tone === "amber" ? C.amberSoft : tone === "green" ? C.greenSoft : "transparent"
+      const noteRow = v.note
+        ? `<tr><td colspan="5" style="padding:0 14px 10px;border-bottom:1px solid ${C.borderSoft};font-size:12px;color:${C.inkMute};font-style:italic;">${escapeHtml(v.note)}</td></tr>`
+        : ""
       return `
         <tr>
-          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:14px;color:${C.ink};">${escapeHtml(v.venue)}</td>
-          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:14px;color:${C.ink};text-align:right;font-variant-numeric:tabular-nums;">${v.cogsPct != null ? fmtPct(v.cogsPct, { decimals: 2 }) : "—"}</td>
-          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.inkSoft};text-align:right;font-variant-numeric:tabular-nums;">${v.targetPct != null ? fmtPct(v.targetPct, { decimals: 2 }) : "—"}</td>
-          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};text-align:right;">
+          <td style="padding:10px 14px;${v.note ? "" : `border-bottom:1px solid ${C.borderSoft};`}font-size:14px;color:${C.ink};">${escapeHtml(v.venue)}</td>
+          <td style="padding:10px 14px;${v.note ? "" : `border-bottom:1px solid ${C.borderSoft};`}font-size:14px;color:${C.ink};text-align:right;font-variant-numeric:tabular-nums;">${v.cogsPct != null ? fmtPct(v.cogsPct, { decimals: 2 }) : "—"}</td>
+          <td style="padding:10px 14px;${v.note ? "" : `border-bottom:1px solid ${C.borderSoft};`}font-size:13px;color:${C.inkSoft};text-align:right;font-variant-numeric:tabular-nums;">${v.targetPct != null ? fmtPct(v.targetPct, { decimals: 2 }) : "—"}</td>
+          <td style="padding:10px 14px;${v.note ? "" : `border-bottom:1px solid ${C.borderSoft};`}text-align:right;">
             ${delta == null ? `<span style="color:${C.inkMute};">—</span>` : `<span style="display:inline-block;padding:2px 8px;background:${toneBg};color:${toneColor};border-radius:4px;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;">${fmtPct(delta, { signed: true, decimals: 2 })}</span>`}
           </td>
-          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:12px;color:${C.inkSoft};text-align:right;">${v.biggestCategory ? `${escapeHtml(v.biggestCategory.name)} ${fmtMoney(v.biggestCategory.dollars)}` : "—"}</td>
-        </tr>`
+          <td style="padding:10px 14px;${v.note ? "" : `border-bottom:1px solid ${C.borderSoft};`}font-size:12px;color:${C.inkSoft};text-align:right;">${v.biggestCategory ? `${escapeHtml(v.biggestCategory.name)} ${fmtMoney(v.biggestCategory.dollars)}` : "—"}</td>
+        </tr>${noteRow}`
     })
     .join("")
 

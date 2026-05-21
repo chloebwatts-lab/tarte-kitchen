@@ -162,6 +162,10 @@ interface CogsSection {
     targetPct: number | null
     delta: number | null
     biggestCategory: { name: string; dollars: number } | null
+    /// Optional human-readable note shown below the venue row. Used to
+    /// flag combined accounting (Beach House row covers BH+TG, Tea
+    /// Garden row points back at BH).
+    note?: string
   }>
 }
 
@@ -536,7 +540,37 @@ async function buildCogs(): Promise<CogsSection> {
     where: { weekStartWed: latest.weekStartWed },
   })
 
+  // Tea Garden has no separate COGS report — Louise's "Currumbin" xlsx
+  // covers Beach House + Tea Garden combined ingredient/coffee costs.
+  // To get a meaningful BH cogs%, we add the Tea Garden weekly revenue
+  // (pulled separately from the Tea Garden Mge PDF into LabourWeekActual)
+  // to the Beach House denominator before computing pct. The xlsx's own
+  // pct is left as the "as-reported" number; we override with the
+  // combined-revenue pct so the digest reflects reality.
+  const labour = await db.labourWeekActual.findMany({
+    where: { weekStartWed: latest.weekStartWed },
+    select: { venue: true, revenueExGst: true },
+  })
+  const tgRevenue =
+    labour.find((l) => l.venue === "TEA_GARDEN")?.revenueExGst != null
+      ? Number(labour.find((l) => l.venue === "TEA_GARDEN")!.revenueExGst)
+      : null
+
   const perVenue: CogsSection["perVenue"] = SINGLE_VENUES.map((v) => {
+    if (v === "TEA_GARDEN") {
+      // Tea Garden COGS is folded into the Currumbin xlsx. Render the
+      // row explicitly so the reader doesn't think we forgot it.
+      return {
+        venue: VENUE_LABEL[v],
+        revenueExGst: tgRevenue,
+        totalCogs: 0,
+        cogsPct: null,
+        targetPct: null,
+        delta: null,
+        biggestCategory: null,
+        note: "Combined with Beach House (kitchen shares stock).",
+      }
+    }
     const r = rows.find((x) => x.venue === v)
     if (!r)
       return {
@@ -556,17 +590,27 @@ async function buildCogs(): Promise<CogsSection> {
     if (r.cogsConsumables != null)
       cats.push({ name: "Consumables", dollars: Number(r.cogsConsumables) })
     const sorted = cats.sort((a, b) => b.dollars - a.dollars)
+    const xlsxRevenue = r.revenueExGst ? Number(r.revenueExGst) : null
+    const totalCogs = Number(r.totalCogs)
+    let revenueExGst = xlsxRevenue
+    let cogsPct: number | null = r.cogsPct ? Number(r.cogsPct) : null
+    let note: string | undefined
+    if (v === "BEACH_HOUSE" && xlsxRevenue != null && tgRevenue != null) {
+      const combined = xlsxRevenue + tgRevenue
+      revenueExGst = combined
+      cogsPct = Math.round((totalCogs / combined) * 1000) / 10
+      note = `Combined w/ Tea Garden: BH $${xlsxRevenue.toLocaleString()} + TG $${tgRevenue.toLocaleString()} = $${combined.toLocaleString()} ex-GST.`
+    }
+    const targetPct = r.cogsTargetPct ? Number(r.cogsTargetPct) : null
     return {
       venue: VENUE_LABEL[v],
-      revenueExGst: r.revenueExGst ? Number(r.revenueExGst) : null,
-      totalCogs: Number(r.totalCogs),
-      cogsPct: r.cogsPct ? Number(r.cogsPct) : null,
-      targetPct: r.cogsTargetPct ? Number(r.cogsTargetPct) : null,
-      delta:
-        r.cogsPct && r.cogsTargetPct
-          ? Number(r.cogsPct) - Number(r.cogsTargetPct)
-          : null,
+      revenueExGst,
+      totalCogs,
+      cogsPct,
+      targetPct,
+      delta: cogsPct != null && targetPct != null ? cogsPct - targetPct : null,
       biggestCategory: sorted[0] ?? null,
+      note,
     }
   })
 
