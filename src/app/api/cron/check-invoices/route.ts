@@ -125,16 +125,30 @@ export async function GET(request: Request) {
     })
   }
 
+  // Capture the start instant BEFORE we issue the Gmail search. The
+  // watermark we persist at the end is this value, not Date.now() — any
+  // supplier email that lands DURING the loop (a 30+ invoice backfill can
+  // take 5–10 min with Claude parsing each PDF) would otherwise be
+  // silently skipped by the next run because the watermark jumped past
+  // its arrival time. Bug observed 2026-05-21: watermark advanced 4 days
+  // without ingesting the Pixel, Bidfood, Pacific, Son of a Bunn, etc.
+  // emails Gmail clearly had on file.
+  const runStart = new Date()
+
   try {
     const accessToken = await getValidGmailAccessToken()
 
     // Build search query from all known supplier emails
     const fromQuery = `from:(${allEmails.join(" OR ")})`
 
-    // Only fetch messages after last check
+    // Only fetch messages after last check. Step back 1 hour to give
+    // Gmail's "after:" filter slack — its second-precision granularity
+    // plus our seconds-since-epoch rounding can shave a borderline
+    // message off the result list.
     let afterQuery = ""
     if (connection.lastScanAt) {
-      const epochSec = Math.floor(connection.lastScanAt.getTime() / 1000)
+      const slackMs = 60 * 60 * 1000
+      const epochSec = Math.floor((connection.lastScanAt.getTime() - slackMs) / 1000)
       afterQuery = ` after:${epochSec}`
     }
 
@@ -317,10 +331,12 @@ export async function GET(request: Request) {
       }
     }
 
-    // Update last checked timestamp
+    // Persist the START-of-run timestamp, not Date.now(). Anything that
+    // arrived AFTER runStart is still in the inbox waiting for the next
+    // cron, rather than being silently jumped over.
     await db.gmailConnection.update({
       where: { id: connection.id },
-      data: { lastScanAt: new Date() },
+      data: { lastScanAt: runStart },
     })
 
     return Response.json({
