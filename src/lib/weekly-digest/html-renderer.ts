@@ -821,7 +821,11 @@ function avgLabourPct(snapshot: WeeklyDigestSnapshot): number | null {
 }
 
 function avgCogsPct(snapshot: WeeklyDigestSnapshot): number | null {
+  // Average across operational venues only — Burleigh + the combined
+  // BH+TG row. The "(BH only, as-reported)" reference row is excluded
+  // so it doesn't double-count Beach House.
   const vals = snapshot.cogs.perVenue
+    .filter((v) => !/BH only|as-reported/i.test(v.venue))
     .map((v) => v.cogsPct)
     .filter((x): x is number => x != null)
   if (!vals.length) return null

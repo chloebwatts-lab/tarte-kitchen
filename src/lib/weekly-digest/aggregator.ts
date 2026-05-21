@@ -556,24 +556,19 @@ async function buildCogs(): Promise<CogsSection> {
       ? Number(labour.find((l) => l.venue === "TEA_GARDEN")!.revenueExGst)
       : null
 
-  const perVenue: CogsSection["perVenue"] = SINGLE_VENUES.map((v) => {
-    if (v === "TEA_GARDEN") {
-      // Tea Garden COGS is folded into the Currumbin xlsx. Render the
-      // row explicitly so the reader doesn't think we forgot it.
-      return {
-        venue: VENUE_LABEL[v],
-        revenueExGst: tgRevenue,
-        totalCogs: 0,
-        cogsPct: null,
-        targetPct: null,
-        delta: null,
-        biggestCategory: null,
-        note: "Combined with Beach House (kitchen shares stock).",
-      }
-    }
+  // 3-line layout per Chloe 2026-05-22:
+  //   1. Burleigh
+  //   2. Beach House + Tea Garden (combined) — primary, drives the headline %
+  //   3. Beach House (BH revenue only) — as-reported from the Currumbin
+  //      xlsx, kept "out of interest" so we can spot whether the combine
+  //      step changes the picture materially.
+  // Tea Garden no longer renders as its own row (it had no separate COGS
+  // to show).
+  const perVenue: CogsSection["perVenue"] = []
+  for (const v of ["BURLEIGH", "BEACH_HOUSE"] as const) {
     const r = rows.find((x) => x.venue === v)
-    if (!r)
-      return {
+    if (!r) {
+      perVenue.push({
         venue: VENUE_LABEL[v],
         revenueExGst: null,
         totalCogs: 0,
@@ -581,7 +576,13 @@ async function buildCogs(): Promise<CogsSection> {
         targetPct: null,
         delta: null,
         biggestCategory: null,
+      })
+      if (v === "BEACH_HOUSE") {
+        // No BH data → no combined row to derive, skip the "out of
+        // interest" row too rather than render two identical blanks.
       }
+      continue
+    }
     const cats: Array<{ name: string; dollars: number }> = []
     if (r.cogsFood != null)
       cats.push({ name: "Food", dollars: Number(r.cogsFood) })
@@ -592,27 +593,51 @@ async function buildCogs(): Promise<CogsSection> {
     const sorted = cats.sort((a, b) => b.dollars - a.dollars)
     const xlsxRevenue = r.revenueExGst ? Number(r.revenueExGst) : null
     const totalCogs = Number(r.totalCogs)
-    let revenueExGst = xlsxRevenue
-    let cogsPct: number | null = r.cogsPct ? Number(r.cogsPct) : null
-    let note: string | undefined
-    if (v === "BEACH_HOUSE" && xlsxRevenue != null && tgRevenue != null) {
-      const combined = xlsxRevenue + tgRevenue
-      revenueExGst = combined
-      cogsPct = Math.round((totalCogs / combined) * 1000) / 10
-      note = `Combined w/ Tea Garden: BH $${xlsxRevenue.toLocaleString()} + TG $${tgRevenue.toLocaleString()} = $${combined.toLocaleString()} ex-GST.`
-    }
+    const xlsxPct = r.cogsPct ? Number(r.cogsPct) : null
     const targetPct = r.cogsTargetPct ? Number(r.cogsTargetPct) : null
-    return {
-      venue: VENUE_LABEL[v],
-      revenueExGst,
-      totalCogs,
-      cogsPct,
-      targetPct,
-      delta: cogsPct != null && targetPct != null ? cogsPct - targetPct : null,
-      biggestCategory: sorted[0] ?? null,
-      note,
+
+    if (v === "BURLEIGH") {
+      perVenue.push({
+        venue: VENUE_LABEL[v],
+        revenueExGst: xlsxRevenue,
+        totalCogs,
+        cogsPct: xlsxPct,
+        targetPct,
+        delta: xlsxPct != null && targetPct != null ? xlsxPct - targetPct : null,
+        biggestCategory: sorted[0] ?? null,
+      })
+      continue
     }
-  })
+
+    // Beach House — push the combined row first (primary), then the
+    // standalone row for reference.
+    if (xlsxRevenue != null && tgRevenue != null) {
+      const combined = xlsxRevenue + tgRevenue
+      const combinedPct = Math.round((totalCogs / combined) * 1000) / 10
+      perVenue.push({
+        venue: `${VENUE_LABEL[v]} + Tea Garden`,
+        revenueExGst: combined,
+        totalCogs,
+        cogsPct: combinedPct,
+        targetPct,
+        delta: targetPct != null ? combinedPct - targetPct : null,
+        biggestCategory: sorted[0] ?? null,
+        note: `BH $${xlsxRevenue.toLocaleString()} + TG $${tgRevenue.toLocaleString()} = $${combined.toLocaleString()} ex-GST. Kitchen shares stock across both venues — combined view is the operationally meaningful one.`,
+      })
+    }
+    perVenue.push({
+      venue: `${VENUE_LABEL[v]} (BH only, as-reported)`,
+      revenueExGst: xlsxRevenue,
+      totalCogs,
+      cogsPct: xlsxPct,
+      targetPct,
+      delta: xlsxPct != null && targetPct != null ? xlsxPct - targetPct : null,
+      biggestCategory: sorted[0] ?? null,
+      note: tgRevenue != null
+        ? "Reference only — Louise's Currumbin xlsx with BH revenue only."
+        : undefined,
+    })
+  }
 
   return {
     weekStartWed: dateKey(latest.weekStartWed),
