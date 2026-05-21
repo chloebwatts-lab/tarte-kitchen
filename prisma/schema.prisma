@@ -1548,3 +1548,55 @@ model WeeklyDigest {
 
   @@unique([weekStart])
 }
+
+/// Audit log of every supplier-invoice-pull (check-invoices cron) run.
+/// Drives the dashboard "ingestion healthy?" banner — if the latest
+/// run is >36h old, errored, or has been returning 0 messages for 2+
+/// consecutive days, we red-flag it on /dashboard so the next silent
+/// failure surfaces inside a day instead of two weeks.
+model InvoiceSyncRun {
+  id                String   @id @default(cuid())
+  startedAt         DateTime @default(now())
+  finishedAt        DateTime?
+  /// "incremental" (after:lastScanAt) or "sweep" (last-14-days, full
+  /// re-scan that trusts the gmailMessageId @unique dedupe).
+  mode              String
+  messagesFound     Int      @default(0)
+  invoicesIngested  Int      @default(0)
+  duplicates        Int      @default(0)
+  statements        Int      @default(0)
+  errors            Int      @default(0)
+  /// First 4000 chars of the error list, for in-DB triage without
+  /// shelling into the droplet.
+  errorSummary      String?
+  /// Convenience flag — set false if the run threw before finish or
+  /// errors > 0.5×messagesFound. Powers the dashboard "healthy" check.
+  healthy           Boolean  @default(true)
+
+  @@index([startedAt])
+  @@index([mode, startedAt])
+}
+
+/// PDFs Gmail received from senders we don't have in the supplier-email
+/// map. Caught by a separate cheap query (`subject:invoice OR tax OR
+/// statement` from senders NOT in the known list). Surfaced in a
+/// review queue at /suppliers/unmapped so a renamed sender (or a new
+/// supplier) shows up to be linked, not silently swallowed.
+model UnknownInvoiceSender {
+  id              String   @id @default(cuid())
+  senderEmail     String
+  senderName      String?
+  subject         String?
+  gmailMessageId  String   @unique
+  firstSeenAt     DateTime @default(now())
+  lastSeenAt      DateTime @default(now())
+  occurrences     Int      @default(1)
+  /// Set true once a human has linked the sender to a Supplier (or
+  /// marked it "ignore — not an invoice"). Hidden from the review
+  /// queue after that.
+  resolved        Boolean  @default(false)
+  resolvedNote    String?
+  resolvedAt      DateTime?
+
+  @@index([resolved, senderEmail])
+}

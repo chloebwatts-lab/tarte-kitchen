@@ -112,8 +112,15 @@ services:
         cat > /etc/crontabs/root <<'CRON'
         # 08:00 AEST — pull Lightspeed end-of-day email(s) from Gmail
         0 22 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-lightspeed-reports 2>&1
-        # 08:30 AEST — scan Gmail for new supplier invoices
-        30 22 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/check-invoices 2>&1
+        # Every 2 hours — incremental supplier-invoice scan (Gmail after:
+        # lastScanAt). Was once-daily — bumped 2026-05-22 so a stale
+        # watermark or rate-limit hiccup can't cost us a whole day.
+        0 */2 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/check-invoices 2>&1
+        # 09:00 AEST — nightly 14-day sweep that trusts gmailMessageId
+        # dedupe. Safety net against watermark drift / silent skips —
+        # the May 2026 incident that lost 30+ invoices over 4 days
+        # would have been caught here next morning.
+        0 23 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" 'http://app:3000/api/cron/check-invoices?mode=sweep' 2>&1
         # Every 30 min — Lightspeed API sales sync for today + yesterday
         # (?days=2). Keeps the live FOH tracker's revenue side current.
         # Email source still wins for yesterday once it lands. Cheap: a

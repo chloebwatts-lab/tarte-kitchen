@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic"
+export const maxDuration = 600
 
 import { db } from "@/lib/db"
 import { getActiveGmailConnection } from "@/lib/gmail/token"
@@ -17,43 +18,54 @@ import { parseInvoicePdf } from "@/lib/invoices/parser"
 import { processInvoice } from "@/lib/invoices/processor"
 import Fuse from "fuse.js"
 
+/**
+ * Resilient supplier-invoice ingestion.
+ *
+ * Two queries per run, both relying on the `Invoice.gmailMessageId
+ * @unique` constraint to dedupe — so re-scanning a window we've
+ * already processed is free:
+ *
+ *   1. Incremental — `from:(supplier-emails) after:lastScanAt`. Fast
+ *      path for normal daily ticks.
+ *   2. Sweep — `from:(supplier-emails) newer_than:14d`. Catches anything
+ *      a stale or jumped watermark would have skipped. Without this the
+ *      pipeline silently lost ~30 invoices over 4 days in May 2026.
+ *
+ * Plus a separate query for *unknown* senders so PDFs from newly-onboarded
+ * or renamed-email-from suppliers land in a review queue rather than
+ * disappearing.
+ *
+ * Every run writes an `InvoiceSyncRun` audit row so the dashboard can
+ * red-flag a 0-invoice streak or repeated errors within 24 h.
+ */
+
 interface SupplierRef {
   id: string
   name: string
 }
 
-/**
- * Build a map of email address → supplier(s).
- * Uses SupplierEmail table first, then falls back to Supplier.email for
- * suppliers that haven't been migrated to the new table yet.
- */
 async function buildSupplierEmailMap(): Promise<{
   emailMap: Map<string, SupplierRef[]>
   allEmails: string[]
 }> {
   const emailMap = new Map<string, SupplierRef[]>()
 
-  // Primary source: SupplierEmail table (supports many-to-many)
   const supplierEmails = await db.supplierEmail.findMany({
     include: { supplier: { select: { id: true, name: true } } },
   })
-
   for (const se of supplierEmails) {
     const email = se.email.toLowerCase()
     const existing = emailMap.get(email) ?? []
-    // Avoid duplicate supplier entries for the same email
     if (!existing.some((s) => s.id === se.supplier.id)) {
       existing.push({ id: se.supplier.id, name: se.supplier.name })
     }
     emailMap.set(email, existing)
   }
 
-  // Fallback: Supplier.email field for suppliers not yet in SupplierEmail table
   const suppliers = await db.supplier.findMany({
     where: { email: { not: null } },
     select: { id: true, name: true, email: true },
   })
-
   for (const s of suppliers) {
     if (!s.email) continue
     const email = s.email.toLowerCase()
@@ -67,44 +79,215 @@ async function buildSupplierEmailMap(): Promise<{
   return { emailMap, allEmails: Array.from(emailMap.keys()) }
 }
 
-/**
- * When a sender email maps to multiple suppliers, use the parsed invoice's
- * supplierName (from Claude) or the sender display name to pick the best match.
- */
 function disambiguateSupplier(
   candidates: SupplierRef[],
   parsedSupplierName: string | null,
   senderDisplayName: string | null
 ): SupplierRef | null {
   if (candidates.length === 1) return candidates[0]
-
-  // Try parsed supplier name first (most reliable — from the actual invoice)
   if (parsedSupplierName) {
-    const fuse = new Fuse(candidates, {
-      keys: ["name"],
-      threshold: 0.4,
-      includeScore: true,
-    })
+    const fuse = new Fuse(candidates, { keys: ["name"], threshold: 0.4, includeScore: true })
     const results = fuse.search(parsedSupplierName)
     if (results.length > 0) return results[0].item
   }
-
-  // Fall back to sender display name
   if (senderDisplayName) {
-    const fuse = new Fuse(candidates, {
-      keys: ["name"],
-      threshold: 0.4,
-      includeScore: true,
-    })
+    const fuse = new Fuse(candidates, { keys: ["name"], threshold: 0.4, includeScore: true })
     const results = fuse.search(senderDisplayName)
     if (results.length > 0) return results[0].item
   }
-
   return null
 }
 
+interface ProcessStats {
+  messagesFound: number
+  invoicesIngested: number
+  duplicates: number
+  statements: number
+  errors: string[]
+}
+
+async function processMessages(
+  accessToken: string,
+  emailMap: Map<string, SupplierRef[]>,
+  messageRefs: Array<{ id: string; threadId: string }>
+): Promise<ProcessStats> {
+  const stats: ProcessStats = {
+    messagesFound: messageRefs.length,
+    invoicesIngested: 0,
+    duplicates: 0,
+    statements: 0,
+    errors: [],
+  }
+
+  for (const ref of messageRefs) {
+    try {
+      // Per-message isolation — one bad parse can't kill the run.
+      const existing = await db.invoice.findUnique({
+        where: { gmailMessageId: ref.id },
+      })
+      if (existing) continue
+
+      const message = await getMessage(accessToken, ref.id)
+      const senderEmail = extractSenderEmail(message)
+      const senderName = extractSenderName(message)
+      if (!senderEmail) continue
+
+      const candidates = emailMap.get(senderEmail)
+      if (!candidates || candidates.length === 0) continue
+
+      const attachments = extractPdfAttachments(message)
+      if (attachments.length === 0) continue
+
+      for (const attachment of attachments) {
+        const pdfBuffer = await getAttachment(accessToken, ref.id, attachment.attachmentId)
+        let parsed
+        try {
+          parsed = await parseInvoicePdf(pdfBuffer)
+        } catch (parseErr) {
+          stats.errors.push(`Message ${ref.id}: parse failed — ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`)
+          continue
+        }
+
+        const supplier = disambiguateSupplier(candidates, parsed.supplierName, senderName)
+        if (!supplier) {
+          stats.errors.push(
+            `Message ${ref.id}: could not match sender "${senderEmail}" (display: "${senderName}", invoice: "${parsed.supplierName}") to any of: ${candidates.map((c) => c.name).join(", ")}`
+          )
+          continue
+        }
+
+        const pdfPath = await saveInvoicePdf(supplier.name, pdfBuffer, ref.id)
+        const invoice = await db.invoice.create({
+          data: {
+            supplierId: supplier.id,
+            supplierName: supplier.name,
+            gmailMessageId: ref.id,
+            pdfUrl: pdfPath,
+            status: "PENDING",
+          },
+        })
+
+        if (parsed.documentType === "STATEMENT") {
+          await db.invoice.update({
+            where: { id: invoice.id },
+            data: {
+              status: "STATEMENT",
+              invoiceNumber: parsed.invoiceNumber,
+              invoiceDate: parsed.invoiceDate ? new Date(parsed.invoiceDate) : null,
+              total: parsed.total,
+              extractedData: JSON.parse(JSON.stringify(parsed)),
+              processedAt: new Date(),
+            },
+          })
+          stats.statements++
+          continue
+        }
+
+        // Content-level dedup across multi-channel forwarding.
+        if (parsed.invoiceNumber || (parsed.invoiceDate && parsed.total != null)) {
+          const dup = await db.invoice.findFirst({
+            where: {
+              id: { not: invoice.id },
+              supplierId: supplier.id,
+              status: { notIn: ["ERROR", "DUPLICATE"] },
+              ...(parsed.invoiceNumber
+                ? { invoiceNumber: parsed.invoiceNumber }
+                : {
+                    invoiceNumber: null,
+                    invoiceDate: parsed.invoiceDate ? new Date(parsed.invoiceDate) : null,
+                    total: parsed.total,
+                  }),
+            },
+            select: { id: true, invoiceNumber: true },
+          })
+          if (dup) {
+            await db.invoice.update({
+              where: { id: invoice.id },
+              data: {
+                status: "DUPLICATE",
+                invoiceNumber: parsed.invoiceNumber,
+                invoiceDate: parsed.invoiceDate ? new Date(parsed.invoiceDate) : null,
+                total: parsed.total,
+                extractedData: JSON.parse(JSON.stringify(parsed)),
+                processedAt: new Date(),
+                errorMessage: `Duplicate of invoice ${dup.id}${dup.invoiceNumber ? ` (${dup.invoiceNumber})` : ""}`,
+              },
+            })
+            stats.duplicates++
+            continue
+          }
+        }
+
+        try {
+          await processInvoice(invoice.id, supplier.id, parsed)
+          stats.invoicesIngested++
+        } catch (procErr) {
+          const errMsg = procErr instanceof Error ? procErr.message : String(procErr)
+          await db.invoice.update({
+            where: { id: invoice.id },
+            data: { status: "ERROR", errorMessage: errMsg },
+          })
+          stats.errors.push(`Invoice ${invoice.id}: ${errMsg}`)
+        }
+      }
+    } catch (msgErr) {
+      stats.errors.push(`Message ${ref.id}: ${msgErr instanceof Error ? msgErr.message : String(msgErr)}`)
+    }
+  }
+
+  return stats
+}
+
+async function captureUnknownSenders(
+  accessToken: string,
+  knownEmails: Set<string>,
+  runStart: Date
+): Promise<number> {
+  // Cheap, narrow query — PDFs whose subject smells like billing from
+  // a sender we don't recognise. 30-day window so a missed-renamed
+  // sender still gets found on the next nightly run.
+  const since = Math.floor((runStart.getTime() - 30 * 24 * 60 * 60 * 1000) / 1000)
+  const query = `subject:(invoice OR "tax invoice" OR statement) has:attachment filename:pdf after:${since}`
+  const refs = await searchMessages(accessToken, query, 200)
+
+  let logged = 0
+  for (const ref of refs) {
+    try {
+      const existing = await db.unknownInvoiceSender.findUnique({
+        where: { gmailMessageId: ref.id },
+      })
+      if (existing) {
+        if (!existing.resolved) {
+          await db.unknownInvoiceSender.update({
+            where: { id: existing.id },
+            data: { lastSeenAt: new Date(), occurrences: existing.occurrences + 1 },
+          })
+        }
+        continue
+      }
+      const message = await getMessage(accessToken, ref.id)
+      const senderEmail = extractSenderEmail(message)
+      if (!senderEmail) continue
+      if (knownEmails.has(senderEmail.toLowerCase())) continue
+      const subject = getHeader(message, "Subject") ?? null
+      const senderName = extractSenderName(message)
+      await db.unknownInvoiceSender.create({
+        data: {
+          senderEmail,
+          senderName,
+          subject,
+          gmailMessageId: ref.id,
+        },
+      })
+      logged++
+    } catch {
+      // Non-fatal — unknown-sender capture is best-effort.
+    }
+  }
+  return logged
+}
+
 export async function GET(request: Request) {
-  // Verify cron secret
   const authHeader = request.headers.get("authorization")
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 })
@@ -116,243 +299,107 @@ export async function GET(request: Request) {
   }
 
   const { emailMap, allEmails } = await buildSupplierEmailMap()
-
   if (allEmails.length === 0) {
-    return Response.json({
-      success: true,
-      message: "No supplier email addresses configured",
-      invoicesProcessed: 0,
-    })
+    return Response.json({ success: true, message: "No supplier email addresses configured" })
   }
 
-  // Capture the start instant BEFORE we issue the Gmail search. The
-  // watermark we persist at the end is this value, not Date.now() — any
-  // supplier email that lands DURING the loop (a 30+ invoice backfill can
-  // take 5–10 min with Claude parsing each PDF) would otherwise be
-  // silently skipped by the next run because the watermark jumped past
-  // its arrival time. Bug observed 2026-05-21: watermark advanced 4 days
-  // without ingesting the Pixel, Bidfood, Pacific, Son of a Bunn, etc.
-  // emails Gmail clearly had on file.
+  const url = new URL(request.url)
+  // Sweep mode: full 14-day rescan, trusting gmailMessageId dedupe. Run
+  // once daily (cron passes ?mode=sweep) alongside the incremental
+  // ticks. Manual invocation: ?mode=sweep for a forced full re-scan.
+  const mode: "incremental" | "sweep" = url.searchParams.get("mode") === "sweep" ? "sweep" : "incremental"
+
   const runStart = new Date()
+  const runRow = await db.invoiceSyncRun.create({
+    data: { mode, startedAt: runStart },
+  })
 
   try {
     const accessToken = await getValidGmailAccessToken()
-
-    // Build search query from all known supplier emails
     const fromQuery = `from:(${allEmails.join(" OR ")})`
 
-    // Only fetch messages after last check. Step back 1 hour to give
-    // Gmail's "after:" filter slack — its second-precision granularity
-    // plus our seconds-since-epoch rounding can shave a borderline
-    // message off the result list.
-    let afterQuery = ""
-    if (connection.lastScanAt) {
-      const slackMs = 60 * 60 * 1000
-      const epochSec = Math.floor((connection.lastScanAt.getTime() - slackMs) / 1000)
-      afterQuery = ` after:${epochSec}`
-    }
-
-    const query = `${fromQuery} has:attachment filename:pdf${afterQuery}`
-
-    // 500 cap — invoice volume can spike on Mondays / after backfills.
-    // searchMessages paginates internally so this is safe.
-    const messageRefs = await searchMessages(accessToken, query, 500)
-
-    let invoicesProcessed = 0
-    let priceChangesDetected = 0
-    const errors: string[] = []
-
-    for (const ref of messageRefs) {
-      try {
-        // Skip if already processed
-        const existing = await db.invoice.findUnique({
-          where: { gmailMessageId: ref.id },
-        })
-        if (existing) continue
-
-        const message = await getMessage(accessToken, ref.id)
-        const senderEmail = extractSenderEmail(message)
-        const senderName = extractSenderName(message)
-
-        if (!senderEmail) continue
-
-        // Look up candidate suppliers for this sender email
-        const candidates = emailMap.get(senderEmail)
-        if (!candidates || candidates.length === 0) continue
-
-        // Extract PDF attachments
-        const attachments = extractPdfAttachments(message)
-        if (attachments.length === 0) continue
-
-        // Process each PDF attachment
-        for (const attachment of attachments) {
-          const pdfBuffer = await getAttachment(
-            accessToken,
-            ref.id,
-            attachment.attachmentId
-          )
-
-          // Parse with Claude API first — we need supplierName for disambiguation
-          let parsed
-          try {
-            parsed = await parseInvoicePdf(pdfBuffer)
-          } catch (parseErr) {
-            const errMsg =
-              parseErr instanceof Error ? parseErr.message : String(parseErr)
-            errors.push(`Message ${ref.id}: parse failed — ${errMsg}`)
-            continue
-          }
-
-          // Resolve supplier: single match is fast, multiple needs disambiguation
-          const supplier = disambiguateSupplier(
-            candidates,
-            parsed.supplierName,
-            senderName
-          )
-
-          if (!supplier) {
-            errors.push(
-              `Message ${ref.id}: could not match sender "${senderEmail}" ` +
-                `(display: "${senderName}", invoice: "${parsed.supplierName}") ` +
-                `to any of: ${candidates.map((c) => c.name).join(", ")}`
-            )
-            continue
-          }
-
-          // Save to filesystem
-          const pdfPath = await saveInvoicePdf(
-            supplier.name,
-            pdfBuffer,
-            ref.id
-          )
-
-          // Create invoice record
-          const invoice = await db.invoice.create({
-            data: {
-              supplierId: supplier.id,
-              supplierName: supplier.name,
-              gmailMessageId: ref.id,
-              pdfUrl: pdfPath,
-              status: "PENDING",
-            },
-          })
-
-          // Monthly statements (e.g. Provedores "MAY 2026") summarise the
-          // month's deliveries; running them through processInvoice would
-          // double-count spend and try to fuzzy-match "INVOICE CHxxxxxx"
-          // line descriptions against ingredients. Short-circuit to
-          // STATEMENT status — stored for audit, excluded from totals.
-          if (parsed.documentType === "STATEMENT") {
-            await db.invoice.update({
-              where: { id: invoice.id },
-              data: {
-                status: "STATEMENT",
-                invoiceNumber: parsed.invoiceNumber,
-                invoiceDate: parsed.invoiceDate
-                  ? new Date(parsed.invoiceDate)
-                  : null,
-                total: parsed.total,
-                extractedData: JSON.parse(JSON.stringify(parsed)),
-                processedAt: new Date(),
-              },
-            })
-            continue
-          }
-
-          // Content-level dedup: catches the same invoice arriving from
-          // multiple Gmail addresses (forwards). The gmailMessageId @unique
-          // constraint only catches the exact same email twice. Match on
-          // (supplierId, invoiceNumber) — the strongest signal — and fall
-          // back to (supplierId, invoiceDate, total) when invoiceNumber is
-          // missing.
-          if (parsed.invoiceNumber || (parsed.invoiceDate && parsed.total != null)) {
-            const existing = await db.invoice.findFirst({
-              where: {
-                id: { not: invoice.id },
-                supplierId: supplier.id,
-                status: { notIn: ["ERROR", "DUPLICATE"] },
-                ...(parsed.invoiceNumber
-                  ? { invoiceNumber: parsed.invoiceNumber }
-                  : {
-                      invoiceNumber: null,
-                      invoiceDate: parsed.invoiceDate
-                        ? new Date(parsed.invoiceDate)
-                        : null,
-                      total: parsed.total,
-                    }),
-              },
-              select: { id: true, invoiceNumber: true },
-            })
-            if (existing) {
-              await db.invoice.update({
-                where: { id: invoice.id },
-                data: {
-                  status: "DUPLICATE",
-                  invoiceNumber: parsed.invoiceNumber,
-                  invoiceDate: parsed.invoiceDate
-                    ? new Date(parsed.invoiceDate)
-                    : null,
-                  total: parsed.total,
-                  extractedData: JSON.parse(JSON.stringify(parsed)),
-                  processedAt: new Date(),
-                  errorMessage: `Duplicate of invoice ${existing.id}${existing.invoiceNumber ? ` (${existing.invoiceNumber})` : ""}`,
-                },
-              })
-              continue
-            }
-          }
-
-          try {
-            // Process line items, detect price changes
-            const result = await processInvoice(
-              invoice.id,
-              supplier.id,
-              parsed
-            )
-
-            invoicesProcessed++
-            priceChangesDetected += result.priceChanges
-          } catch (procErr) {
-            const errMsg =
-              procErr instanceof Error ? procErr.message : String(procErr)
-            await db.invoice.update({
-              where: { id: invoice.id },
-              data: {
-                status: "ERROR",
-                errorMessage: errMsg,
-              },
-            })
-            errors.push(`Invoice ${invoice.id}: ${errMsg}`)
-          }
-        }
-      } catch (msgErr) {
-        const errMsg = msgErr instanceof Error ? msgErr.message : String(msgErr)
-        errors.push(`Message ${ref.id}: ${msgErr}`)
+    let messageRefs: Array<{ id: string; threadId: string }>
+    if (mode === "sweep") {
+      const query = `${fromQuery} has:attachment filename:pdf newer_than:14d`
+      messageRefs = await searchMessages(accessToken, query, 500)
+    } else {
+      // Incremental — small slack on after: to absorb second-precision
+      // rounding. gmailMessageId dedupe catches the resulting overlap.
+      let afterClause = ""
+      if (connection.lastScanAt) {
+        const slackMs = 60 * 60 * 1000
+        const epochSec = Math.floor((connection.lastScanAt.getTime() - slackMs) / 1000)
+        afterClause = ` after:${epochSec}`
       }
+      const query = `${fromQuery} has:attachment filename:pdf${afterClause}`
+      messageRefs = await searchMessages(accessToken, query, 500)
     }
 
-    // Persist the START-of-run timestamp, not Date.now(). Anything that
-    // arrived AFTER runStart is still in the inbox waiting for the next
-    // cron, rather than being silently jumped over.
-    await db.gmailConnection.update({
-      where: { id: connection.id },
-      data: { lastScanAt: runStart },
+    const stats = await processMessages(accessToken, emailMap, messageRefs)
+
+    // Best-effort unknown-sender capture on every run — fast query.
+    const knownSet = new Set(allEmails.map((e) => e.toLowerCase()))
+    let unknownLogged = 0
+    try {
+      unknownLogged = await captureUnknownSenders(accessToken, knownSet, runStart)
+    } catch (e) {
+      stats.errors.push(`unknown-sender capture: ${e instanceof Error ? e.message : String(e)}`)
+    }
+
+    // Only advance the incremental watermark to runStart (NOT new Date()
+    // at the end of the loop — backfill runs can take 5–10 min and any
+    // supplier email that arrives during that window would otherwise be
+    // jumped over). Sweep mode never touches the watermark; it's a
+    // safety net.
+    if (mode === "incremental") {
+      await db.gmailConnection.update({
+        where: { id: connection.id },
+        data: { lastScanAt: runStart },
+      })
+    }
+
+    const healthy =
+      stats.errors.length === 0 ||
+      stats.errors.length < Math.max(1, stats.messagesFound / 2)
+
+    await db.invoiceSyncRun.update({
+      where: { id: runRow.id },
+      data: {
+        finishedAt: new Date(),
+        messagesFound: stats.messagesFound,
+        invoicesIngested: stats.invoicesIngested,
+        duplicates: stats.duplicates,
+        statements: stats.statements,
+        errors: stats.errors.length,
+        errorSummary: stats.errors.length > 0 ? stats.errors.join("\n").slice(0, 4000) : null,
+        healthy,
+      },
     })
 
     return Response.json({
       success: true,
-      messagesFound: messageRefs.length,
-      invoicesProcessed,
-      priceChangesDetected,
-      scanningFrom: connection.lastScanAt?.toISOString() ?? "all time",
+      mode,
+      messagesFound: stats.messagesFound,
+      invoicesIngested: stats.invoicesIngested,
+      duplicates: stats.duplicates,
+      statements: stats.statements,
+      unknownSendersLogged: unknownLogged,
       supplierEmailsConfigured: allEmails.length,
-      errors: errors.length > 0 ? errors : undefined,
+      errors: stats.errors.length > 0 ? stats.errors : undefined,
+      runId: runRow.id,
     })
   } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err)
+    await db.invoiceSyncRun.update({
+      where: { id: runRow.id },
+      data: {
+        finishedAt: new Date(),
+        errors: 1,
+        errorSummary: errMsg.slice(0, 4000),
+        healthy: false,
+      },
+    })
     console.error("Invoice check error:", err)
-    return Response.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
-      { status: 500 }
-    )
+    return Response.json({ error: errMsg, runId: runRow.id }, { status: 500 })
   }
 }

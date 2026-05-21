@@ -13,6 +13,7 @@ import { getLiveWeekLabourSnapshot } from "@/lib/actions/labour"
 import { DashboardOpsPanel } from "@/components/dashboard-ops-panel"
 import { DashboardHighlights } from "@/components/dashboard-highlights"
 import { WeeklyDigestPanel } from "@/components/weekly-digest-panel"
+import { InvoiceSyncHealthBanner } from "@/components/invoice-sync-health-banner"
 import { db } from "@/lib/db"
 
 export default async function DashboardPage() {
@@ -35,6 +36,10 @@ export default async function DashboardPage() {
           Overview of your kitchen operations and costs
         </p>
       </div>
+
+      {/* Red-flag banner if the supplier-invoice cron looks unhealthy.
+          Self-hides when everything's green. */}
+      <InvoiceSyncHealthBanner />
 
       {/* Operations at a glance */}
       <DashboardOpsPanel
