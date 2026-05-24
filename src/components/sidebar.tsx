@@ -36,6 +36,7 @@ const navItems = [
   { label: "Menu Items", href: "/dishes", icon: UtensilsCrossed },
   { label: "Suppliers", href: "/suppliers", icon: Truck },
   { label: "Orders", href: "/orders", icon: ShoppingCart },
+  { label: "Order Checklists", href: "/order-checklists", icon: ClipboardCheck },
   { label: "Par Levels", href: "/par-levels", icon: Gauge },
   { label: "Prep Sheet", href: "/prep-sheet", icon: ClipboardList },
   { label: "Stocktake", href: "/stocktake", icon: Boxes },

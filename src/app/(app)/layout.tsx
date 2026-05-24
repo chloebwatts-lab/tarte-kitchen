@@ -20,6 +20,7 @@ const pageTitles: Record<string, string> = {
   "/stocktake": "Stocktake",
   "/checklists": "Checklists",
   "/orders": "Orders",
+  "/order-checklists": "Order Checklists",
   "/par-levels": "Par Levels",
   "/labour": "Labour",
   "/labour/upload": "Upload payroll",
