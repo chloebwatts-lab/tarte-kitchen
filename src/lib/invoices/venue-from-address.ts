@@ -39,6 +39,10 @@ const SINGLE_VENUE_SUPPLIERS: Array<{ prefix: string; venue: Venue }> = [
   // same way; per Chris 2026-05-17 all Paramount deliveries are Beach
   // House / Currumbin).
   { prefix: "paramount liquor", venue: "BEACH_HOUSE" },
+  // Eustralis — pastry-supply only; pastry production runs out of Burleigh.
+  // Pencilpay-emailed invoices have no deliveryAddress block so they were
+  // landing in /spend unassigned otherwise.
+  { prefix: "eustralis", venue: "BURLEIGH" },
 ]
 
 export function defaultVenueForSupplier(

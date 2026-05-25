@@ -35,7 +35,7 @@ Return valid JSON only, no other text or markdown fences:
   "supplierName": "string",
   "supplierAbn": "string or null",
   "invoiceNumber": "string or null",
-  "invoiceDate": "YYYY-MM-DD or null",
+  "invoiceDate": "YYYY-MM-DD or null (these are Australian invoices — dates on the page are DD/MM/YYYY, so 6/05/2026 means 6 May 2026, NOT 5 June 2026)",
   "deliveryAddress": "the Ship To / Deliver To address block as a single line, or null",
   "lineItems": [
     {

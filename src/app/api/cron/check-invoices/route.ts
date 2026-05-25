@@ -85,14 +85,30 @@ function disambiguateSupplier(
   senderDisplayName: string | null
 ): SupplierRef | null {
   if (candidates.length === 1) return candidates[0]
-  if (parsedSupplierName) {
-    const fuse = new Fuse(candidates, { keys: ["name"], threshold: 0.4, includeScore: true })
-    const results = fuse.search(parsedSupplierName)
-    if (results.length > 0) return results[0].item
+  const probes = [parsedSupplierName, senderDisplayName].filter(
+    (s): s is string => !!s
+  )
+
+  // Token-overlap fast path. Fuse's char-level threshold rejects
+  // "Pixel Bakehouse Pty Ltd" → "Pixel Bread" even though "Pixel"
+  // matches cleanly, so we pre-check for distinctive shared tokens
+  // (≥4 chars, skips "the"/"of"). If exactly one candidate has any
+  // such token in either probe, pick it.
+  if (probes.length > 0) {
+    const probeStr = probes.join(" ").toLowerCase()
+    const hits = candidates.filter((c) =>
+      c.name
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((t) => t.length >= 4)
+        .some((t) => probeStr.includes(t))
+    )
+    if (hits.length === 1) return hits[0]
   }
-  if (senderDisplayName) {
+
+  for (const probe of probes) {
     const fuse = new Fuse(candidates, { keys: ["name"], threshold: 0.4, includeScore: true })
-    const results = fuse.search(senderDisplayName)
+    const results = fuse.search(probe)
     if (results.length > 0) return results[0].item
   }
   return null
