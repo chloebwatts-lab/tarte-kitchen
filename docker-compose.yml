@@ -35,6 +35,9 @@ services:
       GMAIL_CLIENT_ID: ${GMAIL_CLIENT_ID}
       GMAIL_CLIENT_SECRET: ${GMAIL_CLIENT_SECRET}
       GMAIL_REDIRECT_URI: ${GMAIL_REDIRECT_URI}
+      # GBP OAuth (tarte-seo-engine project — quota-approved for My Business API)
+      GBP_CLIENT_ID: ${GBP_CLIENT_ID}
+      GBP_CLIENT_SECRET: ${GBP_CLIENT_SECRET}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       # Google Places API (server-side; IP-restricted to this droplet)
       GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY}
