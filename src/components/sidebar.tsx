@@ -26,6 +26,7 @@ import {
   ShieldCheck,
   Star,
   Gauge,
+  Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +50,7 @@ const navItems = [
   { label: "Live Spend", href: "/spend", icon: Activity },
   { label: "Reports", href: "/reports", icon: BarChart3 },
   { label: "Reviews", href: "/reviews", icon: Star },
+  { label: "Inbox Playbooks", href: "/inbox-playbooks", icon: Mail },
   { label: "Council Folder", href: "/council", icon: ShieldCheck },
   { label: "Settings", href: "/settings/integrations", icon: Settings },
 ];
