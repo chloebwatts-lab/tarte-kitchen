@@ -2,7 +2,15 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Trash2, Paperclip, ChevronDown, ChevronRight, Check } from "lucide-react"
+import {
+  Plus,
+  Trash2,
+  Paperclip,
+  ChevronDown,
+  ChevronRight,
+  Check,
+  Forward,
+} from "lucide-react"
 import { saveInboxPlaybook, type InboxPlaybook } from "@/lib/actions/inbox-playbooks"
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -116,6 +124,15 @@ export function InboxPlaybookEditor({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          {forwardTo && (
+            <span
+              className="flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 ring-1 ring-sky-200"
+              title={`Forwards to ${forwardTo}`}
+            >
+              <Forward className="h-3 w-3" />
+              {forwardTo}
+            </span>
+          )}
           {attachments.length > 0 && (
             <span
               className="flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700 ring-1 ring-violet-200"
