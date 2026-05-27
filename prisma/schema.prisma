@@ -1476,12 +1476,34 @@ model GoogleReview {
   taggedSummary     String?
   taggedAt          DateTime?
 
+  // ── AI-drafted reply approval workflow ───────────────────────
+  /// Lifecycle: null → DRAFTED (email sent) → APPROVED/SKIPPED → POSTED
+  replyStatus       ReviewReplyStatus?
+  /// Claude-generated reply draft, ready for Chloe to approve.
+  draftReply        String?
+  /// When the approval email was sent.
+  draftSentAt       DateTime?
+  /// One-time token embedded in approve/skip links.
+  replyToken        String?   @unique
+  /// When Chloe clicked Approve.
+  approvedAt        DateTime?
+  /// When the reply was successfully posted back to Google via GBP API.
+  replyPostedAt     DateTime?
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   @@index([venue, publishTime])
   @@index([venue, rating])
   @@index([venue, sentiment])
+  @@index([replyStatus])
+}
+
+enum ReviewReplyStatus {
+  DRAFTED   // email sent, awaiting Chloe's approval
+  APPROVED  // approved — will post to Google (or posted already)
+  POSTED    // successfully posted to Google via GBP API
+  SKIPPED   // Chloe chose not to reply
 }
 
 /// **DEPRECATED** — superseded by `WeeklyDigest`. Kept in the schema
