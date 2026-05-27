@@ -2,9 +2,11 @@ export const dynamic = "force-dynamic"
 
 import { NextRequest } from "next/server"
 import { getValidGbpAccessToken, getActiveGbpConnection } from "@/lib/gbp/token"
+import { db } from "@/lib/db"
 
 const ACCOUNT_MGMT_BASE = "https://mybusinessaccountmanagement.googleapis.com/v1"
 const BUSINESS_INFO_BASE = "https://mybusinessbusinessinformation.googleapis.com/v1"
+const REVIEWS_BASE_NEW = "https://mybusinessreviews.googleapis.com/v1"
 
 async function tryFetch(url: string, accessToken: string) {
   const res = await fetch(url, {
@@ -30,63 +32,59 @@ export async function GET(req: NextRequest) {
     return Response.json({ tokenError: e instanceof Error ? e.message : String(e) })
   }
 
-  const results: Record<string, unknown> = {}
+  const accountName = connection.accountName ?? "accounts/114937924472617520672"
+  const results: Record<string, unknown> = { accountName }
 
-  // Userinfo — confirm which Google account we're authed as
-  const ui = await tryFetch("https://openidconnect.googleapis.com/v1/userinfo", accessToken)
-  results.userinfo = ui
-
-  // accounts/me — special alias for the authenticated user's account
-  const me = await tryFetch(
-    `${BUSINESS_INFO_BASE}/accounts/me/locations?readMask=name,title,metadata`,
+  // 1. Admins for our account (are there co-admins? is there an owner?)
+  results.accountAdmins = await tryFetch(
+    `${ACCOUNT_MGMT_BASE}/${accountName}/admins`,
     accessToken
   )
-  results.accountsMeLocations = me
 
-  // accounts/me via Account Management
-  const meAcct = await tryFetch(`${ACCOUNT_MGMT_BASE}/accounts/me`, accessToken)
-  results.accountsMeAcctMgmt = meAcct
+  // 2. Invitations (any pending manager invites for locations we don't yet own?)
+  results.invitations = await tryFetch(
+    `${ACCOUNT_MGMT_BASE}/${accountName}/invitations`,
+    accessToken
+  )
 
-  // All accounts from Account Management (no pageSize limit)
-  const allAccts = await tryFetch(`${ACCOUNT_MGMT_BASE}/accounts`, accessToken)
-  results.allAccounts = allAccts
+  // 3. New Reviews API — wildcard location (- = all locations)
+  results.reviewsWildcard = await tryFetch(
+    `${REVIEWS_BASE_NEW}/${accountName}/locations/-/reviews?pageSize=5`,
+    accessToken
+  )
 
-  // Locations on the cached account with no filter (control)
-  if (connection.accountName) {
-    const locs = await tryFetch(
-      `${BUSINESS_INFO_BASE}/${connection.accountName}/locations?readMask=name,title,metadata`,
-      accessToken
-    )
-    results.cachedAccountLocs = locs
-
-    // Try with filter=locationState.isPublished=true
-    const locsFiltered = await tryFetch(
-      `${BUSINESS_INFO_BASE}/${connection.accountName}/locations?readMask=name&filter=`,
-      accessToken
-    )
-    results.cachedAccountLocsEmptyFilter = locsFiltered
-
-    // googleLocations:search by placeId (Beach House)
-    const searchRes = await fetch(
-      `${BUSINESS_INFO_BASE}/googleLocations:search`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          pageSize: 5,
-          query: "Tarte Beach House Currumbin",
-        }),
-        cache: "no-store",
-      }
-    )
-    results.googleLocationsSearch = {
-      status: searchRes.status,
-      body: await searchRes.text(),
-    }
+  // 4. googleLocations:search for all 3 venues
+  const venues = await db.googleVenuePlace.findMany({ select: { placeId: true, venue: true } })
+  const searches: Record<string, unknown> = {}
+  for (const v of venues) {
+    const res = await fetch(`${BUSINESS_INFO_BASE}/googleLocations:search`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ pageSize: 3, query: v.venue.replace(/_/g, " ").toLowerCase() }),
+      cache: "no-store",
+    })
+    searches[v.venue] = { status: res.status, placeId: v.placeId, body: await res.text() }
   }
+  results.venueSearches = searches
+
+  // 5. Try fetching a specific googleLocation by placeId (Beach House)
+  const beachHousePlaceId = "ChIJuYHYFzEDkWsRje1pQyA0F-U"
+  results.googleLocationGet = await tryFetch(
+    `${BUSINESS_INFO_BASE}/googleLocations/${beachHousePlaceId}?readMask=name,title,metadata`,
+    accessToken
+  )
+
+  // 6. Try new Reviews API with placeId as location ID (wild guess, might 404)
+  results.reviewsByPlaceId = await tryFetch(
+    `${REVIEWS_BASE_NEW}/${accountName}/locations/${beachHousePlaceId}/reviews?pageSize=3`,
+    accessToken
+  )
+
+  // 7. List locations but with `filter` param to show all states
+  results.locsWithFilter = await tryFetch(
+    `${BUSINESS_INFO_BASE}/${accountName}/locations?readMask=name,title,metadata&filter=locationState.isPublished%3Dtrue`,
+    accessToken
+  )
 
   return Response.json(results)
 }
