@@ -16,13 +16,15 @@ export interface InboxPlaybook {
   auto_send: boolean
   min_confidence: number
   examples: Array<{ incoming: string; reply: string }>
+  default_attachment_paths: string[]
 }
 
 export async function listInboxPlaybooks(): Promise<InboxPlaybook[]> {
   const rows = await db.$queryRawUnsafe<InboxPlaybook[]>(
     `SELECT category, description, voice_guidance, reply_template,
             auto_send, min_confidence,
-            COALESCE(examples, '[]'::jsonb) AS examples
+            COALESCE(examples, '[]'::jsonb) AS examples,
+            COALESCE(default_attachment_paths, '[]'::jsonb) AS default_attachment_paths
        FROM inbox_playbooks ORDER BY category`
   )
   // Prisma returns Decimal for numeric — coerce
@@ -35,13 +37,14 @@ export async function listInboxPlaybooks(): Promise<InboxPlaybook[]> {
 export async function saveInboxPlaybook(p: InboxPlaybook): Promise<void> {
   await db.$executeRawUnsafe(
     `UPDATE inbox_playbooks
-        SET description    = $2,
-            voice_guidance = $3,
-            reply_template = $4,
-            auto_send      = $5,
-            min_confidence = $6,
-            examples       = $7::jsonb,
-            updated_at     = now()
+        SET description              = $2,
+            voice_guidance            = $3,
+            reply_template            = $4,
+            auto_send                 = $5,
+            min_confidence            = $6,
+            examples                  = $7::jsonb,
+            default_attachment_paths  = $8::jsonb,
+            updated_at                = now()
       WHERE category = $1`,
     p.category,
     p.description,
@@ -49,7 +52,8 @@ export async function saveInboxPlaybook(p: InboxPlaybook): Promise<void> {
     p.reply_template,
     p.auto_send,
     p.min_confidence,
-    JSON.stringify(p.examples ?? [])
+    JSON.stringify(p.examples ?? []),
+    JSON.stringify(p.default_attachment_paths ?? [])
   )
   revalidatePath("/inbox-playbooks")
 }

@@ -26,6 +26,9 @@ export function InboxPlaybookEditor({ playbook }: { playbook: InboxPlaybook }) {
   const [autoSend, setAutoSend] = useState(playbook.auto_send)
   const [minConf, setMinConf] = useState(playbook.min_confidence)
   const [examples, setExamples] = useState(playbook.examples ?? [])
+  const [attachments, setAttachments] = useState<string[]>(
+    playbook.default_attachment_paths ?? []
+  )
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -50,6 +53,7 @@ export function InboxPlaybookEditor({ playbook }: { playbook: InboxPlaybook }) {
         auto_send: autoSend,
         min_confidence: minConf,
         examples,
+        default_attachment_paths: attachments.map((s) => s.trim()).filter(Boolean),
       })
       setSavedAt(new Date())
       router.refresh()
@@ -88,6 +92,26 @@ export function InboxPlaybookEditor({ playbook }: { playbook: InboxPlaybook }) {
             value={template}
             onChange={(e) => setTemplate(e.target.value)}
             placeholder="Leave blank to let Claude draft from scratch each time"
+          />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium">
+            Default attachments on first reply
+          </label>
+          <p className="text-xs text-muted-foreground mb-1">
+            Filenames in <code>/root/tarte-inbox/attachments/</code>, one per line. Attached only on our first reply in a thread.
+          </p>
+          <textarea
+            className="mt-1 w-full rounded-md border px-3 py-2 text-sm font-mono"
+            rows={2}
+            value={attachments.join("\n")}
+            onChange={(e) =>
+              setAttachments(
+                e.target.value.split("\n").map((s) => s.trim()).filter(Boolean)
+              )
+            }
+            placeholder="functions-events-packages.pdf"
           />
         </div>
 
