@@ -27,9 +27,11 @@
 # OAuth callback URLs need to be reachable without basic-auth so Google/Xero
 # can redirect back during the consent flow.
 inbox.tarte.com.au {
+	# /oauth/* and /health are public — they only kick off Google/Xero's own
+	# login flows (which require authenticating as hello@ anyway), so basic
+	# auth on top would just add a password prompt with no real security gain.
 	@protected {
-		not path /oauth/google/callback
-		not path /oauth/xero/callback
+		not path /oauth/*
 		not path /health
 	}
 	basic_auth @protected {
