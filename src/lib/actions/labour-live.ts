@@ -69,6 +69,16 @@ export async function getLiveLabourSnapshot(
   const { start: weekStart, end: weekEnd } = currentTarteWeekRange(now)
   const todayAest = aestDateKey(now)
 
+  // LabourShift.shiftStart is a real UTC instant. weekStart / weekEnd are
+  // UTC midnights whose calendar date matches the AEST Wed (the DB
+  // convention used by DATE columns like weekStartWed). AEST Wed 00:00 is
+  // actually UTC Tue 14:00 — 10 hours earlier — so to filter shifts by
+  // the trading day we need the instant-corrected bounds, otherwise we
+  // both miss last week's early-AM Wed bakery shifts and sweep in this
+  // week's Wed-morning roster as "future" labour for the prior week.
+  const weekStartInstant = new Date(weekStart.getTime() - AEST_OFFSET_MS)
+  const weekEndInstant = new Date(weekEnd.getTime() - AEST_OFFSET_MS)
+
   // Day-of-week revenue history: pull the prior 4 Tarte weeks so we can
   // forecast each remaining day from its actual same-DOW history rather
   // than the naive `× 7/days_locked` average that overstates Mon + Tue
@@ -81,7 +91,7 @@ export async function getLiveLabourSnapshot(
     await Promise.all([
       db.labourShift.findMany({
         where: {
-          shiftStart: { gte: weekStart, lt: weekEnd },
+          shiftStart: { gte: weekStartInstant, lt: weekEndInstant },
         },
         select: {
           venue: true,
