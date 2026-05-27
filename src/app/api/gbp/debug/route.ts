@@ -2,18 +2,16 @@ export const dynamic = "force-dynamic"
 
 import { NextRequest } from "next/server"
 import { getValidGbpAccessToken, getActiveGbpConnection } from "@/lib/gbp/token"
-import { db } from "@/lib/db"
 
 const ACCOUNT_MGMT_BASE = "https://mybusinessaccountmanagement.googleapis.com/v1"
 const BUSINESS_INFO_BASE = "https://mybusinessbusinessinformation.googleapis.com/v1"
-const REVIEWS_BASE_NEW = "https://mybusinessreviews.googleapis.com/v1"
 
-async function tryFetch(url: string, accessToken: string) {
+async function tryFetch(label: string, url: string, accessToken: string) {
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",
   })
-  return { status: res.status, body: await res.text() }
+  return { label, status: res.status, body: await res.text() }
 }
 
 export async function GET(req: NextRequest) {
@@ -33,58 +31,58 @@ export async function GET(req: NextRequest) {
   }
 
   const accountName = connection.accountName ?? "accounts/114937924472617520672"
-  const results: Record<string, unknown> = { accountName }
+  const results = []
 
-  // 1. Admins for our account (are there co-admins? is there an owner?)
-  results.accountAdmins = await tryFetch(
-    `${ACCOUNT_MGMT_BASE}/${accountName}/admins`,
+  // 1. listLocations with storeCode filter (Beach House store code from business.google.com)
+  results.push(await tryFetch(
+    "listLocs_storeCode",
+    `${BUSINESS_INFO_BASE}/${accountName}/locations?readMask=name,title,metadata&filter=storeCode%3D"06968006077302605827"`,
     accessToken
-  )
+  ))
 
-  // 2. Invitations (any pending manager invites for locations we don't yet own?)
-  results.invitations = await tryFetch(
-    `${ACCOUNT_MGMT_BASE}/${accountName}/invitations`,
+  // 2. listLocations with no readMask — error might be more revealing
+  results.push(await tryFetch(
+    "listLocs_noReadMask",
+    `${BUSINESS_INFO_BASE}/${accountName}/locations`,
     accessToken
-  )
+  ))
 
-  // 3. New Reviews API — wildcard location (- = all locations)
-  results.reviewsWildcard = await tryFetch(
-    `${REVIEWS_BASE_NEW}/${accountName}/locations/-/reviews?pageSize=5`,
+  // 3. Legacy v3 My Business API
+  results.push(await tryFetch(
+    "v3_locations",
+    `https://mybusiness.googleapis.com/v3/${accountName}/locations?pageSize=10`,
     accessToken
-  )
+  ))
 
-  // 4. googleLocations:search for all 3 venues
-  const venues = await db.googleVenuePlace.findMany({ select: { placeId: true, venue: true } })
-  const searches: Record<string, unknown> = {}
-  for (const v of venues) {
+  // 4. googleLocations:search with precise queries for each venue
+  const searches = [
+    { label: "search_beachhouse", query: "Tarte Beach House Currumbin Gold Coast" },
+    { label: "search_burleigh", query: "Tarte Bakery Cafe Burleigh Heads Gold Coast" },
+    { label: "search_teagarden", query: "Tarte Tea Garden Gold Coast" },
+  ]
+  for (const s of searches) {
     const res = await fetch(`${BUSINESS_INFO_BASE}/googleLocations:search`, {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ pageSize: 3, query: v.venue.replace(/_/g, " ").toLowerCase() }),
+      body: JSON.stringify({ pageSize: 3, query: s.query }),
       cache: "no-store",
     })
-    searches[v.venue] = { status: res.status, placeId: v.placeId, body: await res.text() }
+    results.push({ label: s.label, status: res.status, body: await res.text() })
   }
-  results.venueSearches = searches
 
-  // 5. Try fetching a specific googleLocation by placeId (Beach House)
-  const beachHousePlaceId = "ChIJuYHYFzEDkWsRje1pQyA0F-U"
-  results.googleLocationGet = await tryFetch(
-    `${BUSINESS_INFO_BASE}/googleLocations/${beachHousePlaceId}?readMask=name,title,metadata`,
+  // 5. Try accounts.locations.list on Account Management side (not Business Info)
+  results.push(await tryFetch(
+    "acctMgmt_listLocs_withMask",
+    `${ACCOUNT_MGMT_BASE}/${accountName}/locations?readMask=name,locationName,primaryPhone`,
     accessToken
-  )
+  ))
 
-  // 6. Try new Reviews API with placeId as location ID (wild guess, might 404)
-  results.reviewsByPlaceId = await tryFetch(
-    `${REVIEWS_BASE_NEW}/${accountName}/locations/${beachHousePlaceId}/reviews?pageSize=3`,
+  // 6. Account Management — list all accounts Chloe can access (with parentAccount filter)
+  results.push(await tryFetch(
+    "accounts_noFilter",
+    `${ACCOUNT_MGMT_BASE}/accounts?pageSize=50`,
     accessToken
-  )
-
-  // 7. List locations but with `filter` param to show all states
-  results.locsWithFilter = await tryFetch(
-    `${BUSINESS_INFO_BASE}/${accountName}/locations?readMask=name,title,metadata&filter=locationState.isPublished%3Dtrue`,
-    accessToken
-  )
+  ))
 
   return Response.json(results)
 }
