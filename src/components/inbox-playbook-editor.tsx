@@ -48,6 +48,9 @@ export function InboxPlaybookEditor({
   const [attachments, setAttachments] = useState<string[]>(
     playbook.default_attachment_paths ?? []
   )
+  const [forwardTo, setForwardTo] = useState<string>(
+    playbook.forward_to ?? ""
+  )
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -78,6 +81,7 @@ export function InboxPlaybookEditor({
         default_attachment_paths: attachments
           .map((s) => s.trim())
           .filter(Boolean),
+        forward_to: forwardTo.trim() || null,
       })
       setSavedAt(new Date())
       router.refresh()
@@ -164,6 +168,19 @@ export function InboxPlaybookEditor({
               value={template}
               onChange={(e) => setTemplate(e.target.value)}
               placeholder="Hey {{first_name}},&#10;&#10;…&#10;&#10;Kind regards,&#10;Tarte Team"
+            />
+          </Field>
+
+          <Field
+            label="Forward to (instead of drafting a reply)"
+            hint="When set, the agent forwards the incoming email to this address rather than drafting a reply to the original sender. Leave blank for normal draft behaviour. Used for job applications going to work@tarte.com.au."
+          >
+            <input
+              type="email"
+              className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm focus:border-stone-400 focus:ring-0"
+              value={forwardTo}
+              onChange={(e) => setForwardTo(e.target.value)}
+              placeholder="work@tarte.com.au"
             />
           </Field>
 
