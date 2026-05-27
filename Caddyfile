@@ -21,3 +21,20 @@
 
 	reverse_proxy app:3000
 }
+
+# tarte-inbox — background email automation. Runs in /root/tarte-inbox under
+# its own docker-compose, joined to this network (tarte-kitchen_default). Only
+# OAuth callback URLs need to be reachable without basic-auth so Google/Xero
+# can redirect back during the consent flow.
+inbox.tarte.com.au {
+	@protected {
+		not path /oauth/google/callback
+		not path /oauth/xero/callback
+		not path /health
+	}
+	basic_auth @protected {
+		tarte {$BASIC_AUTH_HASH}
+	}
+
+	reverse_proxy inbox:8787
+}
