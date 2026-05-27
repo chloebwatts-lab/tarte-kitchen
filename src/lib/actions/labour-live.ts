@@ -62,8 +62,10 @@ function aestDateKey(now: Date): string {
   return new Date(now.getTime() + AEST_OFFSET_MS).toISOString().split("T")[0]
 }
 
-export async function getLiveLabourSnapshot(): Promise<LiveSnapshot> {
-  const now = new Date()
+export async function getLiveLabourSnapshot(
+  options?: { now?: Date }
+): Promise<LiveSnapshot> {
+  const now = options?.now ?? new Date()
   const { start: weekStart, end: weekEnd } = currentTarteWeekRange(now)
   const todayAest = aestDateKey(now)
 
