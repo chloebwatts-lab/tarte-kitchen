@@ -2,10 +2,9 @@ import { db } from "@/lib/db"
 import { encrypt, decrypt } from "@/lib/encryption"
 
 /**
- * OAuth token plumbing for the Google Business Profile API. Mirrors
- * src/lib/gmail/token.ts — same Google OAuth provider, same refresh
- * dance, reuses the existing GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET
- * (one OAuth client, two scopes).
+ * OAuth token plumbing for the Google Business Profile API. Uses
+ * GBP_CLIENT_ID / GBP_CLIENT_SECRET from the tarte-seo-engine GCP
+ * project, where the My Business API quota was approved.
  */
 
 export async function getActiveGbpConnection() {
@@ -26,8 +25,8 @@ export async function refreshGbpAccessToken(): Promise<string> {
     body: new URLSearchParams({
       grant_type: "refresh_token",
       refresh_token: refreshToken,
-      client_id: process.env.GMAIL_CLIENT_ID!,
-      client_secret: process.env.GMAIL_CLIENT_SECRET!,
+      client_id: process.env.GBP_CLIENT_ID!,
+      client_secret: process.env.GBP_CLIENT_SECRET!,
     }),
   })
 

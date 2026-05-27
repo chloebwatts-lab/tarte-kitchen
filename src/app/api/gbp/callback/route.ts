@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const clientId = process.env.GMAIL_CLIENT_ID!
-  const clientSecret = process.env.GMAIL_CLIENT_SECRET!
+  const clientId = process.env.GBP_CLIENT_ID!
+  const clientSecret = process.env.GBP_CLIENT_SECRET!
 
   try {
     const tokenRes = await fetch("https://oauth2.googleapis.com/token", {

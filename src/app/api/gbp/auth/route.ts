@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic"
 import { getGbpRedirectUri } from "@/lib/gbp/token"
 
 export async function POST() {
-  const clientId = process.env.GMAIL_CLIENT_ID
+  const clientId = process.env.GBP_CLIENT_ID
   if (!clientId) {
     return Response.json(
       { error: "Google OAuth client is not configured" },
