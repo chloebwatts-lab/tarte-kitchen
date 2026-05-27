@@ -249,73 +249,35 @@ export function InboxPlaybookEditor({
           <div>
             <div className="mb-2 flex items-center justify-between">
               <h4 className="text-sm font-semibold text-stone-800">
-                Examples ({examples.length})
+                Examples
+                <span className="ml-1 text-xs font-normal text-stone-500">
+                  — real past pairs Claude reads as reference
+                </span>
               </h4>
               <button
                 type="button"
                 onClick={addExample}
                 className="inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs font-medium text-stone-700 hover:bg-stone-100"
               >
-                <Plus className="h-3 w-3" /> Add
+                <Plus className="h-3 w-3" /> Add example
               </button>
             </div>
             {examples.length === 0 ? (
               <div className="rounded-lg border border-dashed border-stone-300 bg-white px-4 py-6 text-center text-xs text-stone-500">
-                No examples yet. Add real past pairs to teach Claude your tone for this category.
+                No examples yet. Add a real past customer email + the reply you sent to teach Claude your tone for this category.
               </div>
             ) : (
-              <div className="space-y-3">
+              <ol className="space-y-2">
                 {examples.map((ex, idx) => (
-                  <div
+                  <ExampleRow
                     key={idx}
-                    className="rounded-lg border border-stone-200 bg-white p-3"
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-[11px] font-semibold uppercase tracking-wide text-stone-400">
-                        Example {idx + 1}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeExample(idx)}
-                        className="text-stone-400 hover:text-rose-600"
-                        title="Remove example"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                    <div className="grid gap-2 md:grid-cols-2">
-                      <div>
-                        <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-stone-500">
-                          Incoming
-                        </div>
-                        <textarea
-                          className="w-full rounded-md border border-stone-200 bg-stone-50 px-2 py-1.5 text-xs font-mono leading-relaxed focus:border-stone-400 focus:ring-0"
-                          rows={5}
-                          placeholder="What the customer / supplier wrote…"
-                          value={ex.incoming}
-                          onChange={(e) =>
-                            updateExample(idx, { incoming: e.target.value })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-stone-500">
-                          Reply
-                        </div>
-                        <textarea
-                          className="w-full rounded-md border border-stone-200 bg-stone-50 px-2 py-1.5 text-xs font-mono leading-relaxed focus:border-stone-400 focus:ring-0"
-                          rows={5}
-                          placeholder="The reply we actually sent…"
-                          value={ex.reply}
-                          onChange={(e) =>
-                            updateExample(idx, { reply: e.target.value })
-                          }
-                        />
-                      </div>
-                    </div>
-                  </div>
+                    idx={idx}
+                    example={ex}
+                    onChange={(patch) => updateExample(idx, patch)}
+                    onRemove={() => removeExample(idx)}
+                  />
                 ))}
-              </div>
+              </ol>
             )}
           </div>
 
@@ -361,5 +323,104 @@ function Field({
       {hint ? <p className="mt-0.5 text-xs text-stone-500">{hint}</p> : null}
       <div className="mt-1.5">{children}</div>
     </div>
+  )
+}
+
+function firstLine(text: string): string {
+  const t = (text ?? "").trim()
+  // Use first non-empty line, capped
+  const line = t.split(/\n/).find((l) => l.trim().length > 0) ?? ""
+  return line.length > 110 ? line.slice(0, 110) + "…" : line
+}
+
+function ExampleRow({
+  idx,
+  example,
+  onChange,
+  onRemove,
+}: {
+  idx: number
+  example: { incoming: string; reply: string }
+  onChange: (patch: Partial<{ incoming: string; reply: string }>) => void
+  onRemove: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const incomingPreview = firstLine(example.incoming) || "(empty)"
+  const replyPreview = firstLine(example.reply) || "(empty)"
+
+  return (
+    <li className="rounded-md border border-stone-200 bg-white">
+      {/* Compact preview row — click to expand */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition hover:bg-stone-50"
+      >
+        <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-stone-100 text-[11px] font-semibold text-stone-600">
+          {idx + 1}
+        </span>
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <p className="truncate text-xs text-stone-600">
+            <span className="font-medium text-stone-500">From customer:</span>{" "}
+            <span className="text-stone-800">{incomingPreview}</span>
+          </p>
+          <p className="truncate text-xs text-stone-600">
+            <span className="font-medium text-stone-500">Our reply:</span>{" "}
+            <span className="text-stone-800">{replyPreview}</span>
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <span className="text-[10px] uppercase tracking-wide text-stone-400">
+            {open ? "close" : "edit"}
+          </span>
+          {open ? (
+            <ChevronDown className="h-3.5 w-3.5 text-stone-400" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 text-stone-400" />
+          )}
+        </div>
+      </button>
+
+      {open && (
+        <div className="border-t border-stone-200 bg-stone-50/60 px-3 py-3 space-y-3">
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+                Incoming
+              </span>
+            </div>
+            <textarea
+              className="w-full rounded-md border border-stone-200 bg-white px-3 py-2 text-xs leading-relaxed focus:border-stone-400 focus:ring-0"
+              rows={4}
+              placeholder="What the customer / supplier wrote…"
+              value={example.incoming}
+              onChange={(e) => onChange({ incoming: e.target.value })}
+            />
+          </div>
+          <div>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+              Reply
+            </span>
+            <textarea
+              className="mt-1 w-full rounded-md border border-stone-200 bg-white px-3 py-2 text-xs leading-relaxed focus:border-stone-400 focus:ring-0"
+              rows={4}
+              placeholder="The reply we actually sent…"
+              value={example.reply}
+              onChange={(e) => onChange({ reply: e.target.value })}
+            />
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={onRemove}
+              className="inline-flex items-center gap-1 text-xs text-stone-500 hover:text-rose-600"
+            >
+              <Trash2 className="h-3 w-3" />
+              Remove this example
+            </button>
+          </div>
+        </div>
+      )}
+    </li>
   )
 }
