@@ -2,16 +2,24 @@
  * AI-drafted reply workflow for Google reviews.
  *
  * After each hourly sync we call `draftAndNotifyNewReviews()`, which:
- *   1. Finds reviews with rating ≤ 3 that have no owner reply and haven't
- *      been drafted yet.
- *   2. Generates a warm, on-brand reply via Claude.
+ *   1. Finds ALL reviews with no owner reply that haven't been drafted yet
+ *      (not just negative ones — replying to every review signals engagement
+ *      to Google and boosts local SEO ranking).
+ *   2. Generates a warm, on-brand reply via Claude — shorter thank-yous for
+ *      positive reviews, fuller apologies + invite-back for negative.
  *   3. Stores the draft + a one-time token on the row.
- *   4. Emails Chloe with the review text, draft reply, and
- *      Approve / Skip links.
+ *   4. Emails Chloe with the reviews grouped by venue + sentiment, with
+ *      one-click Approve / Skip links for each.
  *
  * When Chloe clicks Approve, /api/reviews/reply?token=xxx&action=approve
  * marks the row APPROVED and (if GBP is connected) posts the reply to
  * Google automatically. Skip → SKIPPED, no post.
+ *
+ * NOTE on review counts: we currently only capture ~10 reviews per venue
+ * from the Places API (5 most-relevant + 5 newest). The full history
+ * requires the GBP Business Profile API (paginated). Once the GBP quota
+ * increase is approved, ingestAllVenuesGbp() will backfill everything and
+ * those will be picked up by the next hourly draft run.
  */
 
 import Anthropic from "@anthropic-ai/sdk"
@@ -25,11 +33,15 @@ const APP_URL = "https://kitchen.tarte.com.au"
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const SYSTEM_PROMPT = `You write owner replies to Google reviews for Tarte — a small, design-led café group on the Gold Coast (Tarte Burleigh Bakery, Beach House, Tea Garden).
+const SYSTEM_PROMPT = `You write owner replies to Google reviews for Tarte — a small, design-led café group on the Gold Coast, Australia (venues: Tarte Burleigh Bakery, Beach House at Currumbin, Tea Garden at Currumbin).
 
-Brand voice: warm, genuine, human. No corporate-speak, no hollow phrases like "We strive for excellence." Short paragraphs. Acknowledge the specific thing they mentioned. If negative: apologise, take ownership, invite them back. Never defensive.
+Brand voice: warm, genuine, human. Never corporate. No hollow phrases like "We appreciate your feedback" or "We strive for excellence."
 
-Output: the reply text only. No preamble, no quotation marks around it. 2–4 sentences max.`
+For POSITIVE reviews (4–5 stars): short and personal (2–3 sentences). Acknowledge the specific thing they loved. Say the venue name naturally once — this helps Google local SEO. Invite them back.
+
+For NEGATIVE reviews (1–3 stars): honest apology, take ownership, acknowledge the specific issue. Invite them to come back and give you another chance. Never defensive. 3–4 sentences.
+
+Output: the reply text only. No preamble, no quotation marks around it.`
 
 async function generateDraftReply(review: {
   venue: Venue
@@ -65,107 +77,143 @@ function stars(rating: number): string {
   return "★".repeat(rating) + "☆".repeat(5 - rating)
 }
 
-function buildEmailHtml(
-  reviews: Array<{
-    id: string
-    venue: Venue
-    rating: number
-    authorName: string | null
-    text: string
-    publishTime: Date
-    draftReply: string
-    replyToken: string
-  }>
-): { html: string; text: string } {
+function ratingLabel(rating: number): string {
+  if (rating >= 4) return "positive"
+  if (rating === 3) return "mixed"
+  return "negative"
+}
+
+function ratingColor(rating: number): string {
+  if (rating >= 4) return "#4f5b3f"  // sage green
+  if (rating === 3) return "#b45309"  // amber
+  return "#b91c1c"                    // red
+}
+
+function ratingBg(rating: number): string {
+  if (rating >= 4) return "#eef2e7"
+  if (rating === 3) return "#fef3c7"
+  return "#fee2e2"
+}
+
+type DraftedReview = {
+  id: string
+  venue: Venue
+  rating: number
+  authorName: string | null
+  text: string
+  publishTime: Date
+  draftReply: string
+  replyToken: string
+}
+
+function buildEmailHtml(reviews: DraftedReview[]): { html: string; text: string } {
   const count = reviews.length
-  const subject = count === 1 ? "1 review needs your reply" : `${count} reviews need your reply`
+  const negCount = reviews.filter(r => r.rating <= 3).length
+  const posCount = reviews.filter(r => r.rating >= 4).length
 
-  const htmlItems = reviews
-    .map((r) => {
-      const venueName = VENUE_SHORT_LABEL[r.venue] ?? r.venue
-      const date = r.publishTime.toLocaleDateString("en-AU", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        timeZone: "Australia/Brisbane",
-      })
-      const approveUrl = `${APP_URL}/api/reviews/reply?token=${r.replyToken}&action=approve`
-      const skipUrl = `${APP_URL}/api/reviews/reply?token=${r.replyToken}&action=skip`
+  // Sort: negatives first (need attention), then positives
+  const sorted = [
+    ...reviews.filter(r => r.rating <= 3).sort((a, b) => a.rating - b.rating),
+    ...reviews.filter(r => r.rating >= 4).sort((a, b) => b.rating - a.rating),
+  ]
 
-      return `
-      <div style="margin-bottom:32px;border:1px solid #d9d2c4;border-radius:8px;overflow:hidden;font-family:sans-serif;">
-        <div style="background:#4f5b3f;color:#fff;padding:12px 16px;">
-          <strong>${venueName}</strong>
-          &nbsp;·&nbsp;${stars(r.rating)} (${r.rating}/5)
-          &nbsp;·&nbsp;<span style="opacity:.8;">${date}</span>
-          ${r.authorName ? `&nbsp;·&nbsp;<em>${r.authorName}</em>` : ""}
-        </div>
-        <div style="padding:16px;background:#fff;">
-          <p style="margin:0 0 12px;color:#1f1d1a;line-height:1.5;">${r.text.replace(/\n/g, "<br>")}</p>
-          <div style="background:#eef2e7;border:1px solid #d9d2c4;border-radius:6px;padding:14px;margin-bottom:16px;">
-            <div style="font-size:11px;color:#8a857c;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Claude's suggested reply</div>
-            <p style="margin:0;color:#1f1d1a;line-height:1.6;">${r.draftReply.replace(/\n/g, "<br>")}</p>
-          </div>
-          <div style="display:flex;gap:10px;">
-            <a href="${approveUrl}"
-               style="display:inline-block;padding:10px 20px;background:#4f5b3f;color:#fff;text-decoration:none;border-radius:6px;font-size:14px;font-weight:600;">
-              ✓ Approve &amp; Post
-            </a>
-            <a href="${skipUrl}"
-               style="display:inline-block;padding:10px 20px;background:#fff;color:#4a4641;text-decoration:none;border-radius:6px;font-size:14px;border:1px solid #d9d2c4;">
-              Skip
-            </a>
-          </div>
-        </div>
-      </div>`
+  const parts: string[] = []
+  if (negCount > 0 && posCount > 0) {
+    parts.push(`${negCount} need attention · ${posCount} positive`)
+  } else if (negCount > 0) {
+    parts.push(`${negCount} need attention`)
+  } else {
+    parts.push(`${posCount} positive`)
+  }
+
+  const htmlItems = sorted.map((r) => {
+    const venueName = VENUE_SHORT_LABEL[r.venue] ?? r.venue
+    const date = r.publishTime.toLocaleDateString("en-AU", {
+      day: "numeric", month: "short", year: "numeric",
+      timeZone: "Australia/Brisbane",
     })
-    .join("")
+    const approveUrl = `${APP_URL}/api/reviews/reply?token=${r.replyToken}&action=approve`
+    const skipUrl = `${APP_URL}/api/reviews/reply?token=${r.replyToken}&action=skip`
+    const color = ratingColor(r.rating)
+    const bg = ratingBg(r.rating)
+
+    return `
+    <div style="margin-bottom:24px;border:1px solid #d9d2c4;border-radius:8px;overflow:hidden;font-family:sans-serif;">
+      <div style="background:${color};color:#fff;padding:10px 16px;display:flex;align-items:center;gap:8px;">
+        <strong>${venueName}</strong>
+        &nbsp;·&nbsp;${stars(r.rating)} (${r.rating}/5)
+        &nbsp;·&nbsp;<span style="opacity:.85;font-size:13px;">${date}</span>
+        ${r.authorName ? `&nbsp;·&nbsp;<em style="opacity:.85;">${r.authorName}</em>` : ""}
+      </div>
+      <div style="padding:14px 16px;background:#fff;">
+        <p style="margin:0 0 12px;color:#1f1d1a;line-height:1.55;font-size:14px;">${(r.text || "").replace(/\n/g, "<br>")}</p>
+        <div style="background:${bg};border:1px solid #d9d2c4;border-radius:6px;padding:12px 14px;margin-bottom:14px;">
+          <div style="font-size:11px;color:#8a857c;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;">Suggested reply</div>
+          <p style="margin:0;color:#1f1d1a;line-height:1.6;font-size:14px;">${r.draftReply.replace(/\n/g, "<br>")}</p>
+        </div>
+        <div>
+          <a href="${approveUrl}"
+             style="display:inline-block;padding:8px 18px;background:${color};color:#fff;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;margin-right:8px;">
+            ✓ Approve &amp; Post
+          </a>
+          <a href="${skipUrl}"
+             style="display:inline-block;padding:8px 18px;background:#fff;color:#4a4641;text-decoration:none;border-radius:6px;font-size:13px;border:1px solid #d9d2c4;">
+            Skip
+          </a>
+        </div>
+      </div>
+    </div>`
+  }).join("")
 
   const html = `<!DOCTYPE html>
 <html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
 <body style="margin:0;padding:24px;background:#f5f0e8;">
   <div style="max-width:600px;margin:0 auto;">
-    <h2 style="font-family:sans-serif;color:#1f1d1a;margin:0 0 6px;">
-      Tarte Kitchen — Reviews needing a reply
+    <h2 style="font-family:sans-serif;color:#1f1d1a;margin:0 0 4px;">
+      Tarte — ${count} review${count !== 1 ? "s" : ""} to reply to
     </h2>
-    <p style="font-family:sans-serif;color:#8a857c;margin:0 0 24px;font-size:14px;">
-      ${count} review${count !== 1 ? "s" : ""} with ≤ 3 stars and no response yet.
-      Clicking <strong>Approve &amp; Post</strong> will post the reply to Google automatically.
+    <p style="font-family:sans-serif;color:#8a857c;margin:0 0 6px;font-size:14px;">${parts.join(" · ")}</p>
+    <p style="font-family:sans-serif;color:#8a857c;margin:0 0 24px;font-size:13px;">
+      Replying to every review (positive and negative) boosts your Google local ranking.
+      Negatives are listed first.
     </p>
     ${htmlItems}
-    <p style="font-family:sans-serif;color:#8a857c;font-size:12px;margin-top:24px;">
-      Tarte Kitchen · <a href="${APP_URL}/reviews" style="color:#4f5b3f;">View all reviews</a>
+    <p style="font-family:sans-serif;color:#8a857c;font-size:12px;margin-top:16px;">
+      <a href="${APP_URL}/reviews" style="color:#4f5b3f;">View all reviews in Tarte Kitchen</a>
     </p>
   </div>
 </body>
 </html>`
 
-  const textItems = reviews
-    .map((r) => {
-      const venueName = VENUE_SHORT_LABEL[r.venue] ?? r.venue
-      const approveUrl = `${APP_URL}/api/reviews/reply?token=${r.replyToken}&action=approve`
-      const skipUrl = `${APP_URL}/api/reviews/reply?token=${r.replyToken}&action=skip`
-      return [
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-        `${venueName} · ${r.rating}/5${r.authorName ? ` · ${r.authorName}` : ""}`,
-        ``,
-        r.text,
-        ``,
-        `Suggested reply:`,
-        r.draftReply,
-        ``,
-        `Approve: ${approveUrl}`,
-        `Skip:    ${skipUrl}`,
-      ].join("\n")
-    })
-    .join("\n\n")
+  const textItems = sorted.map((r) => {
+    const venueName = VENUE_SHORT_LABEL[r.venue] ?? r.venue
+    const approveUrl = `${APP_URL}/api/reviews/reply?token=${r.replyToken}&action=approve`
+    const skipUrl = `${APP_URL}/api/reviews/reply?token=${r.replyToken}&action=skip`
+    return [
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `${venueName} · ${r.rating}/5 (${ratingLabel(r.rating)})${r.authorName ? ` · ${r.authorName}` : ""}`,
+      ``,
+      r.text || "(no text)",
+      ``,
+      `Suggested reply:`,
+      r.draftReply,
+      ``,
+      `Approve: ${approveUrl}`,
+      `Skip:    ${skipUrl}`,
+    ].join("\n")
+  }).join("\n\n")
 
   const text = [
-    `Tarte Kitchen — ${subject}`,
+    `Tarte — ${count} review${count !== 1 ? "s" : ""} to reply to`,
+    `Replying to all reviews (positive + negative) boosts your Google ranking.`,
     ``,
     textItems,
     ``,
-    `View all reviews: ${APP_URL}/reviews`,
+    `View all: ${APP_URL}/reviews`,
   ].join("\n")
 
   return { html, text }
@@ -173,24 +221,29 @@ function buildEmailHtml(
 
 /**
  * Main entry point — called by sync-reviews after ingestion.
+ *
+ * Finds ALL reviews with no owner reply and no draft yet (any rating).
+ * Caps a single batch at 20 to avoid email overload — leftover reviews
+ * will be picked up on the next hourly run.
+ *
  * Returns the number of drafts sent.
  */
 export async function draftAndNotifyNewReviews(): Promise<number> {
-  // Find reviews that need a draft: ≤3 stars, no existing reply,
-  // no draft started yet, has review text to reply to.
   const needsDraft = await db.googleReview.findMany({
     where: {
-      rating: { lte: 3 },
-      replyText: null,        // Google hasn't recorded an owner reply
-      replyStatus: null,      // we haven't drafted one yet
-      text: { not: null },    // can't reply to a text-less review
+      replyText: null,    // no existing Google reply
+      replyStatus: null,  // not yet drafted
+      text: { not: null },
     },
-    orderBy: { publishTime: "asc" },
+    orderBy: [
+      { rating: "asc" },          // negatives first
+      { publishTime: "desc" },    // newest first within each rating
+    ],
+    take: 20,  // cap per run — leftover picked up next hour
   })
 
   if (needsDraft.length === 0) return 0
 
-  // Generate drafts concurrently (cheap Haiku calls).
   const drafted = await Promise.all(
     needsDraft.map(async (r) => {
       try {
@@ -212,34 +265,29 @@ export async function draftAndNotifyNewReviews(): Promise<number> {
         })
         return { ...r, draftReply, replyToken }
       } catch {
-        // Non-fatal: if Claude fails for one review, skip it — it'll be
-        // picked up on the next sync run (replyStatus stays null).
+        // Non-fatal — review stays null, picked up next run.
         return null
       }
     })
   )
 
-  const ready = drafted.filter(Boolean) as NonNullable<(typeof drafted)[number]>[]
+  const ready = drafted.filter(Boolean) as DraftedReview[]
   if (ready.length === 0) return 0
 
   const count = ready.length
-  const subject =
-    count === 1
-      ? `[Tarte] 1 review needs your reply`
-      : `[Tarte] ${count} reviews need your reply`
+  const negCount = ready.filter(r => r.rating <= 3).length
+  const posCount = ready.filter(r => r.rating >= 4).length
 
-  const { html, text } = buildEmailHtml(
-    ready.map((r) => ({
-      id: r.id,
-      venue: r.venue,
-      rating: r.rating,
-      authorName: r.authorName,
-      text: r.text!,
-      publishTime: r.publishTime,
-      draftReply: r.draftReply,
-      replyToken: r.replyToken,
-    }))
-  )
+  let subject: string
+  if (negCount > 0 && posCount > 0) {
+    subject = `[Tarte] ${count} reviews to reply to (${negCount} negative, ${posCount} positive)`
+  } else if (negCount > 0) {
+    subject = `[Tarte] ${count} review${count !== 1 ? "s" : ""} need${count === 1 ? "s" : ""} your reply`
+  } else {
+    subject = `[Tarte] ${count} positive review${count !== 1 ? "s" : ""} to reply to`
+  }
+
+  const { html, text } = buildEmailHtml(ready)
 
   await sendHtmlEmail({
     to: process.env.REVIEW_SUMMARY_RECIPIENT ?? "chloe@tarte.com.au",
