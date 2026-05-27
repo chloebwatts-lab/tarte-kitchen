@@ -36,12 +36,26 @@ function htmlPage(title: string, body: string): NextResponse {
     .tag{display:inline-block;padding:3px 10px;border-radius:20px;font-size:13px;font-weight:600;margin-bottom:16px;}
     .green{background:#eef2e7;color:#4f5b3f;}
     .grey{background:#ece6da;color:#4a4641;}
-    .reply-box{background:#f5f0e8;border:1px solid #d9d2c4;border-radius:6px;padding:14px;font-size:14px;line-height:1.6;white-space:pre-wrap;}
-    a.btn{display:inline-block;margin-top:16px;padding:10px 20px;background:#4f5b3f;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;}
+    .reply-box{background:#f5f0e8;border:1px solid #d9d2c4;border-radius:6px;padding:14px;font-size:14px;line-height:1.6;white-space:pre-wrap;margin-bottom:12px;}
+    a.btn{display:inline-block;margin-top:4px;padding:10px 20px;background:#4f5b3f;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;margin-right:8px;}
+    button.copy-btn{padding:10px 20px;background:#fff;color:#4a4641;border:1px solid #d9d2c4;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px;}
+    button.copy-btn.copied{background:#eef2e7;color:#4f5b3f;border-color:#4f5b3f;}
   </style>
 </head>
 <body>
   <div class="card">${body}</div>
+  <script>
+    document.querySelectorAll('.copy-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var text = document.getElementById('reply-text').innerText;
+        navigator.clipboard.writeText(text).then(function() {
+          btn.textContent = 'Copied!';
+          btn.classList.add('copied');
+          setTimeout(function(){ btn.textContent = 'Copy reply'; btn.classList.remove('copied'); }, 2000);
+        });
+      });
+    });
+  </script>
 </body>
 </html>`,
     { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } }
@@ -139,15 +153,25 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  // GBP post failed — show the text for manual copy-paste.
+  // GBP post failed — show the text with one-click copy + direct link to Google reviews.
+  const PLACE_IDS: Record<string, string> = {
+    BURLEIGH:    "ChIJAbYJBO8DkWsRZ5m-ig7obYg",
+    BEACH_HOUSE: "ChIJuYHYFzEDkWsRje1pQyA0F-U",
+    TEA_GARDEN:  "ChIJX5GpejcDkWsR_z5Ncuq4sVc",
+  }
+  const placeId = PLACE_IDS[review.venue]
+  const googleUrl = placeId
+    ? `https://search.google.com/local/reviews?placeid=${placeId}`
+    : "https://business.google.com/reviews"
+
   return htmlPage(
-    "Approved — post manually",
-    `<h2>Approved ✓ — post manually</h2>
-    <span class="tag grey">Approved</span>
-    <p>${venueName} · ${review.rating}/5${review.authorName ? ` · ${review.authorName}` : ""}</p>
-    <p style="color:#b45309;"><strong>Couldn't post automatically:</strong> ${result.reason}</p>
-    <p>Copy the reply below and paste it into Google Maps / Business Profile:</p>
-    <div class="reply-box">${review.draftReply}</div>
-    <a class="btn" href="https://kitchen.tarte.com.au/reviews">View reviews</a>`
+    "Reply ready to post",
+    `<h2>Reply approved ✓</h2>
+    <span class="tag green">Approved</span>
+    <p style="margin-top:12px;">${venueName} · ${review.rating}/5${review.authorName ? ` · ${review.authorName}` : ""}</p>
+    <p style="margin-bottom:8px;color:#4a4641;">Copy the reply, then click <strong>Open Google reviews</strong> to paste it in.</p>
+    <div class="reply-box" id="reply-text">${review.draftReply.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
+    <button class="copy-btn">Copy reply</button>
+    <a class="btn" href="${googleUrl}" target="_blank" rel="noopener">Open Google reviews &rarr;</a>`
   )
 }
