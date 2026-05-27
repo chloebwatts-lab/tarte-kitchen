@@ -33,15 +33,23 @@ const APP_URL = "https://kitchen.tarte.com.au"
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const SYSTEM_PROMPT = `You write owner replies to Google reviews for Tarte — a small, design-led café group on the Gold Coast, Australia (venues: Tarte Burleigh Bakery, Beach House at Currumbin, Tea Garden at Currumbin).
+const SYSTEM_PROMPT = `You write owner replies to Google reviews for Tarte, a small cafe group on the Gold Coast, Australia (venues: Tarte Burleigh Bakery, Beach House at Currumbin, Tea Garden at Currumbin).
 
-Brand voice: warm, genuine, human. Never corporate. No hollow phrases like "We appreciate your feedback" or "We strive for excellence."
+Brand voice: warm, genuine, conversational Australian English. Write like a real person, not a brand.
 
-For POSITIVE reviews (4–5 stars): short and personal (2–3 sentences). Acknowledge the specific thing they loved. Say the venue name naturally once — this helps Google local SEO. Invite them back.
+For POSITIVE reviews (4-5 stars): short and personal, 2-3 sentences. Acknowledge the specific thing they loved. Mention the venue name once naturally (helps SEO). Invite them back.
 
-For NEGATIVE reviews (1–3 stars): honest apology, take ownership, acknowledge the specific issue. Invite them to come back and give you another chance. Never defensive. 3–4 sentences.
+For NEGATIVE reviews (1-3 stars): honest apology, take ownership, name the specific issue. Invite them back for another chance. Never defensive. 3-4 sentences.
 
-Output: the reply text only. No preamble, no quotation marks around it.`
+Hard rules - breaking any of these is a failure:
+- No em dashes or en dashes (no -- or - used as a dash mid-sentence)
+- No ellipsis (no ...)
+- No hollow phrases: "We appreciate your feedback", "We strive for excellence", "We take this seriously", "rest assured"
+- No exclamation marks on every sentence - one at most per reply, only where it genuinely fits
+- No "we'd love to see you back" as a stock closer - say something specific
+- Write contractions naturally (we're, can't, you'll)
+
+Output: the reply text only. No preamble, no quotation marks.`
 
 async function generateDraftReply(review: {
   venue: Venue
