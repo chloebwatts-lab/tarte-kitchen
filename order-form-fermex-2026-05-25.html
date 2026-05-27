@@ -1,0 +1,973 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Fermex — Order Form order form</title>
+<style>
+  @page { size: A4; margin: 10mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; color: #1a1a1a; margin: 0; padding: 10mm; max-width: 210mm; }
+  header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1em; border-bottom: 3px solid #1f7a4d; padding-bottom: 0.5em; margin-bottom: 0.8em; }
+  h1 { margin: 0; font-size: 1.5em; color: #1f7a4d; letter-spacing: -0.01em; }
+  .meta { text-align: right; font-size: 0.8em; color: #444; }
+  .meta .ord { font-size: 0.95em; font-weight: 600; color: #1a1a1a; margin-bottom: 0.2em; }
+  .info-row { display: flex; gap: 2em; margin-bottom: 0.6em; font-size: 0.8em; color: #444; align-items: center; }
+  .rebate-note { background: #fff8e1; border: 1px dashed #d4a017; padding: 0.3em 0.7em; border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+  thead th { background: #1f7a4d; color: #fff; padding: 0.4em 0.5em; text-align: left; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.03em; }
+  tbody td { padding: 0.35em 0.5em; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+  tr.cat-row td { background: #f3f3f3; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.05em; color: #444; padding: 0.3em 0.5em; border-bottom: 1px solid #ccc; border-top: 1px solid #ccc; }
+  tr.cat-row .count { color: #888; font-weight: 400; font-size: 0.85em; text-transform: none; letter-spacing: 0; }
+  tr.note-row { background: #fffbeb; }
+  td.code { width: 70px; font-family: monospace; font-size: 0.78em; color: #666; }
+  td.item { width: 30%; }
+  td.item .note { font-size: 0.75em; color: #888; font-style: italic; margin-top: 0.15em; }
+  td.pack { width: 14%; color: #555; font-size: 0.82em; }
+  td.price-pack { width: 10%; text-align: right; font-variant-numeric: tabular-nums; font-size: 0.85em; color: #1a1a1a; font-weight: 500; }
+  td.price-unit { width: 12%; text-align: right; color: #777; font-variant-numeric: tabular-nums; font-size: 0.78em; }
+  td.qty { width: 11%; border-left: 1px dashed #aaa; min-height: 22px; }
+  td.tick { width: 6%; border-left: 1px dashed #aaa; }
+  footer { margin-top: 1.2em; padding-top: 0.4em; border-top: 1px solid #ddd; font-size: 0.72em; color: #777; display: flex; justify-content: space-between; }
+  .sig { margin-top: 1.2em; }
+  .sig label { font-size: 0.72em; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+  .sig .line { border-bottom: 1px solid #444; height: 1.4em; margin-top: 0.15em; }
+  .legend { font-size: 0.72em; color: #888; margin-top: 0.4em; }
+  @media print {
+    body { padding: 0; }
+    tr { page-break-inside: avoid; }
+    tr.cat-row { page-break-after: avoid; }
+  }
+</style></head>
+<body>
+
+<header>
+  <div>
+    <h1>Fermex — Order Form</h1>
+    <div style="font-size: 0.82em; color: #555; margin-top: 0.15em;">Delivers Tue / Fri · Cutoff 3pm previous day</div>
+    <div style="font-size: 0.8em; color: #666; margin-top: 0.2em;">Patrick Hansen · mail@fermexdistributors.com.au · 07 3892 3455</div>
+  </div>
+  <div class="meta">
+    <div class="ord">Order date: ______________</div>
+    <div>Venue: Burleigh ☐ &nbsp; Beach House ☐ &nbsp; Tea Garden ☐</div>
+    <div>Ordered by: ______________</div>
+  </div>
+</header>
+
+
+
+<table>
+  <thead><tr>
+    <th>Code</th>
+    <th>Item</th>
+    <th>Pack</th>
+    <th style="text-align: right;">Pack price</th>
+    <th style="text-align: right;">$/unit</th>
+    <th>Qty</th>
+    <th>✓</th>
+  </tr></thead>
+  <tbody>
+    <tr class="cat-row"><td colspan="7">Dairy <span class="count">(11)</span></td></tr>
+    <tr>
+      <td class="code">BUTTERUSA</td>
+      <td class="item">Butter Unsalted USA 25kg (Fermex)<div class="note">Origin changed from NZ → USA on this quote</div></td>
+      <td class="pack">25 kg</td>
+      <td class="price-pack">$280.00</td>
+      <td class="price-unit">$11.20/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">MOZZ</td>
+      <td class="item">Cheese Mozzarella Shredded 2kg</td>
+      <td class="pack">2 kg</td>
+      <td class="price-pack">$25.90</td>
+      <td class="price-unit">$12.95/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">PROVOLONE1</td>
+      <td class="item">Cheese Provolone 1kg Brazzale</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$30.00</td>
+      <td class="price-unit">$30.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">RICOTTA2KG</td>
+      <td class="item">Cheese Ricotta Basket 2kg Olympus</td>
+      <td class="pack">2 kg</td>
+      <td class="price-pack">$20.65</td>
+      <td class="price-unit">$10.32/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">CHEESEFRED</td>
+      <td class="item">Cheese Shredded Fred Walker 2kg<div class="note">Brand sub from Tasty</div></td>
+      <td class="pack">2 kg</td>
+      <td class="price-pack">$23.00</td>
+      <td class="price-unit">$11.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">SWISSSLMAS</td>
+      <td class="item">Cheese Slices Swiss Maasdam 1kg (2x500g) Frico</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$21.00</td>
+      <td class="price-unit">$21.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">CREAMBUL</td>
+      <td class="item">Cream Thickened 5L Bulla</td>
+      <td class="pack">5 L</td>
+      <td class="price-pack">$42.40</td>
+      <td class="price-unit">$8.48/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">YOGNAT5KG</td>
+      <td class="item">Greek Style Yoghurt 5kg Olympus<div class="note">Pack changed from 2kg → 5kg</div></td>
+      <td class="pack">5 kg</td>
+      <td class="price-pack">$23.50</td>
+      <td class="price-unit">$4.70/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">PEANBUSM</td>
+      <td class="item">Peanut Butter Smooth 2kg</td>
+      <td class="pack">2 kg</td>
+      <td class="price-pack">$34.50</td>
+      <td class="price-unit">$17.25/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">PHILLY</td>
+      <td class="item">Philadelphia Cream Cheese 2kg<div class="note">+11% since May 8 patch; still beats Bidfood</div></td>
+      <td class="pack">2 kg</td>
+      <td class="price-pack">$30.00</td>
+      <td class="price-unit">$15.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Tourage French Butter Sheets</td>
+      <td class="pack">10 x 1 kg</td>
+      <td class="price-pack">$180.00</td>
+      <td class="price-unit">$18.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="7">Pastry/Baking <span class="count">(20)</span></td></tr>
+    <tr>
+      <td class="code">BAKELLEM</td>
+      <td class="item">Bakels Apito Lemon Paste 1kg<div class="note">−28% vs form</div></td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$36.00</td>
+      <td class="price-unit">$36.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Bakers Flour (Manildra)</td>
+      <td class="pack">12.5 kg</td>
+      <td class="price-pack">$15.10</td>
+      <td class="price-unit">$1.21/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">BP2KG</td>
+      <td class="item">Baking Powder McKenzie&#x27;s 2kg</td>
+      <td class="pack">2 kg</td>
+      <td class="price-pack">$13.90</td>
+      <td class="price-unit">$6.95/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Caster Sugar (Bundaberg)</td>
+      <td class="pack">25kg</td>
+      <td class="price-pack">$45.00</td>
+      <td class="price-unit">$1.80/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Caster Sugar (Bundaberg) - small pack</td>
+      <td class="pack">15 kg</td>
+      <td class="price-pack">$30.00</td>
+      <td class="price-unit">$2.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">CBDC1.6</td>
+      <td class="item">Chocolate Batons Dark 1.6kg Callebaut</td>
+      <td class="pack">1.6 kg</td>
+      <td class="price-pack">$46.50</td>
+      <td class="price-unit">$29.06/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Flour Euro Type 55 (Laucke)</td>
+      <td class="pack">12.5 kg</td>
+      <td class="price-pack">$19.90</td>
+      <td class="price-unit">$1.59/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">GLUFRPLAIN</td>
+      <td class="item">Flour Plain Gluten Free Well &amp; Good 15kg</td>
+      <td class="pack">15 kg</td>
+      <td class="price-pack">$75.00</td>
+      <td class="price-unit">$5.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">SR12.5</td>
+      <td class="item">Flour Self Raising Ben Furney 12.5kg</td>
+      <td class="pack">12.5 kg</td>
+      <td class="price-pack">$18.20</td>
+      <td class="price-unit">$1.46/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">BSF15KG</td>
+      <td class="item">Fondant Soft White Bakels 15kg<div class="note">Move-target from Bidfood — Bakels = chef preference</div></td>
+      <td class="pack">15 kg</td>
+      <td class="price-pack">$66.25</td>
+      <td class="price-unit">$4.42/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">GLUCOSE5</td>
+      <td class="item">Glucose Gluten Free Frutex 5kg<div class="note">Move-target from Provedores</div></td>
+      <td class="pack">5 kg</td>
+      <td class="price-pack">$23.95</td>
+      <td class="price-unit">$4.79/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">ISPB15</td>
+      <td class="item">Icing Sugar Pure 15kg Bundaberg<div class="note">−8.7% vs May 8 patch</div></td>
+      <td class="pack">15 kg</td>
+      <td class="price-pack">$31.50</td>
+      <td class="price-unit">$2.10/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">IRCA Chococream Pistachio 15%</td>
+      <td class="pack">5 kg</td>
+      <td class="price-pack">$127.50</td>
+      <td class="price-unit">$25.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">IRCANOCCIOLATA</td>
+      <td class="item">IRCA Nocciolata (Chocolate Hazelnut Paste) 13kg</td>
+      <td class="pack">13 kg</td>
+      <td class="price-pack">$148.00</td>
+      <td class="price-unit">$11.38/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">MAPLE1LT</td>
+      <td class="item">Maple Syrup Pure 1L<div class="note">Provedores 4L pack still cheaper</div></td>
+      <td class="pack">1 L</td>
+      <td class="price-pack">$27.00</td>
+      <td class="price-unit">$27.00/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">NUTELLA</td>
+      <td class="item">Nutella Spread Chocolate Hazelnut 3kg<div class="note">Bidfood wins this SKU post-rebate</div></td>
+      <td class="pack">3 kg</td>
+      <td class="price-pack">$49.50</td>
+      <td class="price-unit">$16.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Plain Flour (Manildra)</td>
+      <td class="pack">12.5 kg</td>
+      <td class="price-pack">$14.75</td>
+      <td class="price-unit">$1.18/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">SUGB15</td>
+      <td class="item">Sugar Brown 15kg Bundaberg<div class="note">Move-target from Provedores</div></td>
+      <td class="pack">15 kg</td>
+      <td class="price-pack">$32.55</td>
+      <td class="price-unit">$2.17/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">SUGRAW</td>
+      <td class="item">Sugar Raw 25kg Bundaberg<div class="note">Move-target from Provedores</div></td>
+      <td class="pack">25 kg</td>
+      <td class="price-pack">$48.50</td>
+      <td class="price-unit">$1.94/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">VANBEANPNAT</td>
+      <td class="item">Vanilla Bean Paste 1kg Flavormaster<div class="note">Pack changed from 320g → 1kg</div></td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$51.80</td>
+      <td class="price-unit">$51.80/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="7">Nuts <span class="count">(10)</span></td></tr>
+    <tr>
+      <td class="code">ALF9KG</td>
+      <td class="item">Almond Flakes / Sliced Blanched 9kg<div class="note">Pack changed from 8kg → 9kg</div></td>
+      <td class="pack">9 kg</td>
+      <td class="price-pack">$155.00</td>
+      <td class="price-unit">$17.22/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Almond Meal Blanched (Almondco)</td>
+      <td class="pack">10.00 kg</td>
+      <td class="price-pack">$145.00</td>
+      <td class="price-unit">$14.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">ALN3KG</td>
+      <td class="item">Almond Whole Natural 3kg<div class="note">Provedores 1kg ($17.50) still cheaper per kg</div></td>
+      <td class="pack">3 kg</td>
+      <td class="price-pack">$62.50</td>
+      <td class="price-unit">$20.83/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">CASH3KG</td>
+      <td class="item">Cashews Raw 3kg Trumps<div class="note">Bidfood / Provedores still cheaper</div></td>
+      <td class="pack">3 kg</td>
+      <td class="price-pack">$69.50</td>
+      <td class="price-unit">$23.17/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">CNUTSHR</td>
+      <td class="item">Coconut Fancy Long Shredded 11.34kg<div class="note">Move-target from Bidfood — saves 34%</div></td>
+      <td class="pack">11.34 kg</td>
+      <td class="price-pack">$102.50</td>
+      <td class="price-unit">$9.04/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="note-row">
+      <td class="code">PECANCTN</td>
+      <td class="item">Pecan Nut Halves 13.6kg<div class="note">+20% vs form ⚠ push back</div></td>
+      <td class="pack">13.6 kg</td>
+      <td class="price-pack">$420.00</td>
+      <td class="price-unit">$30.88/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">PECANPIEC14</td>
+      <td class="item">Pecan Pieces 14kg (10-13mm)<div class="note">Different SKU vs form (pieces vs large pieces)</div></td>
+      <td class="pack">14 kg</td>
+      <td class="price-pack">$375.00</td>
+      <td class="price-unit">$26.79/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">PISTRAW</td>
+      <td class="item">Pistachio Kernels 3kg<div class="note">Small-pack option, 11% premium vs 13.61kg</div></td>
+      <td class="pack">3 kg</td>
+      <td class="price-pack">$170.00</td>
+      <td class="price-unit">$56.67/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">PISTRAW13.6</td>
+      <td class="item">Pistachio Kernels Raw 13.61kg<div class="note">Recovery from $60.41 invoiced — still wins</div></td>
+      <td class="pack">13.61 kg</td>
+      <td class="price-pack">$695.00</td>
+      <td class="price-unit">$51.07/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="note-row">
+      <td class="code">WALCTN</td>
+      <td class="item">Walnut Halves &amp; Pieces 11.34kg<div class="note">+28% vs form ⚠ push back</div></td>
+      <td class="pack">11.34 kg</td>
+      <td class="price-pack">$149.50</td>
+      <td class="price-unit">$13.18/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="7">Pantry <span class="count">(24)</span></td></tr>
+    <tr>
+      <td class="code">CINQUILLHD</td>
+      <td class="item">Cinnamon Stick (Cassia Vera) 1kg<div class="note">Move-target from Bidfood Kriokrush — saves 79%</div></td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$19.00</td>
+      <td class="price-unit">$19.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">CRANBERRY1KG</td>
+      <td class="item">Cranberries Dried 1kg<div class="note">Bidfood now cheaper post-rebate</div></td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$16.50</td>
+      <td class="price-unit">$16.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">FENNEL</td>
+      <td class="item">Fennel Seed Whole 1kg</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$18.50</td>
+      <td class="price-unit">$18.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">GARGRAN1</td>
+      <td class="item">Garlic Granules 1kg<div class="note">Within $0.20 of Bidfood post-rebate</div></td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$14.50</td>
+      <td class="price-unit">$14.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">HON</td>
+      <td class="item">Honey 3kg<div class="note">Provedores/Bidfood both cheaper</div></td>
+      <td class="pack">3 kg</td>
+      <td class="price-pack">$24.50</td>
+      <td class="price-unit">$8.17/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">MACA6</td>
+      <td class="item">Macadamia Raw Small Piece Style 6, 11.34kg<div class="note">Provedores form $25.13 cheaper</div></td>
+      <td class="pack">11.34 kg</td>
+      <td class="price-pack">$320.00</td>
+      <td class="price-unit">$28.22/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">RAVIPURMANG</td>
+      <td class="item">Mango Purée Frozen 1kg Ravifruit<div class="note">Premium puree</div></td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$22.50</td>
+      <td class="price-unit">$22.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">DIJONMUST2.5</td>
+      <td class="item">Masterfoods Dijon Mustard 2.5kg jar</td>
+      <td class="pack">2.5 kg</td>
+      <td class="price-pack">$23.90</td>
+      <td class="price-unit">$9.56/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">MAYO</td>
+      <td class="item">Mayonnaise ETA 3.5kg jar<div class="note">Different brand (ETA not Kewpie) — spec call</div></td>
+      <td class="pack">3.5 kg</td>
+      <td class="price-pack">$17.25</td>
+      <td class="price-unit">$4.93/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">OATS25</td>
+      <td class="item">Oats Rolled 25kg<div class="note">Move-target from Provedores — saves 35%</div></td>
+      <td class="pack">25 kg</td>
+      <td class="price-pack">$57.75</td>
+      <td class="price-unit">$2.31/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">OLIVES</td>
+      <td class="item">Olives Black Sliced 3kg</td>
+      <td class="pack">3 kg</td>
+      <td class="price-pack">$17.80</td>
+      <td class="price-unit">$5.93/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">OFMT1KG</td>
+      <td class="item">Onion/Shallot Fried 1kg Mur Thai<div class="note">Provedores cheaper at $9.00</div></td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$11.50</td>
+      <td class="price-unit">$11.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">FRPASS1KG</td>
+      <td class="item">Passionfruit Pulp w/Seed Frozen 1kg</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$13.40</td>
+      <td class="price-unit">$13.40/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">RAVIPURPAS</td>
+      <td class="item">Passionfruit Purée Frozen 1kg Ravifruit<div class="note">Premium puree</div></td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$23.90</td>
+      <td class="price-unit">$23.90/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">PEPCB1KG</td>
+      <td class="item">Pepper Black Cracked Fine 16/24, 1kg<div class="note">Bidfood now cheaper post-rebate</div></td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$28.75</td>
+      <td class="price-unit">$28.75/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">POTSTAR</td>
+      <td class="item">Potato Starch 25kg<div class="note">Provedores marginally cheaper</div></td>
+      <td class="pack">25 kg</td>
+      <td class="price-pack">$92.50</td>
+      <td class="price-unit">$3.70/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">FDRASP100</td>
+      <td class="item">Raspberry Whole Freeze Dried 100g Inspired Ing</td>
+      <td class="pack">100 g</td>
+      <td class="price-pack">$33.50</td>
+      <td class="price-unit">$335.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">SCESOYKIK</td>
+      <td class="item">Sauce Soy 3L Kikkoman</td>
+      <td class="pack">3 L</td>
+      <td class="price-pack">$15.00</td>
+      <td class="price-unit">$5.00/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">SES5KG</td>
+      <td class="item">Sesame Seeds White 5kg<div class="note">Pack changed from 15kg → 5kg</div></td>
+      <td class="pack">5 kg</td>
+      <td class="price-pack">$42.00</td>
+      <td class="price-unit">$8.40/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">CHERSOU4</td>
+      <td class="item">Sour Cherry Pitted 4.25kg can</td>
+      <td class="pack">4.25 kg</td>
+      <td class="price-pack">$38.50</td>
+      <td class="price-unit">$9.06/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">SUNFL3KG</td>
+      <td class="item">Sunflower Kernels 3kg</td>
+      <td class="pack">3 kg</td>
+      <td class="price-pack">$19.50</td>
+      <td class="price-unit">$6.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">PASSATA3X3</td>
+      <td class="item">Tomato Passata Mutti 3x3kg<div class="note">+12.5% vs form</div></td>
+      <td class="pack">3x3 kg</td>
+      <td class="price-pack">$55.75</td>
+      <td class="price-unit">$6.19/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">VEGEMITE</td>
+      <td class="item">Vegemite 2.5kg<div class="note">Provedores cheaper</div></td>
+      <td class="pack">2.5 kg</td>
+      <td class="price-pack">$49.25</td>
+      <td class="price-unit">$19.70/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">VINEGAR</td>
+      <td class="item">Vinegar White 4L<div class="note">Bidfood much cheaper</div></td>
+      <td class="pack">4 L</td>
+      <td class="price-pack">$11.50</td>
+      <td class="price-unit">$2.88/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="7">Spices <span class="count">(21)</span></td></tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Bay Leaves</td>
+      <td class="pack">1kg</td>
+      <td class="price-pack">$26.50</td>
+      <td class="price-unit">$26.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Chilli Powder</td>
+      <td class="pack">1kg</td>
+      <td class="price-pack">$15.50</td>
+      <td class="price-unit">$15.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Chives Flakes</td>
+      <td class="pack">1kg</td>
+      <td class="price-pack">$31.50</td>
+      <td class="price-unit">$31.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Cloves Ground</td>
+      <td class="pack">1kg</td>
+      <td class="price-pack">$31.50</td>
+      <td class="price-unit">$31.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Cloves Whole</td>
+      <td class="pack">1kg</td>
+      <td class="price-pack">$46.50</td>
+      <td class="price-unit">$46.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Coriander Ground</td>
+      <td class="pack">1kg</td>
+      <td class="price-pack">$14.90</td>
+      <td class="price-unit">$14.90/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Curry Powder Mild</td>
+      <td class="pack">1kg</td>
+      <td class="price-pack">$14.50</td>
+      <td class="price-unit">$14.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Dill tips</td>
+      <td class="pack">1kg</td>
+      <td class="price-pack">$48.00</td>
+      <td class="price-unit">$48.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Garam Masala</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$19.50</td>
+      <td class="price-unit">$19.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Garlic Powder</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$15.00</td>
+      <td class="price-unit">$15.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Mixed Spice</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$15.50</td>
+      <td class="price-unit">$15.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Nutmeg Ground</td>
+      <td class="pack">500g</td>
+      <td class="price-pack">$12.50</td>
+      <td class="price-unit">$25.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Paprika Ground</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$12.50</td>
+      <td class="price-unit">$12.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Paprika Smoked</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$19.50</td>
+      <td class="price-unit">$19.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Parsley Flakes</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$30.50</td>
+      <td class="price-unit">$30.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Pepper White</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$34.50</td>
+      <td class="price-unit">$34.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Poppy Seed</td>
+      <td class="pack">15 kg</td>
+      <td class="price-pack">$156.50</td>
+      <td class="price-unit">$10.43/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Rosemary Leaves</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$18.50</td>
+      <td class="price-unit">$18.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Sumac Ground</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$22.50</td>
+      <td class="price-unit">$22.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Thyme Leaves</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$23.50</td>
+      <td class="price-unit">$23.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Turmeric Ground</td>
+      <td class="pack">1kg</td>
+      <td class="price-pack">$14.90</td>
+      <td class="price-unit">$14.90/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="7">Oils <span class="count">(5)</span></td></tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Canola Oil Spray (Healthy Bakers)</td>
+      <td class="pack">12 x 450 g</td>
+      <td class="price-pack">$44.75</td>
+      <td class="price-unit">$8.29/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Canola Oil Spray (Prochef)</td>
+      <td class="pack">400g</td>
+      <td class="price-pack">$2.08</td>
+      <td class="price-unit">$5.20/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Olive Oil Extra Virgin</td>
+      <td class="pack">4 L</td>
+      <td class="price-pack">$55.00</td>
+      <td class="price-unit">$13.75/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code"></td>
+      <td class="item">Rice Bran Oil (Simply)</td>
+      <td class="pack">20L</td>
+      <td class="price-pack">$80.00</td>
+      <td class="price-unit">$4.00/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">VEGOIL20</td>
+      <td class="item">Vegetable Oil 20L</td>
+      <td class="pack">20 L</td>
+      <td class="price-pack">$67.50</td>
+      <td class="price-unit">$3.38/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="7">Frozen <span class="count">(7)</span></td></tr>
+    <tr>
+      <td class="code">FRBANCHUNK</td>
+      <td class="item">Banana Sliced IQF 10kg</td>
+      <td class="pack">10 kg</td>
+      <td class="price-pack">$41.00</td>
+      <td class="price-unit">$4.10/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">FRBLUE1KG</td>
+      <td class="item">Blueberries Frozen 1kg<div class="note">Bidfood now cheaper post-rebate</div></td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$12.95</td>
+      <td class="price-unit">$12.95/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">FRMANGO1KG</td>
+      <td class="item">Mango Diced IQF 1kg<div class="note">Bidfood cheaper</div></td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$8.65</td>
+      <td class="price-unit">$8.65/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">FROZPEAS</td>
+      <td class="item">Peas Frozen Edgell 6x2kg<div class="note">Provedores cheaper</div></td>
+      <td class="pack">6x2 kg</td>
+      <td class="price-pack">$57.60</td>
+      <td class="price-unit">$4.80/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="note-row">
+      <td class="code">FRRASP1KGFRU</td>
+      <td class="item">Raspberry Frozen IQF 1kg<div class="note">+23% vs form ⚠ push back</div></td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$14.15</td>
+      <td class="price-unit">$14.15/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">SSOCEAN</td>
+      <td class="item">Smoked Salmon Sliced Ocean King 1kg<div class="note">Bidfood Seacrest cheaper post-rebate</div></td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$39.00</td>
+      <td class="price-unit">$39.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="code">FRSTRAW</td>
+      <td class="item">Strawberry IQF 1kg<div class="note">Flip back to Bidfood — pack changed from 10kg</div></td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$8.25</td>
+      <td class="price-unit">$8.25/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="legend">
+  Pack price ex GST · $/unit normalised to per-kg / per-L / per-each for cross-pack comparison · ⚠ = spec check pending
+</div>
+
+<div class="sig">
+  <label>Notes / special requests</label>
+  <div class="line"></div>
+  <div class="line"></div>
+</div>
+
+<footer>
+  <div>Fermex — Order Form · 98 items · Tarte Kitchen — printed 2026-05-25</div>
+  <div>Submit by: ______________</div>
+</footer>
+
+</body></html>

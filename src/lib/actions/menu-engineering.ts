@@ -44,6 +44,8 @@ export interface MenuEngineeringData {
   totalProfitContribution: number
   // Every dish with sales in range
   items: MenuEngineeringItem[]
+  // Data quality
+  unmatchedProductCount: number // products in category report with no dish cost match
 }
 
 const QUADRANT_ORDER: MenuQuadrant[] = ["STAR", "PLOWHORSE", "PUZZLE", "DOG"]
@@ -73,99 +75,107 @@ export async function getMenuEngineeringData(params: {
   const { venue, rangeDays } = params
   const start = startOfAestDay(rangeDays)
 
-  const venueFilter: { venue?: { in: Venue[] } } =
+  const venueFilter =
     venue === "ALL"
       ? { venue: { in: [...SINGLE_VENUES] as Venue[] } }
-      : { venue: { in: [venue] } }
+      : { venue: venue as Venue }
 
-  // Only dishes that have been sold in the range are classified. Unsold
-  // dishes have no popularity signal and would bias the medians toward zero.
-  const salesRows = await db.dailySales.groupBy({
-    by: ["dishId"],
-    where: {
-      ...venueFilter,
-      date: { gte: start },
-      dishId: { not: null },
-    },
-    _sum: { quantitySold: true, revenueExGst: true },
+  // DailySales (per-item POS sync) is often empty; use DailyCategoryTopItem
+  // which is populated from the daily Lightspeed PDF email reports.
+  const [topItemRows, allDishes] = await Promise.all([
+    db.dailyCategoryTopItem.findMany({
+      where: { ...venueFilter, date: { gte: start } },
+      select: { productName: true, quantity: true },
+    }),
+    db.dish.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        menuCategory: true,
+        venue: true,
+        sellingPrice: true,
+        sellingPriceExGst: true,
+        totalCost: true,
+        foodCostPercentage: true,
+        grossProfit: true,
+      },
+    }),
+  ])
+
+  // Aggregate quantity by normalised product name across all matched rows
+  const qtyByName = new Map<string, number>()
+  for (const row of topItemRows) {
+    const key = row.productName.toLowerCase().trim()
+    qtyByName.set(key, (qtyByName.get(key) ?? 0) + row.quantity)
+  }
+
+  const emptyQuadrants = (): MenuEngineeringData["quadrants"] => ({
+    STAR: { count: 0, unitsSold: 0, revenueExGst: 0, profitContribution: 0 },
+    PLOWHORSE: { count: 0, unitsSold: 0, revenueExGst: 0, profitContribution: 0 },
+    PUZZLE: { count: 0, unitsSold: 0, revenueExGst: 0, profitContribution: 0 },
+    DOG: { count: 0, unitsSold: 0, revenueExGst: 0, profitContribution: 0 },
   })
 
-  const dishIds = salesRows
-    .map((r) => r.dishId)
-    .filter((id): id is string => !!id)
-
-  if (dishIds.length === 0) {
-    const empty: MenuEngineeringData["quadrants"] = {
-      STAR: { count: 0, unitsSold: 0, revenueExGst: 0, profitContribution: 0 },
-      PLOWHORSE: { count: 0, unitsSold: 0, revenueExGst: 0, profitContribution: 0 },
-      PUZZLE: { count: 0, unitsSold: 0, revenueExGst: 0, profitContribution: 0 },
-      DOG: { count: 0, unitsSold: 0, revenueExGst: 0, profitContribution: 0 },
-    }
+  if (qtyByName.size === 0) {
     return {
-      rangeDays,
-      venue,
-      popularityThreshold: 0,
-      profitThreshold: 0,
-      quadrants: empty,
-      totalUnitsSold: 0,
-      totalRevenueExGst: 0,
-      totalProfitContribution: 0,
-      items: [],
+      rangeDays, venue,
+      popularityThreshold: 0, profitThreshold: 0,
+      quadrants: emptyQuadrants(),
+      totalUnitsSold: 0, totalRevenueExGst: 0, totalProfitContribution: 0,
+      items: [], unmatchedProductCount: 0,
     }
   }
 
-  const dishes = await db.dish.findMany({
-    where: { id: { in: dishIds }, isActive: true },
-    select: {
-      id: true,
-      name: true,
-      menuCategory: true,
-      venue: true,
-      sellingPrice: true,
-      sellingPriceExGst: true,
-      totalCost: true,
-      foodCostPercentage: true,
-      grossProfit: true,
-    },
-  })
-  const dishMap = new Map(dishes.map((d) => [d.id, d]))
+  // Build name → dish map; for a specific venue, prefer that venue's dish entry
+  const dishByNormName = new Map<string, typeof allDishes[0]>()
+  for (const dish of allDishes) {
+    const key = dish.name.toLowerCase().trim()
+    const existing = dishByNormName.get(key)
+    if (!existing || (venue !== "ALL" && dish.venue === venue)) {
+      dishByNormName.set(key, dish)
+    }
+  }
 
-  // First pass: build per-dish aggregate (units sold + revenue + profit contribution)
-  const rawItems = salesRows
-    .map((r) => {
-      if (!r.dishId) return null
-      const dish = dishMap.get(r.dishId)
-      if (!dish) return null
-
-      const unitsSold = r._sum.quantitySold ?? 0
-      const revenueExGst = Number(r._sum.revenueExGst ?? 0)
-      const grossProfitPerUnit = Number(dish.grossProfit)
-      const profitContribution = grossProfitPerUnit * unitsSold
-
-      return {
-        dishId: dish.id,
-        name: dish.name,
-        menuCategory: dish.menuCategory,
-        venue: dish.venue,
-        sellingPrice: Number(dish.sellingPrice),
-        sellingPriceExGst: Number(dish.sellingPriceExGst),
-        totalCost: Number(dish.totalCost),
-        foodCostPct: Number(dish.foodCostPercentage),
-        grossProfitPerUnit,
-        unitsSold,
-        revenueExGst: Math.round(revenueExGst * 100) / 100,
-        profitContribution: Math.round(profitContribution * 100) / 100,
-      }
+  // Match product names → dishes; track unmatched for data-quality display
+  let unmatchedProductCount = 0
+  const rawItems = []
+  for (const [nameKey, qty] of qtyByName) {
+    if (qty <= 0) continue
+    const dish = dishByNormName.get(nameKey)
+    if (!dish || Number(dish.sellingPriceExGst) === 0) {
+      unmatchedProductCount++
+      continue
+    }
+    const grossProfitPerUnit = Number(dish.grossProfit)
+    // Revenue estimated from dish selling price × units sold (no line-item revenue in source)
+    const revenueExGst = Number(dish.sellingPriceExGst) * qty
+    rawItems.push({
+      dishId: dish.id,
+      name: dish.name,
+      menuCategory: dish.menuCategory,
+      venue: dish.venue,
+      sellingPrice: Number(dish.sellingPrice),
+      sellingPriceExGst: Number(dish.sellingPriceExGst),
+      totalCost: Number(dish.totalCost),
+      foodCostPct: Number(dish.foodCostPercentage),
+      grossProfitPerUnit,
+      unitsSold: qty,
+      revenueExGst: Math.round(revenueExGst * 100) / 100,
+      profitContribution: Math.round(grossProfitPerUnit * qty * 100) / 100,
     })
-    .filter((x): x is NonNullable<typeof x> => x !== null)
-    .filter((x) => x.unitsSold > 0)
+  }
 
-  // Compute medians for the two axes:
-  //   X axis — popularity (unitsSold)
-  //   Y axis — contribution margin (grossProfitPerUnit)
-  // Using medians is the standard menu-engineering approach (Kasavana &
-  // Smith, 1982) because it splits the menu into equal-sized quadrants and
-  // is robust against outliers.
+  if (rawItems.length === 0) {
+    return {
+      rangeDays, venue,
+      popularityThreshold: 0, profitThreshold: 0,
+      quadrants: emptyQuadrants(),
+      totalUnitsSold: 0, totalRevenueExGst: 0, totalProfitContribution: 0,
+      items: [], unmatchedProductCount,
+    }
+  }
+
   const popularityThreshold = median(rawItems.map((i) => i.unitsSold))
   const profitThreshold = median(rawItems.map((i) => i.grossProfitPerUnit))
 
@@ -213,5 +223,6 @@ export async function getMenuEngineeringData(params: {
       Math.round(items.reduce((s, i) => s + i.profitContribution, 0) * 100) /
       100,
     items: items.sort((a, b) => b.profitContribution - a.profitContribution),
+    unmatchedProductCount,
   }
 }

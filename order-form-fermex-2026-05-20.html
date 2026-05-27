@@ -1,0 +1,450 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Fermex — Order Form order form</title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; color: #1a1a1a; margin: 0; padding: 12mm; max-width: 210mm; }
+  header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1em; border-bottom: 3px solid #1f7a4d; padding-bottom: 0.7em; margin-bottom: 1em; }
+  h1 { margin: 0; font-size: 1.6em; color: #1f7a4d; letter-spacing: -0.01em; }
+  .meta { text-align: right; font-size: 0.85em; color: #444; }
+  .meta .ord { font-size: 1em; font-weight: 600; color: #1a1a1a; margin-bottom: 0.3em; }
+  .info-row { display: flex; gap: 2em; margin-bottom: 1em; font-size: 0.85em; color: #444; align-items: center; }
+  .info-row b { color: #1a1a1a; }
+  .rebate-note { background: #fff8e1; border: 1px dashed #d4a017; padding: 0.4em 0.8em; border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.92em; }
+  thead th { background: #1f7a4d; color: #fff; padding: 0.5em 0.7em; text-align: left; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.04em; }
+  tbody td { padding: 0.45em 0.7em; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+  tr.cat-row td { background: #f3f3f3; font-weight: 600; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.05em; color: #444; padding: 0.4em 0.7em; border-bottom: 1px solid #ccc; border-top: 1px solid #ccc; }
+  tr.cat-row .count { color: #888; font-weight: 400; font-size: 0.85em; text-transform: none; letter-spacing: 0; }
+  td.item { width: 42%; }
+  td.pack { width: 20%; color: #555; font-size: 0.88em; }
+  td.price { width: 12%; text-align: right; color: #444; font-variant-numeric: tabular-nums; font-size: 0.88em; }
+  td.qty { width: 16%; border-left: 1px dashed #aaa; min-height: 22px; }
+  td.tick { width: 10%; border-left: 1px dashed #aaa; }
+  footer { margin-top: 1.5em; padding-top: 0.5em; border-top: 1px solid #ddd; font-size: 0.75em; color: #777; display: flex; justify-content: space-between; }
+  .sig { margin-top: 1.5em; display: flex; gap: 2em; }
+  .sig div { flex: 1; }
+  .sig label { font-size: 0.75em; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+  .sig .line { border-bottom: 1px solid #444; height: 1.6em; margin-top: 0.2em; }
+  @media print {
+    body { padding: 0; }
+    tr { page-break-inside: avoid; }
+    tr.cat-row { page-break-after: avoid; }
+  }
+</style></head>
+<body>
+
+<header>
+  <div>
+    <h1>Fermex — Order Form</h1>
+    <div style="font-size: 0.85em; color: #555; margin-top: 0.2em;">Delivers Tue / Fri · Cutoff 3pm previous day · Account: Tarte</div>
+  </div>
+  <div class="meta">
+    <div class="ord">Order date: ______________</div>
+    <div>Venue: 󠀠Burleigh ☐ &nbsp; Beach House ☐ &nbsp; Tea Garden ☐</div>
+    <div>Ordered by: ______________</div>
+  </div>
+</header>
+
+
+
+<table>
+  <thead><tr>
+    <th>Item</th>
+    <th>Pack</th>
+    <th style="text-align: right;">Price (ex GST)</th>
+    <th>Qty</th>
+    <th>✓</th>
+  </tr></thead>
+  <tbody>
+    <tr class="cat-row"><td colspan="5">Dairy <span class="count">(6)</span></td></tr>
+    <tr>
+      <td class="item">Butter Salted 25kg</td>
+      <td class="pack">25kg</td>
+      <td class="price">$354.00</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Butter Unsalted NZ 25kg</td>
+      <td class="pack">25kg</td>
+      <td class="price">$302.00</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Greek Yoghurt</td>
+      <td class="pack">2kg</td>
+      <td class="price">$8.40</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Philadelphia Cream Cheese</td>
+      <td class="pack">2kg</td>
+      <td class="price">$27.00</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Shredded Tasty Cheese</td>
+      <td class="pack">2kg</td>
+      <td class="price">$23.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Tourage French Butter Sheets</td>
+      <td class="pack">10 x 1 kg</td>
+      <td class="price">$180.00</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="5">Pastry/Baking <span class="count">(11)</span></td></tr>
+    <tr>
+      <td class="item">Bakels Apito Lemon Paste</td>
+      <td class="pack">1 kg</td>
+      <td class="price">$50.00</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Bakers Flour (Manildra)</td>
+      <td class="pack">12.5 kg</td>
+      <td class="price">$15.10</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Caster Sugar (Bundaberg)</td>
+      <td class="pack">25kg</td>
+      <td class="price">$45.00</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Caster Sugar (Bundaberg) - small pack</td>
+      <td class="pack">15 kg</td>
+      <td class="price">$30.00</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Flour Euro Type 55 (Laucke)</td>
+      <td class="pack">12.5 kg</td>
+      <td class="price">$19.90</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Gluten Free Flour (BTA)</td>
+      <td class="pack">10 kg</td>
+      <td class="price">$50.00</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Hazelnut paste</td>
+      <td class="pack">13 kg</td>
+      <td class="price">$137.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Icing Sugar Pure (Bundaberg)</td>
+      <td class="pack">15 kg</td>
+      <td class="price">$34.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">IRCA Chococream Pistachio 15%</td>
+      <td class="pack">5 kg</td>
+      <td class="price">$127.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Plain Flour (Manildra)</td>
+      <td class="pack">12.5 kg</td>
+      <td class="price">$14.75</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Vanilla Bean Paste</td>
+      <td class="pack">320g</td>
+      <td class="price">$14.06</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="5">Nuts <span class="count">(6)</span></td></tr>
+    <tr>
+      <td class="item">Almond Flakes/Sliced Blanched</td>
+      <td class="pack">8kg</td>
+      <td class="price">$145.00</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Almond Meal Blanched (Almondco)</td>
+      <td class="pack">10.00 kg</td>
+      <td class="price">$145.00</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Pecan Large Pieces Organic Aus</td>
+      <td class="pack">12kg</td>
+      <td class="price">$255.00</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Pecan nut Halves</td>
+      <td class="pack">13.61kg</td>
+      <td class="price">$350.00</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Pistachio Kernels Raw (PISTRAW10)</td>
+      <td class="pack">11.34 kg</td>
+      <td class="price">$685.00</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Walnut Halves &amp; pieces</td>
+      <td class="pack">11.34kg</td>
+      <td class="price">$117.00</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="5">Pantry <span class="count">(3)</span></td></tr>
+    <tr>
+      <td class="item">Mutti Passata</td>
+      <td class="pack">3 x 3 kg</td>
+      <td class="price">$49.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Olives Black</td>
+      <td class="pack">3 kg</td>
+      <td class="price">$18.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Sesame Seed</td>
+      <td class="pack">15 kg</td>
+      <td class="price">$96.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="5">Spices <span class="count">(21)</span></td></tr>
+    <tr>
+      <td class="item">Bay Leaves</td>
+      <td class="pack">1kg</td>
+      <td class="price">$26.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Chilli Powder</td>
+      <td class="pack">1kg</td>
+      <td class="price">$15.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Chives Flakes</td>
+      <td class="pack">1kg</td>
+      <td class="price">$31.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Cloves Ground</td>
+      <td class="pack">1kg</td>
+      <td class="price">$31.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Cloves Whole</td>
+      <td class="pack">1kg</td>
+      <td class="price">$46.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Coriander Ground</td>
+      <td class="pack">1kg</td>
+      <td class="price">$14.90</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Curry Powder Mild</td>
+      <td class="pack">1kg</td>
+      <td class="price">$14.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Dill tips</td>
+      <td class="pack">1kg</td>
+      <td class="price">$48.00</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Garam Masala</td>
+      <td class="pack">1 kg</td>
+      <td class="price">$19.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Garlic Powder</td>
+      <td class="pack">1 kg</td>
+      <td class="price">$15.00</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Mixed Spice</td>
+      <td class="pack">1 kg</td>
+      <td class="price">$15.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Nutmeg Ground</td>
+      <td class="pack">500g</td>
+      <td class="price">$12.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Paprika Ground</td>
+      <td class="pack">1 kg</td>
+      <td class="price">$12.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Paprika Smoked</td>
+      <td class="pack">1 kg</td>
+      <td class="price">$19.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Parsley Flakes</td>
+      <td class="pack">1 kg</td>
+      <td class="price">$30.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Pepper White</td>
+      <td class="pack">1 kg</td>
+      <td class="price">$34.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Poppy Seed</td>
+      <td class="pack">15 kg</td>
+      <td class="price">$156.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Rosemary Leaves</td>
+      <td class="pack">1 kg</td>
+      <td class="price">$18.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Sumac Ground</td>
+      <td class="pack">1 kg</td>
+      <td class="price">$22.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Thyme Leaves</td>
+      <td class="pack">1 kg</td>
+      <td class="price">$23.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Turmeric Ground</td>
+      <td class="pack">1kg</td>
+      <td class="price">$14.90</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="5">Oils <span class="count">(4)</span></td></tr>
+    <tr>
+      <td class="item">Canola Oil Spray (Healthy Bakers)</td>
+      <td class="pack">12 x 450 g</td>
+      <td class="price">$44.75</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Canola Oil Spray (Prochef)</td>
+      <td class="pack">400g</td>
+      <td class="price">$2.08</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Olive Oil Extra Virgin</td>
+      <td class="pack">4 L</td>
+      <td class="price">$55.00</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Rice Bran Oil (Simply)</td>
+      <td class="pack">20L</td>
+      <td class="price">$80.00</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="5">Frozen <span class="count">(2)</span></td></tr>
+    <tr>
+      <td class="item">IQF Strawberries</td>
+      <td class="pack">10 kg</td>
+      <td class="price">$62.00</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      <td class="item">Raspberries</td>
+      <td class="pack">1kg</td>
+      <td class="price">$11.50</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="sig">
+  <div><label>Notes / special requests</label><div class="line"></div><div class="line"></div></div>
+</div>
+
+<footer>
+  <div>Fermex — Order Form · 53 items · Tarte Kitchen — printed 2026-05-20</div>
+  <div>Submit by: ______________</div>
+</footer>
+
+</body></html>

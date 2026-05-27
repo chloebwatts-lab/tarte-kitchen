@@ -7,12 +7,11 @@ these move until chefs sign off.
 
 ## Open spec checks
 
-### 0. Smoked Salmon — brand approval
-- **Currently buying**: Bidfood Seacrest Atlantic 1kg @ $35.54/kg
-- **Provedores alternative**: **Ocean King Imported 1kg @ $35.00/kg** — marginal
-  $0.54/kg saving, but Ocean King is a different brand. Chefs to confirm
-  whether Ocean King quality is acceptable; if yes, move. If no, stay
-  Bidfood Seacrest.
+### 0. Smoked Salmon — RESOLVED
+- **Bidfood Seacrest Atlantic 1kg @ $35.54/kg (post-rebate ~$34.12)** wins.
+  Provedores Ocean King at $35.00 doesn't beat the 4% Bidfood rebate.
+  Fermex Ocean King at $39.00 is the most expensive of the three. Stay
+  Bidfood — no chef action needed.
 
 ### 1. Sea salt — find a cheaper brand/spec
 - **Currently buying**: Bidfood Cornish Sea Salt Flakes 1kg @ **$27.00/kg**
@@ -24,19 +23,12 @@ these move until chefs sign off.
   new supplier). Maldon? a different Cornish grade? Murray River? Olsson's?
   Whatever the equivalent-quality benchmark is.
 
-### 2. Salted butter 5kg block — find a cheaper source
-- **Currently buying**: Bidfood Anchor 5kg @ **$16.70/kg** (chefs prefer
-  this pack size).
-- **Fermex Salted Butter 25kg @ $14.16/kg** — saves $2.54/kg (~15%),
-  roughly $1,300/yr at 10 kg/wk usage. But Fermex only offers 25kg blocks,
-  not 5kg.
-- **Ask**: chefs to confirm whether
-  - (a) 25kg blocks are workable (storage, portioning, shelf life), in which
-    case we move salted butter to Fermex; or
-  - (b) we should ask Fermex / a third supplier to quote a 5kg pack
-    specifically; or
-  - (c) we accept paying the 15% premium for the 5kg convenience and stay
-    on Bidfood Anchor.
+### 2. Salted butter — RESOLVED
+- **Stay Bidfood Anchor 5kg @ $16.70/kg (post-rebate ~$16.03)**.
+- Chef confirmed 5kg is the right pack format. Fermex options considered
+  but declined:
+  - Fermex 25kg @ $13.76/kg — cheapest per kg but block too big
+  - Fermex Westgold 10×1kg @ $18.25/kg — chef-friendly but 14% premium
 
 ### 3. Potato Starch — pack size we actually buy
 - **On Provedores form**: 25 kg bag @ $3.55/kg ($88.75/bag).
@@ -94,3 +86,45 @@ re-quote round when we go back to suppliers.
 - **Salami (Hot, Truffle, plain)** → **STAY with Fino @ $21.95–$27.95/kg**.
   Provedores' new Salami Classico lines are $38–$65/kg — much more
   expensive. No move.
+
+### Decisions from Fermex quote S29927 (22 May 2026)
+
+- **Fondant Soft White** → moving to **Fermex Bakels 15kg @ $4.42/kg**.
+  Beats Bidfood Allied $5.55/kg ($5.33 post-rebate) AND Bakels is the
+  proper chef-grade brand. Closes the open Fondant question.
+- **Coconut Shredded** → moving to **Fermex 11.34kg @ $9.04/kg**.
+  Beats Bidfood Catchoice 1kg $14.30/kg (post-rebate $13.73) — saves 34%.
+- **Cinnamon Stick** → moving to **Fermex 1kg @ $19.00/kg**.
+  Beats Bidfood Kriokrush 200g $90.70/kg by 79% — was a huge anomaly.
+- **Glucose GF** → moving to **Fermex Frutex 5kg @ $4.79/kg**.
+  Beats Provedores 5kg $7.80/kg — saves 39%.
+- **Oats Rolled** → moving to **Fermex 25kg @ $2.31/kg**.
+  Beats Provedores 25kg $3.55/kg — saves 35%.
+- **Brown Sugar** → moving to **Fermex Bundaberg 15kg @ $2.17/kg**.
+  Beats Provedores form $2.39/kg.
+- **Raw Sugar** → moving to **Fermex Bundaberg 25kg @ $1.94/kg**.
+  Beats Provedores form $2.15/kg.
+- **Strawberries IQF** → **flipping back to Bidfood Catchoice 1kg @ $7.69/kg
+  (post-rebate)**. Was previously Fermex 10kg @ $6.20/kg but Fermex's new
+  quote is 1kg pack at $8.25/kg — Bidfood now wins per kg.
+- **Apple Purée** → **stay Bidfood Riviana 3kg @ $5.16/kg**. Chef declined
+  Fermex 20kg @ $3.50/kg (storage / handling).
+- **Pistachio Kernels** → confirmed **Fermex 13.61kg @ $51.07/kg** (recovery
+  from the post-May-8 $60.41 invoiced peak; still beats Bidfood $65 ×0.96
+  = $62.40 by 18%).
+
+### Flagged with Fermex (concerning increases worth pushing back on)
+
+- Pecan Halves +20% (form $25.71 → quote $30.88/kg)
+- Walnut Halves +28% (form $10.31 → quote $13.18/kg)
+- Raspberry IQF +23% (form $11.50 → quote $14.15/kg) — Bidfood post-rebate
+  $16.97 now in same range, margin shrinking.
+- Tomato Passata +12.5%
+- Philadelphia Cream Cheese +11% since the May 8 patch.
+
+### Fermex didn't quote — still need
+
+- Sea Salt Flakes (chef-quality) — chef ask still open
+- Bakers Flour / Plain Flour Manildra — assumed still on books at last
+  patched price ($1.21 / $1.18 per kg)
+- Caster Sugar Bundaberg 25kg & 15kg — same assumption

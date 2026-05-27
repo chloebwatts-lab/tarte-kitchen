@@ -44,3 +44,8 @@ next-env.d.ts
 
 # Invoice PDF storage
 /data/invoices/
+
+# Audit artefacts (regenerable, large)
+.audit-*.json
+.audit-*.md
+MENU-COST-AUDIT-*.md

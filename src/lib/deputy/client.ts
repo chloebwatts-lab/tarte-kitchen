@@ -33,12 +33,12 @@ export interface DeputyRosterShift {
   StartTime: number // unix seconds
   EndTime: number
   TotalTime?: number // hours — sometimes on Roster, sometimes computed
-  Cost?: number // forecast cost on Roster (pre-approval, from nominal rate)
-  /// "The total dollar cost of the shift" — per Deputy's own docs. When
-  /// Deputy has super/on-costs configured per-employee, OnCost is the
-  /// fully-loaded figure that matches Deputy's Insights Summary display.
-  /// Cost is the base unloaded cost. If OnCost > 0 we prefer it and skip
-  /// our own super multiplier; otherwise we load Cost ourselves.
+  Cost?: number // base unloaded cost (no super / on-costs). Stored as-is.
+  /// Deputy's fully-loaded shift cost (base + super + workers' comp +
+  /// payroll tax + leave loading). Intentionally ignored — we store raw
+  /// Cost only and apply on-costs at display time via DeputyConnection's
+  /// superRate / onCostUpliftRate so settings changes are instant. Reading
+  /// OnCost here would double-count super.
   OnCost?: number
   Open?: boolean
 }
@@ -371,17 +371,18 @@ export async function syncDeputyRoster() {
     // a valid Cost we should still use. (Previously these were silently
     // zeroed, which is why live Bakery wages came in ~50% under.)
     const isOpen = r.Open === true
-    // Store raw Deputy cost only — super + open-shift rate are applied
-    // at display time in /labour so Settings tweaks are instant.
+    // Store raw Deputy cost only — super + on-cost uplift are applied
+    // at display time in /labour so Settings tweaks are instant. Do NOT
+    // read Roster.OnCost here: it already includes super + workers' comp
+    // + payroll tax + leave loading, which the display-time multiplier
+    // would then double-count (~47% wages on a real ~37% week).
     const effectiveCost = isOpen
       ? 0
-      : typeof r.OnCost === "number" && r.OnCost > 0
-        ? r.OnCost
-        : typeof r.Cost === "number" && r.Cost > 0
-          ? r.Cost
-          : empRate !== null
-            ? empRate * hoursNum
-            : 0
+      : typeof r.Cost === "number" && r.Cost > 0
+        ? r.Cost
+        : empRate !== null
+          ? empRate * hoursNum
+          : 0
 
     await db.labourShift.create({
       data: {
@@ -526,17 +527,17 @@ export async function syncDeputyTimesheets() {
     where: { source: "TIMESHEET", shiftStart: { gte: windowStart } },
   })
 
-  // Build an employeeId → effective hourly rate map from this window's
-  // ROSTER rows. Deputy stores Cost on Roster (Cost ÷ TotalTime = the
-  // employee's rostered hourly rate including any awards / penalty
-  // loadings the manager applied at rostering time). This is the best
-  // proxy for what their unapproved timesheet should be costed at —
-  // far more accurate than Employee.PayRate (which is often 0 in Deputy
-  // because the real rate lives on EmployeeAgreement/Appointment).
+  // Build a per-employee list of ROSTER shifts (with effective $/hr) so
+  // each unapproved timesheet can be matched to the specific roster row
+  // that covers it. Deputy's Roster.Cost already carries any penalty
+  // loading for that shift's day-of-week + time-of-day, so a per-shift
+  // match captures Sat/Sun penalties correctly. A flat employee-wide
+  // blended rate would smear weekend penalties across weekday hours
+  // and over-count labour by ~15-30% (observed on Beach House week of
+  // 13–19 May 2026, $5.7k high vs Xero gross-wages).
   //
-  // Salaried staff have Roster Cost = lump-sum on a 1h placeholder
-  // shift, which would yield an absurd hourly rate ($500+/hr) — exclude
-  // those by rate-capping at $150/hr.
+  // Salaried staff have Roster Cost = lump-sum on a 1h placeholder shift,
+  // which would yield an absurd $/hr ($500+/hr) — exclude by rate-cap.
   const rosterRows = await db.labourShift.findMany({
     where: {
       source: "ROSTER",
@@ -544,23 +545,63 @@ export async function syncDeputyTimesheets() {
       cost: { gt: 0 },
       hours: { gt: 0 },
     },
-    select: { employeeId: true, cost: true, hours: true },
+    select: {
+      employeeId: true,
+      shiftStart: true,
+      shiftEnd: true,
+      cost: true,
+      hours: true,
+    },
   })
-  const rateAccum = new Map<string, { cost: number; hours: number }>()
+  type RosterShiftRate = { start: number; end: number; rate: number }
+  const rosterByEmployee = new Map<string, RosterShiftRate[]>()
   for (const r of rosterRows) {
     if (!r.employeeId) continue
     const hrs = Number(r.hours)
     const cst = Number(r.cost)
     const rate = hrs > 0 ? cst / hrs : 0
-    if (rate <= 0 || rate > 150) continue // skip salary placeholders
-    const acc = rateAccum.get(r.employeeId) ?? { cost: 0, hours: 0 }
-    acc.cost += cst
-    acc.hours += hrs
-    rateAccum.set(r.employeeId, acc)
+    if (rate <= 0 || rate > 150) continue
+    const arr = rosterByEmployee.get(r.employeeId) ?? []
+    arr.push({
+      start: r.shiftStart.getTime(),
+      end: r.shiftEnd.getTime(),
+      rate,
+    })
+    rosterByEmployee.set(r.employeeId, arr)
   }
-  const rateMap = new Map<string, number>()
-  for (const [empId, { cost, hours }] of rateAccum) {
-    if (hours > 0) rateMap.set(empId, cost / hours)
+  // Find the roster shift that best covers a given timesheet window.
+  // Prefer the row with the most temporal overlap; fall back to the
+  // closest-start row within 24h to handle clock-in/out drift.
+  function lookupRosterRate(
+    employeeId: string,
+    startMs: number,
+    endMs: number
+  ): number | undefined {
+    const shifts = rosterByEmployee.get(employeeId)
+    if (!shifts || shifts.length === 0) return undefined
+    let bestRate: number | undefined
+    let bestOverlap = 0
+    for (const s of shifts) {
+      const overlap = Math.max(
+        0,
+        Math.min(endMs, s.end) - Math.max(startMs, s.start)
+      )
+      if (overlap > bestOverlap) {
+        bestOverlap = overlap
+        bestRate = s.rate
+      }
+    }
+    if (bestRate !== undefined) return bestRate
+    let closestRate: number | undefined
+    let closestDelta = Infinity
+    for (const s of shifts) {
+      const delta = Math.abs(s.start - startMs)
+      if (delta < closestDelta) {
+        closestDelta = delta
+        closestRate = s.rate
+      }
+    }
+    return closestDelta < 24 * 3600 * 1000 ? closestRate : undefined
   }
 
   let upserted = 0
@@ -594,12 +635,17 @@ export async function syncDeputyTimesheets() {
       typeof emp?.PayRate === "number" && emp.PayRate > 0 ? emp.PayRate : null
     // Pay-rate cascade for unapproved timesheets:
     //   1. Approved Cost (gospel from Deputy, post-payroll)
-    //   2. Roster-derived rate × hours (best estimate mid-week — see rateMap)
+    //   2. Matching Roster shift's $/hr × hours (per-shift, captures
+    //      Sat/Sun penalty loading correctly — see lookupRosterRate)
     //   3. Employee.PayRate × hours (fallback, often missing)
     //   4. Raw Deputy Cost field (usually 0 pre-approval)
     // Salaried staff fall through to 4 → 0, which is correct (their cost
     // lives on the "Salary X" placeholder employee's Roster row).
-    const rosterRate = rateMap.get(String(t.Employee))
+    const rosterRate = lookupRosterRate(
+      String(t.Employee),
+      startMs,
+      effectiveEndMs
+    )
     const cost = t.Approved && typeof t.Cost === "number" && t.Cost > 0
       ? t.Cost
       : rosterRate !== undefined

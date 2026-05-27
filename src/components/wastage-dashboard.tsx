@@ -308,6 +308,12 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                 )}>
                   {currentStats.wastePercentOfRevenue.toFixed(1)}% of revenue
                 </p>
+                {currentStats.cogsImpact && (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    ~{currentStats.cogsImpact.wasteAsPctOfCogs.toFixed(1)}% of COGS{" "}
+                    <span className="text-[10px]">({currentStats.cogsImpact.weekLabel}, logged waste only — likely understated)</span>
+                  </p>
+                )}
               </div>
               <div className={cn(
                 "rounded-lg p-3",

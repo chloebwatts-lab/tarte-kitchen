@@ -287,7 +287,7 @@
         },
         {
           "category": "Pastry/Baking",
-          "name": "Sugar Caster (Bundaberg)",
+          "name": "Sugar Caster (Bundaberg) \u2014 15 kg",
           "packSize": "15 kg",
           "packPrice": 27.9,
           "unitPrice": 1.86,
@@ -295,7 +295,7 @@
         },
         {
           "category": "Pastry/Baking",
-          "name": "Sugar Caster (Bundaberg)",
+          "name": "Sugar Caster (Bundaberg) \u2014 25 kg",
           "packSize": "25 kg",
           "packPrice": 40.9,
           "unitPrice": 1.636,
@@ -597,7 +597,7 @@
         },
         {
           "category": "Pantry",
-          "name": "Vinegar White Imitation (Edlyn)",
+          "name": "Vinegar White Imitation (Edlyn) \u2014 4 L",
           "packSize": "4 L",
           "packPrice": 4.98,
           "unitPrice": 1.245,
@@ -605,7 +605,7 @@
         },
         {
           "category": "Pantry",
-          "name": "Vinegar White Imitation (Edlyn)",
+          "name": "Vinegar White Imitation (Edlyn) \u2014 20 L",
           "packSize": "20 L",
           "packPrice": 24.62,
           "unitPrice": 1.231,
@@ -981,43 +981,116 @@
       "items": [
         {
           "category": "Dairy",
-          "name": "Butter Salted 25kg",
-          "packSize": "25kg",
-          "packPrice": 354.0,
-          "unitPrice": 14.16,
-          "unit": "kg"
+          "name": "Butter Salted 25kg (Fermex)",
+          "packSize": "25 kg",
+          "packPrice": 344.0,
+          "unitPrice": 13.76,
+          "unit": "kg",
+          "code": "BUTTSALT"
         },
         {
           "category": "Dairy",
-          "name": "Butter Unsalted NZ 25kg",
-          "packSize": "25kg",
-          "packPrice": 302.0,
-          "unitPrice": 12.08,
-          "unit": "kg"
+          "name": "Butter Salted Westgold 10 x 1kg (Fermex)",
+          "packSize": "10 x 1 kg ctn",
+          "packPrice": 182.5,
+          "unitPrice": 18.25,
+          "unit": "kg",
+          "notes": "Chef-friendly 1kg pack option",
+          "code": "BUTTSALT1KG"
         },
         {
           "category": "Dairy",
-          "name": "Greek Yoghurt",
-          "packSize": "2kg",
-          "packPrice": 8.4,
-          "unitPrice": 4.2,
-          "unit": "kg"
+          "name": "Butter Unsalted USA 25kg (Fermex)",
+          "packSize": "25 kg",
+          "packPrice": 280.0,
+          "unitPrice": 11.2,
+          "unit": "kg",
+          "notes": "Origin changed from NZ \u2192 USA on this quote",
+          "code": "BUTTERUSA"
         },
         {
           "category": "Dairy",
-          "name": "Philadelphia Cream Cheese",
-          "packSize": "2kg",
-          "packPrice": 27.0,
-          "unitPrice": 13.5,
-          "unit": "kg"
+          "name": "Cheese Mozzarella Shredded 2kg",
+          "packSize": "2 kg",
+          "packPrice": 25.9,
+          "unitPrice": 12.95,
+          "unit": "kg",
+          "code": "MOZZ"
         },
         {
           "category": "Dairy",
-          "name": "Shredded Tasty Cheese",
-          "packSize": "2kg",
+          "name": "Cheese Provolone 1kg Brazzale",
+          "packSize": "1 kg",
+          "packPrice": 30.0,
+          "unitPrice": 30.0,
+          "unit": "kg",
+          "code": "PROVOLONE1"
+        },
+        {
+          "category": "Dairy",
+          "name": "Cheese Ricotta Basket 2kg Olympus",
+          "packSize": "2 kg",
+          "packPrice": 20.65,
+          "unitPrice": 10.325,
+          "unit": "kg",
+          "code": "RICOTTA2KG"
+        },
+        {
+          "category": "Dairy",
+          "name": "Cheese Shredded Fred Walker 2kg",
+          "packSize": "2 kg",
+          "packPrice": 23.0,
+          "unitPrice": 11.5,
+          "unit": "kg",
+          "notes": "Brand sub from Tasty",
+          "code": "CHEESEFRED"
+        },
+        {
+          "category": "Dairy",
+          "name": "Cheese Slices Swiss Maasdam 1kg (2x500g) Frico",
+          "packSize": "1 kg",
+          "packPrice": 21.0,
+          "unitPrice": 21.0,
+          "unit": "kg",
+          "code": "SWISSSLMAS"
+        },
+        {
+          "category": "Dairy",
+          "name": "Cream Thickened 5L Bulla",
+          "packSize": "5 L",
+          "packPrice": 42.4,
+          "unitPrice": 8.48,
+          "unit": "L",
+          "code": "CREAMBUL"
+        },
+        {
+          "category": "Dairy",
+          "name": "Greek Style Yoghurt 5kg Olympus",
+          "packSize": "5 kg",
           "packPrice": 23.5,
-          "unitPrice": 11.75,
-          "unit": "kg"
+          "unitPrice": 4.7,
+          "unit": "kg",
+          "notes": "Pack changed from 2kg \u2192 5kg",
+          "code": "YOGNAT5KG"
+        },
+        {
+          "category": "Dairy",
+          "name": "Peanut Butter Smooth 2kg",
+          "packSize": "2 kg",
+          "packPrice": 34.5,
+          "unitPrice": 17.25,
+          "unit": "kg",
+          "code": "PEANBUSM"
+        },
+        {
+          "category": "Dairy",
+          "name": "Philadelphia Cream Cheese 2kg",
+          "packSize": "2 kg",
+          "packPrice": 30.0,
+          "unitPrice": 15.0,
+          "unit": "kg",
+          "notes": "+11% since May 8 patch; still beats Bidfood",
+          "code": "PHILLY"
         },
         {
           "category": "Dairy",
@@ -1029,11 +1102,13 @@
         },
         {
           "category": "Pastry/Baking",
-          "name": "Bakels Apito Lemon Paste",
+          "name": "Bakels Apito Lemon Paste 1kg",
           "packSize": "1 kg",
-          "packPrice": 50.0,
-          "unitPrice": 50.0,
-          "unit": "kg"
+          "packPrice": 36.0,
+          "unitPrice": 36.0,
+          "unit": "kg",
+          "notes": "\u221228% vs form",
+          "code": "BAKELLEM"
         },
         {
           "category": "Pastry/Baking",
@@ -1042,6 +1117,15 @@
           "packPrice": 15.1,
           "unitPrice": 1.21,
           "unit": "kg"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Baking Powder McKenzie's 2kg",
+          "packSize": "2 kg",
+          "packPrice": 13.9,
+          "unitPrice": 6.95,
+          "unit": "kg",
+          "code": "BP2KG"
         },
         {
           "category": "Pastry/Baking",
@@ -1061,6 +1145,15 @@
         },
         {
           "category": "Pastry/Baking",
+          "name": "Chocolate Batons Dark 1.6kg Callebaut",
+          "packSize": "1.6 kg",
+          "packPrice": 46.5,
+          "unitPrice": 29.063,
+          "unit": "kg",
+          "code": "CBDC1.6"
+        },
+        {
+          "category": "Pastry/Baking",
           "name": "Flour Euro Type 55 (Laucke)",
           "packSize": "12.5 kg",
           "packPrice": 19.9,
@@ -1069,27 +1162,51 @@
         },
         {
           "category": "Pastry/Baking",
-          "name": "Gluten Free Flour (BTA)",
-          "packSize": "10 kg",
-          "packPrice": 50.0,
-          "unitPrice": 5.0,
-          "unit": "kg"
-        },
-        {
-          "category": "Pastry/Baking",
-          "name": "Hazelnut paste",
-          "packSize": "13 kg",
-          "packPrice": 137.5,
-          "unitPrice": 10.58,
-          "unit": "kg"
-        },
-        {
-          "category": "Pastry/Baking",
-          "name": "Icing Sugar Pure (Bundaberg)",
+          "name": "Flour Plain Gluten Free Well & Good 15kg",
           "packSize": "15 kg",
-          "packPrice": 34.5,
-          "unitPrice": 2.3,
-          "unit": "kg"
+          "packPrice": 75.0,
+          "unitPrice": 5.0,
+          "unit": "kg",
+          "code": "GLUFRPLAIN"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Flour Self Raising Ben Furney 12.5kg",
+          "packSize": "12.5 kg",
+          "packPrice": 18.2,
+          "unitPrice": 1.456,
+          "unit": "kg",
+          "code": "SR12.5"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Fondant Soft White Bakels 15kg",
+          "packSize": "15 kg",
+          "packPrice": 66.25,
+          "unitPrice": 4.417,
+          "unit": "kg",
+          "notes": "Move-target from Bidfood \u2014 Bakels = chef preference",
+          "code": "BSF15KG"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Glucose Gluten Free Frutex 5kg",
+          "packSize": "5 kg",
+          "packPrice": 23.95,
+          "unitPrice": 4.79,
+          "unit": "kg",
+          "notes": "Move-target from Provedores",
+          "code": "GLUCOSE5"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Icing Sugar Pure 15kg Bundaberg",
+          "packSize": "15 kg",
+          "packPrice": 31.5,
+          "unitPrice": 2.1,
+          "unit": "kg",
+          "notes": "\u22128.7% vs May 8 patch",
+          "code": "ISPB15"
         },
         {
           "category": "Pastry/Baking",
@@ -1101,6 +1218,35 @@
         },
         {
           "category": "Pastry/Baking",
+          "name": "IRCA Nocciolata (Chocolate Hazelnut Paste) 13kg",
+          "packSize": "13 kg",
+          "packPrice": 148.0,
+          "unitPrice": 11.385,
+          "unit": "kg",
+          "code": "IRCANOCCIOLATA"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Maple Syrup Pure 1L",
+          "packSize": "1 L",
+          "packPrice": 27.0,
+          "unitPrice": 27.0,
+          "unit": "L",
+          "notes": "Provedores 4L pack still cheaper",
+          "code": "MAPLE1LT"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Nutella Spread Chocolate Hazelnut 3kg",
+          "packSize": "3 kg",
+          "packPrice": 49.5,
+          "unitPrice": 16.5,
+          "unit": "kg",
+          "notes": "Bidfood wins this SKU post-rebate",
+          "code": "NUTELLA"
+        },
+        {
+          "category": "Pastry/Baking",
           "name": "Plain Flour (Manildra)",
           "packSize": "12.5 kg",
           "packPrice": 14.75,
@@ -1109,19 +1255,43 @@
         },
         {
           "category": "Pastry/Baking",
-          "name": "Vanilla Bean Paste",
-          "packSize": "320g",
-          "packPrice": 14.06,
-          "unitPrice": 43.93,
-          "unit": "kg"
+          "name": "Sugar Brown 15kg Bundaberg",
+          "packSize": "15 kg",
+          "packPrice": 32.55,
+          "unitPrice": 2.17,
+          "unit": "kg",
+          "notes": "Move-target from Provedores",
+          "code": "SUGB15"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Sugar Raw 25kg Bundaberg",
+          "packSize": "25 kg",
+          "packPrice": 48.5,
+          "unitPrice": 1.94,
+          "unit": "kg",
+          "notes": "Move-target from Provedores",
+          "code": "SUGRAW"
+        },
+        {
+          "category": "Pastry/Baking",
+          "name": "Vanilla Bean Paste 1kg Flavormaster",
+          "packSize": "1 kg",
+          "packPrice": 51.8,
+          "unitPrice": 51.8,
+          "unit": "kg",
+          "notes": "Pack changed from 320g \u2192 1kg",
+          "code": "VANBEANPNAT"
         },
         {
           "category": "Nuts",
-          "name": "Almond Flakes/Sliced Blanched",
-          "packSize": "8kg",
-          "packPrice": 145.0,
-          "unitPrice": 18.12,
-          "unit": "kg"
+          "name": "Almond Flakes / Sliced Blanched 9kg",
+          "packSize": "9 kg",
+          "packPrice": 155.0,
+          "unitPrice": 17.222,
+          "unit": "kg",
+          "notes": "Pack changed from 8kg \u2192 9kg",
+          "code": "ALF9KG"
         },
         {
           "category": "Nuts",
@@ -1133,59 +1303,325 @@
         },
         {
           "category": "Nuts",
-          "name": "Pecan Large Pieces Organic Aus",
-          "packSize": "12kg",
-          "packPrice": 255.0,
-          "unitPrice": 21.25,
-          "unit": "kg"
-        },
-        {
-          "category": "Nuts",
-          "name": "Pecan nut Halves",
-          "packSize": "13.61kg",
-          "packPrice": 350.0,
-          "unitPrice": 25.71,
-          "unit": "kg"
-        },
-        {
-          "category": "Nuts",
-          "name": "Pistachio Kernels Raw (PISTRAW10)",
-          "packSize": "11.34 kg",
-          "packPrice": 685.0,
-          "unitPrice": 60.41,
-          "unit": "kg"
-        },
-        {
-          "category": "Nuts",
-          "name": "Walnut Halves & pieces",
-          "packSize": "11.34kg",
-          "packPrice": 117.0,
-          "unitPrice": 10.31,
-          "unit": "kg"
-        },
-        {
-          "category": "Pantry",
-          "name": "Mutti Passata",
-          "packSize": "3 x 3 kg",
-          "packPrice": 49.5,
-          "unitPrice": 5.5,
-          "unit": "kg"
-        },
-        {
-          "category": "Pantry",
-          "name": "Olives Black",
+          "name": "Almond Whole Natural 3kg",
           "packSize": "3 kg",
-          "packPrice": 18.5,
-          "unitPrice": 6.17,
-          "unit": "kg"
+          "packPrice": 62.5,
+          "unitPrice": 20.833,
+          "unit": "kg",
+          "notes": "Provedores 1kg ($17.50) still cheaper per kg",
+          "code": "ALN3KG"
+        },
+        {
+          "category": "Nuts",
+          "name": "Cashews Raw 3kg Trumps",
+          "packSize": "3 kg",
+          "packPrice": 69.5,
+          "unitPrice": 23.167,
+          "unit": "kg",
+          "notes": "Bidfood / Provedores still cheaper",
+          "code": "CASH3KG"
+        },
+        {
+          "category": "Nuts",
+          "name": "Coconut Fancy Long Shredded 11.34kg",
+          "packSize": "11.34 kg",
+          "packPrice": 102.5,
+          "unitPrice": 9.039,
+          "unit": "kg",
+          "notes": "Move-target from Bidfood \u2014 saves 34%",
+          "code": "CNUTSHR"
+        },
+        {
+          "category": "Nuts",
+          "name": "Pecan Nut Halves 13.6kg",
+          "packSize": "13.6 kg",
+          "packPrice": 420.0,
+          "unitPrice": 30.882,
+          "unit": "kg",
+          "notes": "+20% vs form \u26a0 push back",
+          "code": "PECANCTN"
+        },
+        {
+          "category": "Nuts",
+          "name": "Pecan Pieces 14kg (10-13mm)",
+          "packSize": "14 kg",
+          "packPrice": 375.0,
+          "unitPrice": 26.786,
+          "unit": "kg",
+          "notes": "Different SKU vs form (pieces vs large pieces)",
+          "code": "PECANPIEC14"
+        },
+        {
+          "category": "Nuts",
+          "name": "Pistachio Kernels 3kg",
+          "packSize": "3 kg",
+          "packPrice": 170.0,
+          "unitPrice": 56.667,
+          "unit": "kg",
+          "notes": "Small-pack option, 11% premium vs 13.61kg",
+          "code": "PISTRAW"
+        },
+        {
+          "category": "Nuts",
+          "name": "Pistachio Kernels Raw 13.61kg",
+          "packSize": "13.61 kg",
+          "packPrice": 695.0,
+          "unitPrice": 51.066,
+          "unit": "kg",
+          "notes": "Recovery from $60.41 invoiced \u2014 still wins",
+          "code": "PISTRAW13.6"
+        },
+        {
+          "category": "Nuts",
+          "name": "Walnut Halves & Pieces 11.34kg",
+          "packSize": "11.34 kg",
+          "packPrice": 149.5,
+          "unitPrice": 13.183,
+          "unit": "kg",
+          "notes": "+28% vs form \u26a0 push back",
+          "code": "WALCTN"
         },
         {
           "category": "Pantry",
-          "name": "Sesame Seed",
-          "packSize": "15 kg",
-          "packPrice": 96.5,
-          "unitPrice": 6.43,
-          "unit": "kg"
+          "name": "Apple Pur\u00e9e 20kg Aseptic Carton",
+          "packSize": "20 kg",
+          "packPrice": 70.0,
+          "unitPrice": 3.5,
+          "unit": "kg",
+          "notes": "\u26a0 chef declined \u2014 Bidfood Riviana 3kg stays",
+          "code": "APPLEPUREE20"
+        },
+        {
+          "category": "Pantry",
+          "name": "Cinnamon Stick (Cassia Vera) 1kg",
+          "packSize": "1 kg",
+          "packPrice": 19.0,
+          "unitPrice": 19.0,
+          "unit": "kg",
+          "notes": "Move-target from Bidfood Kriokrush \u2014 saves 79%",
+          "code": "CINQUILLHD"
+        },
+        {
+          "category": "Pantry",
+          "name": "Cranberries Dried 1kg",
+          "packSize": "1 kg",
+          "packPrice": 16.5,
+          "unitPrice": 16.5,
+          "unit": "kg",
+          "notes": "Bidfood now cheaper post-rebate",
+          "code": "CRANBERRY1KG"
+        },
+        {
+          "category": "Pantry",
+          "name": "Fennel Seed Whole 1kg",
+          "packSize": "1 kg",
+          "packPrice": 18.5,
+          "unitPrice": 18.5,
+          "unit": "kg",
+          "code": "FENNEL"
+        },
+        {
+          "category": "Pantry",
+          "name": "Garlic Granules 1kg",
+          "packSize": "1 kg",
+          "packPrice": 14.5,
+          "unitPrice": 14.5,
+          "unit": "kg",
+          "notes": "Within $0.20 of Bidfood post-rebate",
+          "code": "GARGRAN1"
+        },
+        {
+          "category": "Pantry",
+          "name": "Honey 3kg",
+          "packSize": "3 kg",
+          "packPrice": 24.5,
+          "unitPrice": 8.167,
+          "unit": "kg",
+          "notes": "Provedores/Bidfood both cheaper",
+          "code": "HON"
+        },
+        {
+          "category": "Pantry",
+          "name": "Macadamia Raw Small Piece Style 6, 11.34kg",
+          "packSize": "11.34 kg",
+          "packPrice": 320.0,
+          "unitPrice": 28.219,
+          "unit": "kg",
+          "notes": "Provedores form $25.13 cheaper",
+          "code": "MACA6"
+        },
+        {
+          "category": "Pantry",
+          "name": "Mango Pur\u00e9e Frozen 1kg Ravifruit",
+          "packSize": "1 kg",
+          "packPrice": 22.5,
+          "unitPrice": 22.5,
+          "unit": "kg",
+          "notes": "Premium puree",
+          "code": "RAVIPURMANG"
+        },
+        {
+          "category": "Pantry",
+          "name": "Masterfoods Dijon Mustard 2.5kg jar",
+          "packSize": "2.5 kg",
+          "packPrice": 23.9,
+          "unitPrice": 9.56,
+          "unit": "kg",
+          "code": "DIJONMUST2.5"
+        },
+        {
+          "category": "Pantry",
+          "name": "Mayonnaise ETA 3.5kg jar",
+          "packSize": "3.5 kg",
+          "packPrice": 17.25,
+          "unitPrice": 4.929,
+          "unit": "kg",
+          "notes": "Different brand (ETA not Kewpie) \u2014 spec call",
+          "code": "MAYO"
+        },
+        {
+          "category": "Pantry",
+          "name": "Oats Rolled 25kg",
+          "packSize": "25 kg",
+          "packPrice": 57.75,
+          "unitPrice": 2.31,
+          "unit": "kg",
+          "notes": "Move-target from Provedores \u2014 saves 35%",
+          "code": "OATS25"
+        },
+        {
+          "category": "Pantry",
+          "name": "Olives Black Sliced 3kg",
+          "packSize": "3 kg",
+          "packPrice": 17.8,
+          "unitPrice": 5.933,
+          "unit": "kg",
+          "code": "OLIVES"
+        },
+        {
+          "category": "Pantry",
+          "name": "Onion/Shallot Fried 1kg Mur Thai",
+          "packSize": "1 kg",
+          "packPrice": 11.5,
+          "unitPrice": 11.5,
+          "unit": "kg",
+          "notes": "Provedores cheaper at $9.00",
+          "code": "OFMT1KG"
+        },
+        {
+          "category": "Pantry",
+          "name": "Passionfruit Pulp w/Seed Frozen 1kg",
+          "packSize": "1 kg",
+          "packPrice": 13.4,
+          "unitPrice": 13.4,
+          "unit": "kg",
+          "code": "FRPASS1KG"
+        },
+        {
+          "category": "Pantry",
+          "name": "Passionfruit Pur\u00e9e Frozen 1kg Ravifruit",
+          "packSize": "1 kg",
+          "packPrice": 23.9,
+          "unitPrice": 23.9,
+          "unit": "kg",
+          "notes": "Premium puree",
+          "code": "RAVIPURPAS"
+        },
+        {
+          "category": "Pantry",
+          "name": "Pepper Black Cracked Fine 16/24, 1kg",
+          "packSize": "1 kg",
+          "packPrice": 28.75,
+          "unitPrice": 28.75,
+          "unit": "kg",
+          "notes": "Bidfood now cheaper post-rebate",
+          "code": "PEPCB1KG"
+        },
+        {
+          "category": "Pantry",
+          "name": "Potato Starch 25kg",
+          "packSize": "25 kg",
+          "packPrice": 92.5,
+          "unitPrice": 3.7,
+          "unit": "kg",
+          "notes": "Provedores marginally cheaper",
+          "code": "POTSTAR"
+        },
+        {
+          "category": "Pantry",
+          "name": "Raspberry Whole Freeze Dried 100g Inspired Ing",
+          "packSize": "100 g",
+          "packPrice": 33.5,
+          "unitPrice": 335.0,
+          "unit": "kg",
+          "code": "FDRASP100"
+        },
+        {
+          "category": "Pantry",
+          "name": "Sauce Soy 3L Kikkoman",
+          "packSize": "3 L",
+          "packPrice": 15.0,
+          "unitPrice": 5.0,
+          "unit": "L",
+          "code": "SCESOYKIK"
+        },
+        {
+          "category": "Pantry",
+          "name": "Sesame Seeds White 5kg",
+          "packSize": "5 kg",
+          "packPrice": 42.0,
+          "unitPrice": 8.4,
+          "unit": "kg",
+          "notes": "Pack changed from 15kg \u2192 5kg",
+          "code": "SES5KG"
+        },
+        {
+          "category": "Pantry",
+          "name": "Sour Cherry Pitted 4.25kg can",
+          "packSize": "4.25 kg",
+          "packPrice": 38.5,
+          "unitPrice": 9.059,
+          "unit": "kg",
+          "code": "CHERSOU4"
+        },
+        {
+          "category": "Pantry",
+          "name": "Sunflower Kernels 3kg",
+          "packSize": "3 kg",
+          "packPrice": 19.5,
+          "unitPrice": 6.5,
+          "unit": "kg",
+          "code": "SUNFL3KG"
+        },
+        {
+          "category": "Pantry",
+          "name": "Tomato Passata Mutti 3x3kg",
+          "packSize": "3x3 kg",
+          "packPrice": 55.75,
+          "unitPrice": 6.194,
+          "unit": "kg",
+          "notes": "+12.5% vs form",
+          "code": "PASSATA3X3"
+        },
+        {
+          "category": "Pantry",
+          "name": "Vegemite 2.5kg",
+          "packSize": "2.5 kg",
+          "packPrice": 49.25,
+          "unitPrice": 19.7,
+          "unit": "kg",
+          "notes": "Provedores cheaper",
+          "code": "VEGEMITE"
+        },
+        {
+          "category": "Pantry",
+          "name": "Vinegar White 4L",
+          "packSize": "4 L",
+          "packPrice": 11.5,
+          "unitPrice": 2.875,
+          "unit": "L",
+          "notes": "Bidfood much cheaper",
+          "code": "VINEGAR"
         },
         {
           "category": "Spices",
@@ -1388,20 +1824,82 @@
           "unit": "L"
         },
         {
-          "category": "Frozen",
-          "name": "IQF Strawberries",
-          "packSize": "10 kg",
-          "packPrice": 62.0,
-          "unitPrice": 6.2,
-          "unit": "kg"
+          "category": "Oils",
+          "name": "Vegetable Oil 20L",
+          "packSize": "20 L",
+          "packPrice": 67.5,
+          "unitPrice": 3.375,
+          "unit": "L",
+          "code": "VEGOIL20"
         },
         {
           "category": "Frozen",
-          "name": "Raspberries",
-          "packSize": "1kg",
-          "packPrice": 11.5,
-          "unitPrice": 11.5,
-          "unit": "kg"
+          "name": "Banana Sliced IQF 10kg",
+          "packSize": "10 kg",
+          "packPrice": 41.0,
+          "unitPrice": 4.1,
+          "unit": "kg",
+          "code": "FRBANCHUNK"
+        },
+        {
+          "category": "Frozen",
+          "name": "Blueberries Frozen 1kg",
+          "packSize": "1 kg",
+          "packPrice": 12.95,
+          "unitPrice": 12.95,
+          "unit": "kg",
+          "notes": "Bidfood now cheaper post-rebate",
+          "code": "FRBLUE1KG"
+        },
+        {
+          "category": "Frozen",
+          "name": "Mango Diced IQF 1kg",
+          "packSize": "1 kg",
+          "packPrice": 8.65,
+          "unitPrice": 8.65,
+          "unit": "kg",
+          "notes": "Bidfood cheaper",
+          "code": "FRMANGO1KG"
+        },
+        {
+          "category": "Frozen",
+          "name": "Peas Frozen Edgell 6x2kg",
+          "packSize": "6x2 kg",
+          "packPrice": 57.6,
+          "unitPrice": 4.8,
+          "unit": "kg",
+          "notes": "Provedores cheaper",
+          "code": "FROZPEAS"
+        },
+        {
+          "category": "Frozen",
+          "name": "Raspberry Frozen IQF 1kg",
+          "packSize": "1 kg",
+          "packPrice": 14.15,
+          "unitPrice": 14.15,
+          "unit": "kg",
+          "notes": "+23% vs form \u26a0 push back",
+          "code": "FRRASP1KGFRU"
+        },
+        {
+          "category": "Frozen",
+          "name": "Smoked Salmon Sliced Ocean King 1kg",
+          "packSize": "1 kg",
+          "packPrice": 39.0,
+          "unitPrice": 39.0,
+          "unit": "kg",
+          "notes": "Bidfood Seacrest cheaper post-rebate",
+          "code": "SSOCEAN"
+        },
+        {
+          "category": "Frozen",
+          "name": "Strawberry IQF 1kg",
+          "packSize": "1 kg",
+          "packPrice": 8.25,
+          "unitPrice": 8.25,
+          "unit": "kg",
+          "notes": "Flip back to Bidfood \u2014 pack changed from 10kg",
+          "code": "FRSTRAW"
         }
       ]
     },
@@ -1953,8 +2451,130 @@
           "unit": "unit"
         }
       ]
+    },
+    {
+      "supplier": "Gold Coast Premium Foods",
+      "items": [
+        {
+          "category": "Dairy",
+          "name": "Cream Cheese 2kg",
+          "packSize": "2 kg",
+          "packPrice": 19.95,
+          "unitPrice": 9.975,
+          "unit": "kg",
+          "notes": "\u26a0 NOT Philadelphia brand \u2014 confirm spec before ordering"
+        },
+        {
+          "category": "Dairy",
+          "name": "Persian Fetta 2kg",
+          "packSize": "2 kg",
+          "packPrice": 32.95,
+          "unitPrice": 16.475,
+          "unit": "kg",
+          "notes": "New category \u2014 chef spec check"
+        },
+        {
+          "category": "Dairy",
+          "name": "Haloumi Cheese",
+          "packSize": "per kg",
+          "packPrice": 20.0,
+          "unitPrice": 20.0,
+          "unit": "kg",
+          "notes": "Confirm pack size with Rob"
+        },
+        {
+          "category": "Dairy",
+          "name": "Burrata 1kg",
+          "packSize": "1 kg",
+          "packPrice": 42.5,
+          "unitPrice": 42.5,
+          "unit": "kg",
+          "notes": "More expensive than Cheese Time ($41) \u2014 skip unless spec wins"
+        },
+        {
+          "category": "Dairy",
+          "name": "Fior di Latte Italy Julienne 3kg",
+          "packSize": "3 kg",
+          "packPrice": 16.95,
+          "unitPrice": 16.95,
+          "unit": "kg",
+          "notes": "New category"
+        },
+        {
+          "category": "Dairy",
+          "name": "USA Mozzarella Short Shredded 2kg",
+          "packSize": "2 kg",
+          "packPrice": 11.95,
+          "unitPrice": 11.95,
+          "unit": "kg",
+          "notes": "Marginal win vs Fermex $12.95/kg \u2014 spec check"
+        },
+        {
+          "category": "Dairy",
+          "name": "CPM Shredded 2kg",
+          "packSize": "2 kg",
+          "packPrice": 20.95,
+          "unitPrice": 10.475,
+          "unit": "kg",
+          "notes": "Confirm what CPM is (cheese type)"
+        },
+        {
+          "category": "Dairy",
+          "name": "Conga Grana Padano 4kg",
+          "packSize": "4 kg",
+          "packPrice": 23.95,
+          "unitPrice": 23.95,
+          "unit": "kg",
+          "notes": "\u26a0 Confirm DOP authenticity vs Alfinasovr \u2014 could save 27%"
+        },
+        {
+          "category": "Dairy",
+          "name": "Basil Pesto 2kg",
+          "packSize": "2 kg",
+          "packPrice": 21.95,
+          "unitPrice": 10.975,
+          "unit": "kg",
+          "notes": "Brand/spec check \u2014 saves 25% vs Casademare"
+        },
+        {
+          "category": "Meat",
+          "name": "Prosciutto SL 500g",
+          "packSize": "500 g",
+          "packPrice": 42.5,
+          "unitPrice": 42.5,
+          "unit": "kg",
+          "notes": "More expensive than Fino ($31.46/kg) \u2014 skip"
+        },
+        {
+          "category": "Meat",
+          "name": "Streaky Bacon 5kg",
+          "packSize": "5 kg",
+          "packPrice": 15.25,
+          "unitPrice": 15.25,
+          "unit": "kg",
+          "notes": "New \u2014 verify vs current bacon supplier (Marrow Meats?)"
+        },
+        {
+          "category": "Meat",
+          "name": "Fresh Chicken Breasts Skinless 5kg ARW",
+          "packSize": "5 kg ARW",
+          "packPrice": 10.95,
+          "unitPrice": 10.95,
+          "unit": "kg",
+          "notes": "New \u2014 verify vs current chicken supplier"
+        },
+        {
+          "category": "Pantry",
+          "name": "Tortilla Wraps 10\"",
+          "packSize": "per unit",
+          "packPrice": 31.95,
+          "unitPrice": 31.95,
+          "unit": "unit",
+          "notes": "\u26a0 Confirm pack count with Rob (currently buying Catchoice 12s at $4.08/pack from Bidfood)"
+        }
+      ]
     }
   ],
-  "_updated": "2026-05-18",
+  "_updated": "2026-05-25",
   "_notes": "Source of truth for ApprovedSupplierItem in /suppliers. Each item has category, name, packSize, packPrice (per-pack inc), unitPrice (per-base \u2014 kg/L/unit), unit. notes are free-text."
 }

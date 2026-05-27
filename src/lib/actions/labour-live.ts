@@ -228,6 +228,25 @@ export async function getLiveLabourSnapshot(
         : sorted[mid]
     }
 
+    // This-week scale: actual locked revenue ÷ what those same days
+    // *historically* would have done. Picks up "shocking rainy week"
+    // / "Mother's Day surge" effects automatically and applies the same
+    // factor to the Mon/Tue forecast.
+    let lockedHistoricalSum = 0
+    let lockedHistoricalDays = 0
+    for (const dStr of lockedDays) {
+      const d = new Date(`${dStr}T00:00:00Z`)
+      const samples = historyByDow.get(d.getUTCDay()) ?? []
+      if (samples.length >= 2) {
+        lockedHistoricalSum += median(samples)
+        lockedHistoricalDays += 1
+      }
+    }
+    const thisWeekScale =
+      lockedHistoricalDays >= 3 && lockedHistoricalSum > 0
+        ? lockedRevenue / lockedHistoricalSum
+        : 1
+
     // Days needing a forecast: any remaining day + today if today has
     // no POS data yet.
     const daysNeedingForecast: string[] = [...remainingDays]
@@ -239,7 +258,8 @@ export async function getLiveLabourSnapshot(
       const dow = d.getUTCDay()
       const samples = historyByDow.get(dow) ?? []
       if (samples.length >= 2) {
-        remainingForecast += median(samples)
+        // Scale by this-week's locked-day performance vs history.
+        remainingForecast += median(samples) * thisWeekScale
       } else {
         const forecastRow = forecasts.find((f) => f.venue === venue)
         const weeklyForecast = forecastRow ? Number(forecastRow.amount) : null

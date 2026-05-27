@@ -1,0 +1,840 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Bidfood — Order Form order form</title>
+<style>
+  @page { size: A4; margin: 10mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; color: #1a1a1a; margin: 0; padding: 10mm; max-width: 210mm; }
+  header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1em; border-bottom: 3px solid #c8102e; padding-bottom: 0.5em; margin-bottom: 0.8em; }
+  h1 { margin: 0; font-size: 1.5em; color: #c8102e; letter-spacing: -0.01em; }
+  .meta { text-align: right; font-size: 0.8em; color: #444; }
+  .meta .ord { font-size: 0.95em; font-weight: 600; color: #1a1a1a; margin-bottom: 0.2em; }
+  .info-row { display: flex; gap: 2em; margin-bottom: 0.6em; font-size: 0.8em; color: #444; align-items: center; }
+  .rebate-note { background: #fff8e1; border: 1px dashed #d4a017; padding: 0.3em 0.7em; border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+  thead th { background: #c8102e; color: #fff; padding: 0.4em 0.5em; text-align: left; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.03em; }
+  tbody td { padding: 0.35em 0.5em; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+  tr.cat-row td { background: #f3f3f3; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.05em; color: #444; padding: 0.3em 0.5em; border-bottom: 1px solid #ccc; border-top: 1px solid #ccc; }
+  tr.cat-row .count { color: #888; font-weight: 400; font-size: 0.85em; text-transform: none; letter-spacing: 0; }
+  tr.note-row { background: #fffbeb; }
+  td.code { width: 70px; font-family: monospace; font-size: 0.78em; color: #666; }
+  td.item { width: 30%; }
+  td.item .note { font-size: 0.75em; color: #888; font-style: italic; margin-top: 0.15em; }
+  td.pack { width: 14%; color: #555; font-size: 0.82em; }
+  td.price-pack { width: 10%; text-align: right; font-variant-numeric: tabular-nums; font-size: 0.85em; color: #1a1a1a; font-weight: 500; }
+  td.price-unit { width: 12%; text-align: right; color: #777; font-variant-numeric: tabular-nums; font-size: 0.78em; }
+  td.qty { width: 11%; border-left: 1px dashed #aaa; min-height: 22px; }
+  td.tick { width: 6%; border-left: 1px dashed #aaa; }
+  footer { margin-top: 1.2em; padding-top: 0.4em; border-top: 1px solid #ddd; font-size: 0.72em; color: #777; display: flex; justify-content: space-between; }
+  .sig { margin-top: 1.2em; }
+  .sig label { font-size: 0.72em; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+  .sig .line { border-bottom: 1px solid #444; height: 1.4em; margin-top: 0.15em; }
+  .legend { font-size: 0.72em; color: #888; margin-top: 0.4em; }
+  @media print {
+    body { padding: 0; }
+    tr { page-break-inside: avoid; }
+    tr.cat-row { page-break-after: avoid; }
+  }
+</style></head>
+<body>
+
+<header>
+  <div>
+    <h1>Bidfood — Order Form</h1>
+    <div style="font-size: 0.82em; color: #555; margin-top: 0.15em;">Delivers Tue / Thu / Sat · Cutoff 2pm previous day</div>
+    
+  </div>
+  <div class="meta">
+    <div class="ord">Order date: ______________</div>
+    <div>Venue: Burleigh ☐ &nbsp; Beach House ☐ &nbsp; Tea Garden ☐</div>
+    <div>Ordered by: ______________</div>
+  </div>
+</header>
+
+<div class="info-row"><span class="rebate-note">Prices shown are GROSS — Tarte receives a 4% volume rebate (net effective price ~4% lower).</span></div>
+
+<table>
+  <thead><tr>
+    
+    <th>Item</th>
+    <th>Pack</th>
+    <th style="text-align: right;">Pack price</th>
+    <th style="text-align: right;">$/unit</th>
+    <th>Qty</th>
+    <th>✓</th>
+  </tr></thead>
+  <tbody>
+    <tr class="cat-row"><td colspan="6">Dairy <span class="count">(13)</span></td></tr>
+    <tr>
+      
+      <td class="item">Butter Salted (Anchor)</td>
+      <td class="pack">5 kg</td>
+      <td class="price-pack">$83.48</td>
+      <td class="price-unit">$16.70/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Butter Salted (Yardefarm)</td>
+      <td class="pack">0.5 kg</td>
+      <td class="price-pack">$7.76</td>
+      <td class="price-unit">$15.52/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Butter Salted Catchoice (Yardefarm)<div class="note">Needs re-quote (Bidfood didn&#x27;t cover in May 17 quote)</div></td>
+      <td class="pack">0.500 kg</td>
+      <td class="price-pack">$6.69</td>
+      <td class="price-unit">$13.38/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Cheese Grana Padano D.O.P (App 4.5Kg) (Alfinasovr)</td>
+      <td class="pack">Kg</td>
+      <td class="price-pack">$34.20</td>
+      <td class="price-unit">$34.20/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Cheese Slices Burger Hi Melt 96&#x27;S (Puredairy)</td>
+      <td class="pack">2.27 kg</td>
+      <td class="price-pack">$27.79</td>
+      <td class="price-unit">$12.24/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Cheese Slices Provolone Dolce Mild (Delre)</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$32.00</td>
+      <td class="price-unit">$32.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Coconut Milk Uht Calcium Fortified (Milklab)</td>
+      <td class="pack">8 L</td>
+      <td class="price-pack">$31.60</td>
+      <td class="price-unit">$3.95/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Egg Yolk Reduced Solids Frozen (Sunnyqueen)</td>
+      <td class="pack">10 kg</td>
+      <td class="price-pack">$138.48</td>
+      <td class="price-unit">$13.85/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Ghee New Zealand (Puresoul)</td>
+      <td class="pack">10 L</td>
+      <td class="price-pack">$154.92</td>
+      <td class="price-unit">$15.49/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Milk Buttermilk (D-Farmers)</td>
+      <td class="pack">0.6 L</td>
+      <td class="price-pack">$3.95</td>
+      <td class="price-unit">$6.58/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Milk Condensed Sweetened (Nestle)</td>
+      <td class="pack">0.395 kg</td>
+      <td class="price-pack">$3.59</td>
+      <td class="price-unit">$9.09/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Pancake Mix Buttermilk (Edlyn)</td>
+      <td class="pack">10 kg</td>
+      <td class="price-pack">$51.58</td>
+      <td class="price-unit">$5.16/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Peanut Butter Smooth (Bega)</td>
+      <td class="pack">2 kg</td>
+      <td class="price-pack">$24.64</td>
+      <td class="price-unit">$12.32/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="6">Pastry/Baking <span class="count">(9)</span></td></tr>
+    <tr>
+      
+      <td class="item">Baking Paper roll<div class="note">Needs re-quote (Bidfood didn&#x27;t cover in May 17 quote)</div></td>
+      <td class="pack"></td>
+      <td class="price-pack">$25.05</td>
+      <td class="price-unit"></td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Chocolate Couverture Piccoli White Blancor (Lindt)</td>
+      <td class="pack">2.5 kg</td>
+      <td class="price-pack">$82.93</td>
+      <td class="price-unit">$33.17/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Flour Plain (Gemofthewest)</td>
+      <td class="pack">12.5 kg</td>
+      <td class="price-pack">$15.60</td>
+      <td class="price-unit">$1.25/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Flour Self Raising (Gemofthewest)</td>
+      <td class="pack">12.5 kg</td>
+      <td class="price-pack">$17.47</td>
+      <td class="price-unit">$1.40/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Icing Sugar Soft Mixture (Bundaberg)</td>
+      <td class="pack">15 kg</td>
+      <td class="price-pack">$31.50</td>
+      <td class="price-unit">$2.10/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Spread Chocolate Hazelnut (Nutella)</td>
+      <td class="pack">3 kg</td>
+      <td class="price-pack">$46.00</td>
+      <td class="price-unit">$15.33/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Sugar Caster (Bundaberg) — 15 kg</td>
+      <td class="pack">15 kg</td>
+      <td class="price-pack">$27.90</td>
+      <td class="price-unit">$1.86/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Sugar Caster (Bundaberg) — 25 kg</td>
+      <td class="pack">25 kg</td>
+      <td class="price-pack">$40.90</td>
+      <td class="price-unit">$1.64/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Sugar Palm Dark (Pandaroo)<div class="note">Needs re-quote (Bidfood didn&#x27;t cover in May 17 quote)</div></td>
+      <td class="pack">0.500 kg</td>
+      <td class="price-pack">$3.04</td>
+      <td class="price-unit">$6.08/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="6">Nuts <span class="count">(2)</span></td></tr>
+    <tr>
+      
+      <td class="item">Almonds Raw Kernels (Catchoice)</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$20.68</td>
+      <td class="price-unit">$20.68/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Cashews Raw (Catchoice)</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$21.00</td>
+      <td class="price-unit">$21.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="6">Pantry <span class="count">(28)</span></td></tr>
+    <tr>
+      
+      <td class="item">Acai Mix Scoopable (Amazonia)</td>
+      <td class="pack">10 kg</td>
+      <td class="price-pack">$109.94</td>
+      <td class="price-unit">$10.99/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Apple Purée (Riviana)<div class="note">Needs re-quote (Bidfood didn&#x27;t cover in May 17 quote)</div></td>
+      <td class="pack">3.00 kg</td>
+      <td class="price-pack">$15.48</td>
+      <td class="price-unit">$5.16/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Biscuits Arrowroot Egg Dairy Gluten Free (Leda)</td>
+      <td class="pack">1.64 kg</td>
+      <td class="price-pack">$2.43</td>
+      <td class="price-unit">$1.48/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Cherries Sour Pitted (Frutex)</td>
+      <td class="pack">A12</td>
+      <td class="price-pack">$42.53</td>
+      <td class="price-unit">$42.53/can</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Cranberries Dried Sweetened (Catchoice)</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$13.00</td>
+      <td class="price-unit">$13.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Creme Fraiche (Tatua)</td>
+      <td class="pack">0.5 kg</td>
+      <td class="price-pack">$11.27</td>
+      <td class="price-unit">$22.54/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Garlic Granules (Catchoice)</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$14.90</td>
+      <td class="price-unit">$14.90/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Honey Pure (Allowrie)</td>
+      <td class="pack">3 kg</td>
+      <td class="price-pack">$23.50</td>
+      <td class="price-unit">$7.83/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Mango Purée (Suntrop)<div class="note">Needs re-quote (Bidfood didn&#x27;t cover in May 17 quote)</div></td>
+      <td class="pack">1.00 kg</td>
+      <td class="price-pack">$6.90</td>
+      <td class="price-unit">$6.90/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Mayonnaise (Kewpie)</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$11.82</td>
+      <td class="price-unit">$11.82/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Mirin Cooking Wine Kikkoman (Manjo)</td>
+      <td class="pack">0.6 L</td>
+      <td class="price-pack">$7.90</td>
+      <td class="price-unit">$13.17/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Mustard Dijon (Frenchmaid)<div class="note">Needs re-quote (Bidfood didn&#x27;t cover in May 17 quote)</div></td>
+      <td class="pack">2.20 kg</td>
+      <td class="price-pack">$17.69</td>
+      <td class="price-unit">$8.04/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Pasta Linguini No. 1 (San Remo)<div class="note">Needs re-quote (Bidfood didn&#x27;t cover in May 17 quote)</div></td>
+      <td class="pack">10.00 kg</td>
+      <td class="price-pack">$12.73</td>
+      <td class="price-unit">$1.27/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Pepper Black Cracked (Catchoice)</td>
+      <td class="pack">0.75 kg</td>
+      <td class="price-pack">$20.00</td>
+      <td class="price-unit">$26.67/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Pesto Basil Gluten Free (Fresh) (Casademare)</td>
+      <td class="pack">2 kg</td>
+      <td class="price-pack">$30.59</td>
+      <td class="price-unit">$15.29/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Pulp Passionfruit (Catchoice)</td>
+      <td class="pack">1.00 kg</td>
+      <td class="price-pack">$8.34</td>
+      <td class="price-unit">$8.34/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Pulp Passionfruit Seedless (Sunnyside)</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$14.50</td>
+      <td class="price-unit">$14.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Raspberries Whole Freeze Dried (Fresh As)<div class="note">Needs re-quote (Bidfood didn&#x27;t cover in May 17 quote)</div></td>
+      <td class="pack">0.150 kg</td>
+      <td class="price-pack">$42.25</td>
+      <td class="price-unit">$281.67/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Salt Sea Flakes Natural (Cornish)</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$27.00</td>
+      <td class="price-unit">$27.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Sauce Soy Tamari Gluten Free (Akari)<div class="note">Needs re-quote (Bidfood didn&#x27;t cover in May 17 quote)</div></td>
+      <td class="pack">1.80 L</td>
+      <td class="price-pack">$18.83</td>
+      <td class="price-unit">$10.46/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Seeds Mustard Yellow (Kriokrush)<div class="note">Needs re-quote (Bidfood didn&#x27;t cover in May 17 quote)</div></td>
+      <td class="pack">0.500 kg</td>
+      <td class="price-pack">$7.72</td>
+      <td class="price-unit">$15.44/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Seeds Sesame (Catchoice)<div class="note">Needs re-quote (Bidfood didn&#x27;t cover in May 17 quote)</div></td>
+      <td class="pack">1.00 kg</td>
+      <td class="price-pack">$8.86</td>
+      <td class="price-unit">$8.86/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Seeds Sunflower Kernels (Catchoice)<div class="note">Needs re-quote (Bidfood didn&#x27;t cover in May 17 quote)</div></td>
+      <td class="pack">1.00 kg</td>
+      <td class="price-pack">$6.49</td>
+      <td class="price-unit">$6.49/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Stock Real Vegetable (Campbells)<div class="note">Needs re-quote (Bidfood didn&#x27;t cover in May 17 quote)</div></td>
+      <td class="pack">1.00 L</td>
+      <td class="price-pack">$3.85</td>
+      <td class="price-unit">$3.85/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Vinegar Apple Cider (Cornwells)<div class="note">Needs re-quote (Bidfood didn&#x27;t cover in May 17 quote)</div></td>
+      <td class="pack">2.00 L</td>
+      <td class="price-pack">$11.40</td>
+      <td class="price-unit">$5.70/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Vinegar Rice (Marukan)<div class="note">Needs re-quote (Bidfood didn&#x27;t cover in May 17 quote)</div></td>
+      <td class="pack">1.80 L</td>
+      <td class="price-pack">$7.94</td>
+      <td class="price-unit">$4.41/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Vinegar White Imitation (Edlyn) — 20 L</td>
+      <td class="pack">20 L</td>
+      <td class="price-pack">$24.62</td>
+      <td class="price-unit">$1.23/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Vinegar White Imitation (Edlyn) — 4 L</td>
+      <td class="pack">4 L</td>
+      <td class="price-pack">$4.98</td>
+      <td class="price-unit">$1.25/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="6">Oils <span class="count">(2)</span></td></tr>
+    <tr>
+      
+      <td class="item">Oil Grapeseed (Chefchoice)</td>
+      <td class="pack">1 L</td>
+      <td class="price-pack">$11.50</td>
+      <td class="price-unit">$11.50/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Oil Olive Extra Virgin (Sandhurst)</td>
+      <td class="pack">10 L</td>
+      <td class="price-pack">$146.08</td>
+      <td class="price-unit">$14.61/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="6">Frozen <span class="count">(11)</span></td></tr>
+    <tr>
+      
+      <td class="item">Banana Chunks Iqf (Entyce)</td>
+      <td class="pack">10 kg</td>
+      <td class="price-pack">$7.68</td>
+      <td class="price-unit">$0.7680/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Banana Sliced Iqf (Speedyberry)</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$5.80</td>
+      <td class="price-unit">$5.80/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Blueberries Iqf (Catchoice)</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$10.03</td>
+      <td class="price-unit">$10.03/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Chips 7 mm Shoestring Stealth Skin On (Lamb Weston)<div class="note">Needs re-quote (Bidfood didn&#x27;t cover in May 17 quote)</div></td>
+      <td class="pack">16.26 kg</td>
+      <td class="price-pack">$68.23</td>
+      <td class="price-unit">$4.19/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Chips 7Mm Shoestring Stealth Skin On X7280 (Lambweston)</td>
+      <td class="pack">16.26 kg</td>
+      <td class="price-pack">$71.15</td>
+      <td class="price-unit">$4.38/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Crab Meat Spanner Ckd (A) (Oceanpacific)</td>
+      <td class="pack">0.5 kg</td>
+      <td class="price-pack">$53.58</td>
+      <td class="price-unit">$107.16/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Mango Chunks Iqf (Entyce)</td>
+      <td class="pack">10 kg</td>
+      <td class="price-pack">$12.39</td>
+      <td class="price-unit">$1.24/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Mango Diced Chunks Iqf (Natures)</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$7.24</td>
+      <td class="price-unit">$7.24/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Passionfruit Pulp (Catchoice)<div class="note">Needs re-quote (Bidfood didn&#x27;t cover in May 17 quote)</div></td>
+      <td class="pack">1.00 kg</td>
+      <td class="price-pack">$8.34</td>
+      <td class="price-unit">$8.34/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Smoked Salmon Sliced Atlantic (I) (Seacrest)</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$35.54</td>
+      <td class="price-unit">$35.54/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Strawberries Iqf (Catchoice)</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$8.01</td>
+      <td class="price-unit">$8.01/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="6">Beverages <span class="count">(7)</span></td></tr>
+    <tr>
+      
+      <td class="item">Aperol Aperitif 11% (Aperol)</td>
+      <td class="pack">0.7 L</td>
+      <td class="price-pack">$29.87</td>
+      <td class="price-unit">$42.67/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">De Bortoli King Valley Prosecco 11.5% (Debortoli)</td>
+      <td class="pack">0.75 L</td>
+      <td class="price-pack">$11.21</td>
+      <td class="price-unit">$14.95/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">El Jimador Blanco Tequila 38% (Eljimador)</td>
+      <td class="pack">0.7 L</td>
+      <td class="price-pack">$57.91</td>
+      <td class="price-unit">$82.73/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Mineral Water Sparkling Glass (Santavittoria)</td>
+      <td class="pack">12 L</td>
+      <td class="price-pack">$40.28</td>
+      <td class="price-unit">$3.36/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Sauce Red Hot Original Buffalo Wings (Franks)</td>
+      <td class="pack">3.78 L</td>
+      <td class="price-pack">$40.00</td>
+      <td class="price-unit">$10.58/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Spring Water Square Bottle (Nupure)</td>
+      <td class="pack">14.4 L</td>
+      <td class="price-pack">$13.89</td>
+      <td class="price-unit">$0.9646/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Triple G Australian Dry Gin 40% (Tripleg)</td>
+      <td class="pack">0.7 L</td>
+      <td class="price-pack">$47.49</td>
+      <td class="price-unit">$67.84/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="6">Cleaning <span class="count">(4)</span></td></tr>
+    <tr>
+      
+      <td class="item">Cleaner Floor With Ammonia (Catclean)</td>
+      <td class="pack">5 L</td>
+      <td class="price-pack">$19.50</td>
+      <td class="price-unit">$3.90/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Cutlery Pack- Wooden Knife/Fork/Napkin Wrap (Biopak)<div class="note">Needs re-quote (Bidfood didn&#x27;t cover in May 17 quote)</div></td>
+      <td class="pack">100 units</td>
+      <td class="price-pack">$12.87</td>
+      <td class="price-unit">$0.1300/unit</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Gloves Vinyl Blue Large Powder Free (Workplace)</td>
+      <td class="pack">100 units</td>
+      <td class="price-pack">$3.40</td>
+      <td class="price-unit">$0.0340/unit</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Wipes Roll Heavy Duty Blue 50 X 30Cm Perf (Catclean)</td>
+      <td class="pack">90 units</td>
+      <td class="price-pack">$14.90</td>
+      <td class="price-unit">$0.1656/unit</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="6">Packaging <span class="count">(7)</span></td></tr>
+    <tr>
+      
+      <td class="item">Bags Garbage 120Lt Heavy Duty (Pni)</td>
+      <td class="pack">25 units</td>
+      <td class="price-pack">$6.11</td>
+      <td class="price-unit">$0.2444/unit</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Foodtrays No 3 Kraft Brown Medium 180X134x40mm (Alfresco)</td>
+      <td class="pack">25 units</td>
+      <td class="price-pack">$2.89</td>
+      <td class="price-unit">$0.1156/unit</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Lids Dome With Hole To Suit 300/700Ml Cups Pla (Biopak)</td>
+      <td class="pack">100 units</td>
+      <td class="price-pack">$8.95</td>
+      <td class="price-unit">$0.0895/unit</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Lids Flat To Suit 300/700Ml Cold Cups X Slot (Biopak)</td>
+      <td class="pack">100 units</td>
+      <td class="price-pack">$6.33</td>
+      <td class="price-unit">$0.0633/unit</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Paper Towel Hand Ultraslim Luxury 24X23cm (Indulgence)</td>
+      <td class="pack">2400 units</td>
+      <td class="price-pack">$48.84</td>
+      <td class="price-unit">$0.0204/unit</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Paper Towel Ultraslim Multifold Advanced H4 (Tork)</td>
+      <td class="pack">3000 units</td>
+      <td class="price-pack">$60.84</td>
+      <td class="price-unit">$0.0203/unit</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Tortillas Flour 10&quot; (Catchoice)</td>
+      <td class="pack">12 units</td>
+      <td class="price-pack">$4.08</td>
+      <td class="price-unit">$0.3400/unit</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="legend">
+  Pack price ex GST · $/unit normalised to per-kg / per-L / per-each for cross-pack comparison · ⚠ = spec check pending
+</div>
+
+<div class="sig">
+  <label>Notes / special requests</label>
+  <div class="line"></div>
+  <div class="line"></div>
+</div>
+
+<footer>
+  <div>Bidfood — Order Form · 83 items · Tarte Kitchen — printed 2026-05-25</div>
+  <div>Submit by: ______________</div>
+</footer>
+
+</body></html>

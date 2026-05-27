@@ -6,7 +6,6 @@
  * Run inside the app container (needs Gmail creds + pdftotext):
  *   docker exec tarte-kitchen-app-1 npx tsx scripts/backfill-invoice-venues.ts
  */
-import "dotenv/config"
 import { execFile } from "node:child_process"
 import { mkdtemp, writeFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"

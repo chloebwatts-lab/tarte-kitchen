@@ -1,0 +1,668 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>The Provedores — Order Form order form</title>
+<style>
+  @page { size: A4; margin: 10mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; color: #1a1a1a; margin: 0; padding: 10mm; max-width: 210mm; }
+  header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1em; border-bottom: 3px solid #1e3a8a; padding-bottom: 0.5em; margin-bottom: 0.8em; }
+  h1 { margin: 0; font-size: 1.5em; color: #1e3a8a; letter-spacing: -0.01em; }
+  .meta { text-align: right; font-size: 0.8em; color: #444; }
+  .meta .ord { font-size: 0.95em; font-weight: 600; color: #1a1a1a; margin-bottom: 0.2em; }
+  .info-row { display: flex; gap: 2em; margin-bottom: 0.6em; font-size: 0.8em; color: #444; align-items: center; }
+  .rebate-note { background: #fff8e1; border: 1px dashed #d4a017; padding: 0.3em 0.7em; border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+  thead th { background: #1e3a8a; color: #fff; padding: 0.4em 0.5em; text-align: left; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.03em; }
+  tbody td { padding: 0.35em 0.5em; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+  tr.cat-row td { background: #f3f3f3; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.05em; color: #444; padding: 0.3em 0.5em; border-bottom: 1px solid #ccc; border-top: 1px solid #ccc; }
+  tr.cat-row .count { color: #888; font-weight: 400; font-size: 0.85em; text-transform: none; letter-spacing: 0; }
+  tr.note-row { background: #fffbeb; }
+  td.code { width: 70px; font-family: monospace; font-size: 0.78em; color: #666; }
+  td.item { width: 30%; }
+  td.item .note { font-size: 0.75em; color: #888; font-style: italic; margin-top: 0.15em; }
+  td.pack { width: 14%; color: #555; font-size: 0.82em; }
+  td.price-pack { width: 10%; text-align: right; font-variant-numeric: tabular-nums; font-size: 0.85em; color: #1a1a1a; font-weight: 500; }
+  td.price-unit { width: 12%; text-align: right; color: #777; font-variant-numeric: tabular-nums; font-size: 0.78em; }
+  td.qty { width: 11%; border-left: 1px dashed #aaa; min-height: 22px; }
+  td.tick { width: 6%; border-left: 1px dashed #aaa; }
+  footer { margin-top: 1.2em; padding-top: 0.4em; border-top: 1px solid #ddd; font-size: 0.72em; color: #777; display: flex; justify-content: space-between; }
+  .sig { margin-top: 1.2em; }
+  .sig label { font-size: 0.72em; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+  .sig .line { border-bottom: 1px solid #444; height: 1.4em; margin-top: 0.15em; }
+  .legend { font-size: 0.72em; color: #888; margin-top: 0.4em; }
+  @media print {
+    body { padding: 0; }
+    tr { page-break-inside: avoid; }
+    tr.cat-row { page-break-after: avoid; }
+  }
+</style></head>
+<body>
+
+<header>
+  <div>
+    <h1>The Provedores — Order Form</h1>
+    <div style="font-size: 0.82em; color: #555; margin-top: 0.15em;">Delivers Wed / Fri · Cutoff 3pm previous day</div>
+    
+  </div>
+  <div class="meta">
+    <div class="ord">Order date: ______________</div>
+    <div>Venue: Burleigh ☐ &nbsp; Beach House ☐ &nbsp; Tea Garden ☐</div>
+    <div>Ordered by: ______________</div>
+  </div>
+</header>
+
+
+
+<table>
+  <thead><tr>
+    
+    <th>Item</th>
+    <th>Pack</th>
+    <th style="text-align: right;">Pack price</th>
+    <th style="text-align: right;">$/unit</th>
+    <th>Qty</th>
+    <th>✓</th>
+  </tr></thead>
+  <tbody>
+    <tr class="cat-row"><td colspan="6">Dairy <span class="count">(6)</span></td></tr>
+    <tr>
+      
+      <td class="item">Cheese Holy Cow Mozarella Shredded</td>
+      <td class="pack">2kg</td>
+      <td class="price-pack">$24.60</td>
+      <td class="price-unit">$12.30/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Cheese Maasdam sliced Swiss style 2 x 500g</td>
+      <td class="pack">500g</td>
+      <td class="price-pack">$20.88</td>
+      <td class="price-unit">$20.88/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Cheese marinated Goat Feta</td>
+      <td class="pack">2kg</td>
+      <td class="price-pack">$50.00</td>
+      <td class="price-unit">$25.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">CHEESE Ricotta Basket Cryovac NSW</td>
+      <td class="pack">2.2kg (4)</td>
+      <td class="price-pack">$21.40</td>
+      <td class="price-unit">$9.73/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Cream Thickened</td>
+      <td class="pack">5L</td>
+      <td class="price-pack">$34.90</td>
+      <td class="price-unit">$6.98/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Crème fraiche</td>
+      <td class="pack">500gm</td>
+      <td class="price-pack">$11.20</td>
+      <td class="price-unit">$22.40/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="6">Pastry/Baking <span class="count">(4)</span></td></tr>
+    <tr>
+      
+      <td class="item">Baking powder trumps</td>
+      <td class="pack">2kg</td>
+      <td class="price-pack">$13.40</td>
+      <td class="price-unit">$6.70/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">CHOCOLATE Picolli White Drops 2.5kg (4)</td>
+      <td class="pack">2.5kg</td>
+      <td class="price-pack">$89.80</td>
+      <td class="price-unit">$35.92/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">MALTED Milk Powder</td>
+      <td class="pack">1.5 kg (6)</td>
+      <td class="price-pack">$25.60</td>
+      <td class="price-unit">$17.06/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Syrup Maple 100% 4L (Provedores)</td>
+      <td class="pack">4L (4)</td>
+      <td class="price-pack">$90.00</td>
+      <td class="price-unit">$22.50/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="6">Pantry <span class="count">(22)</span></td></tr>
+    <tr>
+      
+      <td class="item">AGAVE Organic Syrup</td>
+      <td class="pack">1L (6)</td>
+      <td class="price-pack">$13.50</td>
+      <td class="price-unit">$13.50/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">CAPERS</td>
+      <td class="pack">2kg (6)</td>
+      <td class="price-pack">$16.40</td>
+      <td class="price-unit">$8.20/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">CHILLI Crushed (flakes)</td>
+      <td class="pack">1kg (6)</td>
+      <td class="price-pack">$8.12</td>
+      <td class="price-unit">$8.12/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Fried Shallots</td>
+      <td class="pack">1 kg</td>
+      <td class="price-pack">$9.00</td>
+      <td class="price-unit">$9.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">GINGER Crushed (jar)</td>
+      <td class="pack">1kg (6)</td>
+      <td class="price-pack">$5.50</td>
+      <td class="price-unit">$5.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">HERB Fennel Seed</td>
+      <td class="pack">450g (6)</td>
+      <td class="price-pack">$8.90</td>
+      <td class="price-unit">$19.78/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">HONEY Caters Superbee</td>
+      <td class="pack">3kg (4)</td>
+      <td class="price-pack">$22.50</td>
+      <td class="price-unit">$7.50/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Macadamia Pieces</td>
+      <td class="pack">11.34kg</td>
+      <td class="price-pack">$285.00</td>
+      <td class="price-unit">$25.13/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">NUT Almond Natural Kernals</td>
+      <td class="pack">1kg (10)</td>
+      <td class="price-pack">$18.80</td>
+      <td class="price-unit">$18.80/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">NUT Cashews Raw Whole</td>
+      <td class="pack">1kg (10)</td>
+      <td class="price-pack">$20.00</td>
+      <td class="price-unit">$20.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Onion Powder</td>
+      <td class="pack">400g</td>
+      <td class="price-pack">$6.80</td>
+      <td class="price-unit">$14.17/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Oregano</td>
+      <td class="pack">1kg</td>
+      <td class="price-pack">$19.00</td>
+      <td class="price-unit">$19.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">PEANUT Butter Smooth</td>
+      <td class="pack">2 kg (4)</td>
+      <td class="price-pack">$24.45</td>
+      <td class="price-unit">$12.22/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Potato Starch 25kg</td>
+      <td class="pack">25kg</td>
+      <td class="price-pack">$88.80</td>
+      <td class="price-unit">$3.55/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">SAUCE Fish (Squid brand)</td>
+      <td class="pack">725 ml (12)</td>
+      <td class="price-pack">$3.25</td>
+      <td class="price-unit">$4.48/unit</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Sauce Sriracha Hot chilli sauce</td>
+      <td class="pack">740ml (12)</td>
+      <td class="price-pack">$9.00</td>
+      <td class="price-unit">$12.16/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">SEA SALT Flakes (1kg #1)</td>
+      <td class="pack">1kg</td>
+      <td class="price-pack">$14.00</td>
+      <td class="price-unit">$14.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">SEA SALT Flakes (1kg #2)</td>
+      <td class="pack">1kg</td>
+      <td class="price-pack">$12.70</td>
+      <td class="price-unit">$12.70/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">SPICE Allspice (ground)</td>
+      <td class="pack">400g (6)</td>
+      <td class="price-pack">$17.50</td>
+      <td class="price-unit">$43.75/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">SYRUP Maple 100%</td>
+      <td class="pack">1L (6)</td>
+      <td class="price-pack">$23.50</td>
+      <td class="price-unit">$23.50/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">VEGEMITE</td>
+      <td class="pack">2.5 kg (4)</td>
+      <td class="price-pack">$42.50</td>
+      <td class="price-unit">$17.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Vinegar Red Wine</td>
+      <td class="pack">5L</td>
+      <td class="price-pack">$15.60</td>
+      <td class="price-unit">$3.12/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="6">Oils <span class="count">(4)</span></td></tr>
+    <tr>
+      
+      <td class="item">OIL Cottonseed PHAT</td>
+      <td class="pack">20L</td>
+      <td class="price-pack">$58.90</td>
+      <td class="price-unit">$2.94/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">OIL Grapeseed</td>
+      <td class="pack">1L (12)</td>
+      <td class="price-pack">$12.60</td>
+      <td class="price-unit">$12.60/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">OIL Olive Pomace</td>
+      <td class="pack">4L (4)</td>
+      <td class="price-pack">$46.00</td>
+      <td class="price-unit">$11.50/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Oil vegetable</td>
+      <td class="pack">2L</td>
+      <td class="price-pack">$10.90</td>
+      <td class="price-unit">$5.45/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="6">Frozen <span class="count">(6)</span></td></tr>
+    <tr>
+      
+      <td class="item">ICE CREAM Vanilla Swan Confectionary Tub</td>
+      <td class="pack">10L</td>
+      <td class="price-pack">$19.85</td>
+      <td class="price-unit">$1.99/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Melange Vegetable mix</td>
+      <td class="pack">1.5kg</td>
+      <td class="price-pack">$8.80</td>
+      <td class="price-unit">$5.86/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">PEAS Frozen</td>
+      <td class="pack">2kg (6)</td>
+      <td class="price-pack">$8.00</td>
+      <td class="price-unit">$4.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Pomegranate Arils (frozen)</td>
+      <td class="pack">1kg</td>
+      <td class="price-pack">$19.00</td>
+      <td class="price-unit">$19.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Raspberries IQF 1kg (Provedores)</td>
+      <td class="pack">1kg (10)</td>
+      <td class="price-pack">$18.00</td>
+      <td class="price-unit">$18.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Salmon Smoked Sliced Ocean King Imported 1kg</td>
+      <td class="pack">1kg (12)</td>
+      <td class="price-pack">$35.00</td>
+      <td class="price-unit">$35.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="6">Beverages <span class="count">(7)</span></td></tr>
+    <tr>
+      
+      <td class="item">Barista Almond</td>
+      <td class="pack">1L x 12</td>
+      <td class="price-pack">$33.20</td>
+      <td class="price-unit">$2.76/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Barista Oat</td>
+      <td class="pack">1L x 12</td>
+      <td class="price-pack">$33.20</td>
+      <td class="price-unit">$2.76/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">JUICE Lemon</td>
+      <td class="pack">2L (6)</td>
+      <td class="price-pack">$6.80</td>
+      <td class="price-unit">$3.40/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">JUICE Lime</td>
+      <td class="pack">2L (6)</td>
+      <td class="price-pack">$14.00</td>
+      <td class="price-unit">$7.00/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">MATCHA Latte Powder</td>
+      <td class="pack">500gm (10)</td>
+      <td class="price-pack">$50.00</td>
+      <td class="price-unit">$100.00/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">MILK Soy Bonsoy</td>
+      <td class="pack">1L x 6</td>
+      <td class="price-pack">$19.80</td>
+      <td class="price-unit">$3.30/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Milo</td>
+      <td class="pack">1.9kg</td>
+      <td class="price-pack">$31.40</td>
+      <td class="price-unit">$16.52/kg</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="6">Cleaning <span class="count">(10)</span></td></tr>
+    <tr>
+      
+      <td class="item">Bag Garbage Heavy Duty 120L x 25</td>
+      <td class="pack">120L x 25 (4)</td>
+      <td class="price-pack">$6.00</td>
+      <td class="price-unit">$0.2400/unit</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">BAG Garbage Heavy Duty 73L</td>
+      <td class="pack">73L x 25 (10)</td>
+      <td class="price-pack">$4.00</td>
+      <td class="price-unit">$0.1600/unit</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">BLEACH</td>
+      <td class="pack">5 L</td>
+      <td class="price-pack">$9.50</td>
+      <td class="price-unit">$1.90/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">DISHLIQUID20</td>
+      <td class="pack">20 L</td>
+      <td class="price-pack">$41.40</td>
+      <td class="price-unit">$2.07/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">DISHWASHING Automatic Machine Liquid</td>
+      <td class="pack">20 L</td>
+      <td class="price-pack">$83.90</td>
+      <td class="price-unit">$4.19/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Floor Tile Cleaner 5L</td>
+      <td class="pack">5L (4)</td>
+      <td class="price-pack">$29.00</td>
+      <td class="price-unit">$5.80/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">GRILL Oven Cleaner</td>
+      <td class="pack">5 L</td>
+      <td class="price-pack">$13.00</td>
+      <td class="price-unit">$2.60/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Handwash Pink Pearl 5L</td>
+      <td class="pack">5L (4)</td>
+      <td class="price-pack">$16.50</td>
+      <td class="price-unit">$3.30/L</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">Toilet Roll Inv Wrapped 48 x 2 Ply</td>
+      <td class="pack">48 x 2 ply</td>
+      <td class="price-pack">$36.50</td>
+      <td class="price-unit">$36.50/pack</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">WIPES Heavy Duty Blue Roll (45m)</td>
+      <td class="pack">30 x 50cm</td>
+      <td class="price-pack">$10.00</td>
+      <td class="price-unit">$10.00/unit</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr class="cat-row"><td colspan="6">Packaging <span class="count">(5)</span></td></tr>
+    <tr>
+      
+      <td class="item">CLING Wrap (with cutter box)</td>
+      <td class="pack">45cm x 600m (6)</td>
+      <td class="price-pack">$25.50</td>
+      <td class="price-unit">$25.50/roll</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">CUP Clear 16oz 500ml Green Stripe BetaEco RPET</td>
+      <td class="pack">x 1000</td>
+      <td class="price-pack">$97.00</td>
+      <td class="price-unit">$0.0970/unit</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">NAPKIN Dinner White GT Fold</td>
+      <td class="pack">100&#x27;s (10)</td>
+      <td class="price-pack">$3.00</td>
+      <td class="price-unit">$0.0300/unit</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">TRAY #1 BetaBoard Kraft</td>
+      <td class="pack">x 500</td>
+      <td class="price-pack">$42.00</td>
+      <td class="price-unit">$0.0840/unit</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+    <tr>
+      
+      <td class="item">TRAY #3 Betaboard Kraft</td>
+      <td class="pack">x 240</td>
+      <td class="price-pack">$27.00</td>
+      <td class="price-unit">$0.1125/unit</td>
+      <td class="qty"></td>
+      <td class="tick"></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="legend">
+  Pack price ex GST · $/unit normalised to per-kg / per-L / per-each for cross-pack comparison · ⚠ = spec check pending
+</div>
+
+<div class="sig">
+  <label>Notes / special requests</label>
+  <div class="line"></div>
+  <div class="line"></div>
+</div>
+
+<footer>
+  <div>The Provedores — Order Form · 64 items · Tarte Kitchen — printed 2026-05-25</div>
+  <div>Submit by: ______________</div>
+</footer>
+
+</body></html>

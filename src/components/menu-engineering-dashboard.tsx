@@ -254,6 +254,15 @@ export function MenuEngineeringDashboard({
         </button>
       </div>
 
+      {/* Data source note */}
+      {data.unmatchedProductCount > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Sales from Lightspeed daily report. {data.unmatchedProductCount} product
+          {data.unmatchedProductCount === 1 ? "" : "s"} had no matching dish (name
+          mismatch or no cost data) and are excluded from the matrix.
+        </p>
+      )}
+
       {/* Quadrant summary cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {QUADRANT_ORDER.map((q) => {
@@ -334,8 +343,8 @@ export function MenuEngineeringDashboard({
             <div className="relative h-[420px]">
               {data.items.length === 0 ? (
                 <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                  No dish-matched sales for this range. Check your POS sync in
-                  Settings → Integrations.
+                  No matched sales for this range. Check that dishes are named
+                  consistently with your Lightspeed menu items.
                 </div>
               ) : (
                 <>

@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic"
 
-import { Mail, Activity, AlertTriangle, CheckCircle2 } from "lucide-react"
+import { Activity, AlertTriangle, CheckCircle2 } from "lucide-react"
 import {
   listInboxPlaybooks,
   listRecentInboxRuns,
@@ -71,17 +71,14 @@ export default async function InboxPlaybooksPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      {/* Header */}
+    <div className="space-y-6">
+      {/* Page intro (layout already provides the branded header) */}
       <div>
-        <div className="flex items-center gap-2">
-          <Mail className="h-5 w-5 text-stone-400" />
-          <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
-            Inbox Playbooks
-          </h1>
-        </div>
+        <h1 className="text-xl font-semibold tracking-tight text-stone-900">
+          Playbooks
+        </h1>
         <p className="mt-1 text-sm text-stone-500">
-          How the hello@tarte.com.au email agent classifies, replies, and which categories auto-send.
+          How the agent classifies, replies and which categories auto-send.
           The agent reads new mail every ~2 minutes; saved changes take effect on the next tick.
         </p>
       </div>
