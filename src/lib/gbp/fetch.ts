@@ -87,39 +87,19 @@ export async function resolveGbpAccountName(
   if (!connection) throw new Error("No GBP connection")
   if (connection.accountName) return connection.accountName
 
-  // Try the new Account Management API first. If it returns 429 (quota
-  // not yet granted), fall back to the legacy mybusiness v4 /accounts
-  // endpoint — same data, different service, different quota allocation.
   const accounts: GbpAccount[] = []
   let pageToken: string | undefined
-
-  async function fetchAccounts(baseUrl: string) {
-    accounts.length = 0
-    pageToken = undefined
-    do {
-      const url = new URL(`${baseUrl}/accounts`)
-      url.searchParams.set("pageSize", "20")
-      if (pageToken) url.searchParams.set("pageToken", pageToken)
-      const data = await gbpFetch<{ accounts?: GbpAccount[]; nextPageToken?: string }>(
-        url.toString(),
-        accessToken
-      )
-      if (data.accounts) accounts.push(...data.accounts)
-      pageToken = data.nextPageToken
-    } while (pageToken)
-  }
-
-  try {
-    await fetchAccounts(ACCOUNT_MGMT_BASE)
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    if (msg.includes("429")) {
-      // New API quota not granted — fall back to legacy v4
-      await fetchAccounts(REVIEWS_BASE)
-    } else {
-      throw err
-    }
-  }
+  do {
+    const url = new URL(`${ACCOUNT_MGMT_BASE}/accounts`)
+    url.searchParams.set("pageSize", "20")
+    if (pageToken) url.searchParams.set("pageToken", pageToken)
+    const data = await gbpFetch<{ accounts?: GbpAccount[]; nextPageToken?: string }>(
+      url.toString(),
+      accessToken
+    )
+    if (data.accounts) accounts.push(...data.accounts)
+    pageToken = data.nextPageToken
+  } while (pageToken)
 
   if (accounts.length === 0) {
     throw new Error("No GBP accounts visible to this connection")
