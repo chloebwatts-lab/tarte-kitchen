@@ -96,7 +96,7 @@ services:
     environment:
       DOMAIN: ${DOMAIN}
       BASIC_AUTH_HASH: ${BASIC_AUTH_HASH}
-      SHAUNA_AUTH_HASH: ${SHAUNA_AUTH_HASH}
+      SHAWNA_AUTH_HASH: ${SHAWNA_AUTH_HASH}
 
   # Simple cron sidecar — fires the app's /api/cron/* endpoints on a daily
   # schedule. Runs inside the docker network so it can reach `app:3000`

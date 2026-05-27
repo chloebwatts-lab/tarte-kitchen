@@ -15,7 +15,7 @@
 		not path /_next/static/*
 		not path /favicon.ico
 		# /inbox-playbooks has its own basic_auth below — separate password
-		# so Shauna can access without seeing P&L / COGS / etc.
+		# so Shawna can access without seeing P&L / COGS / etc.
 		not path /inbox-playbooks /inbox-playbooks/*
 	}
 	basic_auth @protected {
@@ -27,7 +27,7 @@
 	@inbox path /inbox-playbooks /inbox-playbooks/*
 	basic_auth @inbox {
 		tarte {$BASIC_AUTH_HASH}
-		shauna {$SHAUNA_AUTH_HASH}
+		shawna {$SHAWNA_AUTH_HASH}
 	}
 
 	reverse_proxy app:3000
