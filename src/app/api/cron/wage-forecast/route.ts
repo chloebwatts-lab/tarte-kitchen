@@ -43,10 +43,15 @@ export async function GET(req: NextRequest) {
   }
 
   const { start: weekStart, end: weekEnd } = currentTarteWeekRange(now)
+  // Match the snapshot's instant-corrected window so the diagnostic
+  // reflects exactly what `getLiveLabourSnapshot` sees.
+  const AEST_OFFSET_MS = 10 * 60 * 60 * 1000
+  const weekStartInstant = new Date(weekStart.getTime() - AEST_OFFSET_MS)
+  const weekEndInstant = new Date(weekEnd.getTime() - AEST_OFFSET_MS)
 
   const [shifts, connection, sales] = await Promise.all([
     db.labourShift.findMany({
-      where: { shiftStart: { gte: weekStart, lt: weekEnd } },
+      where: { shiftStart: { gte: weekStartInstant, lt: weekEndInstant } },
       select: {
         venue: true,
         area: true,
@@ -149,9 +154,42 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Replay the exact branch the snapshot takes for ROSTER rows, so we
+  // can see WHICH individual shifts are getting counted as "remaining"
+  // labour. Critical for diagnosing why labourRemaining is still
+  // implausibly high after the week-window fix.
+  const remainingContributors = shifts
+    .filter((s) => s.source !== "TIMESHEET")
+    .map((s) => {
+      const isSalary = s.area?.toLowerCase().startsWith("salary") ?? false
+      const isFuture = s.shiftStart.getTime() > now.getTime()
+      return {
+        venue: s.venue,
+        employeeName: s.employeeName,
+        area: s.area,
+        cost: Number(s.cost),
+        shiftStart: s.shiftStart.toISOString(),
+        isFuture,
+        isSalary,
+        counted: isFuture || isSalary,
+      }
+    })
+    .filter((r) => r.counted)
+    .sort((a, b) => b.cost - a.cost)
+  const remainingByVenueRaw: Record<string, number> = {}
+  for (const r of remainingContributors) {
+    remainingByVenueRaw[r.venue] = (remainingByVenueRaw[r.venue] ?? 0) + r.cost
+  }
+
   return Response.json({
     asOf: now.toISOString(),
-    week: { start: weekStart, end: weekEnd },
+    nowEpochMs: now.getTime(),
+    week: {
+      start: weekStart,
+      end: weekEnd,
+      startInstant: weekStartInstant,
+      endInstant: weekEndInstant,
+    },
     snapshot: snap,
     multipliers: {
       superRate: Number(connection?.superRate ?? 0),
@@ -170,5 +208,8 @@ export async function GET(req: NextRequest) {
     doubleCountSuspects: employees.filter((e) => e.doubleCountedCost > 0),
     doubleCountByVenueRaw: doubleCountByVenue, // pre-multiplier $
     employees: employees.slice(0, 80), // cap so the response stays manageable
+    remainingByVenueRaw, // pre-multiplier $
+    remainingContributors: remainingContributors.slice(0, 100),
+    remainingContributorsTotal: remainingContributors.length,
   })
 }
