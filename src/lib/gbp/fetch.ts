@@ -325,9 +325,17 @@ async function ingestVenueGbp(
       }
 
       if (existing) {
+        // If the existing row was ingested via Places API (places/... id),
+        // upgrade its googleReviewId to the GBP resource name so the Approve
+        // button can hit /v4/{name}/reply. Otherwise preserve the existing
+        // id (some GBP review names rotate updateTime but keep reviewId).
+        const upgradeId = existing.googleReviewId.startsWith("places/")
         await db.googleReview.update({
           where: { id: existing.id },
-          data: { ...data, googleReviewId: existing.googleReviewId },
+          data: {
+            ...data,
+            googleReviewId: upgradeId ? reviewName : existing.googleReviewId,
+          },
         })
       } else {
         await db.googleReview.create({ data })
