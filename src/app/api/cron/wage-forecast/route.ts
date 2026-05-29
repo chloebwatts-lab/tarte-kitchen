@@ -37,6 +37,76 @@ export async function GET(req: NextRequest) {
 
   const snap = await getLiveLabourSnapshot({ now })
 
+  const compareActuals = req.nextUrl.searchParams.get("actuals") === "1"
+  if (compareActuals) {
+    const { start: weekStart } = currentTarteWeekRange(now)
+    const actuals = await db.labourWeekActual.findMany({
+      where: { weekStartWed: weekStart },
+      orderBy: [{ venue: "asc" }],
+    })
+    const byVenue: Record<string, unknown> = {}
+    for (const v of snap.venues) {
+      const a = actuals.find((x) => x.venue === v.venue)
+      const louiseRevenue = a?.revenueExGst != null ? Number(a.revenueExGst) : null
+      const louiseGross = a?.grossWages != null ? Number(a.grossWages) : null
+      const louiseSuper = a?.superAmount != null ? Number(a.superAmount) : 0
+      const louiseTotal = louiseGross != null ? louiseGross + louiseSuper : null
+      const louisePct =
+        louiseTotal != null && louiseRevenue && louiseRevenue > 0
+          ? (louiseTotal / louiseRevenue) * 100
+          : null
+      byVenue[v.venue] = {
+        forecast: {
+          revenue: v.revenueProjected,
+          labour: v.labourProjected,
+          wagePct: v.overallProjectedPct,
+        },
+        louise: a
+          ? {
+              revenueExGst: louiseRevenue,
+              grossWages: louiseGross,
+              superAmount: louiseSuper,
+              grossWagesExAdmin: a.grossWagesExAdmin ? Number(a.grossWagesExAdmin) : null,
+              grossWagesExAdminLeaveBackpay: a.grossWagesExAdminLeaveBackpay
+                ? Number(a.grossWagesExAdminLeaveBackpay)
+                : null,
+              grossWagesLessLeaveBackpay: a.grossWagesLessLeaveBackpay
+                ? Number(a.grossWagesLessLeaveBackpay)
+                : null,
+              totalGrossPlusSuper: louiseTotal,
+              wagePct: louisePct,
+              dept: {
+                chef: a.wagesChef ? Number(a.wagesChef) : null,
+                kp: a.wagesKp ? Number(a.wagesKp) : null,
+                foh: a.wagesFoh ? Number(a.wagesFoh) : null,
+                barista: a.wagesBarista ? Number(a.wagesBarista) : null,
+                pastry: a.wagesPastry ? Number(a.wagesPastry) : null,
+                admin: a.wagesAdmin ? Number(a.wagesAdmin) : null,
+              },
+              source: a.source,
+              uploadedAt: a.createdAt,
+              updatedAt: a.updatedAt,
+            }
+          : null,
+        diff:
+          louiseTotal != null
+            ? {
+                labourDollars: v.labourProjected - louiseTotal,
+                wagePctPoints:
+                  v.overallProjectedPct != null && louisePct != null
+                    ? v.overallProjectedPct - louisePct
+                    : null,
+              }
+            : null,
+      }
+    }
+    return Response.json({
+      asOf: now.toISOString(),
+      weekStart: weekStart.toISOString().slice(0, 10),
+      comparison: byVenue,
+    })
+  }
+
   const diagnostic = req.nextUrl.searchParams.get("diagnostic") === "1"
   if (!diagnostic) {
     return Response.json({ asOf: now.toISOString(), ...snap })
