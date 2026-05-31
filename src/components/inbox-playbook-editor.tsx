@@ -10,6 +10,8 @@ import {
   ChevronRight,
   Check,
   Forward,
+  HelpCircle,
+  AlertCircle,
 } from "lucide-react"
 import { saveInboxPlaybook, type InboxPlaybook } from "@/lib/actions/inbox-playbooks"
 
@@ -59,12 +61,32 @@ export function InboxPlaybookEditor({
   const [forwardTo, setForwardTo] = useState<string>(
     playbook.forward_to ?? ""
   )
+  const [faq, setFaq] = useState<Array<{ question: string; answer: string }>>(
+    playbook.faq ?? []
+  )
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [isPending, startTransition] = useTransition()
 
   function addExample() {
     setExamples((prev) => [...prev, { incoming: "", reply: "" }])
   }
+  function addFaq() {
+    setFaq((prev) => [...prev, { question: "", answer: "" }])
+  }
+  function removeFaq(idx: number) {
+    setFaq((prev) => prev.filter((_, i) => i !== idx))
+  }
+  function updateFaq(
+    idx: number,
+    patch: Partial<{ question: string; answer: string }>
+  ) {
+    setFaq((prev) =>
+      prev.map((f, i) => (i === idx ? { ...f, ...patch } : f))
+    )
+  }
+  const unansweredFaqCount = faq.filter(
+    (f) => f.question.trim() && !f.answer.trim()
+  ).length
   function removeExample(idx: number) {
     setExamples((prev) => prev.filter((_, i) => i !== idx))
   }
@@ -90,6 +112,12 @@ export function InboxPlaybookEditor({
           .map((s) => s.trim())
           .filter(Boolean),
         forward_to: forwardTo.trim() || null,
+        faq: faq
+          .map((f) => ({
+            question: f.question.trim(),
+            answer: f.answer.trim(),
+          }))
+          .filter((f) => f.question), // drop entries with no question
       })
       setSavedAt(new Date())
       router.refresh()
@@ -124,6 +152,15 @@ export function InboxPlaybookEditor({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          {unansweredFaqCount > 0 && (
+            <span
+              className="flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 ring-1 ring-rose-200"
+              title={`${unansweredFaqCount} FAQ question${unansweredFaqCount === 1 ? "" : "s"} need answers`}
+            >
+              <AlertCircle className="h-3 w-3" />
+              {unansweredFaqCount} need answers
+            </span>
+          )}
           {forwardTo && (
             <span
               className="flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 ring-1 ring-sky-200"
@@ -277,6 +314,80 @@ export function InboxPlaybookEditor({
                 (Claude's confidence is 0–1; 0.95 = very confident)
               </span>
             </div>
+          </div>
+
+          {/* FAQ / cheat sheet */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <h4 className="flex items-center gap-1.5 text-sm font-semibold text-stone-800">
+                <HelpCircle className="h-4 w-4 text-stone-400" />
+                Cheat sheet
+                <span className="ml-1 text-xs font-normal text-stone-500">
+                  — Q&amp;A the agent uses as authoritative facts
+                </span>
+              </h4>
+              <button
+                type="button"
+                onClick={addFaq}
+                className="inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs font-medium text-stone-700 hover:bg-stone-100"
+              >
+                <Plus className="h-3 w-3" /> Add question
+              </button>
+            </div>
+            {faq.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-stone-300 bg-white px-4 py-6 text-center text-xs text-stone-500">
+                No cheat sheet yet. Add common questions + answers so the agent can quote them directly.
+              </div>
+            ) : (
+              <ol className="space-y-2">
+                {faq.map((f, idx) => {
+                  const needsAnswer = f.question.trim() && !f.answer.trim()
+                  return (
+                    <li
+                      key={idx}
+                      className={`rounded-md border bg-white p-3 ${needsAnswer ? "border-rose-200 bg-rose-50/30" : "border-stone-200"}`}
+                    >
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+                          Q&amp;A {idx + 1}
+                          {needsAnswer && (
+                            <span className="ml-2 rounded-full bg-rose-100 px-1.5 py-0.5 text-rose-700">
+                              needs answer
+                            </span>
+                          )}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeFaq(idx)}
+                          className="text-stone-400 hover:text-rose-600"
+                          title="Remove"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        className="w-full rounded-md border border-stone-200 bg-stone-50 px-2 py-1.5 text-xs focus:border-stone-400 focus:ring-0"
+                        placeholder="Question (e.g. How much is a kids high tea?)"
+                        value={f.question}
+                        onChange={(e) =>
+                          updateFaq(idx, { question: e.target.value })
+                        }
+                      />
+                      <textarea
+                        className="mt-1.5 w-full rounded-md border border-stone-200 bg-stone-50 px-2 py-1.5 text-xs leading-relaxed focus:border-stone-400 focus:ring-0"
+                        rows={3}
+                        placeholder="Answer (leave blank to flag for review)"
+                        value={f.answer}
+                        onChange={(e) =>
+                          updateFaq(idx, { answer: e.target.value })
+                        }
+                      />
+                    </li>
+                  )
+                })}
+              </ol>
+            )}
           </div>
 
           {/* Examples */}

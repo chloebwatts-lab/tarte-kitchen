@@ -18,6 +18,7 @@ export interface InboxPlaybook {
   examples: Array<{ incoming: string; reply: string }>
   default_attachment_paths: string[]
   forward_to: string | null
+  faq: Array<{ question: string; answer: string }>
 }
 
 export async function listInboxPlaybooks(): Promise<InboxPlaybook[]> {
@@ -26,7 +27,8 @@ export async function listInboxPlaybooks(): Promise<InboxPlaybook[]> {
             auto_send, min_confidence,
             COALESCE(examples, '[]'::jsonb) AS examples,
             COALESCE(default_attachment_paths, '[]'::jsonb) AS default_attachment_paths,
-            forward_to
+            forward_to,
+            COALESCE(faq, '[]'::jsonb) AS faq
        FROM inbox_playbooks ORDER BY category`
   )
   // Prisma returns Decimal for numeric — coerce
@@ -47,6 +49,7 @@ export async function saveInboxPlaybook(p: InboxPlaybook): Promise<void> {
             examples                  = $7::jsonb,
             default_attachment_paths  = $8::jsonb,
             forward_to                = $9,
+            faq                       = $10::jsonb,
             updated_at                = now()
       WHERE category = $1`,
     p.category,
@@ -57,7 +60,8 @@ export async function saveInboxPlaybook(p: InboxPlaybook): Promise<void> {
     p.min_confidence,
     JSON.stringify(p.examples ?? []),
     JSON.stringify(p.default_attachment_paths ?? []),
-    p.forward_to ?? null
+    p.forward_to ?? null,
+    JSON.stringify(p.faq ?? [])
   )
   revalidatePath("/inbox-playbooks")
 }
