@@ -237,11 +237,16 @@ function buildEmailHtml(reviews: DraftedReview[]): { html: string; text: string 
  * Returns the number of drafts sent.
  */
 export async function draftAndNotifyNewReviews(): Promise<number> {
+  // Only draft replies for reviews from the last 30 days. Backfilling
+  // years of historical GBP reviews would flood Chloe with thousands of
+  // drafts she'd never reply to. New reviews land daily anyway.
+  const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   const needsDraft = await db.googleReview.findMany({
     where: {
       replyText: null,    // no existing Google reply
       replyStatus: null,  // not yet drafted
       text: { not: null },
+      publishTime: { gte: since30d },
     },
     orderBy: [
       { rating: "asc" },          // negatives first
