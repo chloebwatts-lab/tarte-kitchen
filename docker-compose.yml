@@ -140,12 +140,12 @@ services:
         # */15 * * * * curl -fsS -m 60 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/checklist-alerts 2>&1
         # 18:00 AEST (08:00 UTC) — daily checklist summary to chloe@
         # 0 8 * * * curl -fsS -m 60 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/daily-checklist-summary 2>&1
-        # Hourly — pull Google reviews + Claude-tag any new ones. The Places
-        # API caps each fetch at 5 reviews per venue (most-relevant pool from
-        # v1 + newest pool from legacy ≈ ~10 distinct), so a daily cron lost
-        # anything beyond ~5 new reviews per day. Hourly makes the cap
-        # effectively unreachable. Proper fix is the Business Profile API.
-        0 * * * * curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-reviews 2>&1
+        # 08:00 AEST (22:00 UTC) — pull Google reviews, Claude-tag, draft
+        # replies + email Chloe once per day. Was hourly back when Places
+        # API capped each fetch at 5 reviews/venue — but GBP returns ALL
+        # reviews paginated, so daily covers everything without flooding
+        # Chloe's inbox with several draft batches per day.
+        0 22 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-reviews 2>&1
         # Friday 08:00 AEST (22:00 UTC Thu) — unified weekly business digest
         # (reviews + sales + wages + COGS + wastage + supplier price spikes
         # + top sellers) → emailed to chloe@. See tarte_friday_digest.md memory.

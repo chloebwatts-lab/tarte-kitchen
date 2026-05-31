@@ -247,7 +247,7 @@ export async function draftAndNotifyNewReviews(): Promise<number> {
       { rating: "asc" },          // negatives first
       { publishTime: "desc" },    // newest first within each rating
     ],
-    take: 20,  // cap per run — leftover picked up next hour
+    take: 50,  // cap per run — leftover picked up next day
   })
 
   if (needsDraft.length === 0) return 0
