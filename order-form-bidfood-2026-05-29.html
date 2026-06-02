@@ -29,14 +29,9 @@
   .sig label { font-size: 0.72em; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
   .sig .line { border-bottom: 1px solid #444; height: 1.4em; margin-top: 0.15em; }
   .legend { font-size: 0.72em; color: #888; margin-top: 0.4em; }
-  @media print {
-    body { padding: 0; }
-    tr { page-break-inside: avoid; }
-    tr.cat-row { page-break-after: avoid; }
-  }
+  @media print { body { padding: 0; } tr { page-break-inside: avoid; } tr.cat-row { page-break-after: avoid; } }
 </style></head>
 <body>
-
 <header>
   <div>
     <h1>Bidfood — Order Form</h1>
@@ -49,19 +44,9 @@
     <div>Ordered by: ______________</div>
   </div>
 </header>
-
-<div class="info-row"><span class="rebate-note">Prices shown are GROSS — Tarte receives a 4% volume rebate (net effective price ~4% lower).</span></div>
-
+<div class="info-row"><span class="rebate-note">Prices shown are GROSS — Tarte receives a 4% volume rebate (net effective ~4% lower).</span></div>
 <table>
-  <thead><tr>
-    
-    <th>Item</th>
-    <th>Pack</th>
-    <th style="text-align: right;">Pack price</th>
-    <th style="text-align: right;">$/unit</th>
-    <th>Qty</th>
-    <th>✓</th>
-  </tr></thead>
+  <thead><tr><th>Item</th><th>Pack</th><th style="text-align: right;">Pack price</th><th style="text-align: right;">$/unit</th><th>Qty</th><th>✓</th></tr></thead>
   <tbody>
     <tr class="cat-row"><td colspan="6">Dairy <span class="count">(13)</span></td></tr>
     <tr>
@@ -282,7 +267,7 @@
       <td class="qty"></td>
       <td class="tick"></td>
     </tr>
-    <tr class="cat-row"><td colspan="6">Pantry <span class="count">(28)</span></td></tr>
+    <tr class="cat-row"><td colspan="6">Pantry <span class="count">(26)</span></td></tr>
     <tr>
       
       <td class="item">Acai Mix Scoopable (Amazonia)</td>
@@ -339,15 +324,6 @@
     </tr>
     <tr>
       
-      <td class="item">Garlic Granules (Catchoice)</td>
-      <td class="pack">1 kg</td>
-      <td class="price-pack">$14.90</td>
-      <td class="price-unit">$14.90/kg</td>
-      <td class="qty"></td>
-      <td class="tick"></td>
-    </tr>
-    <tr>
-      
       <td class="item">Honey Pure (Allowrie)</td>
       <td class="pack">3 kg</td>
       <td class="price-pack">$23.50</td>
@@ -397,15 +373,6 @@
       <td class="pack">10.00 kg</td>
       <td class="price-pack">$12.73</td>
       <td class="price-unit">$1.27/kg</td>
-      <td class="qty"></td>
-      <td class="tick"></td>
-    </tr>
-    <tr>
-      
-      <td class="item">Pepper Black Cracked (Catchoice)</td>
-      <td class="pack">0.75 kg</td>
-      <td class="price-pack">$20.00</td>
-      <td class="price-unit">$26.67/kg</td>
       <td class="qty"></td>
       <td class="tick"></td>
     </tr>
@@ -554,7 +521,7 @@
       <td class="qty"></td>
       <td class="tick"></td>
     </tr>
-    <tr class="cat-row"><td colspan="6">Frozen <span class="count">(11)</span></td></tr>
+    <tr class="cat-row"><td colspan="6">Frozen <span class="count">(10)</span></td></tr>
     <tr>
       
       <td class="item">Banana Chunks Iqf (Entyce)</td>
@@ -642,15 +609,6 @@
       <td class="pack">1 kg</td>
       <td class="price-pack">$35.54</td>
       <td class="price-unit">$35.54/kg</td>
-      <td class="qty"></td>
-      <td class="tick"></td>
-    </tr>
-    <tr>
-      
-      <td class="item">Strawberries Iqf (Catchoice)</td>
-      <td class="pack">1 kg</td>
-      <td class="price-pack">$8.01</td>
-      <td class="price-unit">$8.01/kg</td>
       <td class="qty"></td>
       <td class="tick"></td>
     </tr>
@@ -821,20 +779,14 @@
     </tr>
   </tbody>
 </table>
-
-<div class="legend">
-  Pack price ex GST · $/unit normalised to per-kg / per-L / per-each for cross-pack comparison · ⚠ = spec check pending
-</div>
-
+<div class="legend">Pack price ex GST · $/unit normalised to per-kg / per-L / per-each for cross-pack comparison · ⚠ = spec check pending</div>
 <div class="sig">
   <label>Notes / special requests</label>
   <div class="line"></div>
   <div class="line"></div>
 </div>
-
 <footer>
-  <div>Bidfood — Order Form · 83 items · Tarte Kitchen — printed 2026-05-25</div>
+  <div>Bidfood — Order Form · 80 items · Tarte Kitchen — printed 2026-05-29</div>
   <div>Submit by: ______________</div>
 </footer>
-
 </body></html>

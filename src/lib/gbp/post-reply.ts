@@ -55,10 +55,12 @@ export async function postGbpReply(
     }
   }
 
-  // POST /v4/{name}/reply  (upsert — creates or updates an existing reply)
+  // PUT /v4/{name}/reply  (upsert — creates or updates an existing reply).
+  // The endpoint only accepts PUT; POST returns 404. tarte-seo-engine
+  // uses PUT too — we missed it the first time.
   const url = `${GBP_V4}/${googleReviewId}/reply`
   const res = await fetch(url, {
-    method: "POST",
+    method: "PUT",
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",

@@ -53,6 +53,18 @@ re-quote round when we go back to suppliers.
 
 ---
 
+## Fermex S30280 (29 May 2026) — three flips back to Fermex
+After my push-back on the increases in S29927, Patrick came back with:
+- **Strawberry IQF 1kg**: $8.25 → **$7.40/kg** (−10%) — beats Bidfood post-rebate $7.69/kg. **Source: Fermex.**
+- **Pepper Black Cracked 1kg**: $28.75 → **$25.00/kg** (−13%) — beats Bidfood post-rebate $25.60/kg (750g pack). **Source: Fermex.**
+- **Garlic Granules 1kg**: $14.50 → **$13.50/kg** (−6.9%) — beats Bidfood post-rebate $14.30/kg. **Source: Fermex.**
+
+Also new bulk SKUs from S30280 — chef call needed:
+- **Blueberries Bulk Frozen 13.61kg @ $9.92/kg** — vs Bidfood 1kg post-rebate $9.63/kg. Roughly tied per-kg but very different pack size. Stay Bidfood unless chef wants the bulk.
+- **Cranberries Dried 11.34kg @ $9.35/kg** — vs Bidfood 1kg post-rebate $12.48/kg. **Fermex saves 25% if 11.34kg pack workable.** Worth chef sign-off.
+
+Still uncovered by S30280: Pecan +20%, Walnut +28%, Raspberry IQF +23% from S29927 — chase Patrick again.
+
 ## Decisions already locked in (record only — no chef action)
 
 - **Bonsoy soy milk** → moving to Provedores at **$3.30/L** (1L × 6).

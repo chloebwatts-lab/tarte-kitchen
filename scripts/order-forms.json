@@ -1413,6 +1413,16 @@
         },
         {
           "category": "Pantry",
+          "name": "Cranberries Dried Sweet 11.34kg",
+          "packSize": "11.34 kg",
+          "packPrice": 106.0,
+          "unitPrice": 9.347,
+          "unit": "kg",
+          "code": "CRANBERRY",
+          "notes": "S30280 bulk option \u2014 chef call on 11.34kg pack. Saves 25% vs Bidfood 1kg."
+        },
+        {
+          "category": "Pantry",
           "name": "Fennel Seed Whole 1kg",
           "packSize": "1 kg",
           "packPrice": 18.5,
@@ -1424,10 +1434,10 @@
           "category": "Pantry",
           "name": "Garlic Granules 1kg",
           "packSize": "1 kg",
-          "packPrice": 14.5,
-          "unitPrice": 14.5,
+          "packPrice": 13.5,
+          "unitPrice": 13.5,
           "unit": "kg",
-          "notes": "Within $0.20 of Bidfood post-rebate",
+          "notes": "S30280 (\u22126.9% from S29927) \u2014 wins vs Bidfood post-rebate",
           "code": "GARGRAN1"
         },
         {
@@ -1531,10 +1541,10 @@
           "category": "Pantry",
           "name": "Pepper Black Cracked Fine 16/24, 1kg",
           "packSize": "1 kg",
-          "packPrice": 28.75,
-          "unitPrice": 28.75,
+          "packPrice": 25.0,
+          "unitPrice": 25.0,
           "unit": "kg",
-          "notes": "Bidfood now cheaper post-rebate",
+          "notes": "S30280 (\u221213% from S29927) \u2014 wins vs Bidfood post-rebate",
           "code": "PEPCB1KG"
         },
         {
@@ -1843,6 +1853,16 @@
         },
         {
           "category": "Frozen",
+          "name": "Blueberries Bulk Frozen IQF 13.61kg",
+          "packSize": "13.61 kg",
+          "packPrice": 135.0,
+          "unitPrice": 9.918,
+          "unit": "kg",
+          "code": "FRBLUE13.6",
+          "notes": "S30280 bulk option \u2014 chef call on 13.61kg pack vs 1kg ($12.95). Bidfood marginally cheaper at 1kg."
+        },
+        {
+          "category": "Frozen",
           "name": "Blueberries Frozen 1kg",
           "packSize": "1 kg",
           "packPrice": 12.95,
@@ -1895,10 +1915,10 @@
           "category": "Frozen",
           "name": "Strawberry IQF 1kg",
           "packSize": "1 kg",
-          "packPrice": 8.25,
-          "unitPrice": 8.25,
+          "packPrice": 7.4,
+          "unitPrice": 7.4,
           "unit": "kg",
-          "notes": "Flip back to Bidfood \u2014 pack changed from 10kg",
+          "notes": "S30280 (\u221210% from S29927) \u2014 back to winning vs Bidfood",
           "code": "FRSTRAW"
         }
       ]
@@ -2575,6 +2595,6 @@
       ]
     }
   ],
-  "_updated": "2026-05-25",
+  "_updated": "2026-05-29",
   "_notes": "Source of truth for ApprovedSupplierItem in /suppliers. Each item has category, name, packSize, packPrice (per-pack inc), unitPrice (per-base \u2014 kg/L/unit), unit. notes are free-text."
 }

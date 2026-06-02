@@ -141,6 +141,7 @@ function buildEmailHtml(reviews: DraftedReview[]): { html: string; text: string 
       timeZone: "Australia/Brisbane",
     })
     const approveUrl = `${APP_URL}/api/reviews/reply?token=${r.replyToken}&action=approve`
+    const editUrl = `${APP_URL}/api/reviews/reply?token=${r.replyToken}&action=edit`
     const skipUrl = `${APP_URL}/api/reviews/reply?token=${r.replyToken}&action=skip`
     const color = ratingColor(r.rating)
     const bg = ratingBg(r.rating)
@@ -161,8 +162,12 @@ function buildEmailHtml(reviews: DraftedReview[]): { html: string; text: string 
         </div>
         <div>
           <a href="${approveUrl}"
-             style="display:inline-block;padding:8px 18px;background:${color};color:#fff;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;margin-right:8px;">
+             style="display:inline-block;padding:8px 18px;background:${color};color:#fff;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;margin-right:6px;">
             ✓ Approve &amp; Post
+          </a>
+          <a href="${editUrl}"
+             style="display:inline-block;padding:8px 18px;background:#fff;color:${color};text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;border:1px solid ${color};margin-right:6px;">
+            ✏️ Edit
           </a>
           <a href="${skipUrl}"
              style="display:inline-block;padding:8px 18px;background:#fff;color:#4a4641;text-decoration:none;border-radius:6px;font-size:13px;border:1px solid #d9d2c4;">
@@ -200,6 +205,7 @@ function buildEmailHtml(reviews: DraftedReview[]): { html: string; text: string 
   const textItems = sorted.map((r) => {
     const venueName = VENUE_SHORT_LABEL[r.venue] ?? r.venue
     const approveUrl = `${APP_URL}/api/reviews/reply?token=${r.replyToken}&action=approve`
+    const editUrl = `${APP_URL}/api/reviews/reply?token=${r.replyToken}&action=edit`
     const skipUrl = `${APP_URL}/api/reviews/reply?token=${r.replyToken}&action=skip`
     return [
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
@@ -211,6 +217,7 @@ function buildEmailHtml(reviews: DraftedReview[]): { html: string; text: string 
       r.draftReply,
       ``,
       `Approve: ${approveUrl}`,
+      `Edit:    ${editUrl}`,
       `Skip:    ${skipUrl}`,
     ].join("\n")
   }).join("\n\n")

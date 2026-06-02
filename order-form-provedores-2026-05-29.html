@@ -29,14 +29,9 @@
   .sig label { font-size: 0.72em; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
   .sig .line { border-bottom: 1px solid #444; height: 1.4em; margin-top: 0.15em; }
   .legend { font-size: 0.72em; color: #888; margin-top: 0.4em; }
-  @media print {
-    body { padding: 0; }
-    tr { page-break-inside: avoid; }
-    tr.cat-row { page-break-after: avoid; }
-  }
+  @media print { body { padding: 0; } tr { page-break-inside: avoid; } tr.cat-row { page-break-after: avoid; } }
 </style></head>
 <body>
-
 <header>
   <div>
     <h1>The Provedores — Order Form</h1>
@@ -50,18 +45,8 @@
   </div>
 </header>
 
-
-
 <table>
-  <thead><tr>
-    
-    <th>Item</th>
-    <th>Pack</th>
-    <th style="text-align: right;">Pack price</th>
-    <th style="text-align: right;">$/unit</th>
-    <th>Qty</th>
-    <th>✓</th>
-  </tr></thead>
+  <thead><tr><th>Item</th><th>Pack</th><th style="text-align: right;">Pack price</th><th style="text-align: right;">$/unit</th><th>Qty</th><th>✓</th></tr></thead>
   <tbody>
     <tr class="cat-row"><td colspan="6">Dairy <span class="count">(6)</span></td></tr>
     <tr>
@@ -649,20 +634,14 @@
     </tr>
   </tbody>
 </table>
-
-<div class="legend">
-  Pack price ex GST · $/unit normalised to per-kg / per-L / per-each for cross-pack comparison · ⚠ = spec check pending
-</div>
-
+<div class="legend">Pack price ex GST · $/unit normalised to per-kg / per-L / per-each for cross-pack comparison · ⚠ = spec check pending</div>
 <div class="sig">
   <label>Notes / special requests</label>
   <div class="line"></div>
   <div class="line"></div>
 </div>
-
 <footer>
-  <div>The Provedores — Order Form · 64 items · Tarte Kitchen — printed 2026-05-25</div>
+  <div>The Provedores — Order Form · 64 items · Tarte Kitchen — printed 2026-05-29</div>
   <div>Submit by: ______________</div>
 </footer>
-
 </body></html>
