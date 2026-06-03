@@ -17,15 +17,28 @@
 		# /inbox-playbooks has its own basic_auth below — separate password
 		# so Shawna can access without seeing P&L / COGS / etc.
 		not path /inbox-playbooks /inbox-playbooks/*
+		# /reviews same deal — Shawna handles review replies; she gets
+		# the page (read + Approve / Skip / Edit server actions) without
+		# touching anything else in the app.
+		not path /reviews /reviews/*
 	}
 	basic_auth @protected {
 		tarte {$BASIC_AUTH_HASH}
 	}
 
 	# Separate auth for the inbox-playbooks page only. Both `tarte` (main
-	# TK password) and `shauna` (playbooks-only password) can access it.
+	# TK password) and `shawna` (playbooks-only password) can access it.
 	@inbox path /inbox-playbooks /inbox-playbooks/*
 	basic_auth @inbox {
+		tarte {$BASIC_AUTH_HASH}
+		shawna {$SHAWNA_AUTH_HASH}
+	}
+
+	# Reviews dashboard — shared with Shawna. Server actions POST to the
+	# same /reviews path so this matcher covers both the GET page load
+	# and the Approve / Skip clicks.
+	@reviews path /reviews /reviews/*
+	basic_auth @reviews {
 		tarte {$BASIC_AUTH_HASH}
 		shawna {$SHAWNA_AUTH_HASH}
 	}
