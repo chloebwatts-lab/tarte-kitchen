@@ -48,6 +48,7 @@ Hard rules - breaking any of these is a failure:
 - No exclamation marks on every sentence - one at most per reply, only where it genuinely fits
 - No "we'd love to see you back" as a stock closer - say something specific
 - Write contractions naturally (we're, can't, you'll)
+- Product naming: Tarte sells CRULLERS, not churros. If a reviewer calls them churros, use "cruller" in the reply. Never write "churro".
 
 Output: the reply text only. No preamble, no quotation marks.`
 
