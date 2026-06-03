@@ -5,6 +5,7 @@ import { Star, Quote, Mail } from "lucide-react"
 import { db } from "@/lib/db"
 import { SINGLE_VENUES, VENUE_LABEL, VENUE_SHORT_LABEL } from "@/lib/venues"
 import { Venue, ReviewSentiment, ReviewTheme } from "@/generated/prisma/enums"
+import { PendingReplyCard } from "./PendingReplyCard"
 
 const THEME_LABEL: Record<ReviewTheme, string> = {
   FOOD_QUALITY: "Food",
@@ -82,7 +83,8 @@ export default async function ReviewsPage({
   const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000)
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000)
 
-  const [places, reviews, themeRollupRaw, weeklySummary] = await Promise.all([
+  const [places, reviews, themeRollupRaw, weeklySummary, pendingReplies] =
+    await Promise.all([
     db.googleVenuePlace.findMany({
       orderBy: { venue: "asc" },
     }),
@@ -104,6 +106,27 @@ export default async function ReviewsPage({
     }),
     db.googleReviewWeeklySummary.findFirst({
       orderBy: { weekStart: "desc" },
+    }),
+    // Pending = DRAFTED + venue matches current filter. Show negatives
+    // first (need more care), then newest first within each rating.
+    db.googleReview.findMany({
+      where: {
+        replyStatus: "DRAFTED",
+        draftReply: { not: null },
+        ...(venueFilter !== "ALL" ? { venue: venueFilter } : {}),
+      },
+      orderBy: [{ rating: "asc" }, { publishTime: "desc" }],
+      select: {
+        id: true,
+        venue: true,
+        rating: true,
+        authorName: true,
+        publishTime: true,
+        relativePublishTime: true,
+        text: true,
+        draftReply: true,
+        googleReviewId: true,
+      },
     }),
   ])
 
@@ -154,6 +177,35 @@ export default async function ReviewsPage({
           </p>
         </div>
       </header>
+
+      {/* Pending replies — edit + approve inline */}
+      {pendingReplies.length > 0 && (
+        <section className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-emerald-800">
+              Pending replies ({pendingReplies.length})
+            </h2>
+            <span className="text-xs text-stone-500">
+              Tweak the draft if you want, then Approve to post to Google.
+            </span>
+          </div>
+          <div className="space-y-3">
+            {pendingReplies.map((r) => (
+              <PendingReplyCard
+                key={r.id}
+                id={r.id}
+                venueLabel={VENUE_SHORT_LABEL[r.venue]}
+                rating={r.rating}
+                authorName={r.authorName}
+                publishedLabel={r.relativePublishTime ?? fmtDate(r.publishTime)}
+                text={r.text}
+                initialDraft={r.draftReply ?? ""}
+                isGbpFormat={r.googleReviewId.startsWith("accounts/")}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Venue tiles */}
       <div className="grid gap-3 sm:grid-cols-3">
