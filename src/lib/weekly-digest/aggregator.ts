@@ -16,6 +16,7 @@
 import { db } from "@/lib/db"
 import { Venue, ReviewSentiment } from "@/generated/prisma/enums"
 import { lastCompletedTarteWeek } from "@/lib/dates"
+import { normaliseUnit } from "@/lib/invoices/units"
 
 const SINGLE_VENUES: Venue[] = [
   Venue.BURLEIGH,
@@ -344,6 +345,7 @@ async function buildPriceSpikes(week: DigestWeek): Promise<PriceSpikesSection> {
       ingredient: {
         select: {
           name: true,
+          purchaseUnit: true,
           supplier: { select: { name: true } },
         },
       },
@@ -351,7 +353,7 @@ async function buildPriceSpikes(week: DigestWeek): Promise<PriceSpikesSection> {
         select: { invoiceDate: true, supplierName: true },
       },
     },
-    take: 200,
+    take: 400,
   })
 
   // Dedupe: a single ingredient may appear on multiple invoices the same
@@ -372,6 +374,18 @@ async function buildPriceSpikes(week: DigestWeek): Promise<PriceSpikesSection> {
     const oldP = Number(l.currentPrice)
     const newP = Number(l.unitPrice)
     if (oldP <= 0) continue
+
+    // **Unit-match gate.** `currentPrice` is stored in the ingredient's
+    // purchase-unit base (per g / ml / ea), but `unitPrice` is the raw
+    // invoice line price in whatever unit the supplier billed (per case,
+    // per carton, per kg, per L). Comparing across units produces nonsense
+    // like Mozzarella +151% (case price vs per-gram price). Only include
+    // rows where the invoice unit and the ingredient purchase unit are
+    // directly comparable.
+    const invUnit = normaliseUnit(l.unit)
+    const stUnit = normaliseUnit(l.ingredient?.purchaseUnit ?? null)
+    if (!invUnit || !stUnit || invUnit !== stUnit) continue
+
     const changePct = ((newP - oldP) / oldP) * 100
     // Skip changes ≥200% — almost always a unit mismatch (case price vs
     // single-unit price), not a real spike.
