@@ -54,6 +54,7 @@ export async function processInvoice(
     let unitChanged = false
     let currentPrice: number | null = null
     let suggestedConversionFactor: number | null = null
+    let normalisedUnitPrice: number | null = null
 
     if (matchResult.matched) {
       matchedItems++
@@ -92,6 +93,7 @@ export async function processInvoice(
         unitChanged = evaluation.unitChanged
         currentPrice = evaluation.currentPrice
         suggestedConversionFactor = evaluation.suggestedConversionFactor
+        normalisedUnitPrice = evaluation.normalisedUnitPrice
         if (priceChanged) priceChanges++
       }
     } else {
@@ -111,6 +113,7 @@ export async function processInvoice(
         priceChanged,
         unitChanged,
         currentPrice,
+        normalisedUnitPrice,
         suggestedConversionFactor,
       },
     })

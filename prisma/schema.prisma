@@ -892,6 +892,15 @@ model InvoiceLineItem {
   matchConfidence String?
   matchedName     String?
   currentPrice    Decimal?    @db.Decimal(12, 4)
+  /// Invoice line's price expressed in the ingredient's purchase-unit base
+  /// (per g / ml / ea). `unitPrice` is the raw invoice value — often per
+  /// case/carton/pack — and not directly comparable to `currentPrice` when
+  /// the supplier billed in a different unit. This field is set by the
+  /// processor via compareUnits/evaluatePriceChange so all downstream
+  /// consumers (digest, suppliers UI, dashboard, COGS variance) can do
+  /// apples-to-apples comparisons without re-running unit conversion.
+  /// Null when the comparison was "skip" or "unit_changed".
+  normalisedUnitPrice Decimal? @db.Decimal(12, 6)
   priceChanged    Boolean     @default(false)
   priceApproved   Boolean?
   /// Pack/unit differs from the ingredient's stored purchase unit. Must be

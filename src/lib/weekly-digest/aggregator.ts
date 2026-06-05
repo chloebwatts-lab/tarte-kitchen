@@ -370,25 +370,29 @@ async function buildPriceSpikes(week: DigestWeek): Promise<PriceSpikesSection> {
     }
   >()
   for (const l of lines) {
-    if (l.unitPrice == null || l.currentPrice == null) continue
+    if (l.currentPrice == null) continue
     const oldP = Number(l.currentPrice)
-    const newP = Number(l.unitPrice)
     if (oldP <= 0) continue
 
-    // **Unit-match gate.** `currentPrice` is stored in the ingredient's
-    // purchase-unit base (per g / ml / ea), but `unitPrice` is the raw
-    // invoice line price in whatever unit the supplier billed (per case,
-    // per carton, per kg, per L). Comparing across units produces nonsense
-    // like Mozzarella +151% (case price vs per-gram price). Only include
-    // rows where the invoice unit and the ingredient purchase unit are
-    // directly comparable.
-    const invUnit = normaliseUnit(l.unit)
-    const stUnit = normaliseUnit(l.ingredient?.purchaseUnit ?? null)
-    if (!invUnit || !stUnit || invUnit !== stUnit) continue
+    // Use the per-base-unit normalised invoice price written by the
+    // processor — it's already converted to the ingredient's purchase
+    // unit so direct comparison against currentPrice is apples-to-apples.
+    // Fallback to the same-unit safety filter for legacy rows that
+    // haven't been backfilled yet.
+    let newP: number | null = null
+    if (l.normalisedUnitPrice != null) {
+      newP = Number(l.normalisedUnitPrice)
+    } else if (l.unitPrice != null) {
+      const invUnit = normaliseUnit(l.unit)
+      const stUnit = normaliseUnit(l.ingredient?.purchaseUnit ?? null)
+      if (invUnit && stUnit && invUnit === stUnit) {
+        newP = Number(l.unitPrice)
+      }
+    }
+    if (newP == null || newP <= 0) continue
 
     const changePct = ((newP - oldP) / oldP) * 100
-    // Skip changes ≥200% — almost always a unit mismatch (case price vs
-    // single-unit price), not a real spike.
+    // Hard guard against any residual unit mismatch sneaking through.
     if (Math.abs(changePct) >= 200) continue
     if (Math.abs(changePct) < 5) continue
 

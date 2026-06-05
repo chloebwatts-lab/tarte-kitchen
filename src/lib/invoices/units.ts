@@ -251,6 +251,12 @@ export interface PriceEvaluation {
   unitChanged: boolean
   currentPrice: number | null
   suggestedConversionFactor: number | null
+  /** Invoice line's price expressed in the ingredient's purchase-unit base
+   * (per g / ml / ea). Null when comparison was "skip" or "unit_changed".
+   * For "same_unit" this is just `line.unitPrice`; for "converted" it's
+   * `line.unitPrice × conversionFactor`. Always directly comparable to
+   * `currentPrice`. */
+  normalisedUnitPrice: number | null
 }
 
 export function evaluatePriceChange(
@@ -261,7 +267,13 @@ export function evaluatePriceChange(
   const result = compareUnits(ingredient, line, mappingConversion)
 
   if (result.kind === "skip") {
-    return { priceChanged: false, unitChanged: false, currentPrice: null, suggestedConversionFactor: null }
+    return {
+      priceChanged: false,
+      unitChanged: false,
+      currentPrice: null,
+      suggestedConversionFactor: null,
+      normalisedUnitPrice: null,
+    }
   }
 
   if (result.kind === "same_unit") {
@@ -271,6 +283,8 @@ export function evaluatePriceChange(
       unitChanged: false,
       currentPrice: changed ? result.storedUnitPrice : null,
       suggestedConversionFactor: null,
+      // For same-unit comparisons the invoice price IS already in stored units.
+      normalisedUnitPrice: result.invoiceUnitPrice,
     }
   }
 
@@ -282,6 +296,10 @@ export function evaluatePriceChange(
       currentPrice: changed ? result.storedUnitPrice : null,
       suggestedConversionFactor:
         result.conversionSource === "description" ? result.conversionFactor : null,
+      // Crucially: the invoice price after applying the unit conversion. This
+      // is what every downstream comparison must use to avoid case-vs-gram
+      // bogus percentages on the Friday digest etc.
+      normalisedUnitPrice: result.invoiceUnitPriceInStoredUnits,
     }
   }
 
@@ -298,6 +316,7 @@ export function evaluatePriceChange(
     unitChanged: true,
     currentPrice: result.storedUnitPrice,
     suggestedConversionFactor: suggested ?? null,
+    normalisedUnitPrice: null,
   }
 }
 

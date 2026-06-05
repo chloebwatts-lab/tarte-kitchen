@@ -69,6 +69,7 @@ export async function GET(req: NextRequest) {
         let unitChanged = false
         let currentPrice: number | null = null
         let suggestedConversionFactor: number | null = null
+        let normalisedUnitPrice: number | null = null
         if (line.unitPrice != null) {
           const ing = await db.ingredient.findUnique({
             where: { id: match.ingredientId },
@@ -100,6 +101,7 @@ export async function GET(req: NextRequest) {
             unitChanged = evaluation.unitChanged
             currentPrice = evaluation.currentPrice
             suggestedConversionFactor = evaluation.suggestedConversionFactor
+            normalisedUnitPrice = evaluation.normalisedUnitPrice
             if (priceChanged) newPriceChanges++
           }
         }
@@ -112,6 +114,7 @@ export async function GET(req: NextRequest) {
             priceChanged,
             unitChanged,
             currentPrice,
+            normalisedUnitPrice,
             suggestedConversionFactor,
           },
         })

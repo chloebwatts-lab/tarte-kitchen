@@ -122,6 +122,7 @@ export async function matchLineItem(lineItemId: string, ingredientId: string) {
       currentPrice: evaluation.currentPrice,
       priceChanged: evaluation.priceChanged,
       unitChanged: evaluation.unitChanged,
+      normalisedUnitPrice: evaluation.normalisedUnitPrice,
       suggestedConversionFactor: evaluation.suggestedConversionFactor,
     },
   })
@@ -507,7 +508,12 @@ export async function getPriceAlerts() {
     let displayUnit = li.unit ?? ""
     let displayUnitPrice = rawInvoiceUnitPrice
 
-    if (li.ingredient && supplierId) {
+    // Fast path: if the processor wrote a normalised per-base-unit price,
+    // use it directly (avoids re-running compareUnits on every page load).
+    if (li.normalisedUnitPrice != null && li.ingredient) {
+      displayUnit = li.ingredient.purchaseUnit
+      displayUnitPrice = Number(li.normalisedUnitPrice)
+    } else if (li.ingredient && supplierId) {
       const conversion = conversionLookup.get(`${supplierId}::${li.description}`)
       const result = compareUnits(
         {
@@ -684,6 +690,7 @@ export async function confirmConversion(lineItemId: string, conversionFactor: nu
       priceChanged: evaluation.priceChanged,
       unitChanged: false,
       currentPrice: evaluation.currentPrice,
+      normalisedUnitPrice: evaluation.normalisedUnitPrice,
       suggestedConversionFactor: null,
     },
   })
