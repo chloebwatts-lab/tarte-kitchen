@@ -27,11 +27,14 @@
 	}
 
 	# Separate auth for the inbox-playbooks page only. Both `tarte` (main
-	# TK password) and `shawna` (playbooks-only password) can access it.
+	# TK password) and `shawna` / `Shawna` (playbooks-only password) can
+	# access it. We accept either case of the shawna username so phone
+	# keyboards that auto-capitalise the first letter don't lock her out.
 	@inbox path /inbox-playbooks /inbox-playbooks/*
 	basic_auth @inbox {
 		tarte {$BASIC_AUTH_HASH}
 		shawna {$SHAWNA_AUTH_HASH}
+		Shawna {$SHAWNA_AUTH_HASH}
 	}
 
 	# Reviews dashboard — shared with Shawna. Server actions POST to the
@@ -41,6 +44,7 @@
 	basic_auth @reviews {
 		tarte {$BASIC_AUTH_HASH}
 		shawna {$SHAWNA_AUTH_HASH}
+		Shawna {$SHAWNA_AUTH_HASH}
 	}
 
 	reverse_proxy app:3000
