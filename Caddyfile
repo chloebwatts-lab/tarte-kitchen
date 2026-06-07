@@ -1,4 +1,11 @@
 {$DOMAIN} {
+	# Per-request access log — used when debugging auth failures. Stdout
+	# so it shows up in `docker logs tarte-kitchen-caddy-1`.
+	log {
+		output stdout
+		format json
+	}
+
 	# /log and /kitchen are public — staff walk-up entry on iPads, no login.
 	# /council is public so the GCCC EHO can reach the password gate without
 	# needing the staff basic-auth password (it has its own COUNCIL_PASSWORD
