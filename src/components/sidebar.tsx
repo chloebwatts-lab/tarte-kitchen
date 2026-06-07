@@ -55,9 +55,28 @@ const navItems = [
   { label: "Settings", href: "/settings/integrations", icon: Settings },
 ];
 
-export function Sidebar() {
+/**
+ * Pages a restricted (non-`tarte`) user is allowed to see in the
+ * sidebar. Anything missing here would prefetch on hover and trigger
+ * a phantom basic-auth prompt for shawna et al.
+ */
+const RESTRICTED_USER_ALLOWED_HREFS = new Set<string>([
+  "/reviews",
+  "/inbox-playbooks",
+])
+
+export function Sidebar({
+  restrictedUser,
+}: {
+  /** null = full access (the `tarte` operator). Any string = limited
+   * user (e.g. "shawna") — sidebar collapses to the allow-list. */
+  restrictedUser?: string | null
+}) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const visibleNav = restrictedUser
+    ? navItems.filter((i) => RESTRICTED_USER_ALLOWED_HREFS.has(i.href))
+    : navItems;
 
   return (
     <>
@@ -98,7 +117,7 @@ export function Sidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          {navItems.map((item) => {
+          {visibleNav.map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(item.href + "/");
             return (

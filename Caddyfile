@@ -54,7 +54,12 @@
 		Shawna {$SHAWNA_AUTH_HASH}
 	}
 
-	reverse_proxy app:3000
+	reverse_proxy app:3000 {
+		# Forward the basic-auth user to the app so the layout can hide
+		# nav items for restricted users (Shawna should only see Reviews
+		# / Inbox-Playbooks — anything else 401s and pops a login box).
+		header_up X-Auth-User {http.auth.user.id}
+	}
 }
 
 # tarte-inbox — background email automation. Runs in /root/tarte-inbox under
