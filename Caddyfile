@@ -28,6 +28,10 @@
 		# the page (read + Approve / Skip / Edit server actions) without
 		# touching anything else in the app.
 		not path /reviews /reviews/*
+		# Email approve/skip links land on /api/reviews/reply?token=...
+		# — Shawna's daily emails point here so she needs through too.
+		not path /api/reviews/reply
+		not path /api/reviews/reply/*
 	}
 	basic_auth @protected {
 		tarte {$BASIC_AUTH_HASH}
@@ -44,10 +48,13 @@
 		Shawna {$SHAWNA_AUTH_HASH}
 	}
 
-	# Reviews dashboard — shared with Shawna. Server actions POST to the
-	# same /reviews path so this matcher covers both the GET page load
-	# and the Approve / Skip clicks.
-	@reviews path /reviews /reviews/*
+	# Reviews dashboard + email-link approve handler — shared with Shawna.
+	# /reviews covers the dashboard GET + Approve/Skip server actions
+	# (server actions POST to the same path).
+	# /api/reviews/reply is the GET handler the daily email's Approve / Skip
+	# links point at — Shawna needs through there too or her email links
+	# pop a Tarte password prompt that her shawna creds can't satisfy.
+	@reviews path /reviews /reviews/* /api/reviews/reply /api/reviews/reply/*
 	basic_auth @reviews {
 		tarte {$BASIC_AUTH_HASH}
 		shawna {$SHAWNA_AUTH_HASH}
