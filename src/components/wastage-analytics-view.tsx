@@ -264,7 +264,7 @@ export function WastageAnalyticsView({
         <CardContent>
           {data.byWeek.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              No data.
+              No waste logged in this range.
             </p>
           ) : (
             <div className="h-64">
@@ -347,7 +347,7 @@ export function WastageAnalyticsView({
           <CardContent>
             {data.byReason.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                No data.
+                No waste logged in this range.
               </p>
             ) : (
               <div className="h-64">
@@ -397,7 +397,7 @@ export function WastageAnalyticsView({
           <CardContent>
             {data.byVenue.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                No data.
+                No waste logged in this range.
               </p>
             ) : (
               <div className="space-y-3">

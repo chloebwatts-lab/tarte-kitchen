@@ -361,7 +361,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                   </div>
                 ))}
                 {(!currentStats.perVenue || currentStats.perVenue.length === 0) && (
-                  <p className="text-sm text-muted-foreground">No data</p>
+                  <p className="text-sm text-muted-foreground">No waste logged this week</p>
                 )}
               </div>
               <div className="rounded-lg bg-muted p-3 ml-2">
@@ -380,7 +380,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
               </div>
             </div>
             {currentStats.topWastedItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No data</p>
+              <p className="text-sm text-muted-foreground">No waste logged this week</p>
             ) : (
               <div className="space-y-1.5">
                 {currentStats.topWastedItems.slice(0, 5).map((item, i) => (
