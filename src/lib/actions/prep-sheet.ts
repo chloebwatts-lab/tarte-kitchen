@@ -48,6 +48,19 @@ interface DishDemand {
   forecastQty: number
 }
 
+// Lightspeed report categories whose products never need kitchen prep —
+// used only to de-noise the unmatched-forecast list, never to drop demand.
+const NON_KITCHEN_CATEGORIES = new Set([
+  "Alcohol",
+  "Coffee & Tea",
+  "Cold Drinks",
+  "Drinks",
+  "Happy Hour",
+  "Homewares",
+  "Retail",
+  "Hire",
+])
+
 function ymd(d: Date): string {
   return d.toISOString().split("T")[0]
 }
@@ -92,30 +105,61 @@ export async function getPrepSheet(params: {
       ? { venue: { in: [...SINGLE_VENUES] as Venue[] } }
       : { venue: { in: [venue as Venue] } }
 
-  const rawSales = await db.dailySales.findMany({
-    where: { ...venueFilter, date: { gte: start } },
-    select: {
-      date: true,
-      venue: true,
-      menuItemName: true,
-      dishId: true,
-      quantitySold: true,
-    },
-  })
+  // DailySales (per-item POS sync) is often empty; use DailyCategoryTopItem
+  // which is populated from the daily Lightspeed PDF email reports. It has
+  // no dishId, so products are matched to dishes by normalised name.
+  const [topItemRows, allDishes] = await Promise.all([
+    db.dailyCategoryTopItem.findMany({
+      where: { ...venueFilter, date: { gte: start } },
+      select: { date: true, venue: true, productName: true, quantity: true, categoryName: true },
+      orderBy: { date: "desc" },
+    }),
+    db.dish.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, venue: true },
+    }),
+  ])
 
-  // Bucket by (venue, menuItemName) → array of qty for matching DoW
-  const bucket = new Map<string, { dishId: string | null; venue: Venue; qtys: number[]; name: string }>()
-  for (const row of rawSales) {
+  // Name → dish map; for a specific venue, prefer that venue's dish entry
+  const dishByNormName = new Map<string, (typeof allDishes)[number]>()
+  for (const dish of allDishes) {
+    const key = dish.name.toLowerCase().trim()
+    const existing = dishByNormName.get(key)
+    if (!existing || (venue !== "ALL" && dish.venue === venue)) {
+      dishByNormName.set(key, dish)
+    }
+  }
+
+  // A product can appear under more than one category on the same day —
+  // collapse to one sample per (venue, product, date) before bucketing.
+  // Category is kept (as a set per product) so the unmatched list can drop
+  // products that only ever sell in non-kitchen categories.
+  const perDay = new Map<string, { venue: Venue; name: string; qty: number }>()
+  const productCategories = new Map<string, Set<string>>()
+  for (const row of topItemRows) {
     if (row.date.getUTCDay() !== dow) continue
-    const key = `${row.venue}|${row.menuItemName}`
+    const normName = row.productName.toLowerCase().trim()
+    const key = `${row.venue}|${normName}|${ymd(row.date)}`
+    const entry = perDay.get(key)
+    if (entry) entry.qty += row.quantity
+    else perDay.set(key, { venue: row.venue, name: row.productName, qty: row.quantity })
+    const cats = productCategories.get(normName) ?? new Set()
+    cats.add(row.categoryName)
+    productCategories.set(normName, cats)
+  }
+
+  // Bucket by (venue, product) → same-DoW samples, newest first (rows come
+  // back date-desc, so slice(0, N) below means the most recent N weeks)
+  const bucket = new Map<string, { dishId: string | null; venue: Venue; qtys: number[]; name: string }>()
+  for (const row of perDay.values()) {
+    const key = `${row.venue}|${row.name.toLowerCase().trim()}`
     const entry = bucket.get(key) ?? {
-      dishId: row.dishId,
+      dishId: dishByNormName.get(row.name.toLowerCase().trim())?.id ?? null,
       venue: row.venue,
       qtys: [],
-      name: row.menuItemName,
+      name: row.name,
     }
-    entry.qtys.push(row.quantitySold)
-    entry.dishId = entry.dishId ?? row.dishId
+    entry.qtys.push(row.qty)
     bucket.set(key, entry)
   }
 
@@ -145,11 +189,19 @@ export async function getPrepSheet(params: {
         forecastQty,
       })
     } else {
-      unmatched.push({
-        menuItemName: b.name,
-        forecastQty,
-        venue: b.venue,
-      })
+      // Drinks / retail / hire products will never have a prep recipe —
+      // listing them as "unmatched" just buries the real gaps (food items
+      // missing a dish link). Skip products seen only in those categories.
+      const cats = productCategories.get(b.name.toLowerCase().trim())
+      const kitchenRelevant =
+        !cats || [...cats].some((c) => !NON_KITCHEN_CATEGORIES.has(c))
+      if (kitchenRelevant) {
+        unmatched.push({
+          menuItemName: b.name,
+          forecastQty,
+          venue: b.venue,
+        })
+      }
     }
   }
 
@@ -287,10 +339,14 @@ export async function getPrepSheet(params: {
     const p = prepMeta.get(prepId)
     if (!p) continue
     const baseUnit = baseUnitOf(p.yieldUnit, Number(p.yieldWeightGrams), Number(p.yieldQuantity))
+    // Demand is accumulated in ml, so a yield stored in litres must be
+    // scaled before computing batches (1 l batch covers 1000 ml, not 1).
     const yieldBase =
       baseUnit === "g"
         ? Number(p.yieldWeightGrams)
-        : Number(p.yieldQuantity)
+        : baseUnit === "ml" && p.yieldUnit.toLowerCase() === "l"
+          ? Number(p.yieldQuantity) * 1000
+          : Number(p.yieldQuantity)
     const batches = yieldBase > 0 ? Math.ceil(required / yieldBase) : 0
     const batchCost = Number(p.batchCost)
     // Collapse duplicate drivers
