@@ -1,5 +1,8 @@
 export const dynamic = "force-dynamic"
 
+import Link from "next/link"
+import { ShieldAlert } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { getIngredients } from "@/lib/actions/ingredients"
 import { getSuppliers } from "@/lib/actions/suppliers"
 import { IngredientsTable } from "@/components/ingredients-table"
@@ -29,7 +32,15 @@ export default async function IngredientsPage({
             {ingredients.length} ingredient{ingredients.length !== 1 ? "s" : ""} in your kitchen
           </p>
         </div>
-        <IngredientForm suppliers={suppliers} />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/ingredients/allergens">
+              <ShieldAlert className="mr-1.5 h-4 w-4" />
+              Allergen verification
+            </Link>
+          </Button>
+          <IngredientForm suppliers={suppliers} />
+        </div>
       </div>
 
       <IngredientsTable
