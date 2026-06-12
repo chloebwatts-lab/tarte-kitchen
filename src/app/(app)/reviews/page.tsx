@@ -38,7 +38,7 @@ function fmtDate(d: Date) {
     day: "numeric",
     month: "short",
     year: "numeric",
-    timeZone: "Australia/Sydney",
+    timeZone: "Australia/Brisbane",
   })
 }
 

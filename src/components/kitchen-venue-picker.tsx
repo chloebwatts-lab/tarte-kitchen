@@ -18,7 +18,7 @@ function formatNow() {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-    timeZone: "Australia/Sydney",
+    timeZone: "Australia/Brisbane",
   })
 }
 

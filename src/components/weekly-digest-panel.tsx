@@ -18,7 +18,7 @@ function fmtDate(d: Date) {
   return new Date(d).toLocaleDateString("en-AU", {
     day: "numeric",
     month: "short",
-    timeZone: "Australia/Sydney",
+    timeZone: "Australia/Brisbane",
   })
 }
 

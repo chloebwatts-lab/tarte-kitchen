@@ -17,7 +17,7 @@ const SIX_HOUR_MS = 6 * 60 * 60 * 1000
 
 function formatAest(iso: string, opts: Intl.DateTimeFormatOptions = {}) {
   return new Date(iso).toLocaleString("en-AU", {
-    timeZone: "Australia/Sydney",
+    timeZone: "Australia/Brisbane",
     ...opts,
   })
 }

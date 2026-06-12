@@ -31,7 +31,7 @@ const RANGE_OPTIONS: { value: number; label: string }[] = [
 
 function formatAest(d: Date | string, opts: Intl.DateTimeFormatOptions = {}) {
   return new Date(d).toLocaleString("en-AU", {
-    timeZone: "Australia/Sydney",
+    timeZone: "Australia/Brisbane",
     ...opts,
   })
 }

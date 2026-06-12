@@ -167,7 +167,7 @@ function fmtDate(d: Date | null | undefined): string {
     day: "numeric",
     month: "short",
     year: "numeric",
-    timeZone: "Australia/Sydney",
+    timeZone: "Australia/Brisbane",
   })
 }
 
@@ -370,7 +370,7 @@ export default async function CouncilVenuePage({
       <p className="mt-10 text-center text-xs text-stone-400">
         Tarte Kitchen — generated{" "}
         {new Date().toLocaleString("en-AU", {
-          timeZone: "Australia/Sydney",
+          timeZone: "Australia/Brisbane",
           dateStyle: "medium",
           timeStyle: "short",
         })}
