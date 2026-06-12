@@ -123,11 +123,14 @@ export default async function InspectionPage({
     b[0].localeCompare(a[0])
   )
 
-  const venueForCrumb = venueFilter === "ALL" ? "BURLEIGH" : venueFilter
   const venueLabel =
     venueFilter === "ALL"
       ? "All venues"
       : VENUE_LABEL[venueFilter].replace(/\s*\(.*\)$/, "")
+  // On "All venues" the middle crumb should return to the venue picker
+  // (/kitchen with no param), not silently drop into Burleigh's checklists.
+  const venueCrumbHref =
+    venueFilter === "ALL" ? "/kitchen" : `/kitchen?venue=${venueFilter}`
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 print:hidden">
@@ -135,7 +138,7 @@ export default async function InspectionPage({
           <KitchenBreadcrumb
             crumbs={[
               { label: "Venues", href: "/kitchen" },
-              { label: venueLabel, href: `/kitchen?venue=${venueForCrumb}` },
+              { label: venueLabel, href: venueCrumbHref },
               { label: "Inspection view" },
             ]}
           />
