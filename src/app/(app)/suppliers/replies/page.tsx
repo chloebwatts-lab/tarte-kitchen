@@ -173,6 +173,7 @@ function RepliesTable({
                     month: "short",
                     hour: "numeric",
                     minute: "2-digit",
+                    timeZone: "Australia/Brisbane",
                   })}
                 </td>
                 <td className="px-3 py-3 text-xs">
