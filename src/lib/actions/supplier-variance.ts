@@ -48,6 +48,10 @@ export type SupplierVarianceSummary = {
   totalOverspend: number
   byVenue: { venue: Venue; overspend: number; rows: number }[]
   suppliersWithoutForms: string[]
+  /** True iff any approved order-form items exist at all — drives the
+   * "variance not yet active" empty state honestly, rather than inferring
+   * it from how many suppliers happen to lack forms. */
+  hasApprovedForms: boolean
 }
 
 /**
@@ -207,5 +211,6 @@ export async function getSupplierVariance(params?: {
       rows: v.rows,
     })),
     suppliersWithoutForms,
+    hasApprovedForms: approvedItems.length > 0,
   }
 }

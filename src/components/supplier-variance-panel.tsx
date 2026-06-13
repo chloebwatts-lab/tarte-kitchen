@@ -35,7 +35,7 @@ export function SupplierVariancePanel() {
     )
   }
 
-  const hasForms = data.suppliersWithoutForms.length < 3 || data.rows.length > 0
+  const hasForms = data.hasApprovedForms
 
   return (
     <Card>
