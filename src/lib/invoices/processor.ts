@@ -38,10 +38,23 @@ export async function processInvoice(
     where: { id: supplierId },
     select: { name: true },
   })
+  // Guard the per-supplier default: only trust it when the PDF actually
+  // corroborates this supplier (its name appears, or it's billed to Tarte).
+  // Otherwise a mis-matched non-supplier invoice — e.g. a visa or software
+  // subscription the Gmail matcher wrongly attached to "Paramount Liquor" —
+  // would be force-routed into that supplier's venue and pollute its spend.
+  const canonicalName = supplier?.name ?? null
+  const pdfText = `${parsedData.supplierName ?? ""} ${parsedData.billTo ?? ""} ${
+    parsedData.deliveryAddress ?? ""
+  }`.toLowerCase()
+  const canonicalToken = canonicalName?.toLowerCase().split(/\s+/)[0] ?? ""
+  const pdfCorroboratesSupplier =
+    pdfText.includes("tarte") ||
+    (canonicalToken.length >= 3 && pdfText.includes(canonicalToken))
   const venue =
     venueFromText(parsedData.deliveryAddress) ??
     venueFromText(parsedData.billTo) ??
-    defaultVenueForSupplier(supplier?.name ?? parsedData.supplierName)
+    (pdfCorroboratesSupplier ? defaultVenueForSupplier(canonicalName) : null)
 
   // Update invoice metadata from parsed data
   await db.invoice.update({
