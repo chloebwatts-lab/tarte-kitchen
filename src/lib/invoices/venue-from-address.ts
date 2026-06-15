@@ -1,18 +1,22 @@
 import type { Venue } from "@/generated/prisma"
 
 /**
- * Infer the Tarte venue from an invoice's "Ship To" / "Deliver To"
- * address string. Same suburb (Currumbin) hosts two venues, so we
+ * Infer the Tarte venue from any customer-side text on an invoice — the
+ * "Ship To" / "Deliver To" address OR the "Bill To" / account block (the
+ * entity being charged). Same suburb (Currumbin) hosts two venues, so we
  * check concept names first, then fall back to suburb.
  *
- * Returns null when nothing matches — callers should leave venue
- * unset rather than guessing.
+ * IMPORTANT: only ever pass customer-side text here — never the supplier's
+ * own name/letterhead. Some suppliers carry a suburb in their trading name
+ * (e.g. "Bidfood … Burleigh Marr Distribution") which would mis-tag every
+ * venue if scanned. The venue must come from where goods go / who pays.
+ *
+ * Returns null when nothing matches — callers should leave venue unset
+ * rather than guessing.
  */
-export function venueFromDeliveryAddress(
-  address: string | null | undefined
-): Venue | null {
-  if (!address) return null
-  const s = address.toUpperCase()
+export function venueFromText(text: string | null | undefined): Venue | null {
+  if (!text) return null
+  const s = text.toUpperCase()
 
   if (s.includes("TEA GARDEN") || s.includes("TARTE MARKET")) return "TEA_GARDEN"
   if (s.includes("BEACH HOUSE")) return "BEACH_HOUSE"
@@ -24,6 +28,9 @@ export function venueFromDeliveryAddress(
 
   return null
 }
+
+/** @deprecated use {@link venueFromText} — kept as an alias for callers. */
+export const venueFromDeliveryAddress = venueFromText
 
 /**
  * Per-supplier venue fallback for invoices where the delivery address

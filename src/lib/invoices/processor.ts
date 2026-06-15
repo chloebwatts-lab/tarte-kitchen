@@ -2,7 +2,7 @@ import { db } from "@/lib/db"
 import { matchLineItem } from "./matcher"
 import type { ParsedInvoice } from "./parser"
 import {
-  venueFromDeliveryAddress,
+  venueFromText,
   defaultVenueForSupplier,
 } from "./venue-from-address"
 import type { InvoiceStatus } from "@/generated/prisma"
@@ -26,9 +26,22 @@ export async function processInvoice(
   let unmatchedItems = 0
   let priceChanges = 0
 
+  // Venue resolution, most-reliable signal first:
+  //   1. delivery (ship-to) address text
+  //   2. bill-to / account block (who's charged — names the venue when
+  //      there's no ship-to, e.g. Paramount/Pencilpay portal PDFs)
+  //   3. per-supplier default, keyed off the CANONICAL matched supplier —
+  //      NOT parsedData.supplierName, which is whatever Claude read off the
+  //      PDF (often a payment processor like "Pencil.One" or a bill-to
+  //      entity) and so never matched the supplier rules.
+  const supplier = await db.supplier.findUnique({
+    where: { id: supplierId },
+    select: { name: true },
+  })
   const venue =
-    venueFromDeliveryAddress(parsedData.deliveryAddress) ??
-    defaultVenueForSupplier(parsedData.supplierName)
+    venueFromText(parsedData.deliveryAddress) ??
+    venueFromText(parsedData.billTo) ??
+    defaultVenueForSupplier(supplier?.name ?? parsedData.supplierName)
 
   // Update invoice metadata from parsed data
   await db.invoice.update({

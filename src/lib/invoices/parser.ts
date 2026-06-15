@@ -22,6 +22,7 @@ export interface ParsedInvoice {
   invoiceNumber: string | null
   invoiceDate: string | null // YYYY-MM-DD
   deliveryAddress: string | null // "Ship To" / "Deliver To" — used to infer venue
+  billTo: string | null // "Bill To" / "Account" / customer block — who is charged; also used to infer venue
   lineItems: ParsedLineItem[]
   subtotal: number | null
   gst: number | null
@@ -37,6 +38,7 @@ Return valid JSON only, no other text or markdown fences:
   "invoiceNumber": "string or null",
   "invoiceDate": "YYYY-MM-DD or null (these are Australian invoices — dates on the page are DD/MM/YYYY, so 6/05/2026 means 6 May 2026, NOT 5 June 2026)",
   "deliveryAddress": "the Ship To / Deliver To address block as a single line, or null",
+  "billTo": "the Bill To / Account / Invoice To / Customer name-and-address block as a single line — this is the entity being charged, NOT the supplier's own letterhead. It usually names the Tarte venue (e.g. 'Tarte Beach House', 'Tarte Currumbin Pty Ltd', 'Tarte Burleigh'). Return null if absent.",
   "lineItems": [
     {
       "description": "exact product name as on invoice",
@@ -66,6 +68,7 @@ Other rules:
 - Include EVERY line item, even delivery fees or credits.
 - Use the exact product description from the invoice — don't shorten or paraphrase.
 - If unit is ambiguous, note what the invoice shows (e.g. "5kg bag" → unit: "bag", not "kg").
+- supplierName is the company that ISSUED the invoice (letterhead / "From"). It may itself contain a suburb (e.g. "Bidfood Gold Coast (Burleigh Marr Distribution)") — do NOT treat that as the customer venue. The venue lives in billTo / deliveryAddress only.
 - If a field cannot be determined, use null.`
 
 /** Heuristic backstop in case the model misclassifies a statement.
