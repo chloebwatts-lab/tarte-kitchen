@@ -134,6 +134,11 @@ export function CogsDashboard({ initial }: { initial: CogsDashboardData }) {
           : mode === "pct" && rev
             ? Math.round((v / rev) * 10000) / 100
             : Math.round(v)
+      // Non-food (FOH) = everything in the total that isn't kitchen food
+      // cost. Derived from the directly-read total, so it also captures any
+      // FOH/sundries line that isn't one of the named categories.
+      const nonFood =
+        c.cogsFood !== null ? c.totalCogs - c.cogsFood : null
       return {
         week: shortLabel(c.weekStartWed),
         total: mode === "pct" ? c.cogsPct : Math.round(c.totalCogs),
@@ -142,6 +147,7 @@ export function CogsDashboard({ initial }: { initial: CogsDashboardData }) {
         drinks: toChart(c.cogsDrinks),
         packaging: toChart(c.cogsPackaging),
         consumables: toChart(c.cogsConsumables),
+        nonfood: toChart(nonFood),
       }
     })
   }, [cells, mode])
@@ -361,6 +367,16 @@ export function CogsDashboard({ initial }: { initial: CogsDashboardData }) {
                       connectNulls
                     />
                   ))}
+                  <Line
+                    type="monotone"
+                    dataKey="nonfood"
+                    stroke="#0f766e"
+                    strokeWidth={2}
+                    strokeDasharray="5 3"
+                    dot={{ r: 2 }}
+                    name="Non-food (FOH)"
+                    connectNulls
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -529,6 +545,7 @@ export function CogsDashboard({ initial }: { initial: CogsDashboardData }) {
                     <th className="px-2 py-1.5 text-right">Drinks</th>
                     <th className="px-2 py-1.5 text-right">Pkg</th>
                     <th className="px-2 py-1.5 text-right">Cons.</th>
+                    <th className="px-2 py-1.5 text-right">Non-food</th>
                     <th className="px-2 py-1.5 text-right">Total</th>
                     <th className="px-2 py-1.5 text-right">%</th>
                   </tr>
@@ -543,6 +560,9 @@ export function CogsDashboard({ initial }: { initial: CogsDashboardData }) {
                       <Num v={c.cogsDrinks} muted />
                       <Num v={c.cogsPackaging} muted />
                       <Num v={c.cogsConsumables} muted />
+                      <Num
+                        v={c.cogsFood !== null ? c.totalCogs - c.cogsFood : null}
+                      />
                       <Num v={c.totalCogs} bold />
                       <td className="px-2 py-1.5 text-right">
                         {c.cogsPct !== null && (

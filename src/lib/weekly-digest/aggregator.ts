@@ -163,6 +163,10 @@ interface CogsSection {
     targetPct: number | null
     delta: number | null
     biggestCategory: { name: string; dollars: number } | null
+    /// Non-food (FOH) spend = Total COGS − Food cost. Null when the food
+    /// line is missing for the week. Derived from the directly-read total
+    /// so it also captures any FOH/sundries line outside the named cats.
+    nonFoodFoh: number | null
     /// Optional human-readable note shown below the venue row. Used to
     /// flag combined accounting (Beach House row covers BH+TG, Tea
     /// Garden row points back at BH).
@@ -594,6 +598,7 @@ async function buildCogs(): Promise<CogsSection> {
         targetPct: null,
         delta: null,
         biggestCategory: null,
+        nonFoodFoh: null,
       })
       if (v === "BEACH_HOUSE") {
         // No BH data → no combined row to derive, skip the "out of
@@ -613,6 +618,8 @@ async function buildCogs(): Promise<CogsSection> {
     const totalCogs = Number(r.totalCogs)
     const xlsxPct = r.cogsPct ? Number(r.cogsPct) : null
     const targetPct = r.cogsTargetPct ? Number(r.cogsTargetPct) : null
+    const nonFoodFoh =
+      r.cogsFood != null ? totalCogs - Number(r.cogsFood) : null
 
     if (v === "BURLEIGH") {
       perVenue.push({
@@ -623,6 +630,7 @@ async function buildCogs(): Promise<CogsSection> {
         targetPct,
         delta: xlsxPct != null && targetPct != null ? xlsxPct - targetPct : null,
         biggestCategory: sorted[0] ?? null,
+        nonFoodFoh,
       })
       continue
     }
@@ -640,6 +648,7 @@ async function buildCogs(): Promise<CogsSection> {
         targetPct,
         delta: targetPct != null ? combinedPct - targetPct : null,
         biggestCategory: sorted[0] ?? null,
+        nonFoodFoh,
         note: `BH $${xlsxRevenue.toLocaleString()} + TG $${tgRevenue.toLocaleString()} = $${combined.toLocaleString()} ex-GST. Kitchen shares stock across both venues — combined view is the operationally meaningful one.`,
       })
     }
@@ -651,6 +660,7 @@ async function buildCogs(): Promise<CogsSection> {
       targetPct,
       delta: xlsxPct != null && targetPct != null ? xlsxPct - targetPct : null,
       biggestCategory: sorted[0] ?? null,
+      nonFoodFoh,
       note: tgRevenue != null
         ? "Reference only — Louise's Currumbin xlsx with BH revenue only."
         : undefined,
