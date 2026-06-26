@@ -77,9 +77,14 @@ inbox.tarte.com.au {
 	# /oauth/* and /health are public — they only kick off Google/Xero's own
 	# login flows (which require authenticating as hello@ anyway), so basic
 	# auth on top would just add a password prompt with no real security gain.
+	# /invoices + /invoice/* are public at the proxy but gated in-app by a
+	# secret token (INVOICE_PORTAL_TOKEN) so staff can open them without a
+	# login prompt while customer data stays off a guessable URL.
 	@protected {
 		not path /oauth/*
 		not path /health
+		not path /invoices
+		not path /invoice/*
 	}
 	basic_auth @protected {
 		tarte {$BASIC_AUTH_HASH}
