@@ -154,11 +154,11 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
   },
   {
     canonicalName: "Gold Coast Eggs",
-    nameAliases: ["Gold Coast Eggs"],
+    nameAliases: ["Gold Coast Eggs", "GC Eggs"],
     category: "eggs",
-    expectedIntervalDays: 14,
+    expectedIntervalDays: 7,
     critical: true,
-    note: "Bi-weekly — never invoiced to accounts@",
+    note: "Weekly emails from renee@gceggs.com.au (invoices + activity statements) — sender mapped to supplier 2026-07-12 via scripts/add-gc-eggs-supplier-email.ts",
   },
   {
     canonicalName: "Joval Wines",
