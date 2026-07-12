@@ -103,8 +103,13 @@ export interface BucketSpendData {
   targetPct: number
   budget: number | null
   remaining: number | null
-  /// spent ÷ daysElapsed × 7 + estimatedMissingSpend (full-week)
+  /// Full-week spend projection + estimatedMissingSpend. "weighted"
+  /// divides spent-to-date by the elapsed weekdays' historical share of
+  /// a week's deliveries (8-wk profile); "flat" is spent ÷ days × 7.
   projectedEndOfWeek: number
+  spendProjectionMethod: "weighted" | "flat"
+  /// How projectedRevenueExGst was derived (null = no revenue yet)
+  revenueProjectionMethod: "weighted" | "flat" | null
   /// projectedEndOfWeek vs budget
   paceStatus: "on-track" | "watch" | "over" | "no-forecast"
   invoiceCount: number

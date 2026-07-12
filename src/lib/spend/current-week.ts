@@ -118,6 +118,8 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     unassignedRaw,
     latestInvoiceByAlias,
     salesSummaries,
+    salesHistory,
+    invoiceHistory,
   ] = await Promise.all([
     db.invoice.findMany({
       where: {
@@ -170,6 +172,20 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     db.dailySalesSummary.findMany({
       where: { date: { gte: start, lt: end } },
       select: { date: true, venue: true, totalRevenueExGst: true },
+    }),
+    // 8 weeks of revenue history — weekday-share weights for projections
+    db.dailySalesSummary.findMany({
+      where: { date: { gte: earliest8wkStart, lt: start } },
+      select: { date: true, venue: true, totalRevenueExGst: true },
+    }),
+    // 8 weeks of invoice history — weekday-share weights for spend pace
+    db.invoice.findMany({
+      where: {
+        invoiceDate: { gte: earliest8wkStart, lt: start },
+        status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE"] },
+        venue: { not: null },
+      },
+      select: { invoiceDate: true, venue: true, total: true },
     }),
   ])
 
@@ -265,6 +281,69 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       (revenueByBucketDate.get(key) ?? 0) + Number(row.totalRevenueExGst)
     )
     revenueReportedDates[bucket].add(dateKey)
+  }
+
+  // ------- Weekday-share weights (last 8 weeks) for projections.
+  // Index 0 = Wed … 6 = Tue (trading-week order). Straight-line ÷days×7
+  // systematically overshoots on a Monday (the average includes the
+  // weekend peak) and undershoots midweek, so instead we ask: "what
+  // fraction of a normal week's total lands on the days we've already
+  // seen?" and divide by that.
+  const tradingDayIndex = (d: Date, shiftAest: boolean): number => {
+    const dow = shiftAest
+      ? new Date(d.getTime() + BRISBANE_OFFSET_MS).getUTCDay()
+      : d.getUTCDay()
+    return (dow - 3 + 7) % 7 // 3 = Wednesday
+  }
+  const buildShares = (
+    rows: Array<{ idx: number; amount: number }>
+  ): number[] | null => {
+    const sums = [0, 0, 0, 0, 0, 0, 0]
+    let total = 0
+    for (const r of rows) {
+      sums[r.idx] += r.amount
+      total += r.amount
+    }
+    // Need meaningful history before trusting the profile.
+    if (total <= 0 || rows.length < 14) return null
+    return sums.map((s) => s / total)
+  }
+  const revenueShares: Record<SpendBucket, number[] | null> = {
+    BURLEIGH: null,
+    CURRUMBIN: null,
+  }
+  const spendShares: Record<SpendBucket, number[] | null> = {
+    BURLEIGH: null,
+    CURRUMBIN: null,
+  }
+  {
+    const revRows: Record<SpendBucket, Array<{ idx: number; amount: number }>> =
+      { BURLEIGH: [], CURRUMBIN: [] }
+    for (const row of salesHistory) {
+      const bucket = venueToBucket(row.venue)
+      if (!bucket) continue
+      revRows[bucket].push({
+        // @db.Date at UTC midnight — weekday is directly readable.
+        idx: tradingDayIndex(row.date, false),
+        amount: Number(row.totalRevenueExGst),
+      })
+    }
+    const spendRows: Record<
+      SpendBucket,
+      Array<{ idx: number; amount: number }>
+    > = { BURLEIGH: [], CURRUMBIN: [] }
+    for (const row of invoiceHistory) {
+      const bucket = venueToBucket(row.venue)
+      if (!bucket || !row.invoiceDate || row.total == null) continue
+      spendRows[bucket].push({
+        idx: tradingDayIndex(row.invoiceDate, true),
+        amount: Number(row.total),
+      })
+    }
+    for (const bucket of SPEND_BUCKETS) {
+      revenueShares[bucket] = buildShares(revRows[bucket])
+      spendShares[bucket] = buildShares(spendRows[bucket])
+    }
   }
 
   // ------- 4-wk supplier averages per bucket (from COGS xlsx history)
@@ -416,13 +495,21 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       Math.round((spentToDate + scaledMissing) * 100) / 100
     const remaining =
       budget == null ? null : Math.round((budget - effectiveSpent) * 100) / 100
-    // Pace: project end-of-week spend at the current daily rate.
+    // Pace: project end-of-week spend. Preferred: divide by the share of
+    // a typical week's deliveries that lands on the elapsed weekdays
+    // (8-wk history). Fallback: flat daily-rate extrapolation.
     // For the missing-supplier component, project the full weekly avg
     // rather than scaling (these will land in full by week end).
-    const projectedFromInvoices =
-      daysElapsedFull > 0
-        ? Math.round((spentToDate / daysElapsedFull) * 7 * 100) / 100
-        : 0
+    const spendShare = spendShares[bucket]
+    const elapsedSpendShare = spendShare
+      ? spendShare.slice(0, daysElapsedFull).reduce((a, b) => a + b, 0)
+      : 0
+    const spendWeighted = spendShare != null && elapsedSpendShare >= 0.1
+    const projectedFromInvoices = spendWeighted
+      ? Math.round((spentToDate / elapsedSpendShare) * 100) / 100
+      : daysElapsedFull > 0
+      ? Math.round((spentToDate / daysElapsedFull) * 7 * 100) / 100
+      : 0
     const projectedEndOfWeek =
       Math.round((projectedFromInvoices + estimatedMissing) * 100) / 100
     let paceStatus: BucketSpendData["paceStatus"]
@@ -451,11 +538,24 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       revenueDaysReported > 0 ? Math.round(revenueRunning * 100) / 100 : null
     const lastRevenueDate =
       revenueDaysReported > 0 ? Array.from(reportedDates).sort().pop()! : null
+    // Full-week revenue pace: divide takings-so-far by the share of a
+    // typical week those reported weekdays represent (8-wk history);
+    // flat ÷days×7 as fallback.
+    const revShare = revenueShares[bucket]
+    const reportedRevShare = revShare
+      ? revenueDaily.reduce(
+          (sum, cell, i) => (cell.reported ? sum + revShare[i] : sum),
+          0
+        )
+      : 0
+    const revenueWeighted = revShare != null && reportedRevShare >= 0.1
     const projectedRevenueExGst =
-      revenueToDateExGst != null && revenueDaysReported > 0
-        ? Math.round(((revenueToDateExGst / revenueDaysReported) * 7) * 100) /
+      revenueToDateExGst == null
+        ? null
+        : revenueWeighted
+        ? Math.round((revenueToDateExGst / reportedRevShare) * 100) / 100
+        : Math.round(((revenueToDateExGst / revenueDaysReported) * 7) * 100) /
           100
-        : null
 
     const suppliers: SupplierSpendCell[] = Array.from(
       agg.supplierMap.entries()
@@ -496,6 +596,11 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       budget: budget == null ? null : Math.round(budget * 100) / 100,
       remaining,
       projectedEndOfWeek,
+      spendProjectionMethod: (spendWeighted ? "weighted" : "flat") as const,
+      revenueProjectionMethod:
+        revenueToDateExGst == null
+          ? null
+          : ((revenueWeighted ? "weighted" : "flat") as const),
       paceStatus,
       invoiceCount: agg.invoiceCount,
       daily: agg.daily,

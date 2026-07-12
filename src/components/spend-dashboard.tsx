@@ -147,7 +147,9 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
             value={fmt(bucket.projectedEndOfWeek)}
             sub={
               projectedPct == null
-                ? "@ current daily rate"
+                ? bucket.spendProjectionMethod === "weighted"
+                  ? "weighted for remaining trading days"
+                  : "@ current daily rate"
                 : projectedCogsPct == null
                 ? `${Math.round(projectedPct * 100)}% of budget`
                 : `${Math.round(projectedPct * 100)}% of budget = ${projectedCogsPct.toFixed(1)}% COGS (target ${Number(bucket.targetPct).toFixed(0)}%)`
@@ -248,9 +250,12 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
                   label="Full-week pace"
                   value={fmt(bucket.projectedRevenueExGst)}
                   sub={
-                    revenuePaceOfForecast == null
+                    (revenuePaceOfForecast == null
                       ? "no forecast to compare"
-                      : `${Math.round(revenuePaceOfForecast)}% of ${fmt(bucket.forecastRevenue)} forecast`
+                      : `${Math.round(revenuePaceOfForecast)}% of ${fmt(bucket.forecastRevenue)} forecast`) +
+                    (bucket.revenueProjectionMethod === "weighted"
+                      ? " · weekday-weighted"
+                      : "")
                   }
                   valueTone={
                     revenuePaceOfForecast == null
@@ -712,8 +717,9 @@ export function SpendDashboard({ data }: { data: CurrentWeekSpendSnapshot }) {
       <div className="rounded-md border border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
         Trading week <strong>{data.weekStartWed}</strong> → <strong>{data.weekEndTue}</strong>.{" "}
         Today is day {data.dayOfWeek} of 7 ({data.daysElapsedFull} full days
-        elapsed). Pace projection extrapolates the current daily rate to
-        end-of-week.
+        elapsed). Projections weight the remaining days by each weekday's
+        typical share of the week (last 8 weeks) — a quiet Monday isn't
+        assumed to spend or take like a Saturday.
       </div>
 
       <UnassignedPanel rows={data.unassigned} onAssigned={reload} />
