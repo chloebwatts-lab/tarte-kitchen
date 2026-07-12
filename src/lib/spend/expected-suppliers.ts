@@ -103,6 +103,7 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     category: "pastry-dry",
     expectedIntervalDays: 7,
     critical: false,
+    note: "Sender changed to mail@fermexdistributors.com.au ~2026-06-30 (sat in unknown-sender queue until mapped 2026-07-12)",
   },
   {
     canonicalName: "Coastal Fresh",
@@ -192,9 +193,58 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
   },
   {
     canonicalName: "Made Brands",
-    nameAliases: ["Made Brands"],
+    nameAliases: ["Made Brands", "Made Group"],
+    category: "specialty",
+    expectedIntervalDays: 7,
+    critical: false,
+    note: "Weekly invoices from do_not_reply@madegroup.com — mapped 2026-07-12",
+  },
+
+  // ---- Discovered in the unknown-sender queue audit 2026-07-12 ----
+  {
+    canonicalName: "Parallel Roasters",
+    nameAliases: ["Parallel Roasters"],
+    category: "specialty",
+    expectedIntervalDays: 7,
+    critical: false,
+    note: "Coffee — invoices via Unleashed (noreply@unleashedsoftware.com)",
+  },
+  {
+    canonicalName: "Mediterranean Markets",
+    nameAliases: ["Mediterranean Markets"],
     category: "specialty",
     expectedIntervalDays: 14,
+    critical: false,
+  },
+  {
+    canonicalName: "Salumi",
+    nameAliases: ["Salumi"],
+    category: "meat",
+    expectedIntervalDays: 14,
+    critical: false,
+    note: "Cured meats — appears in weekly payments files",
+  },
+  {
+    canonicalName: "PE Foods",
+    nameAliases: ["PE Foods"],
+    category: "unknown",
+    expectedIntervalDays: 7,
+    critical: false,
+    note: "accounts@pefoods.com.au — confirm what they supply",
+  },
+  {
+    canonicalName: "Cookers",
+    nameAliases: ["Cookers"],
+    category: "specialty",
+    expectedIntervalDays: 14,
+    critical: false,
+    note: "Bulk cooking oil",
+  },
+  {
+    canonicalName: "Moet Hennessy",
+    nameAliases: ["Moet Hennessy"],
+    category: "booze",
+    expectedIntervalDays: 30,
     critical: false,
   },
 ]
