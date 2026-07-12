@@ -34,6 +34,8 @@ import {
   venueToBucket,
   type SpendBucket,
   type DailySpendCell,
+  type DailyRevenueCell,
+  type MissingSpendRow,
   type SupplierSpendCell,
   type CoverageRow,
   type UnassignedInvoice,
@@ -115,6 +117,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     cogsSupplierHistory,
     unassignedRaw,
     latestInvoiceByAlias,
+    salesSummaries,
   ] = await Promise.all([
     db.invoice.findMany({
       where: {
@@ -161,6 +164,12 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       by: ["supplierName"],
       _max: { invoiceDate: true },
       where: { status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE"] } },
+    }),
+    // Lightspeed EOD revenue for the week. `date` is a @db.Date stored at
+    // UTC midnight of the AEST calendar day, so it sits inside [start, end).
+    db.dailySalesSummary.findMany({
+      where: { date: { gte: start, lt: end } },
+      select: { date: true, venue: true, totalRevenueExGst: true },
     }),
   ])
 
@@ -237,6 +246,25 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       cell.cumulative = Math.round(running * 100) / 100
       cell.amount = Math.round(cell.amount * 100) / 100
     }
+  }
+
+  // ------- Live revenue per bucket (Lightspeed EOD emails, ex GST)
+  const revenueByBucketDate = new Map<string, number>()
+  const revenueReportedDates: Record<SpendBucket, Set<string>> = {
+    BURLEIGH: new Set(),
+    CURRUMBIN: new Set(),
+  }
+  for (const row of salesSummaries) {
+    const bucket = venueToBucket(row.venue)
+    if (!bucket) continue
+    // @db.Date rows sit at UTC midnight of the AEST calendar day.
+    const dateKey = row.date.toISOString().split("T")[0]
+    const key = `${bucket}::${dateKey}`
+    revenueByBucketDate.set(
+      key,
+      (revenueByBucketDate.get(key) ?? 0) + Number(row.totalRevenueExGst)
+    )
+    revenueReportedDates[bucket].add(dateKey)
   }
 
   // ------- 4-wk supplier averages per bucket (from COGS xlsx history)
@@ -338,16 +366,33 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     BURLEIGH: 0,
     CURRUMBIN: 0,
   }
+  const missingBreakdownPerBucket: Record<SpendBucket, MissingSpendRow[]> = {
+    BURLEIGH: [],
+    CURRUMBIN: [],
+  }
   for (const sup of EXPECTED_SUPPLIERS) {
     const cov = coverage.find((c) => c.canonicalName === sup.canonicalName)
     if (!cov) continue
     if (cov.status !== "overdue" && cov.status !== "missing") continue
-    for (const alias of sup.nameAliases) {
-      for (const bucket of SPEND_BUCKETS) {
+    for (const bucket of SPEND_BUCKETS) {
+      let bucketEst = 0
+      for (const alias of sup.nameAliases) {
         const avg = cogsAvgPerBucket.get(bucket)!.get(alias)
-        if (avg) estimatedMissingPerBucket[bucket] += avg
+        if (avg) bucketEst += avg
+      }
+      if (bucketEst > 0) {
+        estimatedMissingPerBucket[bucket] += bucketEst
+        missingBreakdownPerBucket[bucket].push({
+          supplier: sup.canonicalName,
+          estWeekly: Math.round(bucketEst * 100) / 100,
+          lastSeen: cov.lastInvoiceDate,
+          daysSinceLast: cov.daysSinceLast,
+        })
       }
     }
+  }
+  for (const bucket of SPEND_BUCKETS) {
+    missingBreakdownPerBucket[bucket].sort((a, b) => b.estWeekly - a.estWeekly)
   }
 
   // ------- Assemble per-bucket output
@@ -386,6 +431,32 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     else if (projectedEndOfWeek > budget * 0.95) paceStatus = "watch"
     else paceStatus = "on-track"
 
+    // ---- Live revenue (Lightspeed EOD, ex GST) ----
+    const reportedDates = revenueReportedDates[bucket]
+    const revenueDaily: DailyRevenueCell[] = []
+    let revenueRunning = 0
+    for (const cell of agg.daily) {
+      const amt = revenueByBucketDate.get(`${bucket}::${cell.date}`) ?? 0
+      revenueRunning += amt
+      revenueDaily.push({
+        date: cell.date,
+        dayName: cell.dayName,
+        amount: Math.round(amt * 100) / 100,
+        cumulative: Math.round(revenueRunning * 100) / 100,
+        reported: reportedDates.has(cell.date),
+      })
+    }
+    const revenueDaysReported = reportedDates.size
+    const revenueToDateExGst =
+      revenueDaysReported > 0 ? Math.round(revenueRunning * 100) / 100 : null
+    const lastRevenueDate =
+      revenueDaysReported > 0 ? Array.from(reportedDates).sort().pop()! : null
+    const projectedRevenueExGst =
+      revenueToDateExGst != null && revenueDaysReported > 0
+        ? Math.round(((revenueToDateExGst / revenueDaysReported) * 7) * 100) /
+          100
+        : null
+
     const suppliers: SupplierSpendCell[] = Array.from(
       agg.supplierMap.entries()
     )
@@ -420,6 +491,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
         forecast == null ? null : Math.round(forecast * 100) / 100,
       estimatedMissingSpend: estimatedMissing,
       effectiveSpent,
+      missingSpendBreakdown: missingBreakdownPerBucket[bucket],
       targetPct,
       budget: budget == null ? null : Math.round(budget * 100) / 100,
       remaining,
@@ -428,6 +500,11 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       invoiceCount: agg.invoiceCount,
       daily: agg.daily,
       suppliers,
+      revenueToDateExGst,
+      revenueDaysReported,
+      lastRevenueDate,
+      projectedRevenueExGst,
+      revenueDaily,
     }
   })
 

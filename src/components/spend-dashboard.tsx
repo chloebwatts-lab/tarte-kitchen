@@ -72,6 +72,33 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
     bucket.budget && bucket.budget > 0
       ? bucket.projectedEndOfWeek / bucket.budget
       : null
+  // Where the week's COGS % lands if spend keeps this pace, against the
+  // sales forecast ("137% of budget" ⇒ 137% × target%).
+  const projectedCogsPct =
+    bucket.forecastRevenue && bucket.forecastRevenue > 0
+      ? (bucket.projectedEndOfWeek / bucket.forecastRevenue) * 100
+      : null
+  // Same, but against ACTUAL revenue pace from the Lightspeed EOD
+  // reports — the honest read when trade runs above/below forecast.
+  const liveCogsPct =
+    bucket.projectedRevenueExGst && bucket.projectedRevenueExGst > 0
+      ? (bucket.projectedEndOfWeek / bucket.projectedRevenueExGst) * 100
+      : null
+  const revenuePaceOfForecast =
+    bucket.projectedRevenueExGst != null &&
+    bucket.forecastRevenue != null &&
+    bucket.forecastRevenue > 0
+      ? (bucket.projectedRevenueExGst / bucket.forecastRevenue) * 100
+      : null
+
+  const cogsTone = (pct: number | null): "green" | "amber" | "red" | undefined =>
+    pct == null
+      ? undefined
+      : pct <= bucket.targetPct + 0.5
+      ? "green"
+      : pct <= bucket.targetPct + 2.5
+      ? "amber"
+      : "red"
 
   return (
     <Card>
@@ -121,7 +148,9 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
             sub={
               projectedPct == null
                 ? "@ current daily rate"
-                : `${Math.round(projectedPct * 100)}% of budget`
+                : projectedCogsPct == null
+                ? `${Math.round(projectedPct * 100)}% of budget`
+                : `${Math.round(projectedPct * 100)}% of budget = ${projectedCogsPct.toFixed(1)}% COGS (target ${Number(bucket.targetPct).toFixed(0)}%)`
             }
             valueTone={
               projectedPct == null
@@ -135,14 +164,153 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
           />
         </div>
 
+        {projectedCogsPct != null && (
+          <div
+            className={cn(
+              "rounded-md border px-3 py-2 text-xs",
+              cogsTone(liveCogsPct ?? projectedCogsPct) === "red"
+                ? "border-red-200 bg-red-50 text-red-900"
+                : cogsTone(liveCogsPct ?? projectedCogsPct) === "amber"
+                ? "border-amber-200 bg-amber-50 text-amber-900"
+                : "border-green-200 bg-green-50 text-green-900"
+            )}
+          >
+            <strong>Where COGS lands:</strong> at this spend pace the week
+            finishes at ≈{projectedCogsPct.toFixed(1)}% of{" "}
+            <em>forecast</em> revenue (target{" "}
+            {Number(bucket.targetPct).toFixed(0)}%).
+            {liveCogsPct != null && revenuePaceOfForecast != null && (
+              <>
+                {" "}
+                Actual revenue is pacing at{" "}
+                {Math.round(revenuePaceOfForecast)}% of forecast, so against{" "}
+                <em>real</em> takings COGS lands at ≈
+                <strong>{liveCogsPct.toFixed(1)}%</strong>.
+              </>
+            )}
+          </div>
+        )}
+
         {bucket.estimatedMissingSpend > 0 && (
           <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
             <strong>+{fmt(bucket.estimatedMissingSpend)} estimated</strong>{" "}
             from suppliers we'd expect this week whose invoices aren't in
             (see Coverage). Folded into the pace projection but NOT into
             "spent to date".
+            {bucket.missingSpendBreakdown.length > 0 && (
+              <ul className="mt-1.5 space-y-0.5">
+                {bucket.missingSpendBreakdown.map((r) => (
+                  <li key={r.supplier} className="flex justify-between gap-2">
+                    <span>
+                      {r.supplier}{" "}
+                      <span className="text-amber-700">
+                        (last invoice{" "}
+                        {r.daysSinceLast == null
+                          ? "never"
+                          : `${r.daysSinceLast}d ago`}
+                        )
+                      </span>
+                    </span>
+                    <span className="tabular-nums">
+                      ~{fmt(r.estWeekly)}/wk
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
+
+        <div>
+          <div className="mb-2 flex items-baseline justify-between">
+            <span className="text-xs font-medium text-muted-foreground">
+              Live revenue — Lightspeed EOD reports (ex GST)
+            </span>
+            {bucket.lastRevenueDate && (
+              <span className="text-[10px] text-muted-foreground">
+                through {bucket.lastRevenueDate}
+              </span>
+            )}
+          </div>
+          {bucket.revenueToDateExGst == null ? (
+            <p className="text-xs text-muted-foreground">
+              No Lightspeed EOD report received yet this week.
+            </p>
+          ) : (
+            <>
+              <div className="mb-2 grid grid-cols-3 gap-3">
+                <Tile
+                  label="Takings so far"
+                  value={fmt(bucket.revenueToDateExGst)}
+                  sub={`${bucket.revenueDaysReported} of 7 days reported`}
+                />
+                <Tile
+                  label="Full-week pace"
+                  value={fmt(bucket.projectedRevenueExGst)}
+                  sub={
+                    revenuePaceOfForecast == null
+                      ? "no forecast to compare"
+                      : `${Math.round(revenuePaceOfForecast)}% of ${fmt(bucket.forecastRevenue)} forecast`
+                  }
+                  valueTone={
+                    revenuePaceOfForecast == null
+                      ? undefined
+                      : revenuePaceOfForecast >= 100
+                      ? "green"
+                      : revenuePaceOfForecast >= 90
+                      ? "amber"
+                      : "red"
+                  }
+                />
+                <Tile
+                  label="COGS on real takings"
+                  value={
+                    liveCogsPct == null ? "—" : `${liveCogsPct.toFixed(1)}%`
+                  }
+                  sub={`spend pace ÷ revenue pace · target ${Number(bucket.targetPct).toFixed(0)}%`}
+                  valueTone={cogsTone(liveCogsPct)}
+                />
+              </div>
+              <div className="overflow-hidden rounded-md border border-border">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/30">
+                    <tr className="text-left">
+                      <th className="px-2 py-1.5 font-medium">Day</th>
+                      <th className="px-2 py-1.5 text-right font-medium">
+                        Takings
+                      </th>
+                      <th className="px-2 py-1.5 text-right font-medium">
+                        Running total
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bucket.revenueDaily.map((d) => (
+                      <tr key={d.date} className="border-t border-border">
+                        <td className="px-2 py-1.5">
+                          {d.dayName}{" "}
+                          <span className="text-muted-foreground">
+                            {d.date.slice(5)}
+                          </span>
+                        </td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">
+                          {d.reported ? fmt(d.amount) : "—"}
+                        </td>
+                        <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
+                          {d.reported ? fmt(d.cumulative) : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                Lightspeed POS only — online orders and event revenue land on
+                top of these figures, so true takings read slightly higher.
+              </p>
+            </>
+          )}
+        </div>
 
         <div>
           <div className="mb-2 text-xs font-medium text-muted-foreground">

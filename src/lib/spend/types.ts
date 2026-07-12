@@ -33,6 +33,26 @@ export interface DailySpendCell {
   invoiceCount: number
 }
 
+export interface DailyRevenueCell {
+  /// AEST yyyy-mm-dd
+  date: string
+  dayName: string
+  /// Lightspeed EOD revenue ex GST for this day (0 until the report lands)
+  amount: number
+  cumulative: number
+  /// True once at least one venue in the bucket has an EOD report for the day
+  reported: boolean
+}
+
+/// One supplier's contribution to estimatedMissingSpend, so the amber
+/// box can show WHO is missing instead of just a lump sum.
+export interface MissingSpendRow {
+  supplier: string
+  estWeekly: number
+  lastSeen: string | null
+  daysSinceLast: number | null
+}
+
 export interface SupplierSpendCell {
   supplier: string
   amount: number
@@ -78,6 +98,8 @@ export interface BucketSpendData {
   estimatedMissingSpend: number
   /// spentToDate + (estimatedMissingSpend × elapsed fraction)
   effectiveSpent: number
+  /// Per-supplier composition of estimatedMissingSpend
+  missingSpendBreakdown: MissingSpendRow[]
   targetPct: number
   budget: number | null
   remaining: number | null
@@ -88,6 +110,19 @@ export interface BucketSpendData {
   invoiceCount: number
   daily: DailySpendCell[]
   suppliers: SupplierSpendCell[]
+
+  // ---- Live revenue (Lightspeed EOD email imports, ex GST) ----
+  /// Sum of DailySalesSummary.totalRevenueExGst for days reported so far.
+  /// Null when no EOD report has landed yet this week. NB: Lightspeed
+  /// misses online/event sales, so true revenue reads slightly higher.
+  revenueToDateExGst: number | null
+  /// Number of trading days with an EOD report in (0-7)
+  revenueDaysReported: number
+  /// AEST date of the most recent EOD report this week
+  lastRevenueDate: string | null
+  /// revenueToDateExGst ÷ revenueDaysReported × 7
+  projectedRevenueExGst: number | null
+  revenueDaily: DailyRevenueCell[]
 }
 
 export interface CurrentWeekSpendSnapshot {
