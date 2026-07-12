@@ -28,6 +28,9 @@ services:
       DATABASE_URL: postgres://tarte:${DB_PASSWORD}@db:5432/tarte_kitchen
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: https://${DOMAIN}
+      # Council inspection folder password (/council/login). Read at runtime by
+      # council-auth.ts — throws & 500s every /council route if unset.
+      COUNCIL_PASSWORD: ${COUNCIL_PASSWORD}
       # Secrets used at runtime — sourced from the droplet's .env via docker compose
       TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY}
       CRON_SECRET: ${CRON_SECRET}
@@ -150,6 +153,10 @@ services:
         # (reviews + sales + wages + COGS + wastage + supplier price spikes
         # + top sellers) → emailed to chloe@. See tarte_friday_digest.md memory.
         0 22 * * 4 curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/weekly-digest 2>&1
+        # Sunday 17:00 AEST (07:00 UTC Sun) — "how much left to spend this
+        # week" per venue → emailed to chloe@ for the Monday staff brief.
+        # Renders straight off the live /spend snapshot (no LLM).
+        0 7 * * 0 curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/weekly-spend-email 2>&1
         # Thursday 07:00 AEST (21:00 UTC Wed) — auto-pull Louise's "Reports"
         # email from accounts@ Gmail (3 PDFs + 2 xlsx) into LabourWeekActual
         # + WeeklyCogs, so Friday's digest has the actuals without Chloe
