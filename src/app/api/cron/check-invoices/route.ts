@@ -154,7 +154,22 @@ async function processMessages(
       const attachments = extractPdfAttachments(message)
       if (attachments.length === 0) continue
 
-      for (const attachment of attachments) {
+      for (let attIdx = 0; attIdx < attachments.length; attIdx++) {
+        const attachment = attachments[attIdx]
+        // Invoice.gmailMessageId is @unique, but suppliers like GC Eggs
+        // attach 6-8 invoice PDFs to ONE email. Key the first attachment
+        // by the bare message id (back-compat with every existing row and
+        // the fast-path skip above) and subsequent ones as `id-a2`,
+        // `id-a3`… so each PDF gets its own Invoice row instead of
+        // throwing a unique violation after the first.
+        const messageKey =
+          attIdx === 0 ? ref.id : `${ref.id}-a${attIdx + 1}`
+        if (attIdx > 0) {
+          const attExisting = await db.invoice.findUnique({
+            where: { gmailMessageId: messageKey },
+          })
+          if (attExisting) continue
+        }
         const pdfBuffer = await getAttachment(accessToken, ref.id, attachment.attachmentId)
         let parsed
         try {
@@ -172,12 +187,12 @@ async function processMessages(
           continue
         }
 
-        const pdfPath = await saveInvoicePdf(supplier.name, pdfBuffer, ref.id)
+        const pdfPath = await saveInvoicePdf(supplier.name, pdfBuffer, messageKey)
         const invoice = await db.invoice.create({
           data: {
             supplierId: supplier.id,
             supplierName: supplier.name,
-            gmailMessageId: ref.id,
+            gmailMessageId: messageKey,
             pdfUrl: pdfPath,
             status: "PENDING",
           },
