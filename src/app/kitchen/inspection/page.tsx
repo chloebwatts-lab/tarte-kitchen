@@ -13,6 +13,7 @@ import {
 import { BAKE_LABEL } from "@/lib/pastry-rotation-constants"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { InspectionPrintButton } from "@/components/kitchen/InspectionPrintButton"
+import { InspectionChecklistCard } from "@/components/kitchen/InspectionChecklistCard"
 import { VENUE_LABEL, SINGLE_VENUES } from "@/lib/venues"
 import { Venue } from "@/generated/prisma"
 
@@ -412,46 +413,43 @@ function DayBlock({
             {runs.map((r) => {
               const totalItems = r.items.length
               const checkedItems = r.items.filter((i) => i.checkedAt).length
-              const tempItems = r.items.filter(
-                (i) => i.templateItem.requireTemp && i.tempCelsius !== null
-              )
               return (
-                <div
-                  key={r.id}
-                  className="rounded-[12px] border border-[var(--tk-line)] bg-white px-4 py-3 print:border-black"
-                >
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <div className="font-semibold text-[var(--tk-charcoal)]">
-                      {r.template.name}
-                      {r.template.area && (
-                        <span className="ml-2 text-[12px] font-normal text-[var(--tk-ink-soft)]">
-                          {r.template.area}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[12px] text-[var(--tk-ink-soft)]">
-                      {showVenue && (
-                        <span>{VENUE_LABEL[r.venue as SingleVenue] ?? r.venue} · </span>
-                      )}
-                      {r.shift.toLowerCase()} shift · {checkedItems}/{totalItems}{" "}
-                      items · {r.status.toLowerCase()}
-                      {r.completedBy && ` · by ${r.completedBy}`}
-                    </div>
-                  </div>
-                  {tempItems.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {tempItems.map((it) => (
-                        <span
-                          key={it.id}
-                          className="rounded-full bg-[var(--tk-bg)] px-2.5 py-0.5 text-[11px] tabular-nums text-[var(--tk-ink-soft)]"
-                        >
-                          {it.templateItem.label}: {String(it.tempCelsius)}°C
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                <div key={r.id} className="space-y-2">
+                  <InspectionChecklistCard
+                    templateName={r.template.name}
+                    area={r.template.area}
+                    venueLabel={
+                      showVenue
+                        ? (VENUE_LABEL[r.venue as SingleVenue] ?? r.venue)
+                        : null
+                    }
+                    shift={r.shift}
+                    status={r.status}
+                    completedBy={r.completedBy}
+                    checkedItems={checkedItems}
+                    totalItems={totalItems}
+                    items={r.items.map((it) => ({
+                      id: it.id,
+                      label: it.templateItem.label,
+                      requireTemp: it.templateItem.requireTemp,
+                      tempCelsius:
+                        it.tempCelsius !== null && it.tempCelsius !== undefined
+                          ? String(it.tempCelsius)
+                          : null,
+                      note: it.note,
+                      checkedBy: it.checkedBy,
+                      checkedTime: it.checkedAt
+                        ? formatAest(it.checkedAt, {
+                            hour: "numeric",
+                            minute: "2-digit",
+                            hour12: true,
+                          })
+                        : null,
+                      checked: it.checkedAt !== null,
+                    }))}
+                  />
                   {r.photos.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 px-1">
                       {r.photos.map((p) => (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
