@@ -79,6 +79,17 @@ async function buildSupplierEmailMap(): Promise<{
   return { emailMap, allEmails: Array.from(emailMap.keys()) }
 }
 
+// Some Xero-domain suppliers can't be matched from their invoices at all:
+// Breadtop's legal entity is EAC BUSINESS GROUP PTY LTD, its Xero display
+// name is the director ("Ka Wai Chan"), and its PDFs parse with the
+// CUSTOMER (Tarte trust) as the supplier. Explicit probe→supplier hints
+// break the tie (checked before token/fuzzy matching; only ever selects
+// from the candidates already mapped to the sending address).
+const SENDER_PROBE_HINTS: Array<{ probe: string; supplier: string }> = [
+  { probe: "ka wai chan", supplier: "Breadtop" },
+  { probe: "eac business group", supplier: "Breadtop" },
+]
+
 function disambiguateSupplier(
   candidates: SupplierRef[],
   parsedSupplierName: string | null,
@@ -88,6 +99,16 @@ function disambiguateSupplier(
   const probes = [parsedSupplierName, senderDisplayName].filter(
     (s): s is string => !!s
   )
+
+  const probeStrAll = probes.join(" ").toLowerCase()
+  for (const hint of SENDER_PROBE_HINTS) {
+    if (probeStrAll.includes(hint.probe)) {
+      const hit = candidates.find(
+        (c) => c.name.toLowerCase() === hint.supplier.toLowerCase()
+      )
+      if (hit) return hit
+    }
+  }
 
   // Token-overlap fast path. Fuse's char-level threshold rejects
   // "Pixel Bakehouse Pty Ltd" → "Pixel Bread" even though "Pixel"

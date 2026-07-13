@@ -179,10 +179,11 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
   },
   {
     canonicalName: "Breadtop",
-    nameAliases: ["Breadtop"],
+    nameAliases: ["Breadtop", "EAC Business Group"],
     category: "bread",
     expectedIntervalDays: 7,
     critical: false,
+    note: "Legal entity EAC BUSINESS GROUP PTY LTD, invoices via shared Xero sender as 'Ka Wai Chan' — hint-matched since 2026-07-13",
   },
   {
     canonicalName: "Panya",
