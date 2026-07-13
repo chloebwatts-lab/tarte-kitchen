@@ -68,11 +68,22 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
   },
   {
     canonicalName: "Jensens",
-    nameAliases: ["Jensens", "Jensen's"],
+    nameAliases: [
+      "Jensens",
+      "Jensen's",
+      // Louise's COGS xlsx splits "Produce Oz" out as its own supplier
+      // line, but per Chris (2026-07-13) Produce Oz is BY Jensens — the
+      // invoices arrive in the normal Jensens flow from
+      // accounts@jensens.net.au. Aliasing it here folds the xlsx history
+      // into Jensens' weekly estimate instead of flagging a phantom
+      // "missing" supplier (was overstating Currumbin by ~$2.7k/wk).
+      "Produce Oz",
+      "Produce Oz by Jensens",
+    ],
     category: "fruit-veg",
     expectedIntervalDays: 3,
     critical: true,
-    note: "Fruit & veg (confirmed by Chris)",
+    note: "Fruit & veg, incl. the Produce Oz line (same emails)",
   },
   {
     canonicalName: "Global Food & Wine",
@@ -144,14 +155,6 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     expectedIntervalDays: 7,
     critical: true,
     note: "Invoices come from messaging-service@post.xero.com (shared with Pixel); 2nd mapping added 2026-05-17",
-  },
-  {
-    canonicalName: "Produce Oz",
-    nameAliases: ["Produce Oz"],
-    category: "produce",
-    expectedIntervalDays: 7,
-    critical: true,
-    note: "Never invoiced to accounts@ — needs setup",
   },
   {
     canonicalName: "Gold Coast Eggs",
