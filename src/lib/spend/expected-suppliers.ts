@@ -247,6 +247,22 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     expectedIntervalDays: 30,
     critical: false,
   },
+  {
+    canonicalName: "El Chori",
+    nameAliases: ["El Chori"],
+    category: "meat",
+    expectedIntervalDays: 14,
+    critical: false,
+    note: "Invoices via shared Xero domain — appears in Burleigh payments files",
+  },
+  {
+    canonicalName: "Gold Coast Premium Foods",
+    nameAliases: ["Gold Coast Premium Foods"],
+    category: "specialty",
+    expectedIntervalDays: 14,
+    critical: false,
+    note: "Invoices via shared Xero domain — mapped 2026-07-13",
+  },
 ]
 
 /**
