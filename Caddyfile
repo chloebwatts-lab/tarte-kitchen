@@ -105,6 +105,8 @@ inbox.tarte.com.au {
 		not path /health
 		not path /invoices
 		not path /invoice/*
+		not path /queue
+		not path /queue/*
 	}
 	basic_auth @protected {
 		tarte {$BASIC_AUTH_HASH}
