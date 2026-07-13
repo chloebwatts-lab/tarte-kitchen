@@ -32,6 +32,14 @@
 		# — Shawna's daily emails point here so she needs through too.
 		not path /api/reviews/reply
 		not path /api/reviews/reply/*
+		# SEO engine digest approve/skip links — HMAC-signed tokens, same
+		# model as /api/reviews/reply. The rest of /seo stays behind the
+		# main tarte basic auth.
+		not path /seo/api/approve/*
+		not path /seo/api/reject/*
+		# Hashed Next build artefacts for the SEO dashboard, same reasoning
+		# as /_next/static above (the /seo basePath prefixes them).
+		not path /seo/_next/static/*
 	}
 	basic_auth @protected {
 		tarte {$BASIC_AUTH_HASH}
@@ -61,11 +69,23 @@
 		Shawna {$SHAWNA_AUTH_HASH}
 	}
 
-	reverse_proxy app:3000 {
-		# Forward the basic-auth user to the app so the layout can hide
-		# nav items for restricted users (Shawna should only see Reviews
-		# / Inbox-Playbooks — anything else 401s and pops a login box).
-		header_up X-Auth-User {http.auth.user.id}
+	# SEO engine dashboard — Next.js app running on the droplet host with
+	# basePath /seo, bound to the docker bridge gateway so only containers
+	# on this network can reach it directly.
+	@seo path /seo /seo/*
+	handle @seo {
+		# 172.18.0.1 = tarte-kitchen_default bridge gateway (the droplet host
+		# as seen from inside this network).
+		reverse_proxy 172.18.0.1:3001
+	}
+
+	handle {
+		reverse_proxy app:3000 {
+			# Forward the basic-auth user to the app so the layout can hide
+			# nav items for restricted users (Shawna should only see Reviews
+			# / Inbox-Playbooks — anything else 401s and pops a login box).
+			header_up X-Auth-User {http.auth.user.id}
+		}
 	}
 }
 
