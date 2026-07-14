@@ -153,10 +153,12 @@ services:
         # (reviews + sales + wages + COGS + wastage + supplier price spikes
         # + top sellers) → emailed to chloe@. See tarte_friday_digest.md memory.
         0 22 * * 4 curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/weekly-digest 2>&1
-        # Sunday 17:00 AEST (07:00 UTC Sun) — "how much left to spend this
-        # week" per venue → emailed to chloe@ for the Monday staff brief.
+        # Sunday 08:30 AEST (22:30 UTC Sat) — "how much left to spend this
+        # week" per venue → emailed to chloe@. Moved from Sun 17:00 per
+        # Chris 2026-07-14 (wants it Sunday morning); 08:30 sits after the
+        # 08:00 Lightspeed EOD import so Saturday's takings are included.
         # Renders straight off the live /spend snapshot (no LLM).
-        0 7 * * 0 curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/weekly-spend-email 2>&1
+        30 22 * * 6 curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/weekly-spend-email 2>&1
         # Thursday 07:00 AEST (21:00 UTC Wed) — auto-pull Louise's "Reports"
         # email from accounts@ Gmail (3 PDFs + 2 xlsx) into LabourWeekActual
         # + WeeklyCogs, so Friday's digest has the actuals without Chloe
