@@ -12,6 +12,7 @@ import { Venue } from "@/generated/prisma"
 import Decimal from "decimal.js"
 import {
   matchSalesToDishes,
+  estimateEmailItemRevenue,
   calculateTheoreticalCogs,
   calculateTheoreticalUsage,
 } from "@/lib/sales/enrich"
@@ -230,10 +231,18 @@ export async function GET(request: Request) {
             where: { date: reportDate, venue },
           })
 
+          // The same product can appear under more than one category —
+          // aggregate per name for the item-level DailySales rows.
+          const qtyByProduct = new Map<string, number>()
+
           for (const cat of site.categories) {
             let rank = 0
             for (const product of cat.topProducts) {
               rank++
+              qtyByProduct.set(
+                product.name,
+                (qtyByProduct.get(product.name) ?? 0) + product.quantity
+              )
               try {
                 await db.dailyCategoryTopItem.create({
                   data: {
@@ -249,6 +258,32 @@ export async function GET(request: Request) {
                 // Duplicate product name in the same category — skip.
               }
             }
+          }
+
+          // Item-level DailySales rows power theoretical COGS/usage and the
+          // menu-mix reads. The EOD PDF carries quantity only, so revenue
+          // starts at 0 and is estimated post-match by
+          // estimateEmailItemRevenue (source = EMAIL marks the estimate).
+          for (const [productName, quantity] of qtyByProduct) {
+            await db.dailySales.upsert({
+              where: {
+                date_venue_menuItemName: {
+                  date: reportDate,
+                  venue,
+                  menuItemName: productName,
+                },
+              },
+              update: { quantitySold: quantity, source: "EMAIL" },
+              create: {
+                date: reportDate,
+                venue,
+                menuItemName: productName,
+                quantitySold: quantity,
+                revenue: new Decimal(0),
+                revenueExGst: new Decimal(0),
+                source: "EMAIL",
+              },
+            })
           }
 
           // Only record the gmail message once, keyed to the first venue we
@@ -274,6 +309,7 @@ export async function GET(request: Request) {
       const dateObj = new Date(dateKey)
       try {
         await matchSalesToDishes(dateObj, venue)
+        await estimateEmailItemRevenue(dateObj, venue)
         const cogs = await calculateTheoreticalCogs(dateObj, venue)
         if (cogs) {
           await db.dailySalesSummary.update({

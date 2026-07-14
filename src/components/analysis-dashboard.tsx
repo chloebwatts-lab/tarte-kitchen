@@ -196,6 +196,27 @@ export function AnalysisDashboard({ initial }: { initial: AnalysisData }) {
               </LineChart>
             </ResponsiveContainer>
           </div>
+          {data.theoreticalCoverage.matchedQtyPct !== null && (
+            <div className="mt-3 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              Theoretical COGS covers{" "}
+              <span className="font-medium text-foreground">
+                {data.theoreticalCoverage.matchedQtyPct}%
+              </span>{" "}
+              of units sold in this window — only items matched to a costed
+              dish count.
+              {data.theoreticalCoverage.topUncosted.length > 0 && (
+                <>
+                  {" "}
+                  Biggest uncosted sellers:{" "}
+                  {data.theoreticalCoverage.topUncosted
+                    .slice(0, 5)
+                    .map((u) => `${u.name} (${u.qty})`)
+                    .join(", ")}
+                  .
+                </>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

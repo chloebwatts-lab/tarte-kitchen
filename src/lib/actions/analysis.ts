@@ -30,6 +30,12 @@ export interface AnalysisData {
     dropPct: number
   }[]
   menuMix: { menuCategory: string; revenue: number; pctOfTotal: number }[]
+  /** How much of the window's sold volume the theoretical numbers cover —
+   * EMAIL-sourced items only match when a costed dish exists. */
+  theoreticalCoverage: {
+    matchedQtyPct: number | null
+    topUncosted: { name: string; qty: number }[]
+  }
   labourPct:
     | { weekStart: string; labourCost: number; revenue: number; pctOfRevenue: number }[]
     | null
@@ -252,6 +258,37 @@ export async function getAnalysisData(params: {
     .sort((a, b) => b.revenue - a.revenue)
 
   // Labour % — org-wide only (WeeklyLabourCost has no venue column)
+  // Coverage of the theoretical numbers: share of sold units that matched a
+  // costed dish, plus the biggest uncosted sellers (the "cost these next"
+  // list — coffee variants dominate until the coffee menu is costed).
+  const [totalQtyAgg, matchedQtyAgg, uncostedTop] = await Promise.all([
+    db.dailySales.aggregate({
+      _sum: { quantitySold: true },
+      where: { ...venueFilter, date: { gte: start } },
+    }),
+    db.dailySales.aggregate({
+      _sum: { quantitySold: true },
+      where: { ...venueFilter, date: { gte: start }, dishId: { not: null } },
+    }),
+    db.dailySales.groupBy({
+      by: ["menuItemName"],
+      where: { ...venueFilter, date: { gte: start }, dishId: null },
+      _sum: { quantitySold: true },
+      orderBy: { _sum: { quantitySold: "desc" } },
+      take: 8,
+    }),
+  ])
+  const totalQty = totalQtyAgg._sum.quantitySold ?? 0
+  const matchedQty = matchedQtyAgg._sum.quantitySold ?? 0
+  const theoreticalCoverage: AnalysisData["theoreticalCoverage"] = {
+    matchedQtyPct:
+      totalQty > 0 ? Math.round((matchedQty / totalQty) * 1000) / 10 : null,
+    topUncosted: uncostedTop.map((r) => ({
+      name: r.menuItemName,
+      qty: r._sum.quantitySold ?? 0,
+    })),
+  }
+
   const labourRows = await db.weeklyLabourCost.findMany({
     where: { weekStart: { gte: start } },
     orderBy: { weekStart: "asc" },
@@ -306,6 +343,7 @@ export async function getAnalysisData(params: {
     bestSellerMovers,
     underperformers,
     menuMix,
+    theoreticalCoverage,
     labourPct,
   }
 }

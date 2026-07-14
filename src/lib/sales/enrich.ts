@@ -54,6 +54,30 @@ export async function matchSalesToDishes(date: Date, venue: Venue) {
 }
 
 /**
+ * EMAIL-sourced DailySales rows arrive with quantity only (the Lightspeed
+ * EOD PDF has no per-item revenue). For rows that matched a dish, estimate
+ * revenue as menu price × quantity so revenue-based reads (menu mix, top
+ * sellers by $) work. Estimates are identifiable via `source = EMAIL`;
+ * API-sourced rows are never touched. Idempotent.
+ */
+export async function estimateEmailItemRevenue(date: Date, venue: Venue) {
+  const rows = await db.dailySales.findMany({
+    where: { date, venue, source: "EMAIL", dishId: { not: null } },
+    include: { dish: { select: { sellingPrice: true } } },
+  })
+
+  for (const row of rows) {
+    if (!row.dish?.sellingPrice) continue
+    const inc = new Decimal(row.dish.sellingPrice).mul(row.quantitySold)
+    if (inc.equals(new Decimal(row.revenue))) continue
+    await db.dailySales.update({
+      where: { id: row.id },
+      data: { revenue: inc, revenueExGst: inc.div(1.1) },
+    })
+  }
+}
+
+/**
  * Sum the cached `Dish.totalCost * quantitySold` across dish-matched sales
  * for the given (date, venue). Returns null if nothing matched.
  */
