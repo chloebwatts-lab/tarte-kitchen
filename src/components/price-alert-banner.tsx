@@ -26,10 +26,10 @@ export function PriceAlertBanner() {
   if (count === 0 || dismissed) return null
 
   return (
-    <div className="flex items-center justify-between bg-amber-50 border-b border-amber-200 px-6 py-2">
+    <div className="flex items-center justify-between border-b border-gold bg-gold-soft px-4 py-2 md:px-6">
       <Link
         href="/suppliers"
-        className="flex items-center gap-2 text-sm text-amber-800 hover:underline"
+        className="flex items-center gap-2 text-sm text-amber-text hover:underline"
       >
         <AlertTriangle className="h-4 w-4" />
         <span>
@@ -39,7 +39,8 @@ export function PriceAlertBanner() {
       </Link>
       <button
         onClick={() => setDismissed(true)}
-        className="text-amber-600 hover:text-amber-800"
+        className="p-1 text-amber-text/70 hover:text-amber-text"
+        title="Dismiss"
       >
         <X className="h-4 w-4" />
       </button>

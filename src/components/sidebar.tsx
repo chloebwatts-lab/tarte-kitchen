@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -30,29 +30,68 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Ingredients", href: "/ingredients", icon: Carrot },
-  { label: "Preparations", href: "/preparations", icon: ChefHat },
-  { label: "Menu Items", href: "/dishes", icon: UtensilsCrossed },
-  { label: "Suppliers", href: "/suppliers", icon: Truck },
-  { label: "Orders", href: "/orders", icon: ShoppingCart },
-  { label: "Order Checklists", href: "/order-checklists", icon: ClipboardCheck },
-  { label: "Par Levels", href: "/par-levels", icon: Gauge },
-  { label: "Prep Sheet", href: "/prep-sheet", icon: ClipboardList },
-  { label: "Stocktake", href: "/stocktake", icon: Boxes },
-  { label: "Wastage", href: "/wastage", icon: Trash2 },
-  { label: "Checklists", href: "/checklists", icon: ClipboardCheck },
-  { label: "Analysis", href: "/analysis", icon: LineChart },
-  { label: "Menu Matrix", href: "/menu-engineering", icon: LayoutGrid },
-  { label: "Labour", href: "/labour", icon: Users },
-  { label: "COGS", href: "/cogs", icon: Receipt },
-  { label: "Live Spend", href: "/spend", icon: Activity },
-  { label: "Reports", href: "/reports", icon: BarChart3 },
-  { label: "Reviews", href: "/reviews", icon: Star },
-  { label: "Inbox Playbooks", href: "/inbox-playbooks", icon: Mail },
-  { label: "Council Folder", href: "/council", icon: ShieldCheck },
-  { label: "Settings", href: "/settings/integrations", icon: Settings },
+type NavItem = {
+  label: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+};
+
+type NavGroup = {
+  label: string | null;
+  items: NavItem[];
+};
+
+const navGroups: NavGroup[] = [
+  {
+    label: null,
+    items: [{ label: "Dashboard", href: "/dashboard", icon: LayoutDashboard }],
+  },
+  {
+    label: "Recipes",
+    items: [
+      { label: "Ingredients", href: "/ingredients", icon: Carrot },
+      { label: "Preparations", href: "/preparations", icon: ChefHat },
+      { label: "Menu Items", href: "/dishes", icon: UtensilsCrossed },
+    ],
+  },
+  {
+    label: "Kitchen",
+    items: [
+      { label: "Prep Sheet", href: "/prep-sheet", icon: ClipboardList },
+      { label: "Checklists", href: "/checklists", icon: ClipboardCheck },
+      { label: "Stocktake", href: "/stocktake", icon: Boxes },
+      { label: "Wastage", href: "/wastage", icon: Trash2 },
+    ],
+  },
+  {
+    label: "Ordering",
+    items: [
+      { label: "Suppliers", href: "/suppliers", icon: Truck },
+      { label: "Orders", href: "/orders", icon: ShoppingCart },
+      { label: "Order Checklists", href: "/order-checklists", icon: ClipboardCheck },
+      { label: "Par Levels", href: "/par-levels", icon: Gauge },
+    ],
+  },
+  {
+    label: "Performance",
+    items: [
+      { label: "COGS", href: "/cogs", icon: Receipt },
+      { label: "Live Spend", href: "/spend", icon: Activity },
+      { label: "Labour", href: "/labour", icon: Users },
+      { label: "Analysis", href: "/analysis", icon: LineChart },
+      { label: "Menu Matrix", href: "/menu-engineering", icon: LayoutGrid },
+      { label: "Reports", href: "/reports", icon: BarChart3 },
+    ],
+  },
+  {
+    label: "Business",
+    items: [
+      { label: "Reviews", href: "/reviews", icon: Star },
+      { label: "Inbox Playbooks", href: "/inbox-playbooks", icon: Mail },
+      { label: "Council Folder", href: "/council", icon: ShieldCheck },
+      { label: "Settings", href: "/settings/integrations", icon: Settings },
+    ],
+  },
 ];
 
 /**
@@ -67,16 +106,34 @@ const RESTRICTED_USER_ALLOWED_HREFS = new Set<string>([
 
 export function Sidebar({
   restrictedUser,
+  collapsed,
+  setCollapsed,
 }: {
   /** null = full access (the `tarte` operator). Any string = limited
    * user (e.g. "shawna") — sidebar collapses to the allow-list. */
   restrictedUser?: string | null
+  collapsed: boolean
+  setCollapsed: (collapsed: boolean) => void
 }) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
-  const visibleNav = restrictedUser
-    ? navItems.filter((i) => RESTRICTED_USER_ALLOWED_HREFS.has(i.href))
-    : navItems;
+
+  // On phones the sidebar is an overlay — never leave it open across a
+  // page load / navigation (it used to cover every page on mobile).
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      setCollapsed(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  const visibleGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: restrictedUser
+        ? group.items.filter((i) => RESTRICTED_USER_ALLOWED_HREFS.has(i.href))
+        : group.items,
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <>
@@ -97,15 +154,21 @@ export function Sidebar({
         )}
       >
         {/* Brand */}
-        <div className="flex h-14 items-center justify-between border-b border-border px-4">
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
           {!collapsed && (
-            <span className="text-lg font-bold tracking-tight text-foreground">
-              Tarte Kitchen
+            <span className="flex items-baseline gap-2.5">
+              <span className="font-serif text-[22px] font-semibold leading-none tracking-tight text-foreground">
+                Tarte.
+              </span>
+              <span className="font-serif text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Kitchen
+              </span>
             </span>
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? (
               <PanelLeft className="h-4 w-4" />
@@ -116,32 +179,56 @@ export function Sidebar({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          {visibleNav.map((item) => {
-            const isActive =
-              pathname === item.href || pathname.startsWith(item.href + "/");
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                  isActive
-                    ? "bg-muted font-medium text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 overflow-y-auto px-3 pb-4 pt-2">
+          {visibleGroups.map((group, gi) => (
+            <div key={group.label ?? gi}>
+              {group.label ? (
+                collapsed ? (
+                  <div className="mx-2 my-2 border-t border-border" />
+                ) : (
+                  <div className="px-3 pb-1 pt-4 font-serif text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
+                    {group.label}
+                  </div>
+                )
+              ) : null}
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const isActive =
+                    pathname === item.href ||
+                    pathname.startsWith(item.href + "/");
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      title={collapsed ? item.label : undefined}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                        isActive
+                          ? "bg-secondary font-medium text-secondary-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <item.icon
+                        className={cn(
+                          "h-4 w-4 shrink-0",
+                          isActive && "text-sage-deep"
+                        )}
+                      />
+                      {!collapsed && <span>{item.label}</span>}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-border p-3">
+        <div className="shrink-0 border-t border-border p-3">
           {!collapsed && (
-            <span className="text-xs text-muted-foreground">v0.1</span>
+            <span className="text-xs text-muted-foreground">
+              Tarte Bakery &amp; Café
+            </span>
           )}
         </div>
       </aside>
@@ -149,7 +236,8 @@ export function Sidebar({
   );
 }
 
-/** Toggle button shown on mobile when sidebar is collapsed */
+/** Toggle button shown in the header on mobile, where the sidebar is
+ *  an off-canvas overlay and needs a way back in. */
 export function SidebarMobileTrigger({
   onOpen,
 }: {
@@ -158,7 +246,8 @@ export function SidebarMobileTrigger({
   return (
     <button
       onClick={onOpen}
-      className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
+      className="-ml-2 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
+      title="Open menu"
     >
       <PanelLeft className="h-5 w-5" />
     </button>

@@ -5,6 +5,7 @@ import { LogOut, Search } from "lucide-react";
 
 interface HeaderProps {
   title: string;
+  /** Leading slot, rendered before the title (mobile menu trigger). */
   children?: React.ReactNode;
 }
 
@@ -17,12 +18,14 @@ export function Header({ title, children }: HeaderProps) {
     .toUpperCase() || "U";
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background px-6">
-      <h1 className="text-lg font-semibold tracking-tight text-foreground">
-        {title}
-      </h1>
-      <div className="flex items-center gap-3">
+    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background px-4 md:px-6">
+      <div className="flex min-w-0 items-center gap-2">
         {children}
+        <h1 className="truncate font-serif text-lg font-semibold tracking-tight text-foreground">
+          {title}
+        </h1>
+      </div>
+      <div className="flex items-center gap-3">
         {/* Cmd+K hint */}
         <button
           onClick={() =>
@@ -38,7 +41,7 @@ export function Header({ title, children }: HeaderProps) {
         {/* User info + sign out */}
         {session?.user && (
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-stone-900 text-xs font-medium text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sage-deep font-serif text-xs font-medium text-white">
               {initials}
             </div>
             <button

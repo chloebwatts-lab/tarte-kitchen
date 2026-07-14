@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname } from "next/navigation";
-import { Sidebar } from "@/components/sidebar";
+import { Sidebar, SidebarMobileTrigger } from "@/components/sidebar";
 import { Header } from "@/components/header";
 import { CommandSearch } from "@/components/command-search";
 import { PriceAlertBanner } from "@/components/price-alert-banner";
+import { cn } from "@/lib/utils";
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -26,6 +28,10 @@ const pageTitles: Record<string, string> = {
   "/labour/upload": "Upload payroll",
   "/spend": "Live Spend",
   "/cogs": "COGS",
+  "/analysis": "Analysis",
+  "/price-alerts": "Price Alerts",
+  "/council": "Council Folder",
+  "/inbox-playbooks": "Inbox Playbooks",
   "/wastage/analytics": "Wastage Analytics",
   "/reviews": "Google Reviews",
 };
@@ -50,6 +56,7 @@ export function AppLayoutClient({
 }) {
   const pathname = usePathname();
   const title = getPageTitle(pathname);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Anyone other than the main `tarte` operator is a restricted user.
   // Hide command search (which fetches ingredient/dish lists she can't
@@ -59,15 +66,26 @@ export function AppLayoutClient({
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar restrictedUser={isFullAccess ? null : authUser} />
+      <Sidebar
+        restrictedUser={isFullAccess ? null : authUser}
+        collapsed={sidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
+      />
       {isFullAccess && <CommandSearch />}
 
-      <div className="flex flex-1 flex-col md:pl-64">
+      <div
+        className={cn(
+          "flex flex-1 flex-col transition-all duration-200",
+          sidebarCollapsed ? "md:pl-16" : "md:pl-64"
+        )}
+      >
         {isFullAccess && <PriceAlertBanner />}
-        <Header title={title} />
+        <Header title={title}>
+          <SidebarMobileTrigger onOpen={() => setSidebarCollapsed(false)} />
+        </Header>
 
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-6xl px-6 py-6">{children}</div>
+          <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6">{children}</div>
         </main>
       </div>
     </div>
