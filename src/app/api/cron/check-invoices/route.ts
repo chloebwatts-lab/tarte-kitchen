@@ -90,6 +90,14 @@ const SENDER_PROBE_HINTS: Array<{ probe: string; supplier: string }> = [
   { probe: "eac business group", supplier: "Breadtop" },
 ]
 
+// Known NON-FOOD senders on the shared Xero address. Deliberately not
+// ingested (overheads would distort the COGS spend tracker) — skip them
+// silently instead of logging a "could not match" error on every sweep.
+const IGNORED_SENDER_PROBES = [
+  "here to help clean",
+  "drive accountants",
+]
+
 function disambiguateSupplier(
   candidates: SupplierRef[],
   parsedSupplierName: string | null,
@@ -202,6 +210,8 @@ async function processMessages(
 
         const supplier = disambiguateSupplier(candidates, parsed.supplierName, senderName)
         if (!supplier) {
+          const probeStr = `${parsed.supplierName ?? ""} ${senderName ?? ""}`.toLowerCase()
+          if (IGNORED_SENDER_PROBES.some((p) => probeStr.includes(p))) continue
           stats.errors.push(
             `Message ${ref.id}: could not match sender "${senderEmail}" (display: "${senderName}", invoice: "${parsed.supplierName}") to any of: ${candidates.map((c) => c.name).join(", ")}`
           )

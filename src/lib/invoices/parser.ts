@@ -88,37 +88,53 @@ export function looksLikeStatement(parsed: ParsedInvoice): boolean {
   return false
 }
 
+// Header-only fallback for documents whose line items overflow the output
+// budget (e.g. Bidfood's monthly statements list a whole month of rows).
+// Totals and classification still come through; line detail is skipped.
+const HEADER_ONLY_PROMPT = `${EXTRACTION_PROMPT}
+
+OVERRIDE: this document is too long to list line items. Return "lineItems": [] and fill in ONLY the header fields (documentType, supplierName, supplierAbn, invoiceNumber, invoiceDate, deliveryAddress, billTo, subtotal, gst, total).`
+
 export async function parseInvoicePdf(pdfBuffer: Buffer): Promise<ParsedInvoice> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 4096,
-    // Force pure JSON output: a system prompt + an assistant prefill of
-    // "{" together stop Sonnet from emitting "Looking at this invoice..."
-    // style preambles that break JSON.parse.
-    system:
-      "You are a strict JSON extractor. Output ONLY a single JSON object — no preamble, no commentary, no markdown fences. Your entire response must be valid JSON that can be passed directly to JSON.parse.",
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "document",
-            source: {
-              type: "base64",
-              media_type: "application/pdf",
-              data: pdfBuffer.toString("base64"),
+  const callExtractor = (prompt: string, maxTokens: number) =>
+    client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: maxTokens,
+      // Force pure JSON output: a system prompt + an assistant prefill of
+      // "{" together stop Sonnet from emitting "Looking at this invoice..."
+      // style preambles that break JSON.parse.
+      system:
+        "You are a strict JSON extractor. Output ONLY a single JSON object — no preamble, no commentary, no markdown fences. Your entire response must be valid JSON that can be passed directly to JSON.parse.",
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "document",
+              source: {
+                type: "base64",
+                media_type: "application/pdf",
+                data: pdfBuffer.toString("base64"),
+              },
             },
-          },
-          {
-            type: "text",
-            text: EXTRACTION_PROMPT,
-          },
-        ],
-      },
-    ],
-  })
+            {
+              type: "text",
+              text: prompt,
+            },
+          ],
+        },
+      ],
+    })
+
+  let response = await callExtractor(EXTRACTION_PROMPT, 16384)
+  if (response.stop_reason === "max_tokens") {
+    // Output truncated mid-JSON — unparseable. Re-extract headers only so
+    // month-long statements classify as STATEMENT instead of erroring on
+    // every sweep.
+    response = await callExtractor(HEADER_ONLY_PROMPT, 4096)
+  }
 
   const textBlock = response.content.find((b) => b.type === "text")
   if (!textBlock || textBlock.type !== "text") {
