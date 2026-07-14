@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 export const maxDuration = 600
 
 import { db } from "@/lib/db"
+import type { InvoiceStatus } from "@/generated/prisma"
 import { getActiveGmailConnection } from "@/lib/gmail/token"
 import { getValidGmailAccessToken } from "@/lib/gmail/token"
 import {
@@ -300,6 +301,49 @@ async function processMessages(
   return stats
 }
 
+/**
+ * Standing venue-assignment rules from Chris (2026-07-14), applied after
+ * every ingestion run so these suppliers never sit in the unassigned
+ * panel:
+ * - Breadtop is genuinely shared spend → venue BOTH (the spend tracker
+ *   splits BOTH 50/50 between the Burleigh and Currumbin buckets).
+ * - Parallel Roasters invoices arrive as a pair — the LARGER is
+ *   Burleigh's coffee order, the smaller Currumbin's. Only fires when
+ *   exactly two unassigned invoices are waiting; other counts stay
+ *   manual so we never guess.
+ */
+async function applyStandingVenueRules(): Promise<string[]> {
+  const notes: string[] = []
+  const activeStatuses = {
+    notIn: ["ERROR", "STATEMENT", "DUPLICATE"] as InvoiceStatus[],
+  }
+
+  const breadtop = await db.invoice.updateMany({
+    where: { supplierName: "Breadtop", venue: null, status: activeStatuses },
+    data: { venue: "BOTH" },
+  })
+  if (breadtop.count > 0) notes.push(`Breadtop: ${breadtop.count} → BOTH (50/50 split)`)
+
+  const parallel = await db.invoice.findMany({
+    where: {
+      supplierName: "Parallel Roasters",
+      venue: null,
+      status: activeStatuses,
+      total: { not: null },
+    },
+    orderBy: { total: "desc" },
+    select: { id: true, total: true },
+  })
+  if (parallel.length === 2) {
+    await db.invoice.update({ where: { id: parallel[0].id }, data: { venue: "BURLEIGH" } })
+    await db.invoice.update({ where: { id: parallel[1].id }, data: { venue: "BEACH_HOUSE" } })
+    notes.push(
+      `Parallel Roasters: $${Number(parallel[0].total)} → BURLEIGH, $${Number(parallel[1].total)} → BEACH_HOUSE`
+    )
+  }
+  return notes
+}
+
 async function captureUnknownSenders(
   accessToken: string,
   knownEmails: Set<string>,
@@ -399,6 +443,15 @@ export async function GET(request: Request) {
 
     const stats = await processMessages(accessToken, emailMap, messageRefs)
 
+    let venueRuleNotes: string[] = []
+    try {
+      venueRuleNotes = await applyStandingVenueRules()
+    } catch (e) {
+      stats.errors.push(
+        `standing venue rules: ${e instanceof Error ? e.message : String(e)}`
+      )
+    }
+
     // Best-effort unknown-sender capture on every run — fast query.
     const knownSet = new Set(allEmails.map((e) => e.toLowerCase()))
     let unknownLogged = 0
@@ -447,6 +500,7 @@ export async function GET(request: Request) {
       statements: stats.statements,
       unknownSendersLogged: unknownLogged,
       supplierEmailsConfigured: allEmails.length,
+      venueRules: venueRuleNotes.length > 0 ? venueRuleNotes : undefined,
       errors: stats.errors.length > 0 ? stats.errors : undefined,
       runId: runRow.id,
     })

@@ -232,26 +232,38 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
 
   for (const inv of invoices) {
     if (!inv.invoiceDate || inv.total == null) continue
-    const bucket = venueToBucket(inv.venue)
-    if (!bucket) continue // unassigned — handled separately below
     const amt = Number(inv.total)
+    // Venue BOTH = genuinely shared spend (per Chris 2026-07-14 Breadtop
+    // is a 50/50 split) — half the total lands in each bucket.
+    const targets: Array<{ bucket: SpendBucket; amount: number }> =
+      inv.venue === "BOTH"
+        ? [
+            { bucket: "BURLEIGH", amount: amt / 2 },
+            { bucket: "CURRUMBIN", amount: amt / 2 },
+          ]
+        : (() => {
+            const bucket = venueToBucket(inv.venue)
+            return bucket ? [{ bucket, amount: amt }] : [] // unassigned — handled separately below
+          })()
     const dateKey = aestDateKey(inv.invoiceDate)
-    const agg = bucketAgg[bucket]
-    agg.spent += amt
-    agg.invoiceCount += 1
-    const dayCell = agg.daily.find((c) => c.date === dateKey)
-    if (dayCell) {
-      dayCell.amount += amt
-      dayCell.invoiceCount += 1
+    for (const t of targets) {
+      const agg = bucketAgg[t.bucket]
+      agg.spent += t.amount
+      agg.invoiceCount += 1
+      const dayCell = agg.daily.find((c) => c.date === dateKey)
+      if (dayCell) {
+        dayCell.amount += t.amount
+        dayCell.invoiceCount += 1
+      }
+      const supplierKey = inv.supplierName
+      const existing = agg.supplierMap.get(supplierKey) ?? {
+        amount: 0,
+        invoiceCount: 0,
+      }
+      existing.amount += t.amount
+      existing.invoiceCount += 1
+      agg.supplierMap.set(supplierKey, existing)
     }
-    const supplierKey = inv.supplierName
-    const existing = agg.supplierMap.get(supplierKey) ?? {
-      amount: 0,
-      invoiceCount: 0,
-    }
-    existing.amount += amt
-    existing.invoiceCount += 1
-    agg.supplierMap.set(supplierKey, existing)
   }
 
   // Compute cumulative totals per bucket.
@@ -333,12 +345,17 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       Array<{ idx: number; amount: number }>
     > = { BURLEIGH: [], CURRUMBIN: [] }
     for (const row of invoiceHistory) {
+      if (!row.invoiceDate || row.total == null) continue
+      const idx = tradingDayIndex(row.invoiceDate, true)
+      if (row.venue === "BOTH") {
+        const half = Number(row.total) / 2
+        spendRows.BURLEIGH.push({ idx, amount: half })
+        spendRows.CURRUMBIN.push({ idx, amount: half })
+        continue
+      }
       const bucket = venueToBucket(row.venue)
-      if (!bucket || !row.invoiceDate || row.total == null) continue
-      spendRows[bucket].push({
-        idx: tradingDayIndex(row.invoiceDate, true),
-        amount: Number(row.total),
-      })
+      if (!bucket) continue
+      spendRows[bucket].push({ idx, amount: Number(row.total) })
     }
     for (const bucket of SPEND_BUCKETS) {
       revenueShares[bucket] = buildShares(revRows[bucket])
@@ -596,11 +613,13 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       budget: budget == null ? null : Math.round(budget * 100) / 100,
       remaining,
       projectedEndOfWeek,
-      spendProjectionMethod: (spendWeighted ? "weighted" : "flat") as const,
+      spendProjectionMethod: spendWeighted ? ("weighted" as const) : ("flat" as const),
       revenueProjectionMethod:
         revenueToDateExGst == null
           ? null
-          : ((revenueWeighted ? "weighted" : "flat") as const),
+          : revenueWeighted
+          ? ("weighted" as const)
+          : ("flat" as const),
       paceStatus,
       invoiceCount: agg.invoiceCount,
       daily: agg.daily,
