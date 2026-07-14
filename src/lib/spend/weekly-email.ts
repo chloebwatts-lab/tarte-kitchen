@@ -107,7 +107,7 @@ function render(snapshot: CurrentWeekSpendSnapshot): {
 } {
   const daysLeft = Math.max(0, 7 - snapshot.dayOfWeek)
   const range = `${shortDate(snapshot.weekStartWed)} – ${shortDate(snapshot.weekEndTue)}`
-  const subject = `Spend left this week (${range}): ${daysLeft} day${daysLeft === 1 ? "" : "s"} to go`
+  const subject = `COGS TRACKING (${range}): ${daysLeft} day${daysLeft === 1 ? "" : "s"} to go`
 
   const unassignedTotal = snapshot.unassigned.reduce(
     (s, u) => s + (u.total ?? 0),
