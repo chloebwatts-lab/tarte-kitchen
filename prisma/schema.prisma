@@ -1631,3 +1631,34 @@ model UnknownInvoiceSender {
 
   @@index([resolved, senderEmail])
 }
+
+// ============================================================
+// STAFF TRAINING (food handler records — Std 3.2.2A Tool 2)
+// ============================================================
+
+/// Per-staff food handler training record. Managers fill these in on the
+/// venue iPad at /kitchen/training; a read-only list surfaces in the
+/// /council folder's Training section. Date columns are date-only (no tz).
+model TrainingRecord {
+  id                 String    @id @default(cuid())
+  venue              Venue
+  staffName          String
+  role               String?
+  /// Online food handler course provider ("DoFoodSafely", "I'm Alert", ...).
+  onlineCourse       String?
+  onlineCourseDate   DateTime? @db.Date
+  /// Completion certificate sighted / filed by the manager.
+  certificateSighted Boolean   @default(false)
+  allergenTrainedAt  DateTime? @db.Date
+  inductionAt        DateTime? @db.Date
+  illnessPolicyAt    DateTime? @db.Date
+  recordsTrainedAt   DateTime? @db.Date
+  /// Manager / Food Safety Supervisor who verified skills & knowledge.
+  verifiedBy         String?
+  verifiedAt         DateTime? @db.Date
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([venue, staffName])
+}

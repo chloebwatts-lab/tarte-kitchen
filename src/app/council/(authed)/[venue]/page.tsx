@@ -186,7 +186,7 @@ export default async function CouncilVenuePage({
   if (!isSingleVenue(venueParam)) notFound()
   const venue: Venue = venueParam
 
-  const [docs, recentCooling, recentChecklists, dishesCount] = await Promise.all([
+  const [docs, recentCooling, recentChecklists, dishesCount, trainingRecords] = await Promise.all([
     db.councilDocument.findMany({
       where: { venue },
       orderBy: [{ type: "asc" }, { issuedOn: "desc" }, { createdAt: "desc" }],
@@ -204,6 +204,10 @@ export default async function CouncilVenuePage({
       },
     }),
     db.dish.count({ where: { venue, isActive: true } }),
+    db.trainingRecord.findMany({
+      where: { venue },
+      orderBy: [{ staffName: "asc" }],
+    }),
   ])
 
   const docsByType = new Map<CouncilDocumentType, typeof docs>()
@@ -299,6 +303,10 @@ export default async function CouncilVenuePage({
                 </div>
               </div>
 
+              {s.key === "training" && (
+                <TrainingRecordsTable records={trainingRecords} />
+              )}
+
               {sectionDocs.length === 0 ? (
                 <div className="rounded-md border border-dashed border-stone-300 bg-stone-50 px-4 py-6 text-center text-sm text-stone-500">
                   No documents uploaded yet.
@@ -375,6 +383,111 @@ export default async function CouncilVenuePage({
           timeStyle: "short",
         })}
       </p>
+    </div>
+  )
+}
+
+type TrainingRow = {
+  id: string
+  staffName: string
+  role: string | null
+  onlineCourse: string | null
+  onlineCourseDate: Date | null
+  certificateSighted: boolean
+  allergenTrainedAt: Date | null
+  inductionAt: Date | null
+  illnessPolicyAt: Date | null
+  recordsTrainedAt: Date | null
+  verifiedBy: string | null
+  verifiedAt: Date | null
+}
+
+function trainingComplete(r: TrainingRow): boolean {
+  return (
+    !!r.onlineCourseDate &&
+    !!r.allergenTrainedAt &&
+    !!r.inductionAt &&
+    !!r.illnessPolicyAt &&
+    !!r.recordsTrainedAt &&
+    !!r.verifiedBy
+  )
+}
+
+function TrainingRecordsTable({ records }: { records: TrainingRow[] }) {
+  if (records.length === 0) {
+    return (
+      <div className="mb-4 rounded-md border border-dashed border-stone-300 bg-stone-50 px-4 py-4 text-sm text-stone-500">
+        No staff training records entered yet. Managers add them at{" "}
+        <span className="font-medium">/kitchen → Staff training</span> on the
+        venue iPad.
+      </div>
+    )
+  }
+  const complete = records.filter(trainingComplete).length
+  const cell = "px-2 py-1.5 text-left align-top"
+  const done = (d: Date | null) =>
+    d ? (
+      <span className="whitespace-nowrap text-emerald-700">{fmtDate(d)}</span>
+    ) : (
+      <span className="text-stone-400">—</span>
+    )
+  return (
+    <div className="mb-4">
+      <p className="mb-2 text-sm text-stone-600">
+        Live register from the venue iPad:{" "}
+        <span className="font-medium">
+          {complete} of {records.length}
+        </span>{" "}
+        staff records complete.
+      </p>
+      <div className="overflow-x-auto rounded-md border border-stone-200">
+        <table className="w-full min-w-[720px] text-xs">
+          <thead>
+            <tr className="bg-stone-100 text-stone-600">
+              <th className={cell}>Staff</th>
+              <th className={cell}>Role</th>
+              <th className={cell}>Online course</th>
+              <th className={cell}>Induction</th>
+              <th className={cell}>Allergen</th>
+              <th className={cell}>Illness</th>
+              <th className={cell}>Records</th>
+              <th className={cell}>Verified</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-stone-100">
+            {records.map((r) => (
+              <tr key={r.id} className={trainingComplete(r) ? "" : "bg-amber-50/50"}>
+                <td className={`${cell} font-medium text-stone-900`}>{r.staffName}</td>
+                <td className={cell}>{r.role ?? "—"}</td>
+                <td className={cell}>
+                  {r.onlineCourseDate ? (
+                    <span className="whitespace-nowrap text-emerald-700">
+                      {r.onlineCourse ?? "Done"} · {fmtDate(r.onlineCourseDate)}
+                      {r.certificateSighted ? " ✓cert" : ""}
+                    </span>
+                  ) : (
+                    <span className="text-stone-400">—</span>
+                  )}
+                </td>
+                <td className={cell}>{done(r.inductionAt)}</td>
+                <td className={cell}>{done(r.allergenTrainedAt)}</td>
+                <td className={cell}>{done(r.illnessPolicyAt)}</td>
+                <td className={cell}>{done(r.recordsTrainedAt)}</td>
+                <td className={cell}>
+                  {r.verifiedBy ? (
+                    <span className="whitespace-nowrap text-emerald-700">
+                      {r.verifiedBy}
+                      {r.verifiedAt ? ` · ${fmtDate(r.verifiedAt)}` : ""}
+                    </span>
+                  ) : (
+                    <span className="text-stone-400">—</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
