@@ -74,10 +74,10 @@ export default async function InboxPlaybooksPage() {
     <div className="space-y-6">
       {/* Page intro (layout already provides the branded header) */}
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-stone-900">
+        <h1 className="font-serif text-xl font-semibold tracking-tight text-foreground">
           Playbooks
         </h1>
-        <p className="mt-1 text-sm text-stone-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           How the agent classifies, replies and which categories auto-send.
           The agent reads new mail every ~2 minutes; saved changes take effect on the next tick.
         </p>
@@ -93,13 +93,13 @@ export default async function InboxPlaybooksPage() {
               ? `seen ${lastRun.threads_seen} · acted ${lastRun.threads_acted}`
               : "no runs yet"
           }
-          icon={<Activity className="h-4 w-4 text-stone-400" />}
+          icon={<Activity className="h-4 w-4 text-muted-foreground" />}
         />
         <StatCard
           label="Last 20 ticks"
           value={`${totalSeen} / ${totalActed}`}
           sub="threads seen / acted"
-          icon={<Activity className="h-4 w-4 text-stone-400" />}
+          icon={<Activity className="h-4 w-4 text-muted-foreground" />}
         />
         <StatCard
           label="Auto-send"
@@ -107,9 +107,9 @@ export default async function InboxPlaybooksPage() {
           sub={anyAutoSend ? "review the live categories" : "everything drafts"}
           icon={
             anyAutoSend ? (
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <AlertTriangle className="h-4 w-4 text-amber-text" />
             ) : (
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              <CheckCircle2 className="h-4 w-4 text-green-text" />
             )
           }
           tone={anyAutoSend ? "warning" : "ok"}
@@ -117,12 +117,12 @@ export default async function InboxPlaybooksPage() {
       </div>
 
       {lastErrorRun && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+        <div className="rounded-xl border border-red-text/20 bg-red-light px-4 py-3 text-sm text-red-text">
           <div className="flex items-center gap-2 font-medium">
             <AlertTriangle className="h-4 w-4" />
             Recent tick failed
           </div>
-          <p className="mt-1 text-xs text-rose-700">
+          <p className="mt-1 text-xs text-red-text/80">
             {fmtTime(lastErrorRun.started_at)} — {lastErrorRun.error}
           </p>
         </div>
@@ -130,10 +130,10 @@ export default async function InboxPlaybooksPage() {
 
       {/* Recent edits */}
       {learnings.length > 0 && (
-        <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-stone-500">
+        <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          <h2 className="mb-3 font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Recent edits ({learnings.length})
-            <span className="ml-2 normal-case text-stone-400 font-normal">
+            <span className="ml-2 normal-case text-muted-foreground font-normal">
               — what humans rewrote before sending
             </span>
           </h2>
@@ -141,36 +141,36 @@ export default async function InboxPlaybooksPage() {
             {learnings.map((l) => (
               <details
                 key={l.id}
-                className="rounded-md border border-stone-200 bg-stone-50/60 p-2 open:bg-white"
+                className="rounded-lg border border-border bg-muted/40 p-2 open:bg-card"
               >
                 <summary className="flex cursor-pointer items-center gap-2 text-xs">
-                  <span className="rounded bg-stone-100 px-1.5 py-0.5 font-mono text-[10px] uppercase text-stone-700">
+                  <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase text-foreground">
                     {l.category ?? "?"}
                   </span>
-                  <span className="text-stone-500">
+                  <span className="text-muted-foreground">
                     edit distance{" "}
-                    <span className="font-mono font-medium text-stone-700">
+                    <span className="font-mono font-medium text-foreground">
                       {l.edit_distance}
                     </span>
                   </span>
-                  <span className="ml-auto text-stone-400">
+                  <span className="ml-auto text-muted-foreground">
                     {fmtRelative(l.noted_at)}
                   </span>
                 </summary>
                 <div className="mt-2 grid gap-3 md:grid-cols-2">
                   <div>
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+                    <p className="mb-1 font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                       Our draft
                     </p>
-                    <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-amber-50 p-2 text-xs leading-relaxed text-stone-800 ring-1 ring-amber-100">
+                    <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-amber-light p-2 text-xs leading-relaxed text-foreground ring-1 ring-amber-text/20">
                       {l.our_draft}
                     </pre>
                   </div>
                   <div>
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+                    <p className="mb-1 font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                       What was actually sent
                     </p>
-                    <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-emerald-50 p-2 text-xs leading-relaxed text-stone-800 ring-1 ring-emerald-100">
+                    <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-green-light p-2 text-xs leading-relaxed text-foreground ring-1 ring-green-text/20">
                       {l.sent_reply}
                     </pre>
                   </div>
@@ -187,7 +187,7 @@ export default async function InboxPlaybooksPage() {
         if (!items.length) return null
         return (
           <section key={group} className="space-y-2">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+            <h2 className="font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               {group}
             </h2>
             <div className="space-y-2">
@@ -217,18 +217,18 @@ function StatCard({
 }) {
   const toneClasses =
     tone === "warning"
-      ? "border-amber-200 bg-amber-50"
+      ? "border-amber-text/20 bg-amber-light"
       : tone === "ok"
-        ? "border-emerald-200 bg-emerald-50/40"
-        : "border-stone-200 bg-white"
+        ? "border-green-text/20 bg-green-light/40"
+        : "border-border bg-card"
   return (
-    <div className={`rounded-xl border ${toneClasses} p-4 shadow-sm`}>
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-stone-500">
+    <div className={`rounded-xl border-[1.5px] ${toneClasses} p-4 shadow-sm`}>
+      <div className="flex items-center gap-2 font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         {icon}
         {label}
       </div>
-      <div className="mt-2 text-lg font-semibold text-stone-900">{value}</div>
-      <div className="text-xs text-stone-500">{sub}</div>
+      <div className="mt-2 font-serif text-lg font-semibold text-foreground">{value}</div>
+      <div className="text-xs text-muted-foreground">{sub}</div>
     </div>
   )
 }

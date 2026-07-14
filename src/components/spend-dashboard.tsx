@@ -45,12 +45,12 @@ function PaceBadge({ status }: { status: BucketSpendData["paceStatus"] }) {
   const { label, variant } = paceBadge[status]
   const cls =
     variant === "green"
-      ? "border-green-300 bg-green-50 text-green-800"
+      ? "border-green-text/30 bg-green-light text-green-text"
       : variant === "amber"
-      ? "border-amber-300 bg-amber-50 text-amber-800"
+      ? "border-amber-text/30 bg-amber-light text-amber-text"
       : variant === "red"
-      ? "border-red-300 bg-red-50 text-red-800"
-      : "border-gray-300 bg-white text-gray-600"
+      ? "border-red-text/30 bg-red-light text-red-text"
+      : "border-input bg-white text-muted-foreground"
   return (
     <span
       className={cn(
@@ -171,10 +171,10 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
             className={cn(
               "rounded-md border px-3 py-2 text-xs",
               cogsTone(liveCogsPct ?? projectedCogsPct) === "red"
-                ? "border-red-200 bg-red-50 text-red-900"
+                ? "border-red-text/20 bg-red-light text-red-text"
                 : cogsTone(liveCogsPct ?? projectedCogsPct) === "amber"
-                ? "border-amber-200 bg-amber-50 text-amber-900"
-                : "border-green-200 bg-green-50 text-green-900"
+                ? "border-amber-text/20 bg-amber-light text-amber-text"
+                : "border-green-text/20 bg-green-light text-green-text"
             )}
           >
             <strong>Where COGS lands:</strong> at this spend pace the week
@@ -194,7 +194,7 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
         )}
 
         {bucket.estimatedMissingSpend > 0 && (
-          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <div className="rounded-md border border-amber-text/20 bg-amber-light px-3 py-2 text-xs text-amber-text">
             <strong>+{fmt(bucket.estimatedMissingSpend)} estimated</strong>{" "}
             from suppliers we'd expect this week whose invoices aren't in
             (see Coverage). Folded into the pace projection but NOT into
@@ -205,7 +205,7 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
                   <li key={r.supplier} className="flex justify-between gap-2">
                     <span>
                       {r.supplier}{" "}
-                      <span className="text-amber-700">
+                      <span className="text-amber-text/80">
                         (last invoice{" "}
                         {r.daysSinceLast == null
                           ? "never"
@@ -410,8 +410,8 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
                             delta == null
                               ? "text-muted-foreground"
                               : delta > 0
-                              ? "text-red-700"
-                              : "text-green-700"
+                              ? "text-red-text"
+                              : "text-green-text"
                           )}
                         >
                           {delta == null
@@ -530,8 +530,8 @@ function CoverageSection({
     <div>
       <div
         className={cn(
-          "mb-1.5 text-xs font-semibold uppercase tracking-wide",
-          highlight ? "text-red-700" : muted ? "text-muted-foreground" : ""
+          "mb-1.5 font-serif text-xs font-semibold uppercase tracking-[0.14em]",
+          highlight ? "text-red-text" : muted ? "text-muted-foreground" : ""
         )}
       >
         {title}
@@ -595,20 +595,20 @@ function StatusPill({
   critical: boolean
 }) {
   const map: Record<typeof status, { label: string; cls: string }> = {
-    ok: { label: "OK", cls: "border-green-300 bg-green-50 text-green-800" },
+    ok: { label: "OK", cls: "border-green-text/30 bg-green-light text-green-text" },
     "due-soon": {
       label: "Due soon",
-      cls: "border-amber-300 bg-amber-50 text-amber-800",
+      cls: "border-amber-text/30 bg-amber-light text-amber-text",
     },
     overdue: {
       label: critical ? "OVERDUE" : "Overdue",
-      cls: "border-red-300 bg-red-50 text-red-800",
+      cls: "border-red-text/30 bg-red-light text-red-text",
     },
     missing: {
       label: critical ? "MISSING" : "Not seen",
       cls: critical
-        ? "border-red-300 bg-red-50 text-red-800"
-        : "border-gray-300 bg-gray-50 text-gray-700",
+        ? "border-red-text/30 bg-red-light text-red-text"
+        : "border-input bg-muted/50 text-foreground",
     },
   }
   const { label, cls } = map[status]
@@ -648,7 +648,7 @@ function UnassignedPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base text-amber-900">
+        <CardTitle className="text-base text-amber-text">
           Unassigned invoices ({rows.length})
         </CardTitle>
         <p className="text-xs text-muted-foreground">

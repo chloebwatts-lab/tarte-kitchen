@@ -221,7 +221,7 @@ export function LabourUploadForm() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <label className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+            <label className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/50">
               <Upload className="h-3.5 w-3.5" />
               Add files
               <input
@@ -246,7 +246,7 @@ export function LabourUploadForm() {
               </span>
             )}
           </div>
-          <div className="rounded-md border border-border bg-muted/30 p-3 text-xs">
+          <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs">
             <p className="font-medium">Drop in any combination</p>
             <ul className="mt-1 list-disc space-y-0.5 pl-5 text-muted-foreground">
               <li>
@@ -281,7 +281,7 @@ export function LabourUploadForm() {
             <button
               onClick={handleSaveAll}
               disabled={savingAll || parsedCount === 0}
-              className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               <Check className="h-4 w-4" />
               {savingAll
@@ -289,7 +289,7 @@ export function LabourUploadForm() {
                 : `Save all (${parsedCount} ready${parsingCount ? `, ${parsingCount} still parsing` : ""})`}
             </button>
             {saveSummary && (
-              <span className="text-xs text-emerald-700">{saveSummary}</span>
+              <span className="text-xs text-green-text">{saveSummary}</span>
             )}
           </div>
         </div>
@@ -338,14 +338,14 @@ function FileCard({
         )}
 
         {entry.status === "error" && entry.error && (
-          <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+          <div className="flex items-start gap-2 rounded-lg border border-red-text/20 bg-red-light p-3 text-xs text-red-text">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             {entry.error}
           </div>
         )}
 
         {entry.status === "saved" && (
-          <p className="text-xs text-emerald-700">
+          <p className="text-xs text-green-text">
             Saved · upload id {entry.uploadId}
           </p>
         )}
@@ -395,7 +395,7 @@ function MgePreview({ weeks }: { weeks: ExtractedMgeWeek[] }) {
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">
-                {w.venue ? VENUE_LABEL[w.venue] : <span className="text-red-600">⚠ Unknown venue</span>}
+                {w.venue ? VENUE_LABEL[w.venue] : <span className="text-red-text">⚠ Unknown venue</span>}
               </span>
               <span className="text-xs text-muted-foreground">
                 week of {w.weekStartWed || "—"} (Wed–Tue)
@@ -416,7 +416,7 @@ function MgePreview({ weeks }: { weeks: ExtractedMgeWeek[] }) {
             <Stat label="Ex-admin/leave/bkpay" value={w.grossWagesExAdminLeaveBackpay} revenue={w.revenueExGst} />
             <Stat label="COGS" value={w.cogsActual} pctOverride={w.cogsPct} />
           </div>
-          <div className="rounded-md border border-border bg-muted/20 p-3">
+          <div className="rounded-lg border border-border bg-muted/20 p-3">
             <div className="mb-2 text-xs font-medium">Department breakdown</div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-3">
               <Dept label="Barista" value={w.wagesBarista} revenue={w.revenueExGst} />
@@ -435,10 +435,10 @@ function MgePreview({ weeks }: { weeks: ExtractedMgeWeek[] }) {
 
 function CogsPreview({ weeks }: { weeks: ExtractedCogsWeek[] }) {
   return (
-    <div className="max-h-80 overflow-y-auto rounded-md border border-border">
+    <div className="max-h-80 overflow-y-auto rounded-lg border border-border">
       <table className="w-full text-xs">
         <thead className="sticky top-0 bg-muted/50">
-          <tr className="border-b border-border text-left text-muted-foreground">
+          <tr className="border-b border-border text-left font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             <th className="px-2 py-1.5">Venue</th>
             <th className="px-2 py-1.5">Week (Wed)</th>
             <th className="px-2 py-1.5 text-right">Revenue</th>
@@ -455,7 +455,7 @@ function CogsPreview({ weeks }: { weeks: ExtractedCogsWeek[] }) {
           {weeks.map((w, i) => (
             <tr key={i} className="border-b border-border/50">
               <td className="px-2 py-1 text-xs">
-                {w.venue ? VENUE_LABEL[w.venue] : <span className="text-red-600">⚠ {w.venueRaw || "?"}</span>}
+                {w.venue ? VENUE_LABEL[w.venue] : <span className="text-red-text">⚠ {w.venueRaw || "?"}</span>}
               </td>
               <td className="px-2 py-1 tabular-nums">{w.weekStartWed}</td>
               <td className="px-2 py-1 text-right tabular-nums">{w.revenueExGst != null ? `$${w.revenueExGst.toLocaleString()}` : "—"}</td>
@@ -492,7 +492,7 @@ function CsvPreview({
   return (
     <table className="w-full text-sm">
       <thead>
-        <tr className="border-b border-border text-left text-xs text-muted-foreground">
+        <tr className="border-b border-border text-left font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           <th className="py-2">Venue</th>
           <th className="py-2">Week (Wed)</th>
           <th className="py-2 text-right">Wages</th>
@@ -507,13 +507,13 @@ function CsvPreview({
           const resolvedVenue = fixedVenues[i] ?? r.venue
           const pct = r.mForecast && r.mForecast > 0 ? (r.grossWages / r.mForecast) * 100 : null
           return (
-            <tr key={i} className={cn("border-b border-border/50", !resolvedVenue && "bg-amber-50")}>
+            <tr key={i} className={cn("border-b border-border/50", !resolvedVenue && "bg-amber-light")}>
               <td className="py-2">
                 {resolvedVenue ? (
                   <span className="text-xs font-medium">{VENUE_LABEL[resolvedVenue]}</span>
                 ) : (
                   <select
-                    className="rounded border border-amber-300 bg-white px-1 py-0.5 text-xs"
+                    className="rounded border border-amber-text/30 bg-card px-1 py-0.5 text-xs"
                     value=""
                     onChange={(e) => onSetVenue(i, e.target.value as Venue)}
                   >

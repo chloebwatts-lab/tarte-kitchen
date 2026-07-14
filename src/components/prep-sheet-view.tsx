@@ -74,15 +74,15 @@ export function PrepSheetView({ initial }: { initial: PrepSheet }) {
                 className={cn(
                   "rounded-full px-4 py-1.5 text-xs font-medium transition-all",
                   venue === value
-                    ? "bg-gray-900 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-border"
                 )}
               >
                 {label}
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2.5 py-1">
+          <div className="flex items-center gap-2 rounded-md border border-border bg-white px-2.5 py-1">
             <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
             <input
               type="date"
@@ -94,7 +94,7 @@ export function PrepSheetView({ initial }: { initial: PrepSheet }) {
         </div>
         <button
           onClick={() => window.print()}
-          className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 print:hidden"
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-white px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/50 print:hidden"
         >
           <Printer className="h-3.5 w-3.5" />
           Print
@@ -106,13 +106,13 @@ export function PrepSheetView({ initial }: { initial: PrepSheet }) {
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Prepping for</p>
-            <p className="mt-1 text-xl font-semibold">{humanDate}</p>
+            <p className="mt-1 font-serif text-xl font-semibold">{humanDate}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Preparations</p>
-            <p className="mt-1 text-3xl font-bold">{sheet.lines.length}</p>
+            <p className="mt-1 font-serif text-3xl font-semibold">{sheet.lines.length}</p>
             <p className="text-xs text-muted-foreground">
               {sheet.lines.reduce((s, l) => s + l.batchesNeeded, 0)} batches total
             </p>
@@ -121,7 +121,7 @@ export function PrepSheetView({ initial }: { initial: PrepSheet }) {
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Forecast cost</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums">
+            <p className="mt-1 font-serif text-3xl font-semibold tabular-nums">
               ${sheet.totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </p>
             <p className="text-xs text-muted-foreground">
@@ -133,7 +133,7 @@ export function PrepSheetView({ initial }: { initial: PrepSheet }) {
 
       {/* Print header — only visible on print */}
       <div className="hidden print:block">
-        <h1 className="text-2xl font-bold">Prep Sheet — {humanDate}</h1>
+        <h1 className="font-serif text-2xl font-semibold">Prep Sheet — {humanDate}</h1>
         <p className="text-sm">
           {venue === "ALL" ? "All venues" : VENUE_SHORT_LABEL[venue as Venue]}
         </p>
@@ -152,7 +152,7 @@ export function PrepSheetView({ initial }: { initial: PrepSheet }) {
           {byCategory.map(([category, lines]) => (
             <Card key={category}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+                <CardTitle className="font-serif text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                   {category.replace(/_/g, " ")} · {lines.length}
                 </CardTitle>
               </CardHeader>
@@ -179,7 +179,7 @@ export function PrepSheetView({ initial }: { initial: PrepSheet }) {
                         ) : (
                           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground print:hidden" />
                         )}
-                        <div className="flex w-10 shrink-0 items-center justify-center rounded-md bg-gray-900 px-2 py-1 text-sm font-bold text-white tabular-nums print:bg-gray-200 print:text-gray-900">
+                        <div className="flex w-10 shrink-0 items-center justify-center rounded-md bg-primary px-2 py-1 text-sm font-bold text-primary-foreground tabular-nums print:bg-gray-200 print:text-gray-900">
                           {l.batchesNeeded}×
                         </div>
                         <div className="min-w-0 flex-1">
@@ -250,7 +250,7 @@ export function PrepSheetView({ initial }: { initial: PrepSheet }) {
             </p>
             <div className="space-y-1 text-xs">
               {sheet.unmatchedForecast.map((u, i) => (
-                <div key={i} className="flex justify-between rounded border border-amber-200 bg-amber-50 px-2 py-1">
+                <div key={i} className="flex justify-between rounded border border-amber-text/20 bg-amber-light px-2 py-1">
                   <span>{u.menuItemName}</span>
                   <span className="tabular-nums text-muted-foreground">
                     {u.forecastQty} × {VENUE_SHORT_LABEL[u.venue as Venue] ?? u.venue}

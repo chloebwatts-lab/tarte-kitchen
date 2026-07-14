@@ -36,7 +36,7 @@ export function DailyReportSection({ data }: { data: DailyReport }) {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+        <h2 className="font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           Daily POS Report — {dateLabel}
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -52,10 +52,10 @@ export function DailyReportSection({ data }: { data: DailyReport }) {
         <CardContent>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                <th className="py-2 font-medium">Site</th>
-                <th className="py-2 text-right font-medium">Total Ex Tax</th>
-                <th className="py-2 text-right font-medium">Total Inc Tax</th>
+              <tr className="border-b border-border text-left font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                <th className="py-2">Site</th>
+                <th className="py-2 text-right">Total Ex Tax</th>
+                <th className="py-2 text-right">Total Inc Tax</th>
               </tr>
             </thead>
             <tbody>
@@ -147,7 +147,7 @@ export function DailyReportSection({ data }: { data: DailyReport }) {
               ) : (
                 s.categories.map((cat) => (
                   <div key={cat.categoryName}>
-                    <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <h3 className="mb-1 font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                       {cat.categoryName}
                     </h3>
                     {cat.topProducts.length === 0 ? (

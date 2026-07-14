@@ -34,7 +34,7 @@ export function NewStocktakeButton() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button className="inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800">
+        <button className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
           <Plus className="h-4 w-4" />
           New stocktake
         </button>
@@ -63,8 +63,8 @@ export function NewStocktakeButton() {
                   className={cn(
                     "rounded-md border px-3 py-2 text-xs font-medium",
                     venue === v
-                      ? "border-gray-900 bg-gray-900 text-white"
-                      : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-white text-muted-foreground hover:bg-muted/50"
                   )}
                 >
                   {VENUE_SHORT_LABEL[v]}
@@ -77,7 +77,7 @@ export function NewStocktakeButton() {
           <button
             onClick={submit}
             disabled={isPending}
-            className="rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             {isPending ? "Starting…" : "Start count"}
           </button>

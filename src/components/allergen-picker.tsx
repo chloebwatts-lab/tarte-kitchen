@@ -47,8 +47,8 @@ export function AllergenPicker({
             className={cn(
               "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition-colors",
               active
-                ? "border-red-300 bg-red-50 text-red-800"
-                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                ? "border-red-text/30 bg-red-light text-red-text"
+                : "border-border bg-white text-muted-foreground hover:bg-muted/50"
             )}
           >
             <span>{opt.emoji}</span>
@@ -69,7 +69,7 @@ export function AllergenPills({ allergens }: { allergens: string[] }) {
         return (
           <span
             key={a}
-            className="inline-flex items-center gap-0.5 rounded-full border border-red-200 bg-red-50 px-1.5 py-0 text-[10px] font-medium text-red-700"
+            className="inline-flex items-center gap-0.5 rounded-full border border-red-text/20 bg-red-light px-1.5 py-0 text-[10px] font-medium text-red-text"
           >
             {opt?.emoji} {opt?.label ?? a}
           </span>

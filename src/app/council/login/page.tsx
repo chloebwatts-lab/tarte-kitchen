@@ -12,16 +12,16 @@ export default async function CouncilLoginPage({
   const hasError = sp.error === "1"
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-stone-50 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
-            <ShieldCheck className="h-6 w-6 text-emerald-700" />
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-sage-soft">
+            <ShieldCheck className="h-6 w-6 text-sage-deep" />
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
+          <h1 className="font-serif text-2xl font-semibold tracking-tight text-foreground">
             Council Inspection Folder
           </h1>
-          <p className="mt-1 text-sm text-stone-500">
+          <p className="mt-1 text-sm text-muted-foreground">
             Tarte Kitchen — enter password to continue
           </p>
         </div>
@@ -33,20 +33,20 @@ export default async function CouncilLoginPage({
             autoFocus
             required
             placeholder="Password"
-            className="block w-full rounded-md border border-stone-300 px-3 py-2 text-base shadow-sm placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
+            className="block w-full rounded-md border border-input bg-card px-3 py-2 text-base shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
           {hasError && (
-            <p className="text-sm text-rose-600">Incorrect password.</p>
+            <p className="text-sm text-red-text">Incorrect password.</p>
           )}
           <button
             type="submit"
-            className="block w-full rounded-md bg-emerald-700 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2"
+            className="block w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           >
             Open folder
           </button>
         </form>
 
-        <p className="text-center text-xs text-stone-400">
+        <p className="text-center text-xs text-muted-foreground">
           For Gold Coast City Council EHO use. 12-hour session.
         </p>
       </div>

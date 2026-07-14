@@ -105,9 +105,9 @@ const INSIGHT_ICONS: Record<string, typeof CircleAlert> = {
 }
 
 const ALERT_STYLES = {
-  green: "border-green-200 bg-green-50 text-green-700",
-  amber: "border-amber-200 bg-amber-50 text-amber-700",
-  red: "border-red-200 bg-red-50 text-red-700",
+  green: "border-green-text/20 bg-green-light text-green-text",
+  amber: "border-amber-text/20 bg-amber-light text-amber-text",
+  red: "border-red-text/20 bg-red-light text-red-text",
 }
 
 // ============================================================
@@ -241,8 +241,8 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
             className={cn(
               "rounded-full px-5 py-2 text-sm font-medium transition-all",
               activeVenue === value
-                ? "bg-gray-900 text-white shadow-sm"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "bg-muted text-muted-foreground hover:bg-border"
             )}
           >
             {label}
@@ -259,7 +259,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
               className="flex w-full items-center justify-between"
             >
               <CardTitle className="flex items-center gap-2 text-base">
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                <AlertTriangle className="h-4 w-4 text-amber-text" />
                 Insights & Suggestions
                 <Badge variant="secondary" className="text-xs">
                   {currentInsights.length}
@@ -281,7 +281,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                     key={i}
                     className="flex items-start gap-3 rounded-lg border border-border px-3 py-2 text-sm"
                   >
-                    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-amber-text" />
                     <span className="flex-1">{insight.message}</span>
                     <span className="shrink-0 text-xs text-muted-foreground">
                       ~${insight.estimatedImpact.toFixed(0)} impact
@@ -301,7 +301,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Waste Cost</p>
-                <p className="text-3xl font-bold">${currentStats.totalWasteCost.toFixed(0)}</p>
+                <p className="font-serif text-3xl font-semibold">${currentStats.totalWasteCost.toFixed(0)}</p>
                 <p className={cn(
                   "mt-1 text-xs font-medium",
                   ALERT_STYLES[currentStats.alertLevel]?.split(" ").find(c => c.startsWith("text-")) ?? "text-muted-foreground"
@@ -317,15 +317,15 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
               </div>
               <div className={cn(
                 "rounded-lg p-3",
-                currentStats.alertLevel === "green" && "bg-green-100",
-                currentStats.alertLevel === "amber" && "bg-amber-100",
-                currentStats.alertLevel === "red" && "bg-red-100",
+                currentStats.alertLevel === "green" && "bg-green-light",
+                currentStats.alertLevel === "amber" && "bg-amber-light",
+                currentStats.alertLevel === "red" && "bg-red-light",
               )}>
                 <DollarSign className={cn(
                   "h-5 w-5",
-                  currentStats.alertLevel === "green" && "text-green-600",
-                  currentStats.alertLevel === "amber" && "text-amber-600",
-                  currentStats.alertLevel === "red" && "text-red-600",
+                  currentStats.alertLevel === "green" && "text-green-text",
+                  currentStats.alertLevel === "amber" && "text-amber-text",
+                  currentStats.alertLevel === "red" && "text-red-text",
                 )} />
               </div>
             </div>
@@ -349,10 +349,10 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                         className={cn(
                           "ml-1 text-xs",
                           v.wastePercent >= 2.5
-                            ? "text-red-600"
+                            ? "text-red-text"
                             : v.wastePercent >= 1.5
-                              ? "text-amber-600"
-                              : "text-green-600"
+                              ? "text-amber-text"
+                              : "text-green-text"
                         )}
                       >
                         ({v.wastePercent.toFixed(1)}%)
@@ -387,7 +387,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                   <div key={item.name} className="flex items-center gap-2 text-xs">
                     <span className="w-4 shrink-0 text-center font-medium text-muted-foreground">{i + 1}</span>
                     <span className="min-w-0 flex-1 truncate font-medium">{item.name}</span>
-                    <span className="shrink-0 text-red-600 font-semibold">${item.cost.toFixed(0)}</span>
+                    <span className="shrink-0 text-red-text font-semibold">${item.cost.toFixed(0)}</span>
                     <span className="shrink-0 text-muted-foreground">×{item.count}</span>
                   </div>
                 ))}
@@ -401,19 +401,19 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">vs Last Week</p>
-                <p className="text-3xl font-bold">
+                <p className="font-serif text-3xl font-semibold">
                   {currentStats.weekOverWeekChange >= 0 ? "+" : ""}
                   {currentStats.weekOverWeekChange.toFixed(0)}%
                 </p>
               </div>
               <div className={cn(
                 "rounded-lg p-3",
-                currentStats.weekOverWeekChange > 0 ? "bg-red-100" : "bg-green-100"
+                currentStats.weekOverWeekChange > 0 ? "bg-red-light" : "bg-green-light"
               )}>
                 {currentStats.weekOverWeekChange > 0 ? (
-                  <TrendingUp className="h-5 w-5 text-red-600" />
+                  <TrendingUp className="h-5 w-5 text-red-text" />
                 ) : (
-                  <TrendingDown className="h-5 w-5 text-green-600" />
+                  <TrendingDown className="h-5 w-5 text-green-text" />
                 )}
               </div>
             </div>
@@ -551,7 +551,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                 onClick={() => handleReasonFilter(null)}
                 className={cn(
                   "rounded-full px-3 py-1 text-xs font-medium transition-all",
-                  reasonFilter === null ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  reasonFilter === null ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-border"
                 )}
               >
                 All reasons
@@ -562,7 +562,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                   onClick={() => handleReasonFilter(key)}
                   className={cn(
                     "rounded-full px-3 py-1 text-xs font-medium transition-all",
-                    reasonFilter === key ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    reasonFilter === key ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-border"
                   )}
                 >
                   {label}
@@ -575,7 +575,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border text-left text-muted-foreground">
+                <tr className="border-b border-border text-left font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                   {[
                     { key: "date", label: "Date" },
                     ...(!activeVenue ? [{ key: "venue", label: "Venue" }] : []),
@@ -587,7 +587,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                   ].map((col) => (
                     <th
                       key={col.key}
-                      className="cursor-pointer px-3 py-2 font-medium hover:text-foreground"
+                      className="cursor-pointer px-3 py-2 hover:text-foreground"
                       onClick={() => col.key !== "qty" && col.key !== "notes" && toggleSort(col.key)}
                     >
                       <span className="inline-flex items-center gap-1">
@@ -636,7 +636,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                     <td className="px-3 py-2 whitespace-nowrap">
                       {entry.quantity} {entry.unit}
                     </td>
-                    <td className="px-3 py-2 text-red-600 font-medium">
+                    <td className="px-3 py-2 text-red-text font-medium">
                       ${entry.estimatedCost.toFixed(2)}
                     </td>
                     <td className="px-3 py-2 text-muted-foreground max-w-[200px] truncate">

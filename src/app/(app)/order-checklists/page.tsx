@@ -20,7 +20,7 @@ const DAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"]
 
 function VenuePicker({ active }: { active: Venue }) {
   return (
-    <div className="flex overflow-hidden rounded-md border">
+    <div className="flex overflow-hidden rounded-md border border-border">
       {SINGLE_VENUES.map((v) => (
         <Link
           key={v}
@@ -118,10 +118,10 @@ function SupplierCard({ s, venue }: { s: SupplierOrderCard; venue: Venue }) {
             className={
               "block w-full rounded-md px-3 py-2 text-center text-sm font-medium " +
               (isSent
-                ? "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                ? "border border-border bg-card text-foreground hover:bg-muted/50"
                 : draft
-                  ? "bg-gray-900 text-white hover:bg-gray-800"
-                  : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50")
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "border border-border bg-card text-foreground hover:bg-muted/50")
             }
           >
             {isSent ? "View sent order" : draft ? "Continue order" : "Start order"}
@@ -148,7 +148,7 @@ export default async function OrderChecklistsPage({
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Order Checklists</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight">Order Checklists</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Digital order forms — pick a supplier, tick what you need, send.
             Drafts auto-save so you can come back to them mid-shift.
@@ -158,7 +158,7 @@ export default async function OrderChecklistsPage({
       </div>
 
       {cards.length === 0 ? (
-        <div className="rounded-lg border-2 border-dashed border-gray-200 py-14 text-center">
+        <div className="rounded-lg border-2 border-dashed border-border py-14 text-center">
           <ShoppingCart className="mx-auto h-8 w-8 text-muted-foreground/50" />
           <p className="mt-3 text-sm text-muted-foreground">
             No suppliers have an order form set up yet.

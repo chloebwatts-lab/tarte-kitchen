@@ -73,7 +73,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   BREAD: "bg-yellow-50 border-yellow-100 dark:bg-yellow-950/20 dark:border-yellow-900/30",
   COMPONENT: "bg-sky-50 border-sky-100 dark:bg-sky-950/20 dark:border-sky-900/30",
   GARNISH: "bg-emerald-50 border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900/30",
-  OTHER: "bg-gray-50 border-gray-100 dark:bg-gray-950/20 dark:border-gray-900/30",
+  OTHER: "bg-muted/50 border-border dark:bg-gray-950/20 dark:border-gray-900/30",
 }
 
 const CATEGORY_BADGE_COLORS: Record<string, string> = {
@@ -86,7 +86,7 @@ const CATEGORY_BADGE_COLORS: Record<string, string> = {
   BREAD: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
   COMPONENT: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-300",
   GARNISH: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300",
-  OTHER: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300",
+  OTHER: "bg-muted text-foreground dark:bg-gray-900 dark:text-gray-300",
 }
 
 function formatCurrency(value: number): string {
@@ -296,7 +296,7 @@ export function PreparationsGrid({
               <CardContent className="pt-0">
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    <p className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                       Batch
                     </p>
                     <p className="text-sm font-semibold text-foreground">
@@ -304,7 +304,7 @@ export function PreparationsGrid({
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    <p className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                       Per serve
                     </p>
                     <p className="text-sm font-semibold text-foreground">
@@ -312,7 +312,7 @@ export function PreparationsGrid({
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    <p className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                       Per gram
                     </p>
                     <p className="text-sm font-semibold text-foreground">

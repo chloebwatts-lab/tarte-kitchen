@@ -212,7 +212,7 @@ export function ParLevelsView({ rows }: { rows: ParSuggestionRow[] }) {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b bg-muted/40">
-                  <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+                  <tr className="text-left font-serif text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     <th className="px-3 py-2 font-medium">Ingredient</th>
                     <th className="px-2 py-2 font-medium">Supplier</th>
                     <th className="px-2 py-2 font-medium">Pack</th>
@@ -222,7 +222,7 @@ export function ParLevelsView({ rows }: { rows: ParSuggestionRow[] }) {
                       </th>
                     ))}
                   </tr>
-                  <tr className="border-b text-left text-[10px] uppercase tracking-wide text-muted-foreground">
+                  <tr className="border-b text-left font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     <th />
                     <th />
                     <th />
@@ -268,7 +268,7 @@ export function ParLevelsView({ rows }: { rows: ParSuggestionRow[] }) {
                             <td key={`${v}-s`} className="px-2 py-2 text-right text-xs tabular-nums">
                               {sug > 0 ? (
                                 <button
-                                  className="rounded bg-blue-50 px-2 py-0.5 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50"
+                                  className="rounded bg-sage-soft px-2 py-0.5 text-sage-deep hover:bg-sage dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50"
                                   onClick={() => acceptSuggestion(r.ingredientId, v, sug)}
                                   title="Click to use this suggestion"
                                 >
@@ -291,7 +291,7 @@ export function ParLevelsView({ rows }: { rows: ParSuggestionRow[] }) {
                                   }
                                   className={cn(
                                     "h-7 w-20 text-right text-xs tabular-nums",
-                                    isDirty && "border-blue-500"
+                                    isDirty && "border-sage-deep"
                                   )}
                                 />
                                 {cur != null && sourceTag === "LEGACY" && (

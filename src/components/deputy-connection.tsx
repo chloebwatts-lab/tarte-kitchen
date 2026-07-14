@@ -194,7 +194,7 @@ export function DeputyConnection({ status, configured }: Props) {
             </ol>
           </div>
 
-          <div className="space-y-3 rounded-lg border-2 border-dashed border-gray-300 bg-white p-4">
+          <div className="space-y-3 rounded-lg border-2 border-dashed border-input bg-card p-4">
             <div>
               <label className="mb-1 block text-xs font-medium">
                 Deputy install URL
@@ -231,7 +231,7 @@ export function DeputyConnection({ status, configured }: Props) {
               {isPending ? "Verifying…" : "Connect Deputy"}
             </Button>
             {tokenError && (
-              <div className="rounded-md bg-red-50 p-2 text-xs text-red-700">
+              <div className="rounded-md bg-red-light p-2 text-xs text-red-text">
                 {tokenError}
               </div>
             )}
@@ -241,11 +241,11 @@ export function DeputyConnection({ status, configured }: Props) {
             <summary className="cursor-pointer hover:text-foreground">
               Advanced: use OAuth (requires a developer app)
             </summary>
-            <div className="mt-2 rounded-md border border-border bg-muted/30 p-3">
+            <div className="mt-2 rounded-lg border border-border bg-muted/30 p-3">
               {configured ? (
                 <a
                   href="/api/deputy/auth"
-                  className="inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                 >
                   Connect via OAuth
                   <ExternalLink className="h-3 w-3" />
@@ -276,8 +276,8 @@ export function DeputyConnection({ status, configured }: Props) {
           <Badge
             className={
               status.tokenHealthy
-                ? "border-green-200 bg-green-50 text-green-700"
-                : "border-red-200 bg-red-50 text-red-700"
+                ? "border-green-text/20 bg-green-light text-green-text"
+                : "border-red-text/20 bg-red-light text-red-text"
             }
           >
             {status.tokenHealthy ? (
@@ -332,7 +332,7 @@ export function DeputyConnection({ status, configured }: Props) {
           </div>
 
           {status.unmappedCount > 0 && (
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <div className="rounded-lg border border-amber-text/20 bg-amber-light px-3 py-2 text-xs text-amber-text">
               <AlertTriangle className="mr-1 inline h-3 w-3" />
               {status.unmappedCount} location{status.unmappedCount === 1 ? "" : "s"}{" "}
               unmapped. Timesheets from these will be skipped until you pick a venue.
@@ -344,7 +344,7 @@ export function DeputyConnection({ status, configured }: Props) {
               {status.locations.map((l) => (
                 <div
                   key={l.id}
-                  className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
+                  className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium">{l.name}</div>
@@ -372,7 +372,7 @@ export function DeputyConnection({ status, configured }: Props) {
               ))}
             </div>
           ) : (
-            <div className="rounded-md border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
+            <div className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
               No locations loaded yet — click &ldquo;Refresh from Deputy&rdquo;.
             </div>
           )}
@@ -471,7 +471,7 @@ export function DeputyConnection({ status, configured }: Props) {
         </div>
 
         {syncResult && (
-          <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs">
+          <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs">
             {syncResult}
           </div>
         )}

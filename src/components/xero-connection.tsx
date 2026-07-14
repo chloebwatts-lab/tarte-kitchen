@@ -21,12 +21,12 @@ export function XeroConnection({ status }: Props) {
         </div>
         <div className="ml-4 shrink-0">
           {status.connected ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-green-light px-2.5 py-1 text-xs font-medium text-green-text">
               <CheckCircle2 className="h-3.5 w-3.5" />
               Connected
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
               <XCircle className="h-3.5 w-3.5" />
               Not connected
             </span>

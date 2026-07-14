@@ -97,8 +97,8 @@ export function OrdersView({
               className={cn(
                 "rounded-full px-4 py-1.5 text-xs font-medium transition-all",
                 venue === value
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-border"
               )}
             >
               {label}
@@ -107,7 +107,7 @@ export function OrdersView({
         </div>
         <button
           onClick={() => refreshSuggestions(venue)}
-          className="ml-auto inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+          className="ml-auto inline-flex items-center gap-1 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/50"
         >
           <RefreshCw
             className={cn("h-3.5 w-3.5", isPending && "animate-spin")}
@@ -121,7 +121,7 @@ export function OrdersView({
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="inline-flex items-center gap-1.5 text-sm font-medium">
-              <Sparkles className="h-4 w-4 text-indigo-500" />
+              <Sparkles className="h-4 w-4 text-sage-deep" />
               Suggested orders
             </CardTitle>
             <span className="text-xs text-muted-foreground">
@@ -147,7 +147,7 @@ export function OrdersView({
                 return (
                   <div
                     key={key}
-                    className="rounded-md border border-border p-4"
+                    className="rounded-lg border border-border p-4"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
@@ -168,7 +168,7 @@ export function OrdersView({
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="text-right">
-                          <div className="text-xl font-bold tabular-nums">
+                          <div className="font-serif text-xl font-semibold tabular-nums">
                             ${s.total.toFixed(2)}
                           </div>
                           <div className="text-[10px] text-muted-foreground">
@@ -178,7 +178,7 @@ export function OrdersView({
                         <button
                           onClick={() => startDraft(s)}
                           disabled={busy}
-                          className="inline-flex items-center gap-1 rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+                          className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                         >
                           {busy ? "Drafting…" : "Create draft"}
                           <ChevronRight className="h-3.5 w-3.5" />
@@ -231,7 +231,7 @@ export function OrdersView({
       <div className="grid gap-4 lg:grid-cols-2">
         <OrderBucket
           title="Drafts"
-          icon={<Clock className="h-4 w-4 text-amber-500" />}
+          icon={<Clock className="h-4 w-4 text-amber-text" />}
           rows={grouped.drafts}
         />
         <OrderBucket
@@ -241,12 +241,12 @@ export function OrdersView({
         />
         <OrderBucket
           title="Received"
-          icon={<Truck className="h-4 w-4 text-emerald-500" />}
+          icon={<Truck className="h-4 w-4 text-green-text" />}
           rows={grouped.received}
         />
         <OrderBucket
           title="Cancelled"
-          icon={<XCircle className="h-4 w-4 text-gray-400" />}
+          icon={<XCircle className="h-4 w-4 text-muted-foreground" />}
           rows={grouped.cancelled}
           muted
         />
@@ -288,7 +288,7 @@ function OrderBucket({
               <Link
                 key={o.id}
                 href={`/orders/${o.id}`}
-                className="flex items-center gap-3 rounded-md border border-border p-2 hover:bg-muted/40"
+                className="flex items-center gap-3 rounded-lg border border-border p-2 hover:bg-muted/40"
               >
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium">

@@ -39,7 +39,7 @@ export function DashboardHighlights({
       {/* ── Sales vs daily target ────────────────────────────────────── */}
       <Link
         href="/dashboard"
-        className="group rounded-xl border border-gray-200 bg-white p-4 transition hover:shadow-sm"
+        className="group rounded-xl border-[1.5px] border-border bg-card p-4 transition hover:shadow-sm"
       >
         <div className="flex items-center gap-1.5 font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           <Banknote className="h-3.5 w-3.5" />
@@ -92,7 +92,7 @@ export function DashboardHighlights({
       {/* ── Waste this week ─────────────────────────────────────────── */}
       <Link
         href="/wastage"
-        className="group rounded-xl border border-gray-200 bg-white p-4 transition hover:shadow-sm"
+        className="group rounded-xl border-[1.5px] border-border bg-card p-4 transition hover:shadow-sm"
       >
         <div className="flex items-center gap-1.5 font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           <Trash2 className="h-3.5 w-3.5" />
@@ -138,7 +138,7 @@ export function DashboardHighlights({
       <Link
         href="/cogs"
         className={`group rounded-xl border p-4 transition hover:shadow-sm ${
-          supplierSpike ? "border-red-200 bg-red-50" : "border-gray-200 bg-white"
+          supplierSpike ? "border-red-text/25 bg-red-light/40" : "border-border bg-card"
         }`}
       >
         <div className="flex items-center gap-1.5 font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">

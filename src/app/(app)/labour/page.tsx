@@ -17,7 +17,7 @@ export default async function LabourPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Labour</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight">Labour</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Weekly labour % per venue. Forecasts pulled live from Deputy,
             actuals posted from payroll.
@@ -30,7 +30,7 @@ export default async function LabourPage() {
             </p>
             <Link
               href="/settings/integrations"
-              className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
               Go to Integrations
             </Link>
@@ -47,7 +47,7 @@ export default async function LabourPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Labour</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight">Labour</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Weekly labour % per venue. Forecast (current + next week) pulled
             from Deputy; past weeks from uploaded payroll reports.
@@ -57,14 +57,14 @@ export default async function LabourPage() {
           <LabourRefreshButton lastSyncedAt={status.lastSyncedAt} />
           <Link
             href="/labour/upload"
-            className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted/50"
           >
             Upload payroll
           </Link>
         </div>
       </div>
       {status.unmappedCount > 0 && (
-        <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        <div className="flex items-start gap-2 rounded-lg border border-amber-text/20 bg-amber-light px-3 py-2 text-xs text-amber-text">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
           <span>
             {status.unmappedCount} Deputy operational unit
@@ -73,7 +73,7 @@ export default async function LabourPage() {
             counted, which will under-report wages.{" "}
             <Link
               href="/settings/integrations"
-              className="font-medium underline hover:text-amber-900"
+              className="font-medium underline hover:text-amber-text/80"
             >
               Fix in Integrations →
             </Link>

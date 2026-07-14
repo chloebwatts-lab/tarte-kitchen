@@ -24,18 +24,18 @@ function tempBadge(passed: boolean | null, temp: number | null, hotCheck: boolea
   const threshold = hotCheck ? "≥60°C" : "≤5°C"
   if (passed === null) {
     return temp !== null
-      ? <span className="text-sm text-gray-500">{temp}°C <span className="text-xs text-gray-400">({threshold})</span></span>
-      : <Minus className="h-4 w-4 text-gray-300" />
+      ? <span className="text-sm text-muted-foreground">{temp}°C <span className="text-xs text-muted-foreground/70">({threshold})</span></span>
+      : <Minus className="h-4 w-4 text-muted-foreground/60" />
   }
   if (passed) {
     return (
-      <span className="inline-flex items-center gap-1 text-sm font-medium text-emerald-700">
+      <span className="inline-flex items-center gap-1 text-sm font-medium text-green-text">
         <CheckCircle2 className="h-3.5 w-3.5" /> {temp}°C
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center gap-1 text-sm font-medium text-red-600">
+    <span className="inline-flex items-center gap-1 text-sm font-medium text-red-text">
       <XCircle className="h-3.5 w-3.5" /> {temp}°C <span className="text-xs">({threshold})</span>
     </span>
   )
@@ -71,14 +71,14 @@ export function FoodSafetyLog({ runs: initialRuns }: Props) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-emerald-600" />
-            <h1 className="text-2xl font-semibold tracking-tight">Food Safety Log</h1>
+            <ShieldCheck className="h-5 w-5 text-green-text" />
+            <h1 className="font-serif text-2xl font-semibold tracking-tight">Food Safety Log</h1>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
             HACCP temperature records. Completed checks are emailed automatically to accounts@tarte.com.au.
           </p>
         </div>
-        <div className="inline-flex items-center gap-1.5 rounded-md border border-gray-100 bg-gray-50 px-3 py-1.5 text-sm text-gray-500">
+        <div className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-3 py-1.5 text-sm text-muted-foreground">
           <Mail className="h-4 w-4" />
           Auto-email on completion
         </div>
@@ -113,7 +113,7 @@ export function FoodSafetyLog({ runs: initialRuns }: Props) {
         <button
           onClick={applyFilters}
           disabled={isPending}
-          className="rounded-md bg-gray-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+          className="rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {isPending ? "Loading…" : "Filter"}
         </button>
@@ -124,9 +124,9 @@ export function FoodSafetyLog({ runs: initialRuns }: Props) {
         <div className="flex gap-4 text-sm">
           <span className="text-muted-foreground">{runs.length} run{runs.length !== 1 ? "s" : ""}</span>
           {failCount > 0 ? (
-            <span className="font-medium text-red-600">{failCount} temperature breach{failCount !== 1 ? "es" : ""}</span>
+            <span className="font-medium text-red-text">{failCount} temperature breach{failCount !== 1 ? "es" : ""}</span>
           ) : (
-            <span className="font-medium text-emerald-600">No temperature breaches</span>
+            <span className="font-medium text-green-text">No temperature breaches</span>
           )}
         </div>
       )}
@@ -148,13 +148,13 @@ export function FoodSafetyLog({ runs: initialRuns }: Props) {
             return (
               <div
                 key={run.id}
-                className={`rounded-lg border bg-white shadow-sm overflow-hidden ${hasBreaches ? "border-red-200" : "border-border"}`}
+                className={`rounded-lg border bg-card shadow-sm overflow-hidden ${hasBreaches ? "border-red-text/20" : "border-border"}`}
               >
                 {/* Run header row */}
                 <button
                   type="button"
                   onClick={() => setExpandedId(isExpanded ? null : run.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/50"
                 >
                   <span className="text-muted-foreground">
                     {isExpanded
@@ -193,10 +193,10 @@ export function FoodSafetyLog({ runs: initialRuns }: Props) {
 
                 {/* Expanded temperature table */}
                 {isExpanded && (
-                  <div className="border-t border-gray-100">
+                  <div className="border-t border-border">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="bg-gray-50 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                        <tr className="bg-muted/50 font-serif text-xs font-semibold text-muted-foreground uppercase tracking-[0.14em]">
                           <th className="px-4 py-2 text-left">Product</th>
                           <th className="px-4 py-2 text-center">Temp</th>
                           <th className="px-4 py-2 text-left hidden sm:table-cell">Note</th>
@@ -204,28 +204,28 @@ export function FoodSafetyLog({ runs: initialRuns }: Props) {
                           <th className="px-4 py-2 text-left hidden sm:table-cell">Time</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-50">
+                      <tbody className="divide-y divide-border">
                         {run.items.map((item, idx) => (
                           <tr
                             key={idx}
-                            className={item.passed === false ? "bg-red-50" : ""}
+                            className={item.passed === false ? "bg-red-light" : ""}
                           >
-                            <td className="px-4 py-2.5 font-medium text-gray-900">
+                            <td className="px-4 py-2.5 font-medium text-foreground">
                               {item.label.replace(/ — temperature check$/i, "")}
                             </td>
                             <td className="px-4 py-2.5 text-center">
                               {tempBadge(item.passed, item.tempCelsius, item.hotCheck)}
                             </td>
-                            <td className="px-4 py-2.5 text-gray-500 hidden sm:table-cell">
-                              {item.note ?? <span className="text-gray-300">—</span>}
+                            <td className="px-4 py-2.5 text-muted-foreground hidden sm:table-cell">
+                              {item.note ?? <span className="text-muted-foreground/60">—</span>}
                             </td>
-                            <td className="px-4 py-2.5 text-gray-500 hidden sm:table-cell">
-                              {item.checkedBy ?? <span className="text-gray-300">—</span>}
+                            <td className="px-4 py-2.5 text-muted-foreground hidden sm:table-cell">
+                              {item.checkedBy ?? <span className="text-muted-foreground/60">—</span>}
                             </td>
-                            <td className="px-4 py-2.5 text-gray-500 hidden sm:table-cell">
+                            <td className="px-4 py-2.5 text-muted-foreground hidden sm:table-cell">
                               {item.checkedAt
                                 ? new Date(item.checkedAt).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit" })
-                                : <span className="text-gray-300">—</span>
+                                : <span className="text-muted-foreground/60">—</span>
                               }
                             </td>
                           </tr>

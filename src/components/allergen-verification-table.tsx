@@ -91,7 +91,7 @@ export function AllergenVerificationTable({
             >
               {f.label}
               {f.value === "needs-review" && needsReviewCount > 0 && (
-                <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 text-xs font-medium text-amber-800">
+                <span className="ml-1.5 rounded-full bg-amber-light px-1.5 text-xs font-medium text-amber-text">
                   {needsReviewCount}
                 </span>
               )}
@@ -144,7 +144,7 @@ function ProgressCard({
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full rounded-full bg-emerald-500 transition-all"
+            className="h-full rounded-full bg-sage-deep transition-all"
             style={{ width: `${pct}%` }}
           />
         </div>
@@ -188,7 +188,7 @@ function VerificationRow({ row }: { row: AllergenVerificationRow }) {
               {verified ? (
                 <Badge
                   variant="outline"
-                  className="border-emerald-200 bg-emerald-50 text-emerald-700"
+                  className="border-green-text/20 bg-green-light text-green-text"
                 >
                   <CheckCircle2 className="mr-1 h-3 w-3" />
                   {row.source === "human" ? "Label verified" : "Verified"}
@@ -196,7 +196,7 @@ function VerificationRow({ row }: { row: AllergenVerificationRow }) {
               ) : row.confident === false ? (
                 <Badge
                   variant="outline"
-                  className="border-amber-200 bg-amber-50 text-amber-800"
+                  className="border-amber-text/20 bg-amber-light text-amber-text"
                 >
                   <Bot className="mr-1 h-3 w-3" />
                   Unconfirmed guess
@@ -204,7 +204,7 @@ function VerificationRow({ row }: { row: AllergenVerificationRow }) {
               ) : (
                 <Badge
                   variant="outline"
-                  className="border-amber-200 bg-amber-50 text-amber-800"
+                  className="border-amber-text/20 bg-amber-light text-amber-text"
                 >
                   <AlertTriangle className="mr-1 h-3 w-3" />
                   Not assessed
@@ -233,7 +233,7 @@ function VerificationRow({ row }: { row: AllergenVerificationRow }) {
         </div>
 
         {row.rationale && !verified && (
-          <p className="rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900">
+          <p className="rounded-md bg-amber-light px-2.5 py-1.5 text-xs text-amber-text">
             {row.rationale}
           </p>
         )}
@@ -243,7 +243,7 @@ function VerificationRow({ row }: { row: AllergenVerificationRow }) {
           onChange={(v) => setDraft(v)}
         />
 
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && <p className="text-xs text-red-text">{error}</p>}
       </CardContent>
     </Card>
   )

@@ -52,7 +52,7 @@ export function UploadDocumentDialog({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-2.5 py-1.5 text-sm font-medium text-stone-700 shadow-sm hover:bg-stone-50"
+        className="inline-flex items-center gap-1.5 rounded-md border border-input bg-card px-2.5 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-muted/50"
       >
         <Plus className="h-4 w-4" />
         Add
@@ -60,15 +60,15 @@ export function UploadDocumentDialog({
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-stone-200 px-5 py-3">
-              <h3 className="text-base font-semibold text-stone-900">
+          <div className="w-full max-w-md rounded-xl bg-card shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-5 py-3">
+              <h3 className="font-serif text-base font-semibold text-foreground">
                 Upload document
               </h3>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded p-1 text-stone-500 hover:bg-stone-100 hover:text-stone-900"
+                className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -81,14 +81,14 @@ export function UploadDocumentDialog({
               <input type="hidden" name="venue" value={venue} />
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600">
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
                   Type
                 </label>
                 <select
                   name="type"
                   required
                   defaultValue={types[0]}
-                  className="block w-full rounded-md border border-stone-300 px-2.5 py-1.5 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                  className="block w-full rounded-md border border-input px-2.5 py-1.5 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                 >
                   {types.map((t) => (
                     <option key={t} value={t}>
@@ -99,7 +99,7 @@ export function UploadDocumentDialog({
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600">
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
                   Title
                 </label>
                 <input
@@ -107,58 +107,58 @@ export function UploadDocumentDialog({
                   name="title"
                   required
                   placeholder="e.g. FSS Certificate – John Smith"
-                  className="block w-full rounded-md border border-stone-300 px-2.5 py-1.5 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                  className="block w-full rounded-md border border-input px-2.5 py-1.5 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600">
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
                   Notes (optional)
                 </label>
                 <input
                   type="text"
                   name="description"
-                  className="block w-full rounded-md border border-stone-300 px-2.5 py-1.5 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                  className="block w-full rounded-md border border-input px-2.5 py-1.5 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-stone-600">
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
                     Issued
                   </label>
                   <input
                     type="date"
                     name="issuedOn"
-                    className="block w-full rounded-md border border-stone-300 px-2.5 py-1.5 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                    className="block w-full rounded-md border border-input px-2.5 py-1.5 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-stone-600">
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
                     Expires
                   </label>
                   <input
                     type="date"
                     name="expiresOn"
-                    className="block w-full rounded-md border border-stone-300 px-2.5 py-1.5 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                    className="block w-full rounded-md border border-input px-2.5 py-1.5 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600">
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
                   Uploaded by (optional)
                 </label>
                 <input
                   type="text"
                   name="uploadedBy"
                   placeholder="Initials or name"
-                  className="block w-full rounded-md border border-stone-300 px-2.5 py-1.5 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                  className="block w-full rounded-md border border-input px-2.5 py-1.5 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-stone-600">
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
                   File (PDF or photo, max 15 MB)
                 </label>
                 <input
@@ -166,12 +166,12 @@ export function UploadDocumentDialog({
                   name="file"
                   required
                   accept="application/pdf,image/jpeg,image/png,image/heic,image/heif,image/webp"
-                  className="block w-full text-sm text-stone-700 file:mr-3 file:rounded-md file:border-0 file:bg-stone-100 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-stone-200"
+                  className="block w-full text-sm text-foreground file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-border"
                 />
               </div>
 
               {error && (
-                <div className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                <div className="rounded-md bg-red-light px-3 py-2 text-sm text-red-text">
                   {error}
                 </div>
               )}
@@ -180,14 +180,14 @@ export function UploadDocumentDialog({
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50"
+                  className="rounded-md border border-input bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted/50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={pending}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                 >
                   <Upload className="h-4 w-4" />
                   {pending ? "Uploading…" : "Upload"}

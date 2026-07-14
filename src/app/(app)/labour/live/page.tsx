@@ -42,7 +42,7 @@ export default async function LiveLabourPage() {
     <div className="space-y-6">
       <BackLink href="/labour" label="Back to labour" />
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Live labour</h1>
+        <h1 className="font-serif text-2xl font-semibold tracking-tight">Live labour</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Wage % tracking for the current Tarte trading week ({snap.weekLabel}).
           Blends actual clock-ins (so far) with rostered shifts (remaining).
@@ -81,7 +81,7 @@ export default async function LiveLabourPage() {
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
                   <p className="text-muted-foreground">Labour to date</p>
-                  <p className="text-lg font-semibold tabular-nums">
+                  <p className="font-serif text-lg font-semibold tabular-nums">
                     {fmtMoney(v.labourToDate)}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
@@ -90,7 +90,7 @@ export default async function LiveLabourPage() {
                 </div>
                 <div>
                   <p className="text-muted-foreground">Revenue to date</p>
-                  <p className="text-lg font-semibold tabular-nums">
+                  <p className="font-serif text-lg font-semibold tabular-nums">
                     {fmtMoney(v.revenueToDate)}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
@@ -106,20 +106,20 @@ export default async function LiveLabourPage() {
                 </p>
               ) : (
                 <div className="space-y-2">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  <p className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     Department buckets (projected EOW)
                   </p>
                   {v.buckets.map((b) => (
                     <div
                       key={b.key}
                       className={cn(
-                        "rounded-md border border-border/70 p-2.5",
+                        "rounded-lg border border-border/70 p-2.5",
                         b.status === "red" &&
-                          "border-red-200 bg-red-50/40",
+                          "border-red-text/20 bg-red-light/40",
                         b.status === "amber" &&
-                          "border-amber-200 bg-amber-50/40",
+                          "border-amber-text/20 bg-amber-light/40",
                         b.status === "ok" &&
-                          "border-green-200 bg-green-50/40"
+                          "border-green-text/20 bg-green-light/40"
                       )}
                     >
                       <div className="flex items-center justify-between gap-2">
@@ -135,7 +135,7 @@ export default async function LiveLabourPage() {
                         <span className="tabular-nums">
                           target {b.target ? `${b.target.min}–${b.target.max}%` : "—"}
                           {b.varianceVsBandPct != null && b.varianceVsBandPct > 0 && (
-                            <span className="ml-1 text-red-700">
+                            <span className="ml-1 text-red-text">
                               ({fmtPct(b.varianceVsBandPct, { sign: true, decimals: 1 })})
                             </span>
                           )}
@@ -150,7 +150,7 @@ export default async function LiveLabourPage() {
         ))}
       </div>
 
-      <div className="rounded-md border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+      <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
         <p className="font-medium text-foreground">How this is computed</p>
         <ul className="mt-1 list-disc space-y-0.5 pl-5">
           <li>

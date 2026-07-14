@@ -141,7 +141,7 @@ function DraftCountView({ detail, ingredients }: Props) {
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to stocktakes
           </Link>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+          <h1 className="mt-1 font-serif text-2xl font-semibold tracking-tight">
             Stocktake — {formatDate(detail.date)}
           </h1>
           <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
@@ -156,7 +156,7 @@ function DraftCountView({ detail, ingredients }: Props) {
           <button
             onClick={() => saveAll(false)}
             disabled={isPending}
-            className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-white px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted/50 disabled:opacity-50"
           >
             <Save className="h-4 w-4" />
             Save draft
@@ -164,7 +164,7 @@ function DraftCountView({ detail, ingredients }: Props) {
           <button
             onClick={() => saveAll(true)}
             disabled={isPending || countedCount === 0}
-            className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md bg-sage-deep px-3 py-1.5 text-sm font-medium text-white hover:bg-sage-deep/90 disabled:opacity-50"
           >
             <CheckCircle2 className="h-4 w-4" />
             Submit
@@ -176,7 +176,7 @@ function DraftCountView({ detail, ingredients }: Props) {
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Counted value</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums">
+            <p className="mt-1 font-serif text-3xl font-semibold tabular-nums">
               ${runningValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </p>
             <p className="text-xs text-muted-foreground">
@@ -187,7 +187,7 @@ function DraftCountView({ detail, ingredients }: Props) {
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Last saved</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums">
+            <p className="mt-1 font-serif text-3xl font-semibold tabular-nums">
               ${lastSavedTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </p>
             <p className="text-xs text-muted-foreground">
@@ -198,7 +198,7 @@ function DraftCountView({ detail, ingredients }: Props) {
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Coverage</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums">
+            <p className="mt-1 font-serif text-3xl font-semibold tabular-nums">
               {ingredients.length === 0
                 ? 0
                 : Math.round((countedCount / ingredients.length) * 100)}
@@ -397,7 +397,7 @@ function SubmittedView({ detail }: { detail: StocktakeDetail }) {
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Total stock value</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums">
+            <p className="mt-1 font-serif text-3xl font-semibold tabular-nums">
               ${detail.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </p>
           </CardContent>
@@ -405,7 +405,7 @@ function SubmittedView({ detail }: { detail: StocktakeDetail }) {
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Shrinkage (under)</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums text-red-600">
+            <p className="mt-1 font-serif text-3xl font-semibold tabular-nums text-red-text">
               ${Math.abs(totalShrinkage).toFixed(0)}
             </p>
             <p className="text-xs text-muted-foreground">
@@ -416,7 +416,7 @@ function SubmittedView({ detail }: { detail: StocktakeDetail }) {
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Over (positive)</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums text-emerald-600">
+            <p className="mt-1 font-serif text-3xl font-semibold tabular-nums text-green-text">
               ${totalOver.toFixed(0)}
             </p>
             <p className="text-xs text-muted-foreground">
@@ -427,7 +427,7 @@ function SubmittedView({ detail }: { detail: StocktakeDetail }) {
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Items flagged</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums">
+            <p className="mt-1 font-serif text-3xl font-semibold tabular-nums">
               {flagged.length}
             </p>
           </CardContent>
@@ -482,7 +482,7 @@ function SubmittedView({ detail }: { detail: StocktakeDetail }) {
                         <td
                           className={cn(
                             "py-2 text-right tabular-nums font-medium",
-                            positive ? "text-emerald-600" : "text-red-600"
+                            positive ? "text-green-text" : "text-red-text"
                           )}
                         >
                           <span className="inline-flex items-center gap-0.5">
@@ -497,7 +497,7 @@ function SubmittedView({ detail }: { detail: StocktakeDetail }) {
                         <td
                           className={cn(
                             "py-2 pr-6 text-right tabular-nums font-medium",
-                            positive ? "text-emerald-600" : "text-red-600"
+                            positive ? "text-green-text" : "text-red-text"
                           )}
                         >
                           {positive ? "+" : ""}$

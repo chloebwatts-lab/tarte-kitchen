@@ -11,20 +11,20 @@ export default function InboxPlaybooksLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="min-h-screen bg-stone-50">
-      <header className="border-b border-stone-200 bg-white">
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-4xl items-center gap-2 px-6 py-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-stone-900 text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Mail className="h-4 w-4" />
           </div>
           <div>
             <Link
               href="/inbox-playbooks"
-              className="text-base font-semibold tracking-tight text-stone-900 hover:underline"
+              className="font-serif text-base font-semibold tracking-tight text-foreground hover:underline"
             >
               Tarte Inbox
             </Link>
-            <p className="text-xs text-stone-500">
+            <p className="text-xs text-muted-foreground">
               hello@tarte.com.au — agent playbooks
             </p>
           </div>

@@ -672,22 +672,22 @@ export function DishForm({ dish, open: controlledOpen, onOpenChange }: DishFormP
         <h3 className="mb-4 text-sm font-semibold text-foreground">Cost Summary</h3>
         <div className="grid grid-cols-3 gap-6">
           <div>
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            <p className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Total Cost
             </p>
-            <p className="text-2xl font-bold text-foreground">${totalCost.toFixed(2)}</p>
+            <p className="font-serif text-2xl font-semibold text-foreground">${totalCost.toFixed(2)}</p>
           </div>
           <div>
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            <p className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Food Cost %
             </p>
             <div className="flex items-baseline gap-2">
               <p
                 className={cn(
-                  "text-2xl font-bold",
-                  trafficLight === "green" && "text-green-600 dark:text-green-400",
-                  trafficLight === "amber" && "text-amber-600 dark:text-amber-400",
-                  trafficLight === "red" && "text-red-600 dark:text-red-400"
+                  "font-serif text-2xl font-semibold",
+                  trafficLight === "green" && "text-green-text dark:text-green-400",
+                  trafficLight === "amber" && "text-amber-text dark:text-amber-400",
+                  trafficLight === "red" && "text-red-text dark:text-red-400"
                 )}
               >
                 {fcPct.toFixed(1)}%
@@ -701,10 +701,10 @@ export function DishForm({ dish, open: controlledOpen, onOpenChange }: DishFormP
             </div>
           </div>
           <div>
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            <p className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Gross Profit
             </p>
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+            <p className="font-serif text-2xl font-semibold text-green-text dark:text-green-400">
               ${grossProfit.toFixed(2)}
             </p>
           </div>

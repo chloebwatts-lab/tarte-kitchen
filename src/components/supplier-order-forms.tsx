@@ -120,17 +120,17 @@ function SupplierFormTable({ supplier }: { supplier: Supplier }) {
         <div className="space-y-5">
           {groups.map(([category, rows]) => (
             <div key={category}>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <h3 className="mb-2 font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                 {category}
               </h3>
-              <div className="rounded-md border">
+              <div className="rounded-lg border border-border">
                 <table className="w-full text-sm">
-                  <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
+                  <thead className="border-b bg-muted/40 font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     <tr>
-                      <th className="px-3 py-2 text-left font-medium">Item</th>
-                      <th className="px-3 py-2 text-left font-medium">Pack</th>
-                      <th className="px-3 py-2 text-right font-medium">Price</th>
-                      <th className="px-3 py-2 text-center font-medium">Active</th>
+                      <th className="px-3 py-2 text-left font-semibold">Item</th>
+                      <th className="px-3 py-2 text-left font-semibold">Pack</th>
+                      <th className="px-3 py-2 text-right font-semibold">Price</th>
+                      <th className="px-3 py-2 text-center font-semibold">Active</th>
                       <th className="px-3 py-2" />
                     </tr>
                   </thead>
@@ -180,7 +180,7 @@ function SupplierFormTable({ supplier }: { supplier: Supplier }) {
                                 })
                               }}
                             >
-                              <Trash2 className="h-3.5 w-3.5 text-red-600" />
+                              <Trash2 className="h-3.5 w-3.5 text-red-text" />
                             </Button>
                           </div>
                         </td>

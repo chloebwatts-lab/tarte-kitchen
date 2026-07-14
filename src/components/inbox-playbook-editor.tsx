@@ -128,33 +128,33 @@ export function InboxPlaybookEditor({
   const group = CATEGORY_GROUP[playbook.category] ?? "Other"
 
   return (
-    <section className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+    <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       {/* Header — always visible */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-stone-50"
+        className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-muted/50"
       >
         {open ? (
-          <ChevronDown className="h-4 w-4 shrink-0 text-stone-400" />
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
         ) : (
-          <ChevronRight className="h-4 w-4 shrink-0 text-stone-400" />
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         )}
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-base font-semibold text-stone-900">{label}</h3>
-            <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-stone-600">
+            <h3 className="text-base font-semibold text-foreground">{label}</h3>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
               {group}
             </span>
           </div>
-          <p className="mt-0.5 text-xs text-stone-500 line-clamp-1">
+          <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
             {playbook.description}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {unansweredFaqCount > 0 && (
             <span
-              className="flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 ring-1 ring-rose-200"
+              className="flex items-center gap-1 rounded-full bg-red-light px-2 py-0.5 text-[11px] font-medium text-red-text ring-1 ring-red-text/20"
               title={`${unansweredFaqCount} FAQ question${unansweredFaqCount === 1 ? "" : "s"} need answers`}
             >
               <AlertCircle className="h-3 w-3" />
@@ -180,17 +180,17 @@ export function InboxPlaybookEditor({
             </span>
           )}
           {examples.length > 0 && (
-            <span className="rounded-full bg-stone-50 px-2 py-0.5 text-[11px] font-medium text-stone-600 ring-1 ring-stone-200">
+            <span className="rounded-full bg-muted/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground ring-1 ring-border">
               {examples.length} example{examples.length === 1 ? "" : "s"}
             </span>
           )}
           {autoSend ? (
-            <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
+            <span className="flex items-center gap-1 rounded-full bg-green-light px-2 py-0.5 text-[11px] font-medium text-green-text">
               <Check className="h-3 w-3" />
               auto-send
             </span>
           ) : (
-            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-amber-200">
+            <span className="rounded-full bg-amber-light px-2 py-0.5 text-[11px] font-medium text-amber-text ring-1 ring-amber-text/20">
               draft only
             </span>
           )}
@@ -199,13 +199,13 @@ export function InboxPlaybookEditor({
 
       {/* Body */}
       {open && (
-        <div className="border-t border-stone-200 bg-stone-50/50 px-5 py-5 space-y-5">
+        <div className="border-t border-border bg-muted/30 px-5 py-5 space-y-5">
           <Field
             label="Voice guidance"
             hint="How Claude should write — tone, openers, sign-offs, do's and don'ts."
           >
             <textarea
-              className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm focus:border-stone-400 focus:ring-0"
+              className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm focus:border-sage-deep focus:ring-0"
               rows={3}
               value={voice}
               onChange={(e) => setVoice(e.target.value)}
@@ -217,7 +217,7 @@ export function InboxPlaybookEditor({
             hint="Optional skeleton. Use {{first_name}} placeholders. Leave blank to let Claude draft from scratch each time."
           >
             <textarea
-              className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-mono leading-relaxed focus:border-stone-400 focus:ring-0"
+              className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm font-mono leading-relaxed focus:border-sage-deep focus:ring-0"
               rows={6}
               value={template}
               onChange={(e) => setTemplate(e.target.value)}
@@ -231,7 +231,7 @@ export function InboxPlaybookEditor({
           >
             <input
               type="email"
-              className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm focus:border-stone-400 focus:ring-0"
+              className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm focus:border-sage-deep focus:ring-0"
               value={forwardTo}
               onChange={(e) => setForwardTo(e.target.value)}
               placeholder="work@tarte.com.au"
@@ -243,7 +243,7 @@ export function InboxPlaybookEditor({
             hint={
               <>
                 Filenames in{" "}
-                <code className="rounded bg-stone-100 px-1 py-0.5 text-[10px]">
+                <code className="rounded bg-muted px-1 py-0.5 text-[10px]">
                   /root/tarte-inbox/attachments/
                 </code>{" "}
                 — one per line. Attached only on our first reply in a thread.
@@ -251,7 +251,7 @@ export function InboxPlaybookEditor({
             }
           >
             <textarea
-              className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm font-mono focus:border-stone-400 focus:ring-0"
+              className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm font-mono focus:border-sage-deep focus:ring-0"
               rows={2}
               value={attachments.join("\n")}
               onChange={(e) =>
@@ -266,17 +266,17 @@ export function InboxPlaybookEditor({
             />
           </Field>
 
-          <div className="rounded-lg border border-stone-200 bg-white p-4">
+          <div className="rounded-lg border border-border bg-card p-4">
             <div className="mb-3 flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-stone-800">
+              <h4 className="text-sm font-semibold text-foreground">
                 Auto-send behaviour
               </h4>
               {autoSend ? (
-                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
+                <span className="rounded-full bg-green-light px-2 py-0.5 text-[11px] font-medium text-green-text">
                   ⚠ live
                 </span>
               ) : (
-                <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-600">
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                   drafts only
                 </span>
               )}
@@ -289,16 +289,16 @@ export function InboxPlaybookEditor({
                 onChange={(e) => setAutoSend(e.target.checked)}
               />
               <span>
-                <span className="font-medium text-stone-800">
+                <span className="font-medium text-foreground">
                   Auto-send replies in this category
                 </span>
-                <span className="block text-xs text-stone-500">
+                <span className="block text-xs text-muted-foreground">
                   When confidence is at least the threshold below. Off by default — leave off until you trust the drafts.
                 </span>
               </span>
             </label>
             <div className="mt-3 flex items-center gap-3">
-              <label className="text-sm text-stone-700">
+              <label className="text-sm text-foreground">
                 Min confidence to auto-send:
               </label>
               <input
@@ -306,11 +306,11 @@ export function InboxPlaybookEditor({
                 min={0}
                 max={1}
                 step={0.05}
-                className="w-24 rounded-md border border-stone-300 bg-white px-2 py-1 text-sm font-mono focus:border-stone-400 focus:ring-0"
+                className="w-24 rounded-md border border-input bg-card px-2 py-1 text-sm font-mono focus:border-sage-deep focus:ring-0"
                 value={minConf}
                 onChange={(e) => setMinConf(Number(e.target.value))}
               />
-              <span className="text-xs text-stone-500">
+              <span className="text-xs text-muted-foreground">
                 (Claude's confidence is 0–1; 0.95 = very confident)
               </span>
             </div>
@@ -319,23 +319,23 @@ export function InboxPlaybookEditor({
           {/* FAQ / cheat sheet */}
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <h4 className="flex items-center gap-1.5 text-sm font-semibold text-stone-800">
-                <HelpCircle className="h-4 w-4 text-stone-400" />
+              <h4 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                <HelpCircle className="h-4 w-4 text-muted-foreground" />
                 Cheat sheet
-                <span className="ml-1 text-xs font-normal text-stone-500">
+                <span className="ml-1 text-xs font-normal text-muted-foreground">
                   — Q&amp;A the agent uses as authoritative facts
                 </span>
               </h4>
               <button
                 type="button"
                 onClick={addFaq}
-                className="inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs font-medium text-stone-700 hover:bg-stone-100"
+                className="inline-flex items-center gap-1 rounded-md border border-input bg-card px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted"
               >
                 <Plus className="h-3 w-3" /> Add question
               </button>
             </div>
             {faq.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-stone-300 bg-white px-4 py-6 text-center text-xs text-stone-500">
+              <div className="rounded-lg border border-dashed border-input bg-card px-4 py-6 text-center text-xs text-muted-foreground">
                 No cheat sheet yet. Add common questions + answers so the agent can quote them directly.
               </div>
             ) : (
@@ -345,13 +345,13 @@ export function InboxPlaybookEditor({
                   return (
                     <li
                       key={idx}
-                      className={`rounded-md border bg-white p-3 ${needsAnswer ? "border-rose-200 bg-rose-50/30" : "border-stone-200"}`}
+                      className={`rounded-lg border bg-card p-3 ${needsAnswer ? "border-red-text/20 bg-red-light/30" : "border-border"}`}
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+                        <span className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                           Q&amp;A {idx + 1}
                           {needsAnswer && (
-                            <span className="ml-2 rounded-full bg-rose-100 px-1.5 py-0.5 text-rose-700">
+                            <span className="ml-2 rounded-full bg-red-light px-1.5 py-0.5 text-red-text">
                               needs answer
                             </span>
                           )}
@@ -359,7 +359,7 @@ export function InboxPlaybookEditor({
                         <button
                           type="button"
                           onClick={() => removeFaq(idx)}
-                          className="text-stone-400 hover:text-rose-600"
+                          className="text-muted-foreground hover:text-red-text"
                           title="Remove"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -367,7 +367,7 @@ export function InboxPlaybookEditor({
                       </div>
                       <input
                         type="text"
-                        className="w-full rounded-md border border-stone-200 bg-stone-50 px-2 py-1.5 text-xs focus:border-stone-400 focus:ring-0"
+                        className="w-full rounded-md border border-border bg-muted/50 px-2 py-1.5 text-xs focus:border-sage-deep focus:ring-0"
                         placeholder="Question (e.g. How much is a kids high tea?)"
                         value={f.question}
                         onChange={(e) =>
@@ -375,7 +375,7 @@ export function InboxPlaybookEditor({
                         }
                       />
                       <textarea
-                        className="mt-1.5 w-full rounded-md border border-stone-200 bg-stone-50 px-2 py-1.5 text-xs leading-relaxed focus:border-stone-400 focus:ring-0"
+                        className="mt-1.5 w-full rounded-md border border-border bg-muted/50 px-2 py-1.5 text-xs leading-relaxed focus:border-sage-deep focus:ring-0"
                         rows={3}
                         placeholder="Answer (leave blank to flag for review)"
                         value={f.answer}
@@ -393,22 +393,22 @@ export function InboxPlaybookEditor({
           {/* Examples */}
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-stone-800">
+              <h4 className="text-sm font-semibold text-foreground">
                 Examples
-                <span className="ml-1 text-xs font-normal text-stone-500">
+                <span className="ml-1 text-xs font-normal text-muted-foreground">
                   — real past pairs Claude reads as reference
                 </span>
               </h4>
               <button
                 type="button"
                 onClick={addExample}
-                className="inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs font-medium text-stone-700 hover:bg-stone-100"
+                className="inline-flex items-center gap-1 rounded-md border border-input bg-card px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted"
               >
                 <Plus className="h-3 w-3" /> Add example
               </button>
             </div>
             {examples.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-stone-300 bg-white px-4 py-6 text-center text-xs text-stone-500">
+              <div className="rounded-lg border border-dashed border-input bg-card px-4 py-6 text-center text-xs text-muted-foreground">
                 No examples yet. Add a real past customer email + the reply you sent to teach Claude your tone for this category.
               </div>
             ) : (
@@ -427,10 +427,10 @@ export function InboxPlaybookEditor({
           </div>
 
           {/* Save bar */}
-          <div className="flex items-center justify-between border-t border-stone-200 pt-4">
-            <span className="text-xs text-stone-500">
+          <div className="flex items-center justify-between border-t border-border pt-4">
+            <span className="text-xs text-muted-foreground">
               {savedAt ? (
-                <span className="flex items-center gap-1 text-emerald-700">
+                <span className="flex items-center gap-1 text-green-text">
                   <Check className="h-3.5 w-3.5" />
                   Saved at {savedAt.toLocaleTimeString()}
                 </span>
@@ -442,7 +442,7 @@ export function InboxPlaybookEditor({
               type="button"
               onClick={save}
               disabled={isPending}
-              className="rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               {isPending ? "Saving…" : "Save changes"}
             </button>
@@ -464,8 +464,8 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-stone-800">{label}</label>
-      {hint ? <p className="mt-0.5 text-xs text-stone-500">{hint}</p> : null}
+      <label className="block text-sm font-medium text-foreground">{label}</label>
+      {hint ? <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p> : null}
       <div className="mt-1.5">{children}</div>
     </div>
   )
@@ -494,48 +494,48 @@ function ExampleRow({
   const replyPreview = firstLine(example.reply) || "(empty)"
 
   return (
-    <li className="rounded-md border border-stone-200 bg-white">
+    <li className="rounded-lg border border-border bg-card">
       {/* Compact preview row — click to expand */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition hover:bg-stone-50"
+        className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition hover:bg-muted/50"
       >
-        <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-stone-100 text-[11px] font-semibold text-stone-600">
+        <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">
           {idx + 1}
         </span>
         <div className="min-w-0 flex-1 space-y-0.5">
-          <p className="truncate text-xs text-stone-600">
-            <span className="font-medium text-stone-500">From customer:</span>{" "}
-            <span className="text-stone-800">{incomingPreview}</span>
+          <p className="truncate text-xs text-muted-foreground">
+            <span className="font-medium text-muted-foreground">From customer:</span>{" "}
+            <span className="text-foreground">{incomingPreview}</span>
           </p>
-          <p className="truncate text-xs text-stone-600">
-            <span className="font-medium text-stone-500">Our reply:</span>{" "}
-            <span className="text-stone-800">{replyPreview}</span>
+          <p className="truncate text-xs text-muted-foreground">
+            <span className="font-medium text-muted-foreground">Our reply:</span>{" "}
+            <span className="text-foreground">{replyPreview}</span>
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <span className="text-[10px] uppercase tracking-wide text-stone-400">
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
             {open ? "close" : "edit"}
           </span>
           {open ? (
-            <ChevronDown className="h-3.5 w-3.5 text-stone-400" />
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
           ) : (
-            <ChevronRight className="h-3.5 w-3.5 text-stone-400" />
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
           )}
         </div>
       </button>
 
       {open && (
-        <div className="border-t border-stone-200 bg-stone-50/60 px-3 py-3 space-y-3">
+        <div className="border-t border-border bg-muted/40 px-3 py-3 space-y-3">
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+              <span className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                 Incoming
               </span>
             </div>
             <textarea
-              className="w-full rounded-md border border-stone-200 bg-white px-3 py-2 text-xs leading-relaxed focus:border-stone-400 focus:ring-0"
+              className="w-full rounded-md border border-border bg-card px-3 py-2 text-xs leading-relaxed focus:border-sage-deep focus:ring-0"
               rows={4}
               placeholder="What the customer / supplier wrote…"
               value={example.incoming}
@@ -543,11 +543,11 @@ function ExampleRow({
             />
           </div>
           <div>
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+            <span className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Reply
             </span>
             <textarea
-              className="mt-1 w-full rounded-md border border-stone-200 bg-white px-3 py-2 text-xs leading-relaxed focus:border-stone-400 focus:ring-0"
+              className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-xs leading-relaxed focus:border-sage-deep focus:ring-0"
               rows={4}
               placeholder="The reply we actually sent…"
               value={example.reply}
@@ -558,7 +558,7 @@ function ExampleRow({
             <button
               type="button"
               onClick={onRemove}
-              className="inline-flex items-center gap-1 text-xs text-stone-500 hover:text-rose-600"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-red-text"
             >
               <Trash2 className="h-3 w-3" />
               Remove this example

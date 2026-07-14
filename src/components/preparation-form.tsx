@@ -691,22 +691,22 @@ export function PreparationForm({ preparation, open: controlledOpen, onOpenChang
         <h3 className="mb-3 text-sm font-semibold text-foreground">Cost Summary</h3>
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            <p className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Batch Cost
             </p>
-            <p className="text-lg font-bold text-foreground">${batchCost.toFixed(2)}</p>
+            <p className="font-serif text-lg font-semibold text-foreground">${batchCost.toFixed(2)}</p>
           </div>
           <div>
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            <p className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Per Gram
             </p>
-            <p className="text-lg font-bold text-foreground">${costPerGram.toFixed(4)}</p>
+            <p className="font-serif text-lg font-semibold text-foreground">${costPerGram.toFixed(4)}</p>
           </div>
           <div>
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            <p className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Per Serve
             </p>
-            <p className="text-lg font-bold text-foreground">${costPerServe.toFixed(2)}</p>
+            <p className="font-serif text-lg font-semibold text-foreground">${costPerServe.toFixed(2)}</p>
           </div>
         </div>
       </div>

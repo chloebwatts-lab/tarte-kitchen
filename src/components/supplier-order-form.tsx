@@ -120,8 +120,8 @@ export function SupplierOrderForm({
             className="max-w-xs"
           />
           <div className="flex items-center gap-2">
-            <span className="text-xs uppercase tracking-wide text-muted-foreground">Venue</span>
-            <div className="flex overflow-hidden rounded border">
+            <span className="font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Venue</span>
+            <div className="flex overflow-hidden rounded border border-border">
               {SINGLE_VENUES.map((v) => (
                 <button
                   key={v}
@@ -167,7 +167,7 @@ export function SupplierOrderForm({
                       key={l.approvedItemId}
                       className={cn(
                         "border-b last:border-0 hover:bg-muted/20",
-                        state?.selected && "bg-blue-50/40 dark:bg-blue-900/10"
+                        state?.selected && "bg-sage-soft/40 dark:bg-blue-900/10"
                       )}
                     >
                       <td className="w-8 pl-3">

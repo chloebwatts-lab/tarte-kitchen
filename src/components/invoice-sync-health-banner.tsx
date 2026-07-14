@@ -54,19 +54,19 @@ export async function InvoiceSyncHealthBanner() {
   }
 
   return (
-    <div className="rounded-lg border border-red-300 bg-red-50 p-4">
+    <div className="rounded-lg border border-red-text/30 bg-red-light p-4">
       <div className="flex items-start gap-3">
-        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-700" />
+        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-text" />
         <div className="flex-1 space-y-1">
-          <div className="text-sm font-semibold text-red-900">
+          <div className="text-sm font-semibold text-red-text">
             Supplier-invoice ingestion needs attention
           </div>
-          <ul className="list-disc pl-5 text-sm text-red-800">
+          <ul className="list-disc pl-5 text-sm text-red-text">
             {issues.map((s, i) => (
               <li key={i}>{s}</li>
             ))}
           </ul>
-          <div className="pt-1 text-xs text-red-700">
+          <div className="pt-1 text-xs text-red-text">
             Last 10 runs · {runs.filter((r) => r.healthy).length} healthy ·{" "}
             {runs.reduce((s, r) => s + r.invoicesIngested, 0)} invoices total ·{" "}
             mode {latest.mode}
@@ -89,7 +89,7 @@ export async function InvoiceSyncHealthBadge() {
   })
   if (runs.length === 0) {
     return (
-      <div className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600">
+      <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
         Invoice sync: no runs recorded yet
       </div>
     )
@@ -100,10 +100,10 @@ export async function InvoiceSyncHealthBadge() {
   const Icon = ok ? CheckCircle2 : AlertTriangle
   return (
     <div
-      className={`rounded-md border px-3 py-2 text-xs ${
+      className={`rounded-lg border px-3 py-2 text-xs ${
         ok
-          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-          : "border-red-300 bg-red-50 text-red-800"
+          ? "border-green-text/20 bg-green-light text-green-text"
+          : "border-red-text/30 bg-red-light text-red-text"
       }`}
     >
       <div className="flex items-center gap-2">
@@ -111,7 +111,7 @@ export async function InvoiceSyncHealthBadge() {
         <span className="font-semibold">
           Invoice sync {ok ? "healthy" : "needs attention"}
         </span>
-        <span className="text-stone-500">·</span>
+        <span className="text-muted-foreground">·</span>
         <span>
           last run {latest.mode} {hoursSince < 1 ? "<1h" : `${hoursSince.toFixed(0)}h`} ago ·{" "}
           {latest.invoicesIngested} ingested, {latest.errors} errors

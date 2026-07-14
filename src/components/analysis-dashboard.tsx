@@ -80,8 +80,8 @@ export function AnalysisDashboard({ initial }: { initial: AnalysisData }) {
               className={cn(
                 "rounded-full px-4 py-1.5 text-xs font-medium transition-all",
                 venue === value
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-border"
               )}
             >
               {label}
@@ -97,8 +97,8 @@ export function AnalysisDashboard({ initial }: { initial: AnalysisData }) {
               className={cn(
                 "rounded-md px-2.5 py-1 text-xs font-medium border",
                 range === days
-                  ? "border-gray-900 bg-gray-900 text-white"
-                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-muted-foreground hover:bg-muted/50"
               )}
             >
               {label}
@@ -324,7 +324,7 @@ export function AnalysisDashboard({ initial }: { initial: AnalysisData }) {
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                  <tr className="border-b border-border text-left font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     <th className="py-2">Item</th>
                     <th className="py-2 text-right">Prev</th>
                     <th className="py-2 text-right">Now</th>
@@ -340,7 +340,7 @@ export function AnalysisDashboard({ initial }: { initial: AnalysisData }) {
                       <td
                         className={cn(
                           "py-2 text-right tabular-nums font-medium",
-                          m.deltaPct > 0 ? "text-green-600" : "text-red-600"
+                          m.deltaPct > 0 ? "text-green-text" : "text-red-text"
                         )}
                       >
                         {m.deltaPct > 0 ? "+" : ""}
@@ -368,7 +368,7 @@ export function AnalysisDashboard({ initial }: { initial: AnalysisData }) {
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                  <tr className="border-b border-border text-left font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     <th className="py-2">Item</th>
                     <th className="py-2 text-right">Prev 28d</th>
                     <th className="py-2 text-right">Last 28d</th>
@@ -381,7 +381,7 @@ export function AnalysisDashboard({ initial }: { initial: AnalysisData }) {
                       <td className="py-2 truncate max-w-[200px]">{m.name}</td>
                       <td className="py-2 text-right tabular-nums">{m.prev28dQty}</td>
                       <td className="py-2 text-right tabular-nums">{m.recent28dQty}</td>
-                      <td className="py-2 text-right tabular-nums font-medium text-red-600">
+                      <td className="py-2 text-right tabular-nums font-medium text-red-text">
                         {m.dropPct}%
                       </td>
                     </tr>
@@ -453,7 +453,7 @@ function KpiCard({ label, value }: { label: string; value: string }) {
     <Card>
       <CardContent className="pt-6">
         <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="text-3xl font-bold">{value}</p>
+        <p className="font-serif text-3xl font-semibold">{value}</p>
       </CardContent>
     </Card>
   )

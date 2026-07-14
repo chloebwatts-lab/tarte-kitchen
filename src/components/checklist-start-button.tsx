@@ -36,7 +36,7 @@ export function ChecklistStartButton({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-800">
+        <button className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90">
           <Play className="h-3.5 w-3.5" />
           Start today&apos;s run
         </button>
@@ -55,8 +55,8 @@ export function ChecklistStartButton({
               className={cn(
                 "rounded-md border px-2 py-1 text-left text-xs",
                 venue === v
-                  ? "border-gray-900 bg-gray-900 text-white"
-                  : "border-gray-200 bg-white hover:bg-gray-50"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card hover:bg-muted/50"
               )}
             >
               {VENUE_SHORT_LABEL[v]}
@@ -66,7 +66,7 @@ export function ChecklistStartButton({
         <button
           onClick={go}
           disabled={isPending}
-          className="mt-3 w-full rounded-md bg-gray-900 px-2 py-1 text-xs font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+          className="mt-3 w-full rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {isPending ? "Starting…" : "Start"}
         </button>

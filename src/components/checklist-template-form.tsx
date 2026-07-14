@@ -129,7 +129,7 @@ export function ChecklistTemplateForm() {
           {items.map((it, idx) => (
             <div
               key={it.key}
-              className="rounded-md border border-border bg-white p-3"
+              className="rounded-lg border border-border bg-card p-3"
             >
               <div className="flex items-start gap-2">
                 <GripVertical className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -162,7 +162,7 @@ export function ChecklistTemplateForm() {
                           updateItem(it.key, { requireTemp: e.target.checked })
                         }
                       />
-                      <Thermometer className="h-3 w-3 text-emerald-600" />
+                      <Thermometer className="h-3 w-3 text-green-text" />
                       Require temperature
                     </label>
                     <label className="inline-flex items-center gap-1 text-xs">
@@ -228,8 +228,8 @@ export function ChecklistTemplateForm() {
                 className={cn(
                   "rounded-md border px-2 py-1 text-xs",
                   venue === "BOTH"
-                    ? "border-gray-900 bg-gray-900 text-white"
-                    : "border-gray-200 bg-white"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card"
                 )}
               >
                 All venues
@@ -241,8 +241,8 @@ export function ChecklistTemplateForm() {
                   className={cn(
                     "rounded-md border px-2 py-1 text-xs",
                     venue === v
-                      ? "border-gray-900 bg-gray-900 text-white"
-                      : "border-gray-200 bg-white"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card"
                   )}
                 >
                   {VENUE_SHORT_LABEL[v]}
@@ -261,8 +261,8 @@ export function ChecklistTemplateForm() {
                     className={cn(
                       "rounded-md border px-2 py-1 text-xs",
                       cadence === c
-                        ? "border-gray-900 bg-gray-900 text-white"
-                        : "border-gray-200 bg-white"
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-card"
                     )}
                   >
                     {c.replace("_", " ")}
@@ -281,8 +281,8 @@ export function ChecklistTemplateForm() {
                   className={cn(
                     "rounded-md border px-2 py-1 text-xs",
                     shift === s
-                      ? "border-gray-900 bg-gray-900 text-white"
-                      : "border-gray-200 bg-white"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card"
                   )}
                 >
                   {s}
@@ -305,7 +305,7 @@ export function ChecklistTemplateForm() {
             </span>
           </label>
 
-          <div className="rounded-md border border-border bg-amber-50/50 p-2 space-y-2">
+          <div className="rounded-lg border border-border bg-amber-light/50 p-2 space-y-2">
             <div className="text-xs font-medium">Alert if overdue</div>
             <div className="flex items-center gap-2">
               <input
@@ -336,7 +336,7 @@ export function ChecklistTemplateForm() {
           </div>
 
           {error && (
-            <p className="rounded-md bg-red-50 px-2 py-1 text-xs text-red-700">
+            <p className="rounded-md bg-red-light px-2 py-1 text-xs text-red-text">
               {error}
             </p>
           )}
@@ -344,7 +344,7 @@ export function ChecklistTemplateForm() {
           <button
             onClick={submit}
             disabled={isPending}
-            className="w-full rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+            className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             {isPending ? "Creating…" : "Create template"}
           </button>

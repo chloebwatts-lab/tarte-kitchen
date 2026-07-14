@@ -214,7 +214,7 @@ export function CogsDashboard({ initial }: { initial: CogsDashboardData }) {
               className={cn(
                 "rounded px-3 py-1 text-xs font-medium",
                 venue === v
-                  ? "bg-gray-900 text-white"
+                  ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -230,7 +230,7 @@ export function CogsDashboard({ initial }: { initial: CogsDashboardData }) {
               className={cn(
                 "rounded px-3 py-1 text-xs font-medium",
                 mode === m
-                  ? "bg-gray-900 text-white"
+                  ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -495,9 +495,9 @@ export function CogsDashboard({ initial }: { initial: CogsDashboardData }) {
                               className={cn(
                                 "tabular-nums text-[11px]",
                                 s.spike
-                                  ? "font-medium text-red-600"
+                                  ? "font-medium text-red-text"
                                   : delta < -10
-                                    ? "text-emerald-600"
+                                    ? "text-green-text"
                                     : "text-muted-foreground"
                               )}
                             >

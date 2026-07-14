@@ -60,9 +60,9 @@ const QUADRANT_META: Record<MenuQuadrant, QuadrantMeta> = {
     shortLabel: "Stars",
     emoji: "⭐",
     color: "#10b981", // emerald-500
-    fillClass: "bg-emerald-50 dark:bg-emerald-950/40",
-    borderClass: "border-emerald-200 dark:border-emerald-900",
-    textClass: "text-emerald-700 dark:text-emerald-300",
+    fillClass: "bg-green-light dark:bg-emerald-950/40",
+    borderClass: "border-green-text/20 dark:border-emerald-900",
+    textClass: "text-green-text dark:text-emerald-300",
     tagline: "High popularity · High margin",
     action:
       "Protect recipe & quality. Feature prominently on menu. Hold pricing — don't risk demand.",
@@ -74,9 +74,9 @@ const QUADRANT_META: Record<MenuQuadrant, QuadrantMeta> = {
     shortLabel: "Plowhorses",
     emoji: "🐎",
     color: "#f59e0b", // amber-500
-    fillClass: "bg-amber-50 dark:bg-amber-950/40",
-    borderClass: "border-amber-200 dark:border-amber-900",
-    textClass: "text-amber-700 dark:text-amber-300",
+    fillClass: "bg-amber-light dark:bg-amber-950/40",
+    borderClass: "border-amber-text/20 dark:border-amber-900",
+    textClass: "text-amber-text dark:text-amber-300",
     tagline: "High popularity · Low margin",
     action:
       "Trim cost or lift price $1–2. Popular enough to absorb a nudge. Re-engineer portion or swap a costly component.",
@@ -102,9 +102,9 @@ const QUADRANT_META: Record<MenuQuadrant, QuadrantMeta> = {
     shortLabel: "Dogs",
     emoji: "🐕",
     color: "#ef4444", // red-500
-    fillClass: "bg-red-50 dark:bg-red-950/40",
-    borderClass: "border-red-200 dark:border-red-900",
-    textClass: "text-red-700 dark:text-red-300",
+    fillClass: "bg-red-light dark:bg-red-950/40",
+    borderClass: "border-red-text/20 dark:border-red-900",
+    textClass: "text-red-text dark:text-red-300",
     tagline: "Low popularity · Low margin",
     action:
       "Remove from menu or reinvent. Every dog slot crowds out a potential star.",
@@ -218,8 +218,8 @@ export function MenuEngineeringDashboard({
                 className={cn(
                   "rounded-full px-4 py-1.5 text-xs font-medium transition-all",
                   venue === value
-                    ? "bg-gray-900 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-border"
                 )}
               >
                 {label}
@@ -235,8 +235,8 @@ export function MenuEngineeringDashboard({
                 className={cn(
                   "rounded-md border px-2.5 py-1 text-xs font-medium",
                   range === days
-                    ? "border-gray-900 bg-gray-900 text-white"
-                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-muted-foreground hover:bg-muted/50"
                 )}
               >
                 {label}
@@ -247,7 +247,7 @@ export function MenuEngineeringDashboard({
         <button
           onClick={exportCsv}
           disabled={data.items.length === 0}
-          className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/50 disabled:opacity-50"
         >
           <Download className="h-3.5 w-3.5" />
           Export CSV
@@ -291,14 +291,14 @@ export function MenuEngineeringDashboard({
                 <div>
                   <div
                     className={cn(
-                      "inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide",
+                      "inline-flex items-center gap-1.5 font-serif text-[11px] font-semibold uppercase tracking-[0.14em]",
                       meta.textClass
                     )}
                   >
                     <Icon className="h-3.5 w-3.5" />
                     {meta.label}
                   </div>
-                  <p className="mt-1 text-3xl font-bold tabular-nums">
+                  <p className="mt-1 font-serif text-3xl font-semibold tabular-nums">
                     {quad.count}
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -480,7 +480,7 @@ export function MenuEngineeringDashboard({
                 <div
                   key={q}
                   className={cn(
-                    "rounded-md border p-3",
+                    "rounded-lg border p-3",
                     meta.fillClass,
                     meta.borderClass
                   )}
@@ -525,8 +525,8 @@ export function MenuEngineeringDashboard({
                 className={cn(
                   "rounded-md px-2.5 py-1 text-xs font-medium border",
                   activeQuadrant === "ALL"
-                    ? "border-gray-900 bg-gray-900 text-white"
-                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-muted-foreground hover:bg-muted/50"
                 )}
               >
                 All
@@ -541,8 +541,8 @@ export function MenuEngineeringDashboard({
                     className={cn(
                       "rounded-md border px-2.5 py-1 text-xs font-medium",
                       isActive
-                        ? "border-gray-900 text-white"
-                        : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                        ? "border-primary text-white"
+                        : "border-border bg-card text-muted-foreground hover:bg-muted/50"
                     )}
                     style={
                       isActive
@@ -566,7 +566,7 @@ export function MenuEngineeringDashboard({
             <div className="-mx-6 overflow-x-auto">
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
-                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                  <tr className="border-b border-border text-left font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     <th className="py-2 pl-6">Dish</th>
                     <th className="py-2">Quadrant</th>
                     <th className="py-2 text-right">Sold</th>
@@ -718,7 +718,7 @@ function QuadrantLabel({
   return (
     <div
       className={cn(
-        "absolute text-[10px] font-semibold uppercase tracking-wide opacity-60",
+        "absolute font-serif text-[10px] font-semibold uppercase tracking-[0.14em] opacity-60",
         pos
       )}
       style={{ color: meta.color }}

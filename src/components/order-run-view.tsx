@@ -222,7 +222,7 @@ export function OrderRunView({
                     key={r.approvedItemId}
                     className={cn(
                       "flex items-center gap-3 px-3 py-3 hover:bg-muted/30",
-                      checked && "bg-blue-50/40 dark:bg-blue-900/10"
+                      checked && "bg-sage-soft/40 dark:bg-blue-900/10"
                     )}
                   >
                     {/* Tick */}
@@ -234,9 +234,9 @@ export function OrderRunView({
                       aria-label={checked ? "Untick" : "Tick"}
                     >
                       {checked ? (
-                        <CheckCircle2 className="h-7 w-7 text-blue-600" />
+                        <CheckCircle2 className="h-7 w-7 text-sage-deep" />
                       ) : (
-                        <Circle className="h-7 w-7 text-gray-300" />
+                        <Circle className="h-7 w-7 text-muted-foreground/60" />
                       )}
                     </button>
 

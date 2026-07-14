@@ -99,27 +99,27 @@ export function SupplierDashboard({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Suppliers</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight">Suppliers</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Invoice monitoring, price tracking, and supplier management
           </p>
         </div>
         <a
           href="/suppliers/replies"
-          className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/50"
         >
           Recent supplier replies →
         </a>
       </div>
 
       {unacknowledgedCount > 0 && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <div className="rounded-lg border border-amber-text/20 bg-amber-light p-4">
           <div className="flex items-center gap-2">
-            <span className="text-amber-800 font-medium">
+            <span className="text-amber-text font-medium">
               {unacknowledgedCount} unreviewed price change{unacknowledgedCount !== 1 ? "s" : ""} detected
             </span>
           </div>
-          <p className="mt-1 text-sm text-amber-700">
+          <p className="mt-1 text-sm text-amber-text">
             Review changes in the Price Alerts tab below
           </p>
         </div>

@@ -168,7 +168,7 @@ export function SupplierInvoices({
                 ) : null}
 
                 {inv.errorMessage && (
-                  <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                  <div className="mt-2 rounded-lg border border-red-text/20 bg-red-light p-3 text-sm text-red-text">
                     {inv.errorMessage}
                   </div>
                 )}
@@ -192,7 +192,7 @@ function LineItemsTable({
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border text-xs text-muted-foreground">
+          <tr className="border-b border-border font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             <th className="text-left py-2 pr-2">Description</th>
             <th className="text-right py-2 px-2">Qty</th>
             <th className="text-left py-2 px-2">Unit</th>
@@ -207,7 +207,7 @@ function LineItemsTable({
               key={item.id}
               className={`border-b border-border/50 ${
                 item.priceChanged && !item.acknowledged
-                  ? "bg-amber-50"
+                  ? "bg-amber-light"
                   : item.ingredientId === null
                   ? "bg-muted/30"
                   : ""
@@ -217,11 +217,11 @@ function LineItemsTable({
                 <div className="flex items-center gap-1">
                   {item.description}
                   {item.priceChanged && (
-                    <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0" />
+                    <AlertTriangle className="h-3 w-3 text-amber-text shrink-0" />
                   )}
                 </div>
                 {item.priceChanged && item.previousPrice !== null && (
-                  <span className="text-xs text-amber-600">
+                  <span className="text-xs text-amber-text">
                     was ${item.previousPrice.toFixed(2)} ({item.priceChangePercent?.toFixed(1)}%)
                   </span>
                 )}

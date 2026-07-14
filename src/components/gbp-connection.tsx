@@ -60,11 +60,11 @@ export function GbpConnection({ status, configured }: Props) {
               {connecting ? "Redirecting..." : "Connect Business Profile"}
             </Button>
           ) : (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <div className="rounded-lg border border-amber-text/20 bg-amber-light p-3 text-sm text-amber-text">
               Google OAuth credentials missing — add{" "}
-              <code className="rounded bg-amber-100 px-1">GMAIL_CLIENT_ID</code>{" "}
+              <code className="rounded bg-amber-text/10 px-1">GMAIL_CLIENT_ID</code>{" "}
               and{" "}
-              <code className="rounded bg-amber-100 px-1">GMAIL_CLIENT_SECRET</code>{" "}
+              <code className="rounded bg-amber-text/10 px-1">GMAIL_CLIENT_SECRET</code>{" "}
               to the env. (Shared with the Gmail integration.)
             </div>
           )}
@@ -81,8 +81,8 @@ export function GbpConnection({ status, configured }: Props) {
             <Star className="h-5 w-5" />
             Google Business Profile — Reviews
           </CardTitle>
-          <Badge className="border-green-200 bg-green-50 text-green-700">
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
+          <Badge className="border-green-text/20 bg-green-light text-green-text">
+            <CheckCircle2 className="h-4 w-4 text-green-text" />
             <span className="ml-1">Connected</span>
           </Badge>
         </div>

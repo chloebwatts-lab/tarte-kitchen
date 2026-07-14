@@ -205,7 +205,7 @@ export function WasteEntryForm({ items }: Props) {
     <Card>
       <CardContent className="pt-6 space-y-5">
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <div className="rounded-lg border border-red-text/20 bg-red-light p-3 text-sm text-red-text">
             {error}
           </div>
         )}
@@ -348,7 +348,7 @@ export function WasteEntryForm({ items }: Props) {
           <div className="rounded-lg border border-border bg-muted/50 px-4 py-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Estimated Cost</span>
-              <span className="text-lg font-semibold text-red-600">
+              <span className="text-lg font-semibold text-red-text">
                 ${estimatedCost.toFixed(2)}
               </span>
             </div>

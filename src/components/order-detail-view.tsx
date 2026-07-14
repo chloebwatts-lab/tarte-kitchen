@@ -204,7 +204,7 @@ export function OrderDetailView({ initial }: { initial: OrderDetail }) {
         </Link>
         <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
+            <h1 className="font-serif text-2xl font-semibold tracking-tight">
               {initial.supplierName}
             </h1>
             <div className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
@@ -240,7 +240,7 @@ export function OrderDetailView({ initial }: { initial: OrderDetail }) {
                 <button
                   onClick={cancel}
                   disabled={isPending}
-                  className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-red-text hover:bg-red-light"
                 >
                   <XCircle className="h-4 w-4" />
                   Cancel order
@@ -248,7 +248,7 @@ export function OrderDetailView({ initial }: { initial: OrderDetail }) {
                 <button
                   onClick={save}
                   disabled={isPending}
-                  className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted/50"
                 >
                   <Save className="h-4 w-4" />
                   Save
@@ -256,7 +256,7 @@ export function OrderDetailView({ initial }: { initial: OrderDetail }) {
                 <button
                   onClick={submit}
                   disabled={isPending || lines.filter((l) => !l.removed).length === 0}
-                  className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                  className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
                   <Send className="h-4 w-4" />
                   Submit
@@ -270,8 +270,8 @@ export function OrderDetailView({ initial }: { initial: OrderDetail }) {
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Subtotal</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums">
+            <p className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Subtotal</p>
+            <p className="mt-1 font-serif text-3xl font-semibold tabular-nums">
               ${subtotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
             </p>
             <p className="text-xs text-muted-foreground">ex GST</p>
@@ -279,16 +279,16 @@ export function OrderDetailView({ initial }: { initial: OrderDetail }) {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Lines</p>
-            <p className="mt-1 text-3xl font-bold">
+            <p className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Lines</p>
+            <p className="mt-1 font-serif text-3xl font-semibold">
               {lines.filter((l) => !l.removed).length}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Expected</p>
-            <p className="mt-1 text-xl font-semibold">
+            <p className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Expected</p>
+            <p className="mt-1 font-serif text-xl font-semibold">
               {initial.expectedDate
                 ? new Date(initial.expectedDate).toLocaleDateString("en-AU", {
                     weekday: "short",
@@ -310,7 +310,7 @@ export function OrderDetailView({ initial }: { initial: OrderDetail }) {
                 <Mail className="h-4 w-4" />
                 Order email
                 {initial.emailSentAt && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-green-light px-2 py-0.5 text-[10px] font-medium text-green-text">
                     <CheckCircle2 className="h-3 w-3" />
                     Sent{" "}
                     {new Date(initial.emailSentAt).toLocaleString("en-AU", {
@@ -325,7 +325,7 @@ export function OrderDetailView({ initial }: { initial: OrderDetail }) {
               <div className="flex flex-wrap gap-1.5">
                 <button
                   onClick={copyEmailBody}
-                  className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-xs font-medium text-foreground hover:bg-muted/50"
                 >
                   <Copy className="h-3 w-3" />
                   {copied ? "Copied" : "Copy"}
@@ -333,7 +333,7 @@ export function OrderDetailView({ initial }: { initial: OrderDetail }) {
                 {initial.emailTo && (
                   <button
                     onClick={openMailto}
-                    className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-xs font-medium text-foreground hover:bg-muted/50"
                   >
                     <Mail className="h-3 w-3" />
                     Open in mail
@@ -343,7 +343,7 @@ export function OrderDetailView({ initial }: { initial: OrderDetail }) {
                   <button
                     onClick={sendViaGmail}
                     disabled={isPending}
-                    className="inline-flex items-center gap-1 rounded-md bg-gray-900 px-2 py-1 text-xs font-medium text-white hover:bg-gray-800 disabled:opacity-60"
+                    className="inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                   >
                     <Send className="h-3 w-3" />
                     {initial.emailSentAt ? "Resend via Gmail" : "Send via Gmail"}
@@ -354,12 +354,12 @@ export function OrderDetailView({ initial }: { initial: OrderDetail }) {
           </CardHeader>
           <CardContent>
             {sendError && (
-              <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              <div className="mb-3 rounded-lg border border-red-text/20 bg-red-light px-3 py-2 text-xs text-red-text">
                 <span className="font-medium">Gmail send failed:</span>{" "}
                 {sendError}
               </div>
             )}
-            <div className="rounded-md border border-border bg-muted/30 p-3 text-xs">
+            <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs">
               <div className="mb-2 grid grid-cols-[80px_1fr] gap-y-1">
                 <span className="text-muted-foreground">To</span>
                 <span>{initial.emailTo ?? "—"}</span>
@@ -382,7 +382,7 @@ export function OrderDetailView({ initial }: { initial: OrderDetail }) {
           <div className="-mx-6 overflow-x-auto">
             <table className="w-full min-w-[720px] text-sm">
               <thead>
-                <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                <tr className="border-b border-border text-left font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                   <th className="py-2 pl-6">Ingredient</th>
                   <th className="py-2 w-24">Qty</th>
                   <th className="py-2 w-20">Unit</th>
@@ -465,7 +465,7 @@ export function OrderDetailView({ initial }: { initial: OrderDetail }) {
                         {canEdit && (
                           <button
                             onClick={() => removeLine(idx)}
-                            className="rounded-md p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600"
+                            className="rounded-md p-1 text-muted-foreground hover:bg-red-light hover:text-red-text"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -477,7 +477,7 @@ export function OrderDetailView({ initial }: { initial: OrderDetail }) {
               </tbody>
               <tfoot>
                 <tr className="border-t border-border bg-muted/30">
-                  <td colSpan={5} className="py-2 pl-6 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <td colSpan={5} className="py-2 pl-6 font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     Subtotal
                   </td>
                   <td className="py-2 text-right tabular-nums font-semibold">

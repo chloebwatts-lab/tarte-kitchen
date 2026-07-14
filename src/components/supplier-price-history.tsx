@@ -205,7 +205,7 @@ export function SupplierPriceHistory({ alerts }: { alerts: PriceAlert[] }) {
                     key={entry.supplierId}
                     className={`flex items-center justify-between rounded-lg border p-3 ${
                       cheapest
-                        ? "border-green-200 bg-green-50"
+                        ? "border-green-text/20 bg-green-light"
                         : "border-border"
                     }`}
                   >
@@ -222,7 +222,7 @@ export function SupplierPriceHistory({ alerts }: { alerts: PriceAlert[] }) {
                         ${entry.unitPrice.toFixed(2)}/{entry.unit}
                       </span>
                       {savings > 0 && (
-                        <p className="text-xs text-red-600">
+                        <p className="text-xs text-red-text">
                           +${savings.toFixed(2)} more
                         </p>
                       )}
@@ -244,7 +244,7 @@ export function SupplierPriceHistory({ alerts }: { alerts: PriceAlert[] }) {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border text-xs text-muted-foreground">
+                <tr className="border-b border-border font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                   <th className="text-left py-2 pr-2">Date</th>
                   <th className="text-left py-2 px-2">Ingredient</th>
                   <th className="text-left py-2 px-2">Supplier</th>
@@ -276,8 +276,8 @@ export function SupplierPriceHistory({ alerts }: { alerts: PriceAlert[] }) {
                         <span
                           className={
                             (alert.priceChangePercent ?? 0) > 0
-                              ? "text-red-600"
-                              : "text-green-600"
+                              ? "text-red-text"
+                              : "text-green-text"
                           }
                         >
                           {(alert.priceChangePercent ?? 0) > 0 ? "+" : ""}

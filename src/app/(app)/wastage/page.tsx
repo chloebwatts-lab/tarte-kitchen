@@ -21,7 +21,7 @@ export default async function WastagePage() {
         </div>
         <a
           href="/wastage/analytics"
-          className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted/50"
         >
           Deep analytics →
         </a>

@@ -81,10 +81,10 @@ export function LightspeedConnection({ status }: Props) {
               {connecting ? "Redirecting..." : "Connect Lightspeed"}
             </Button>
           ) : (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <div className="rounded-lg border border-amber-text/20 bg-amber-light p-3 text-sm text-amber-text">
               Lightspeed OAuth credentials are not configured. Add{" "}
-              <code className="rounded bg-amber-100 px-1">LIGHTSPEED_CLIENT_ID</code> and{" "}
-              <code className="rounded bg-amber-100 px-1">LIGHTSPEED_CLIENT_SECRET</code>{" "}
+              <code className="rounded bg-amber-text/10 px-1">LIGHTSPEED_CLIENT_ID</code> and{" "}
+              <code className="rounded bg-amber-text/10 px-1">LIGHTSPEED_CLIENT_SECRET</code>{" "}
               to your environment variables to enable this integration.
             </div>
           )}
@@ -95,9 +95,9 @@ export function LightspeedConnection({ status }: Props) {
 
   // Connected state
   const healthIcon = status.tokenHealthy ? (
-    <CheckCircle2 className="h-4 w-4 text-green-600" />
+    <CheckCircle2 className="h-4 w-4 text-green-text" />
   ) : (
-    <XCircle className="h-4 w-4 text-red-600" />
+    <XCircle className="h-4 w-4 text-red-text" />
   )
 
   const healthLabel = status.tokenHealthy ? "Connected" : "Auth expired"
@@ -114,8 +114,8 @@ export function LightspeedConnection({ status }: Props) {
           <Badge
             className={
               healthColor === "green"
-                ? "border-green-200 bg-green-50 text-green-700"
-                : "border-red-200 bg-red-50 text-red-700"
+                ? "border-green-text/20 bg-green-light text-green-text"
+                : "border-red-text/20 bg-red-light text-red-text"
             }
           >
             {healthIcon}
@@ -181,7 +181,7 @@ export function LightspeedConnection({ status }: Props) {
         )}
 
         {!status.tokenHealthy && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <div className="rounded-lg border border-red-text/20 bg-red-light p-3 text-sm text-red-text">
             Your Lightspeed authentication has expired. Please reconnect to
             resume sales data syncing.
           </div>

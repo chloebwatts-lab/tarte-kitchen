@@ -43,7 +43,7 @@ export function ChecklistPhotoUpload({
 
   if (!CLOUD_NAME || !UPLOAD_PRESET) {
     return (
-      <div className="rounded-md border border-dashed border-gray-200 p-4 text-center text-xs text-gray-400">
+      <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
         Photo uploads not configured — add Cloudinary env vars to enable.
       </div>
     )
@@ -98,7 +98,7 @@ export function ChecklistPhotoUpload({
       {photos.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {photos.map((photo) => (
-            <div key={photo.id} className="relative h-20 w-20 overflow-hidden rounded-lg border border-gray-200">
+            <div key={photo.id} className="relative h-20 w-20 overflow-hidden rounded-lg border border-border">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={photo.url}
@@ -130,7 +130,7 @@ export function ChecklistPhotoUpload({
         <button
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/50 disabled:opacity-50"
         >
           {uploading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -144,11 +144,11 @@ export function ChecklistPhotoUpload({
       </div>
 
       {error && (
-        <p className="text-xs text-red-600">{error}</p>
+        <p className="text-xs text-red-text">{error}</p>
       )}
 
       {photos.length === 0 && !hideHint && (
-        <p className="text-xs text-amber-600">
+        <p className="text-xs text-amber-text">
           Please take at least one photo before leaving this page.
         </p>
       )}

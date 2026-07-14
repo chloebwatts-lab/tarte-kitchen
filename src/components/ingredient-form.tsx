@@ -598,7 +598,7 @@ export function IngredientForm({ ingredient, suppliers, onSuccess }: IngredientF
             <>
               <Separator />
               <div className="rounded-lg bg-muted/50 p-4 space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                <p className="font-serif text-xs font-semibold text-muted-foreground uppercase tracking-[0.14em]">
                   Cost Summary
                 </p>
                 <div className="grid grid-cols-2 gap-4">
@@ -606,7 +606,7 @@ export function IngredientForm({ ingredient, suppliers, onSuccess }: IngredientF
                     <p className="text-xs text-muted-foreground">
                       Cost per {costCalc.unitLabel}
                     </p>
-                    <p className="text-lg font-semibold tabular-nums">
+                    <p className="font-serif text-lg font-semibold tabular-nums">
                       ${costCalc.costPerUnit < 0.01 && costCalc.costPerUnit > 0
                         ? costCalc.costPerUnit.toFixed(4)
                         : costCalc.costPerUnit.toFixed(2)}
@@ -616,7 +616,7 @@ export function IngredientForm({ ingredient, suppliers, onSuccess }: IngredientF
                     <p className="text-xs text-muted-foreground">
                       Cost per usable {costCalc.unitLabel}
                     </p>
-                    <p className="text-lg font-semibold tabular-nums">
+                    <p className="font-serif text-lg font-semibold tabular-nums">
                       ${costCalc.costPerUsableUnit < 0.01 && costCalc.costPerUsableUnit > 0
                         ? costCalc.costPerUsableUnit.toFixed(4)
                         : costCalc.costPerUsableUnit.toFixed(2)}

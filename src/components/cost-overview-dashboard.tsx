@@ -82,7 +82,7 @@ export function CostOverviewDashboard({ weeklyPnl, labourStats, xeroConnected }:
 
       {/* Xero not connected banner */}
       {!xeroConnected && (
-        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="flex items-start gap-3 rounded-lg border border-amber-text/20 bg-amber-light px-4 py-3 text-sm text-amber-text">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
             <span className="font-semibold">Labour data not available — </span>
@@ -105,11 +105,11 @@ export function CostOverviewDashboard({ weeklyPnl, labourStats, xeroConnected }:
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
+            <p className="font-serif text-2xl font-semibold">
               {xeroConnected && latest ? formatCurrency(latestLabour) : "—"}
             </p>
             {labourVsAvg !== null && (
-              <p className={`mt-1 text-xs ${labourVsAvg > 5 ? "text-red-600" : labourVsAvg < -5 ? "text-green-600" : "text-muted-foreground"}`}>
+              <p className={`mt-1 text-xs ${labourVsAvg > 5 ? "text-red-text" : labourVsAvg < -5 ? "text-green-text" : "text-muted-foreground"}`}>
                 {labourVsAvg > 0 ? "+" : ""}{labourVsAvg.toFixed(1)}% vs 13-wk avg
               </p>
             )}
@@ -129,11 +129,11 @@ export function CostOverviewDashboard({ weeklyPnl, labourStats, xeroConnected }:
             <TrendingDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
+            <p className="font-serif text-2xl font-semibold">
               {latest ? formatCurrency(latestWaste) : "—"}
             </p>
             {prev && (
-              <p className={`mt-1 text-xs ${latestWaste > prev.wasteCost ? "text-red-600" : "text-green-600"}`}>
+              <p className={`mt-1 text-xs ${latestWaste > prev.wasteCost ? "text-red-text" : "text-green-text"}`}>
                 {latestWaste > prev.wasteCost ? "▲" : "▼"}{" "}
                 {formatCurrency(Math.abs(latestWaste - prev.wasteCost))} vs last week
               </p>
@@ -149,7 +149,7 @@ export function CostOverviewDashboard({ weeklyPnl, labourStats, xeroConnected }:
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
+            <p className="font-serif text-2xl font-semibold">
               {latest ? formatCurrency(latestTotal) : "—"}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">Labour + waste combined</p>
@@ -164,7 +164,7 @@ export function CostOverviewDashboard({ weeklyPnl, labourStats, xeroConnected }:
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
+            <p className="font-serif text-2xl font-semibold">
               {xeroConnected && avgLabour > 0 ? formatCurrency(avgLabour) : "—"}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">Per week, including super</p>
@@ -227,11 +227,11 @@ export function CostOverviewDashboard({ weeklyPnl, labourStats, xeroConnected }:
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/30">
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Week</th>
-                    <th className="px-4 py-3 text-right font-medium text-muted-foreground">Labour</th>
-                    <th className="px-4 py-3 text-right font-medium text-muted-foreground">Waste</th>
-                    <th className="px-4 py-3 text-right font-medium text-muted-foreground">Total</th>
-                    <th className="px-4 py-3 text-right font-medium text-muted-foreground">Staff</th>
+                    <th className="px-4 py-3 text-left font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Week</th>
+                    <th className="px-4 py-3 text-right font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Labour</th>
+                    <th className="px-4 py-3 text-right font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Waste</th>
+                    <th className="px-4 py-3 text-right font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Total</th>
+                    <th className="px-4 py-3 text-right font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Staff</th>
                   </tr>
                 </thead>
                 <tbody>

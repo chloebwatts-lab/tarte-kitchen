@@ -136,8 +136,8 @@ export function SupplierPriceAlerts({
       {unitChangedAlerts.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <Ruler className="h-4 w-4 text-amber-600" />
-            <p className="text-sm font-medium text-amber-900">
+            <Ruler className="h-4 w-4 text-amber-text" />
+            <p className="text-sm font-medium text-amber-text">
               Pack / unit changed — needs remap ({unitChangedAlerts.length})
             </p>
           </div>
@@ -200,7 +200,7 @@ export function SupplierPriceAlerts({
       {/* Acknowledged alerts (collapsed) */}
       {acknowledged.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider pt-4">
+          <p className="font-serif text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.14em] pt-4">
             Previously Reviewed ({acknowledged.length})
           </p>
           {acknowledged.slice(0, 20).map((alert) => (
@@ -278,9 +278,9 @@ function AlertRow({
       <div className="flex items-center gap-3 shrink-0">
         <div className="flex items-center gap-1">
           {isIncrease ? (
-            <ArrowUpRight className="h-4 w-4 text-red-500" />
+            <ArrowUpRight className="h-4 w-4 text-red-text" />
           ) : (
-            <ArrowDownRight className="h-4 w-4 text-green-500" />
+            <ArrowDownRight className="h-4 w-4 text-green-text" />
           )}
           <Badge variant={severity}>
             {isIncrease ? "+" : ""}
@@ -297,7 +297,7 @@ function AlertRow({
                 onClick={onReject}
                 disabled={isPending}
                 title="Reject — wrong match. Future invoices with this description won't auto-link to this ingredient."
-                className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                className="text-red-text hover:bg-red-light hover:text-red-text"
               >
                 <X className="h-3.5 w-3.5" />
               </Button>
@@ -365,7 +365,7 @@ function UnitChangedRow({
   const impliedStoredPrice = valid ? alert.invoiceUnitPrice * parsed : null
 
   return (
-    <div className="rounded-lg border border-amber-200 bg-amber-50/40 p-3 space-y-2">
+    <div className="rounded-lg border border-amber-text/20 bg-amber-light/40 p-3 space-y-2">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-sm font-medium">{alert.ingredientName}</span>
         <Badge variant="secondary" className="text-[10px]">
@@ -393,7 +393,7 @@ function UnitChangedRow({
           value={factor}
           onChange={(e) => setFactor(e.target.value)}
           disabled={busy}
-          className="w-24 rounded border border-amber-300 bg-white px-2 py-1 text-xs"
+          className="w-24 rounded border border-amber-text/30 bg-card px-2 py-1 text-xs"
           placeholder="e.g. 5"
         />
         <span className="text-xs text-muted-foreground">
@@ -412,11 +412,11 @@ function UnitChangedRow({
         </Button>
       </div>
       {alert.suggestedConversionFactor != null && (
-        <p className="text-[11px] text-amber-800">
+        <p className="text-[11px] text-amber-text">
           Suggested from description — confirm or adjust before saving.
         </p>
       )}
-      {error && <p className="text-[11px] text-rose-600">{error}</p>}
+      {error && <p className="text-[11px] text-red-text">{error}</p>}
     </div>
   )
 }

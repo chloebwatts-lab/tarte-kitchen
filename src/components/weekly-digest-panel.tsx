@@ -42,21 +42,21 @@ function fmtSignedPct(v: unknown): string {
 
 export function WeeklyDigestPanel({ digest }: { digest: DigestRow }) {
   return (
-    <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+    <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
       <header className="mb-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-sm font-semibold text-stone-800">
-          <Sparkles className="h-4 w-4 text-emerald-600" />
+        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <Sparkles className="h-4 w-4 text-green-text" />
           Weekly digest — {fmtDate(digest.weekStart)} to{" "}
           {fmtDate(digest.weekEnd)}
         </div>
-        <div className="flex items-center gap-2 text-xs text-stone-400">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {digest.emailedAt ? (
             <>
               <Mail className="h-3.5 w-3.5" />
               emailed {fmtDate(digest.emailedAt)}
             </>
           ) : (
-            <span className="text-amber-700">not emailed yet</span>
+            <span className="text-amber-text">not emailed yet</span>
           )}
         </div>
       </header>
@@ -70,12 +70,12 @@ export function WeeklyDigestPanel({ digest }: { digest: DigestRow }) {
       </div>
 
       <details>
-        <summary className="cursor-pointer text-xs font-medium text-emerald-700 hover:underline">
+        <summary className="cursor-pointer text-xs font-medium text-green-text hover:underline">
           Read the full digest
         </summary>
         {/* body is generated server-side HTML from our own renderer — safe to inject */}
         <div
-          className="mt-3 max-h-[640px] overflow-auto rounded-md bg-stone-50 p-3"
+          className="mt-3 max-h-[640px] overflow-auto rounded-md bg-muted/50 p-3"
           dangerouslySetInnerHTML={{ __html: digest.body }}
         />
       </details>
@@ -93,13 +93,13 @@ function Metric({
   delta?: string
 }) {
   return (
-    <div className="rounded-md border border-stone-100 bg-stone-50 px-2 py-1.5">
-      <div className="text-[10px] uppercase tracking-wide text-stone-500">
+    <div className="rounded-xl border-[1.5px] border-border bg-card p-4">
+      <div className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         {label}
       </div>
-      <div className="text-sm font-semibold text-stone-900">{value}</div>
+      <div className="text-sm font-semibold text-foreground">{value}</div>
       {delta && (
-        <div className="text-[11px] text-stone-500">{delta}</div>
+        <div className="text-[11px] text-muted-foreground">{delta}</div>
       )}
     </div>
   )

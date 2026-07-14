@@ -101,7 +101,7 @@ const VENUE_LABELS: Record<string, string> = {
 const VENUE_BADGE: Record<string, { label: string; className: string }> = {
   BURLEIGH: {
     label: "Bakery",
-    className: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
+    className: "bg-sage-soft text-sage-deep dark:bg-blue-900 dark:text-blue-300",
   },
   BEACH_HOUSE: {
     label: "Beach House",
@@ -113,7 +113,7 @@ const VENUE_BADGE: Record<string, { label: string; className: string }> = {
   },
   BOTH: {
     label: "Both",
-    className: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+    className: "bg-muted text-foreground dark:bg-gray-800 dark:text-gray-300",
   },
 }
 
@@ -344,7 +344,7 @@ function InlineActive({
         disabled={isPending}
         className="scale-75"
       />
-      <span className={cn("text-[10px]", value ? "text-green-600" : "text-muted-foreground")}>
+      <span className={cn("text-[10px]", value ? "text-green-text" : "text-muted-foreground")}>
         {value ? "Active" : "Inactive"}
       </span>
     </div>
@@ -369,7 +369,7 @@ function PriceSimulator({ dish }: { dish: Dish }) {
     <div className="mt-4 rounded-lg border border-dashed border-border bg-card p-3" onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center gap-2 mb-2">
         <Calculator className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <span className="font-serif text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           Price Simulator
         </span>
       </div>
@@ -392,7 +392,7 @@ function PriceSimulator({ dish }: { dish: Dish }) {
               {simResult.badge.label}
             </Badge>
             <span className="text-muted-foreground">
-              GP: <span className="font-semibold text-green-700 dark:text-green-400">{formatCurrency(simResult.gp)}</span>
+              GP: <span className="font-semibold text-green-text dark:text-green-400">{formatCurrency(simResult.gp)}</span>
             </span>
             <span className="text-muted-foreground text-xs">
               ex GST {formatCurrency(simResult.exGst)}
@@ -629,7 +629,7 @@ export function DishesTable({
 
                     {/* Gross profit */}
                     <div className="col-span-2 mt-1 text-right sm:mt-0">
-                      <p className="text-sm font-semibold text-green-700 dark:text-green-400">
+                      <p className="text-sm font-semibold text-green-text dark:text-green-400">
                         {formatCurrency(dish.grossProfit)}
                       </p>
                     </div>
@@ -639,7 +639,7 @@ export function DishesTable({
                   {isExpanded && (
                     <div className="border-t border-dashed border-border bg-muted/20 px-4 py-4 sm:pl-12">
                       <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        <h4 className="font-serif text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                           Component Breakdown
                         </h4>
                         <button

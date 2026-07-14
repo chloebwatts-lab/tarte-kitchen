@@ -14,7 +14,7 @@ export default async function StocktakePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Stocktake</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight">Stocktake</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Count inventory to reconcile against theoretical usage — surfaces
             shrinkage, over-portioning, and untracked waste.
@@ -77,7 +77,7 @@ export default async function StocktakePage() {
                       ${r.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </div>
                     {neg < 0 && (
-                      <div className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-red-600">
+                      <div className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-red-text">
                         <ArrowDownRight className="h-3 w-3" />
                         Shrinkage ${Math.abs(neg).toFixed(2)}
                       </div>

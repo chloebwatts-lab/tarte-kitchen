@@ -43,7 +43,7 @@ export function LabourRefreshButton({ lastSyncedAt }: Props) {
       <button
         onClick={handleRefresh}
         disabled={isPending}
-        className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted/50 disabled:opacity-50"
       >
         <RefreshCw
           className={`h-3.5 w-3.5 ${isPending ? "animate-spin" : ""}`}

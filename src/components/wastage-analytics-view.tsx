@@ -108,8 +108,8 @@ export function WastageAnalyticsView({
                 className={cn(
                   "rounded-full px-4 py-1.5 text-xs font-medium transition-all",
                   venue === value
-                    ? "bg-gray-900 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-border"
                 )}
               >
                 {label}
@@ -125,8 +125,8 @@ export function WastageAnalyticsView({
                 className={cn(
                   "rounded-md border px-2.5 py-1 text-xs font-medium",
                   range === days
-                    ? "border-gray-900 bg-gray-900 text-white"
-                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-muted-foreground hover:bg-muted/50"
                 )}
               >
                 {label}
@@ -147,7 +147,7 @@ export function WastageAnalyticsView({
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Total waste cost</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums">
+            <p className="mt-1 font-serif text-3xl font-semibold tabular-nums">
               ${data.totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </p>
             <p className="text-xs text-muted-foreground">
@@ -158,7 +158,7 @@ export function WastageAnalyticsView({
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">% of revenue</p>
-            <p className="mt-1 text-3xl font-bold">
+            <p className="mt-1 font-serif text-3xl font-semibold">
               {data.wasteAsPctRevenue !== null ? (
                 <Badge variant={wastePctVariant} className="px-3 py-1 text-lg">
                   {data.wasteAsPctRevenue.toFixed(2)}%
@@ -173,7 +173,7 @@ export function WastageAnalyticsView({
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Trending up</p>
-            <p className="mt-1 text-3xl font-bold">{data.trendingUp.length}</p>
+            <p className="mt-1 font-serif text-3xl font-semibold">{data.trendingUp.length}</p>
             <p className="text-xs text-muted-foreground">
               items +30% in last 14 days
             </p>
@@ -182,7 +182,7 @@ export function WastageAnalyticsView({
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Unaccounted loss</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums text-red-600">
+            <p className="mt-1 font-serif text-3xl font-semibold tabular-nums text-red-text">
               $
               {data.shrinkage
                 .reduce((s, x) => s + x.unaccountedValue, 0)
@@ -200,7 +200,7 @@ export function WastageAnalyticsView({
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="inline-flex items-center gap-1.5 text-sm font-medium">
-              <Sparkles className="h-4 w-4 text-indigo-500" />
+              <Sparkles className="h-4 w-4 text-sage-deep" />
               Recommendations
             </CardTitle>
           </CardHeader>
@@ -214,20 +214,20 @@ export function WastageAnalyticsView({
                     : Info
               const bg =
                 r.severity === "critical"
-                  ? "border-red-200 bg-red-50"
+                  ? "border-red-text/20 bg-red-light"
                   : r.severity === "warn"
-                    ? "border-amber-200 bg-amber-50"
-                    : "border-blue-200 bg-blue-50"
+                    ? "border-amber-text/20 bg-amber-light"
+                    : "border-sage bg-sage-soft"
               const iconColor =
                 r.severity === "critical"
-                  ? "text-red-600"
+                  ? "text-red-text"
                   : r.severity === "warn"
-                    ? "text-amber-600"
-                    : "text-blue-600"
+                    ? "text-amber-text"
+                    : "text-sage-deep"
               return (
                 <div
                   key={i}
-                  className={cn("rounded-md border p-3", bg)}
+                  className={cn("rounded-lg border p-3", bg)}
                 >
                   <div className="flex items-start gap-2">
                     <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", iconColor)} />
@@ -239,7 +239,7 @@ export function WastageAnalyticsView({
                       {r.action && (
                         <Link
                           href={r.action.href}
-                          className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:underline"
+                          className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-sage-deep hover:underline"
                         >
                           <Eye className="h-3 w-3" />
                           {r.action.label}
@@ -422,7 +422,7 @@ export function WastageAnalyticsView({
                           )}
                         </div>
                       </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                         <div
                           className="h-full"
                           style={{
@@ -456,7 +456,7 @@ export function WastageAnalyticsView({
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                  <tr className="border-b border-border text-left font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     <th className="py-2">Item</th>
                     <th className="py-2 text-right">Qty</th>
                     <th className="py-2 text-right">Entries</th>
@@ -494,7 +494,7 @@ export function WastageAnalyticsView({
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="inline-flex items-center gap-1.5 text-sm font-medium">
-              <TrendingUp className="h-4 w-4 text-red-500" />
+              <TrendingUp className="h-4 w-4 text-red-text" />
               Spiking items (last 14d vs prior 14d)
             </CardTitle>
           </CardHeader>
@@ -508,7 +508,7 @@ export function WastageAnalyticsView({
                 {data.trendingUp.map((t, i) => (
                   <div
                     key={i}
-                    className="flex items-center justify-between rounded-md border border-border px-3 py-2"
+                    className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
                   >
                     <div className="min-w-0 flex-1">
                       <Link
@@ -536,7 +536,7 @@ export function WastageAnalyticsView({
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="inline-flex items-center gap-1.5 text-sm font-medium">
-            <AlertCircle className="h-4 w-4 text-red-500" />
+            <AlertCircle className="h-4 w-4 text-red-text" />
             Shrinkage detective
           </CardTitle>
           <p className="text-xs text-muted-foreground">
@@ -577,7 +577,7 @@ export function WastageAnalyticsView({
                     <td className="py-2 text-right tabular-nums text-muted-foreground">
                       {s.reportedWasteBase} {s.unit}
                     </td>
-                    <td className="py-2 text-right tabular-nums font-semibold text-red-600">
+                    <td className="py-2 text-right tabular-nums font-semibold text-red-text">
                       ${s.unaccountedValue.toFixed(2)}
                     </td>
                   </tr>

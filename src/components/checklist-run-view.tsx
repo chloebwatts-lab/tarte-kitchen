@@ -88,7 +88,7 @@ export function ChecklistRunView({
         </Link>
         <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
+            <h1 className="font-serif text-2xl font-semibold tracking-tight">
               {initial.templateName}
             </h1>
             <div className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
@@ -112,7 +112,7 @@ export function ChecklistRunView({
             </div>
           </div>
           <div className="text-right">
-            <div className="text-2xl font-bold tabular-nums">
+            <div className="font-serif text-2xl font-semibold tabular-nums">
               {completed} / {items.length}
             </div>
             <div className="text-xs text-muted-foreground">
@@ -120,11 +120,11 @@ export function ChecklistRunView({
             </div>
           </div>
         </div>
-        <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+        <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div
             className={cn(
               "h-full transition-all",
-              isDone ? "bg-emerald-500" : "bg-amber-500"
+              isDone ? "bg-green-text" : "bg-amber-text"
             )}
             style={{ width: `${pct}%` }}
           />
@@ -142,8 +142,8 @@ export function ChecklistRunView({
                 className={cn(
                   "group rounded-md border px-3 py-2.5 transition-colors",
                   checked
-                    ? "border-emerald-100 bg-emerald-50/50"
-                    : "border-border bg-white hover:bg-muted/30"
+                    ? "border-green-text/20 bg-green-light/50"
+                    : "border-border bg-card hover:bg-muted/30"
                 )}
               >
                 <div className="flex items-start gap-3">
@@ -151,7 +151,7 @@ export function ChecklistRunView({
                     onClick={() => toggle(item.id)}
                     className={cn(
                       "mt-0.5 shrink-0 rounded-full transition-transform active:scale-90",
-                      checked ? "text-emerald-600" : "text-gray-300 hover:text-gray-500"
+                      checked ? "text-green-text" : "text-muted-foreground/60 hover:text-muted-foreground"
                     )}
                     aria-label={checked ? "Uncheck" : "Check"}
                   >
@@ -191,7 +191,7 @@ export function ChecklistRunView({
                         )}
                         {item.requireTemp && (
                           <label className="flex items-center gap-1.5 text-xs">
-                            <Thermometer className="h-3.5 w-3.5 text-emerald-600" />
+                            <Thermometer className="h-3.5 w-3.5 text-green-text" />
                             <span className="text-muted-foreground">
                               Temp (°C)
                             </span>
@@ -245,7 +245,7 @@ export function ChecklistRunView({
         <button
           onClick={() => startSubmitTransition(async () => { await forceCompleteRun(initial.id); setSubmitted(true) })}
           disabled={isSubmitting}
-          className="w-full rounded-md border border-amber-300 bg-amber-50 px-4 py-2.5 text-center text-sm font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+          className="w-full rounded-md border border-amber-text/30 bg-amber-light px-4 py-2.5 text-center text-sm font-medium text-amber-text hover:border-amber-text/50 disabled:opacity-50"
         >
           {isSubmitting ? "Submitting…" : `Submit with ${items.length - completed} item${items.length - completed !== 1 ? "s" : ""} incomplete`}
         </button>
@@ -253,8 +253,8 @@ export function ChecklistRunView({
 
       {showCompletion && (
         <>
-          <Card className="border-emerald-200 bg-emerald-50">
-            <CardContent className="py-4 text-center text-sm text-emerald-800">
+          <Card className="border-green-text/20 bg-green-light">
+            <CardContent className="py-4 text-center text-sm text-green-text">
               <CheckCircle2 className="mx-auto mb-1 h-6 w-6" />
               {isDone
                 ? "All checked — this run is logged for compliance."
@@ -265,7 +265,7 @@ export function ChecklistRunView({
           <Card>
             <CardContent className="space-y-3 p-4">
               <div className="flex items-center gap-2 text-sm font-medium">
-                <Camera className="h-4 w-4 text-gray-500" />
+                <Camera className="h-4 w-4 text-muted-foreground" />
                 Completion photos
               </div>
               <p className="text-xs text-muted-foreground">

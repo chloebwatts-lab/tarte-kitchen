@@ -6,5 +6,5 @@ export default async function CouncilAuthedLayout({
   children: React.ReactNode
 }) {
   await requireCouncil()
-  return <div className="min-h-screen bg-stone-50">{children}</div>
+  return <div className="min-h-screen bg-background">{children}</div>
 }

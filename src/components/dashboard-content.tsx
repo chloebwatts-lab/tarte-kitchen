@@ -131,7 +131,7 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Menu Items</p>
-                <p className="text-3xl font-bold">{stats.totalMenuItems}</p>
+                <p className="font-serif text-3xl font-semibold">{stats.totalMenuItems}</p>
               </div>
               <div className="rounded-lg bg-muted p-3">
                 <UtensilsCrossed className="h-5 w-5 text-muted-foreground" />
@@ -145,7 +145,7 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Preparations</p>
-                <p className="text-3xl font-bold">{stats.totalPreparations}</p>
+                <p className="font-serif text-3xl font-semibold">{stats.totalPreparations}</p>
               </div>
               <div className="rounded-lg bg-muted p-3">
                 <ChefHat className="h-5 w-5 text-muted-foreground" />
@@ -159,7 +159,7 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Avg Food Cost</p>
-                <p className="text-3xl font-bold">
+                <p className="font-serif text-3xl font-semibold">
                   <Badge variant={costColor(stats.averageFoodCostPct)} className="text-lg px-3 py-1">
                     {stats.averageFoodCostPct}%
                   </Badge>
@@ -177,11 +177,11 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Above 35%</p>
-                <p className="text-3xl font-bold">
+                <p className="font-serif text-3xl font-semibold">
                   {stats.itemsAbove35Pct > 0 ? (
-                    <span className="text-red-600">{stats.itemsAbove35Pct}</span>
+                    <span className="text-red-text">{stats.itemsAbove35Pct}</span>
                   ) : (
-                    <span className="text-green-600">0</span>
+                    <span className="text-green-text">0</span>
                   )}
                 </p>
               </div>
@@ -196,17 +196,17 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
       {/* Invoice Alerts Banner */}
       {stats.invoiceAlertCount > 0 && (
         <Link href="/suppliers">
-          <Card className="border-amber-200 bg-amber-50 hover:bg-amber-100 transition-colors cursor-pointer">
+          <Card className="border-amber-text/20 bg-amber-light/70 hover:bg-amber-light transition-colors cursor-pointer">
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-amber-100 p-3">
-                  <FileText className="h-5 w-5 text-amber-700" />
+                <div className="rounded-lg bg-amber-text/15 p-3">
+                  <FileText className="h-5 w-5 text-amber-text" />
                 </div>
                 <div>
-                  <p className="font-medium text-amber-800">
+                  <p className="font-medium text-amber-text">
                     {stats.invoiceAlertCount} invoice price change{stats.invoiceAlertCount !== 1 ? "s" : ""} need review
                   </p>
-                  <p className="text-sm text-amber-600">
+                  <p className="text-sm text-amber-text/80">
                     Click to review in Suppliers dashboard
                   </p>
                 </div>
@@ -242,13 +242,13 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
                     </div>
                     <div className="flex items-center gap-1">
                       {alert.changePercentage > 0 ? (
-                        <ArrowUpRight className="h-4 w-4 text-red-500" />
+                        <ArrowUpRight className="h-4 w-4 text-red-text" />
                       ) : (
-                        <ArrowDownRight className="h-4 w-4 text-green-500" />
+                        <ArrowDownRight className="h-4 w-4 text-green-text" />
                       )}
                       <span
                         className={`text-sm font-medium ${
-                          alert.changePercentage > 0 ? "text-red-600" : "text-green-600"
+                          alert.changePercentage > 0 ? "text-red-text" : "text-green-text"
                         }`}
                       >
                         {alert.changePercentage > 0 ? "+" : ""}
@@ -412,15 +412,15 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
                 All <span className="text-muted-foreground">({statusCounts.ALL})</span>
               </TabsTrigger>
               <TabsTrigger value="GREEN" className="text-xs gap-1">
-                <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
+                <span className="inline-block h-2 w-2 rounded-full bg-green-text" />
                 Green <span className="text-muted-foreground">({statusCounts.GREEN})</span>
               </TabsTrigger>
               <TabsTrigger value="AMBER" className="text-xs gap-1">
-                <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
+                <span className="inline-block h-2 w-2 rounded-full bg-amber-text" />
                 Amber <span className="text-muted-foreground">({statusCounts.AMBER})</span>
               </TabsTrigger>
               <TabsTrigger value="RED" className="text-xs gap-1">
-                <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
+                <span className="inline-block h-2 w-2 rounded-full bg-red-text" />
                 Red <span className="text-muted-foreground">({statusCounts.RED})</span>
               </TabsTrigger>
             </TabsList>
@@ -448,7 +448,7 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
                   <div className="flex items-center gap-3 shrink-0">
                     <div className="text-right">
                       <p className="text-xs text-muted-foreground">${dish.totalCost.toFixed(2)} / ${dish.sellingPrice.toFixed(2)}</p>
-                      <p className="text-xs font-medium text-green-700 dark:text-green-400">
+                      <p className="text-xs font-medium text-green-text dark:text-green-400">
                         GP ${dish.grossProfit.toFixed(2)}
                       </p>
                     </div>

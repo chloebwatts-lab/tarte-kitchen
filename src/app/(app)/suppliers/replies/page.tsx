@@ -25,7 +25,7 @@ export default async function SupplierRepliesPage({
         </Link>
         <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
+            <h1 className="font-serif text-2xl font-semibold tracking-tight">
               Recent supplier replies
             </h1>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
@@ -41,8 +41,8 @@ export default async function SupplierRepliesPage({
                 href={`/suppliers/replies?days=${d}`}
                 className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
                   d === daysBack
-                    ? "border-gray-900 bg-gray-900 text-white"
-                    : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-foreground hover:bg-muted/50"
                 }`}
               >
                 {d}d
@@ -50,7 +50,7 @@ export default async function SupplierRepliesPage({
             ))}
             <Link
               href={`/suppliers/replies?days=${daysBack}`}
-              className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted/50"
             >
               <RefreshCw className="h-3 w-3" />
               Refresh
@@ -93,7 +93,7 @@ function clampDays(raw: string | undefined): number {
 
 function NoConnection() {
   return (
-    <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+    <div className="rounded-lg border border-amber-text/20 bg-amber-light p-4 text-sm text-amber-text">
       <div className="flex items-center gap-2 font-medium">
         <Inbox className="h-4 w-4" />
         Gmail not connected
@@ -114,7 +114,7 @@ function NoConnection() {
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+    <div className="rounded-lg border border-red-text/20 bg-red-light p-4 text-sm text-red-text">
       <p className="font-medium">Gmail search failed</p>
       <p className="mt-1 font-mono text-xs leading-snug">{message}</p>
       <p className="mt-2 text-xs">
@@ -130,9 +130,9 @@ function ErrorBanner({ message }: { message: string }) {
 
 function EmptyBanner({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-md border border-dashed border-gray-200 bg-white p-6 text-center text-sm">
-      <p className="font-medium text-gray-900">{title}</p>
-      <p className="mt-1.5 text-gray-500">{body}</p>
+    <div className="rounded-lg border border-dashed border-border bg-card p-6 text-center text-sm">
+      <p className="font-medium text-foreground">{title}</p>
+      <p className="mt-1.5 text-muted-foreground">{body}</p>
     </div>
   )
 }
@@ -153,21 +153,21 @@ function RepliesTable({
         {account ?? "—"} · {domainsSearched.length} supplier domain
         {domainsSearched.length === 1 ? "" : "s"}
       </div>
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-left text-xs uppercase tracking-wider text-gray-500">
+          <thead className="bg-muted/50 text-left font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             <tr>
-              <th className="px-3 py-2 font-medium">Received</th>
-              <th className="px-3 py-2 font-medium">Supplier</th>
-              <th className="px-3 py-2 font-medium">From</th>
-              <th className="px-3 py-2 font-medium">Subject &amp; snippet</th>
-              <th className="px-3 py-2 font-medium"></th>
+              <th className="px-3 py-2 font-semibold">Received</th>
+              <th className="px-3 py-2 font-semibold">Supplier</th>
+              <th className="px-3 py-2 font-semibold">From</th>
+              <th className="px-3 py-2 font-semibold">Subject &amp; snippet</th>
+              <th className="px-3 py-2 font-semibold"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-border">
             {replies.map((r) => (
               <tr key={r.messageId} className="align-top">
-                <td className="whitespace-nowrap px-3 py-3 text-xs text-gray-600">
+                <td className="whitespace-nowrap px-3 py-3 text-xs text-muted-foreground">
                   {new Date(r.sentAt).toLocaleString("en-AU", {
                     day: "numeric",
                     month: "short",
@@ -178,23 +178,23 @@ function RepliesTable({
                 </td>
                 <td className="px-3 py-3 text-xs">
                   {r.supplierName ?? (
-                    <span className="text-gray-400">—</span>
+                    <span className="text-muted-foreground/60">—</span>
                   )}
                 </td>
                 <td className="px-3 py-3 text-xs">
-                  <div className="font-medium text-gray-900">
+                  <div className="font-medium text-foreground">
                     {r.fromName ?? r.fromEmail ?? "—"}
                   </div>
                   {r.fromName && r.fromEmail && (
-                    <div className="text-gray-500">{r.fromEmail}</div>
+                    <div className="text-muted-foreground">{r.fromEmail}</div>
                   )}
                 </td>
                 <td className="px-3 py-3">
-                  <div className="font-medium text-gray-900">
-                    {r.subject ?? <span className="italic text-gray-400">(no subject)</span>}
+                  <div className="font-medium text-foreground">
+                    {r.subject ?? <span className="italic text-muted-foreground/60">(no subject)</span>}
                   </div>
                   {r.snippet && (
-                    <div className="mt-0.5 line-clamp-2 text-xs text-gray-600">
+                    <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
                       {r.snippet}
                     </div>
                   )}
@@ -204,7 +204,7 @@ function RepliesTable({
                     href={r.gmailUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-xs font-medium text-foreground hover:bg-muted/50"
                   >
                     Open
                     <ExternalLink className="h-3 w-3" />

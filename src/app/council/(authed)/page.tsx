@@ -51,14 +51,14 @@ export default async function CouncilLandingPage() {
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
       <header className="mb-8 flex items-start justify-between gap-4">
         <div>
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-sage-soft px-3 py-1 text-xs font-medium text-sage-deep">
             <ShieldCheck className="h-3.5 w-3.5" />
             GCCC Inspection Folder
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
+          <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             Tarte Kitchen — Council Folder
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-stone-600">
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
             Everything an Environmental Health Officer needs in one place.
             Choose a venue to view licences, FSS certificates, pest reports,
             cleaning &amp; cooling logs, allergen info and training records.
@@ -67,13 +67,13 @@ export default async function CouncilLandingPage() {
       </header>
 
       {expiringSoon.length > 0 && (
-        <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4">
-          <div className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-amber-900">
+        <div className="mb-6 rounded-lg border border-amber-text/20 bg-amber-light p-4">
+          <div className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-amber-text">
             <AlertTriangle className="h-4 w-4" />
             {expiringSoon.length} document
             {expiringSoon.length === 1 ? "" : "s"} expiring or expired
           </div>
-          <ul className="space-y-0.5 text-sm text-amber-900/90">
+          <ul className="space-y-0.5 text-sm text-amber-text/90">
             {expiringSoon.slice(0, 6).map((d, i) => {
               const status = expiryStatus(d.expiresOn)
               return (
@@ -87,8 +87,8 @@ export default async function CouncilLandingPage() {
                   <span
                     className={
                       status.tone === "expired"
-                        ? "shrink-0 text-rose-700"
-                        : "shrink-0 text-amber-800"
+                        ? "shrink-0 text-red-text"
+                        : "shrink-0 text-amber-text"
                     }
                   >
                     {status.label}
@@ -107,18 +107,18 @@ export default async function CouncilLandingPage() {
             <Link
               key={v}
               href={`/council/${v}`}
-              className="group block rounded-xl border border-stone-200 bg-white p-6 shadow-sm transition hover:border-emerald-400 hover:shadow-md"
+              className="group block rounded-xl border border-border bg-card p-6 shadow-sm transition hover:border-sage hover:shadow-md"
             >
               <div className="mb-4 flex items-center justify-between">
-                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-50">
-                  <FileText className="h-5 w-5 text-emerald-700" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-sage-soft">
+                  <FileText className="h-5 w-5 text-sage-deep" />
                 </div>
-                <ArrowRight className="h-5 w-5 text-stone-300 transition group-hover:translate-x-0.5 group-hover:text-emerald-700" />
+                <ArrowRight className="h-5 w-5 text-muted-foreground/60 transition group-hover:translate-x-0.5 group-hover:text-sage-deep" />
               </div>
-              <h2 className="text-lg font-semibold text-stone-900">
+              <h2 className="font-serif text-lg font-semibold text-foreground">
                 {VENUE_LABEL[v].replace(/^Tarte\s+/, "")}
               </h2>
-              <p className="mt-1 text-sm text-stone-500">
+              <p className="mt-1 text-sm text-muted-foreground">
                 {count} document{count === 1 ? "" : "s"} on file
               </p>
             </Link>
@@ -126,7 +126,7 @@ export default async function CouncilLandingPage() {
         })}
       </div>
 
-      <p className="mt-10 text-center text-xs text-stone-400">
+      <p className="mt-10 text-center text-xs text-muted-foreground">
         Compliance under <em>Food Act 2006</em> (Qld) &amp; FSANZ Standard
         3.2.2A. Session expires 12 hours from login.
       </p>

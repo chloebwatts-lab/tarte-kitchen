@@ -55,7 +55,7 @@ function TemplateCard({ t }: { t: ChecklistTemplateSummary }) {
               <span className="font-medium">{t.name}</span>
               {t.isFoodSafety && (
                 <Badge variant="outline" className="gap-1 text-[10px]">
-                  <ShieldCheck className="h-3 w-3 text-emerald-600" />
+                  <ShieldCheck className="h-3 w-3 text-green-text" />
                   HACCP
                 </Badge>
               )}
@@ -85,9 +85,9 @@ function TemplateCard({ t }: { t: ChecklistTemplateSummary }) {
         </div>
 
         {t.todayRun && (
-          <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-gray-100">
+          <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-muted">
             <div
-              className={isDone ? "h-full bg-emerald-500" : "h-full bg-amber-500"}
+              className={isDone ? "h-full bg-green-text" : "h-full bg-amber-text"}
               style={{ width: `${completion}%` }}
             />
           </div>
@@ -97,7 +97,7 @@ function TemplateCard({ t }: { t: ChecklistTemplateSummary }) {
           {t.todayRun ? (
             <Link
               href={`/checklists/runs/${t.todayRun.id}`}
-              className="block w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-center text-xs font-medium text-gray-700 hover:bg-gray-50"
+              className="block w-full rounded-md border border-border bg-card px-3 py-1.5 text-center text-xs font-medium text-foreground hover:bg-muted/50"
             >
               {isDone ? "View" : "Continue"}
             </Link>
@@ -127,7 +127,7 @@ export default async function ChecklistsPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Checklists</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight">Checklists</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Opening, closing, cleaning, and food-safety checks. Each run is
             logged and timestamped for compliance.
@@ -136,21 +136,21 @@ export default async function ChecklistsPage() {
         <div className="flex gap-2">
           <Link
             href="/checklists/food-safety"
-            className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted/50"
           >
             <FileText className="h-4 w-4" />
             Food Safety Log
           </Link>
           <Link
             href="/kitchen"
-            className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted/50"
           >
             <Monitor className="h-4 w-4" />
             iPad view
           </Link>
           <Link
             href="/checklists/templates/new"
-            className="inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800"
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             <Plus className="h-4 w-4" />
             New template
@@ -160,18 +160,18 @@ export default async function ChecklistsPage() {
 
       {/* Overdue alert */}
       {overdue.length > 0 && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+        <div className="rounded-lg border border-red-text/20 bg-red-light p-4">
           <div className="flex items-start gap-2">
-            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-text" />
             <div className="flex-1">
-              <div className="text-sm font-semibold text-red-900">
+              <div className="text-sm font-semibold text-red-text">
                 {overdue.length} checklist{overdue.length === 1 ? "" : "s"} overdue
               </div>
               <div className="mt-2 space-y-1">
                 {overdue.slice(0, 6).map((o, i) => (
                   <div
                     key={`${o.templateId}-${o.venue}-${i}`}
-                    className="flex items-center justify-between rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs"
+                    className="flex items-center justify-between rounded-md border border-red-text/20 bg-card px-3 py-1.5 text-xs"
                   >
                     <div className="min-w-0 flex-1">
                       <span className="font-medium">{o.templateName}</span>
@@ -191,7 +191,7 @@ export default async function ChecklistsPage() {
                     {o.runId && (
                       <Link
                         href={`/checklists/runs/${o.runId}`}
-                        className="ml-2 shrink-0 rounded-md bg-red-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-red-700"
+                        className="ml-2 shrink-0 rounded-md bg-destructive px-2 py-0.5 text-[10px] font-medium text-destructive-foreground hover:bg-destructive/90"
                       >
                         Open
                       </Link>
@@ -205,14 +205,14 @@ export default async function ChecklistsPage() {
       )}
 
       {templates.length === 0 ? (
-        <div className="rounded-lg border-2 border-dashed border-gray-200 py-14 text-center">
+        <div className="rounded-lg border-2 border-dashed border-border py-14 text-center">
           <p className="text-sm text-muted-foreground">
             No checklist templates yet. Create one to start tracking tasks.
           </p>
           <div className="mt-4">
             <Link
               href="/checklists/templates/new"
-              className="inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
               <Plus className="h-4 w-4" />
               Create first template
@@ -232,7 +232,7 @@ export default async function ChecklistsPage() {
               <div className="space-y-4">
                 {groupByCadence(cleaningTemplates).map(({ cadence, rows }) => (
                   <div key={cadence}>
-                    <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <h3 className="mb-2 font-serif text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                       {CADENCE_LABEL[cadence]}
                     </h3>
                     <div className="grid gap-2 sm:grid-cols-2">
@@ -248,14 +248,14 @@ export default async function ChecklistsPage() {
           {complianceTemplates.length > 0 && (
             <section>
               <div className="mb-3 flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                <ShieldCheck className="h-4 w-4 text-green-text" />
                 <h2 className="text-sm font-semibold text-foreground">Food Safety & Compliance</h2>
                 <span className="text-xs text-muted-foreground">({complianceTemplates.length})</span>
               </div>
               <div className="space-y-4">
                 {groupByCadence(complianceTemplates).map(({ cadence, rows }) => (
                   <div key={cadence}>
-                    <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <h3 className="mb-2 font-serif text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                       {CADENCE_LABEL[cadence]}
                     </h3>
                     <div className="grid gap-2 sm:grid-cols-2">

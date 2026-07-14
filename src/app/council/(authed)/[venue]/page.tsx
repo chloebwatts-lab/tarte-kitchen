@@ -222,7 +222,7 @@ export default async function CouncilVenuePage({
       <div className="mb-6 flex items-center justify-between gap-3 print:hidden">
         <Link
           href="/council"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-600 hover:text-stone-900"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           All venues
@@ -231,14 +231,14 @@ export default async function CouncilVenuePage({
       </div>
 
       <header className="mb-6">
-        <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">
+        <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-sage-soft px-3 py-1 text-xs font-medium text-sage-deep">
           <ShieldCheck className="h-3.5 w-3.5" />
           GCCC Inspection Folder
         </div>
-        <h1 className="text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
+        <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
           {VENUE_LABEL[venue]}
         </h1>
-        <p className="mt-2 text-sm text-stone-600">
+        <p className="mt-2 text-sm text-muted-foreground">
           Tap any document to open. Hand the iPad to the EHO or hit print for a
           paper pack.
         </p>
@@ -281,19 +281,19 @@ export default async function CouncilVenuePage({
           return (
             <section
               key={s.key}
-              className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm print:break-inside-avoid"
+              className="rounded-xl border border-border bg-card p-5 shadow-sm print:break-inside-avoid"
             >
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50">
-                    <s.Icon className="h-5 w-5 text-emerald-700" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sage-soft">
+                    <s.Icon className="h-5 w-5 text-sage-deep" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-stone-900">
+                    <h2 className="font-serif text-lg font-semibold text-foreground">
                       {s.title}
                     </h2>
-                    <p className="text-sm text-stone-500">{s.blurb}</p>
-                    <p className="mt-0.5 text-[11px] uppercase tracking-wide text-stone-400">
+                    <p className="text-sm text-muted-foreground">{s.blurb}</p>
+                    <p className="mt-0.5 font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                       {s.legal}
                     </p>
                   </div>
@@ -308,11 +308,11 @@ export default async function CouncilVenuePage({
               )}
 
               {sectionDocs.length === 0 ? (
-                <div className="rounded-md border border-dashed border-stone-300 bg-stone-50 px-4 py-6 text-center text-sm text-stone-500">
+                <div className="rounded-lg border border-dashed border-input bg-muted/50 px-4 py-6 text-center text-sm text-muted-foreground">
                   No documents uploaded yet.
                 </div>
               ) : (
-                <ul className="divide-y divide-stone-100">
+                <ul className="divide-y divide-border">
                   {sectionDocs.map((d) => {
                     const status = expiryStatus(d.expiresOn)
                     return (
@@ -326,21 +326,21 @@ export default async function CouncilVenuePage({
                               href={`/api/council/document/${d.id}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="font-medium text-stone-900 hover:text-emerald-700 hover:underline"
+                              className="font-medium text-foreground hover:text-sage-deep hover:underline"
                             >
                               {d.title}
                             </a>
-                            <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] uppercase tracking-wide text-stone-600">
+                            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">
                               {TYPE_LABEL[d.type]}
                             </span>
                             {status.tone !== "none" && (
                               <span
                                 className={
                                   status.tone === "expired"
-                                    ? "rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-medium text-rose-800"
+                                    ? "rounded-full bg-red-light px-2 py-0.5 text-[11px] font-medium text-red-text"
                                     : status.tone === "warn"
-                                      ? "rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800"
-                                      : "rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800"
+                                      ? "rounded-full bg-amber-light px-2 py-0.5 text-[11px] font-medium text-amber-text"
+                                      : "rounded-full bg-green-light px-2 py-0.5 text-[11px] font-medium text-green-text"
                                 }
                               >
                                 {status.tone === "expired" && (
@@ -351,11 +351,11 @@ export default async function CouncilVenuePage({
                             )}
                           </div>
                           {d.description && (
-                            <p className="mt-0.5 text-sm text-stone-500">
+                            <p className="mt-0.5 text-sm text-muted-foreground">
                               {d.description}
                             </p>
                           )}
-                          <p className="mt-1 text-xs text-stone-400">
+                          <p className="mt-1 text-xs text-muted-foreground">
                             Issued {fmtDate(d.issuedOn)} · Expires{" "}
                             {fmtDate(d.expiresOn)} · {fmtSize(d.fileSize)} ·{" "}
                             {d.fileName}
@@ -375,7 +375,7 @@ export default async function CouncilVenuePage({
         })}
       </div>
 
-      <p className="mt-10 text-center text-xs text-stone-400">
+      <p className="mt-10 text-center text-xs text-muted-foreground">
         Tarte Kitchen — generated{" "}
         {new Date().toLocaleString("en-AU", {
           timeZone: "Australia/Brisbane",
@@ -416,7 +416,7 @@ function trainingComplete(r: TrainingRow): boolean {
 function TrainingRecordsTable({ records }: { records: TrainingRow[] }) {
   if (records.length === 0) {
     return (
-      <div className="mb-4 rounded-md border border-dashed border-stone-300 bg-stone-50 px-4 py-4 text-sm text-stone-500">
+      <div className="mb-4 rounded-lg border border-dashed border-input bg-muted/50 px-4 py-4 text-sm text-muted-foreground">
         No staff training records entered yet. Managers add them at{" "}
         <span className="font-medium">/kitchen → Staff training</span> on the
         venue iPad.
@@ -427,23 +427,23 @@ function TrainingRecordsTable({ records }: { records: TrainingRow[] }) {
   const cell = "px-2 py-1.5 text-left align-top"
   const done = (d: Date | null) =>
     d ? (
-      <span className="whitespace-nowrap text-emerald-700">{fmtDate(d)}</span>
+      <span className="whitespace-nowrap text-green-text">{fmtDate(d)}</span>
     ) : (
-      <span className="text-stone-400">—</span>
+      <span className="text-muted-foreground">—</span>
     )
   return (
     <div className="mb-4">
-      <p className="mb-2 text-sm text-stone-600">
+      <p className="mb-2 text-sm text-muted-foreground">
         Live register from the venue iPad:{" "}
         <span className="font-medium">
           {complete} of {records.length}
         </span>{" "}
         staff records complete.
       </p>
-      <div className="overflow-x-auto rounded-md border border-stone-200">
+      <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full min-w-[720px] text-xs">
           <thead>
-            <tr className="bg-stone-100 text-stone-600">
+            <tr className="bg-muted text-muted-foreground">
               <th className={cell}>Staff</th>
               <th className={cell}>Role</th>
               <th className={cell}>Online course</th>
@@ -454,19 +454,19 @@ function TrainingRecordsTable({ records }: { records: TrainingRow[] }) {
               <th className={cell}>Verified</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-stone-100">
+          <tbody className="divide-y divide-border">
             {records.map((r) => (
-              <tr key={r.id} className={trainingComplete(r) ? "" : "bg-amber-50/50"}>
-                <td className={`${cell} font-medium text-stone-900`}>{r.staffName}</td>
+              <tr key={r.id} className={trainingComplete(r) ? "" : "bg-amber-light/50"}>
+                <td className={`${cell} font-medium text-foreground`}>{r.staffName}</td>
                 <td className={cell}>{r.role ?? "—"}</td>
                 <td className={cell}>
                   {r.onlineCourseDate ? (
-                    <span className="whitespace-nowrap text-emerald-700">
+                    <span className="whitespace-nowrap text-green-text">
                       {r.onlineCourse ?? "Done"} · {fmtDate(r.onlineCourseDate)}
                       {r.certificateSighted ? " ✓cert" : ""}
                     </span>
                   ) : (
-                    <span className="text-stone-400">—</span>
+                    <span className="text-muted-foreground">—</span>
                   )}
                 </td>
                 <td className={cell}>{done(r.inductionAt)}</td>
@@ -475,12 +475,12 @@ function TrainingRecordsTable({ records }: { records: TrainingRow[] }) {
                 <td className={cell}>{done(r.recordsTrainedAt)}</td>
                 <td className={cell}>
                   {r.verifiedBy ? (
-                    <span className="whitespace-nowrap text-emerald-700">
+                    <span className="whitespace-nowrap text-green-text">
                       {r.verifiedBy}
                       {r.verifiedAt ? ` · ${fmtDate(r.verifiedAt)}` : ""}
                     </span>
                   ) : (
-                    <span className="text-stone-400">—</span>
+                    <span className="text-muted-foreground">—</span>
                   )}
                 </td>
               </tr>
@@ -508,25 +508,25 @@ function LiveTile({
   return (
     <Link
       href={href}
-      className="block rounded-lg border border-stone-200 bg-white p-3 shadow-sm transition hover:border-emerald-400 hover:shadow"
+      className="block rounded-xl border-[1.5px] border-border bg-card p-4 shadow-sm transition hover:border-sage hover:shadow"
     >
-      <div className="flex items-center gap-2 text-stone-500">
+      <div className="flex items-center gap-2 text-muted-foreground">
         <Icon className="h-4 w-4" />
-        <span className="text-xs font-medium uppercase tracking-wide">
+        <span className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em]">
           {label}
         </span>
       </div>
       {value !== null ? (
-        <div className="mt-1 text-2xl font-semibold text-stone-900">
+        <div className="mt-1 font-serif text-2xl font-semibold text-foreground">
           {value}
         </div>
       ) : (
-        <div className="mt-1 text-base font-semibold text-stone-900">
+        <div className="mt-1 text-base font-semibold text-foreground">
           {subtitle ?? "Open →"}
         </div>
       )}
       {subtitle && value !== null && (
-        <div className="mt-0.5 text-xs text-stone-500">{subtitle}</div>
+        <div className="mt-0.5 text-xs text-muted-foreground">{subtitle}</div>
       )}
     </Link>
   )

@@ -46,11 +46,11 @@ export function PendingReplyCard(props: PendingReplyCardProps) {
 
   if (result.kind === "posted") {
     return (
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
+      <div className="rounded-xl border border-green-text/20 bg-green-light p-4">
+        <div className="flex items-center gap-2 text-sm font-semibold text-green-text">
           <Check className="h-4 w-4" /> Posted to Google
         </div>
-        <p className="mt-1 text-xs text-emerald-700">
+        <p className="mt-1 text-xs text-green-text/80">
           {props.venueLabel} · {props.authorName ?? "Anonymous"}
         </p>
       </div>
@@ -58,14 +58,14 @@ export function PendingReplyCard(props: PendingReplyCardProps) {
   }
   if (result.kind === "skipped") {
     return (
-      <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 text-sm text-stone-500">
+      <div className="rounded-xl border border-border bg-muted/50 p-4 text-sm text-muted-foreground">
         Skipped · {props.venueLabel} · {props.authorName ?? "Anonymous"}
       </div>
     )
   }
 
   return (
-    <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
       {/* Review header */}
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-0.5">
@@ -74,38 +74,38 @@ export function PendingReplyCard(props: PendingReplyCardProps) {
               key={i}
               className={`h-3.5 w-3.5 ${
                 i < props.rating
-                  ? "fill-amber-400 text-amber-400"
-                  : "fill-stone-200 text-stone-200"
+                  ? "fill-gold text-gold"
+                  : "fill-border text-border"
               }`}
             />
           ))}
         </div>
-        <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-stone-600">
+        <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           {props.venueLabel}
         </span>
-        <span className="ml-auto text-xs text-stone-400">
+        <span className="ml-auto text-xs text-muted-foreground">
           {props.publishedLabel} · {props.authorName ?? "Anonymous"}
         </span>
       </div>
 
       {/* Review text */}
       {props.text && (
-        <p className="mb-3 whitespace-pre-wrap text-sm leading-relaxed text-stone-700">
+        <p className="mb-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
           {props.text}
         </p>
       )}
 
       {/* Draft reply — view or edit */}
-      <div className="mb-3 rounded-md border border-stone-200 bg-stone-50 p-3">
+      <div className="mb-3 rounded-lg border border-border bg-muted/50 p-3">
         <div className="mb-1.5 flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
+          <span className="font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Suggested reply
           </span>
           {!editing && (
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium text-stone-600 hover:bg-stone-200"
+              className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-border"
             >
               <Pencil className="h-3 w-3" /> Edit
             </button>
@@ -116,10 +116,10 @@ export function PendingReplyCard(props: PendingReplyCardProps) {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={Math.max(4, Math.ceil(draft.length / 90))}
-            className="w-full resize-y rounded-md border border-stone-300 bg-white px-3 py-2 text-sm leading-relaxed text-stone-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="w-full resize-y rounded-md border border-input bg-card px-3 py-2 text-sm leading-relaxed text-foreground focus:border-sage-deep focus:outline-none focus:ring-1 focus:ring-sage-deep"
           />
         ) : (
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-stone-800">
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
             {draft}
           </p>
         )}
@@ -127,12 +127,12 @@ export function PendingReplyCard(props: PendingReplyCardProps) {
 
       {/* Fallback note (if last action returned posted:false) */}
       {result.kind === "fallback" && (
-        <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        <div className="mb-3 rounded-lg border border-amber-text/20 bg-amber-light px-3 py-2 text-xs text-amber-text">
           Couldn't auto-post: {result.reason}
         </div>
       )}
       {result.kind === "error" && (
-        <div className="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-900">
+        <div className="mb-3 rounded-lg border border-red-text/20 bg-red-light px-3 py-2 text-xs text-red-text">
           {result.error}
         </div>
       )}
@@ -143,7 +143,7 @@ export function PendingReplyCard(props: PendingReplyCardProps) {
           type="button"
           onClick={onApprove}
           disabled={isPending}
-          className="inline-flex items-center gap-1.5 rounded-md bg-emerald-700 px-3.5 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-md bg-sage-deep px-3.5 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-sage-deep/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Check className="h-4 w-4" />
           {isPending ? "Posting…" : "Approve & post"}
@@ -152,13 +152,13 @@ export function PendingReplyCard(props: PendingReplyCardProps) {
           type="button"
           onClick={onSkip}
           disabled={isPending}
-          className="inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3.5 py-1.5 text-sm font-medium text-stone-600 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-md border border-input bg-card px-3.5 py-1.5 text-sm font-medium text-muted-foreground transition hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <X className="h-4 w-4" />
           Skip
         </button>
         {!props.isGbpFormat && (
-          <span className="ml-2 text-[11px] text-amber-700">
+          <span className="ml-2 text-[11px] text-amber-text">
             (Places-only review — approve will fall back to manual copy)
           </span>
         )}
