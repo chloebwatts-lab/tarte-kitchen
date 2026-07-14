@@ -119,7 +119,7 @@ export function VenueSalesTile({ snapshot }: { snapshot: VenueSalesSnapshot }) {
         {/* Top sellers */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <p className="mb-2 font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Top by quantity (this week)
             </p>
             {snapshot.topSellersQty.length === 0 ? (
@@ -141,7 +141,7 @@ export function VenueSalesTile({ snapshot }: { snapshot: VenueSalesSnapshot }) {
             )}
           </div>
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <p className="mb-2 font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Top by revenue (this week)
             </p>
             {snapshot.topSellersRevenue.length === 0 ? (

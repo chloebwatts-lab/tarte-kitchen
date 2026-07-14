@@ -633,20 +633,27 @@ function Stat({
 }) {
   const toneClass =
     tone === "red"
-      ? "border-red-200 bg-red-50"
+      ? "text-red-text"
       : tone === "amber"
-        ? "border-amber-200 bg-amber-50"
+        ? "text-amber-text"
         : tone === "green"
-          ? "border-emerald-200 bg-emerald-50"
-          : "border-border bg-muted/30"
+          ? "text-green-text"
+          : "text-foreground"
   return (
-    <div className={cn("rounded-md border p-3", toneClass)}>
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+    <div className="rounded-xl border-[1.5px] border-border bg-card p-4">
+      <div className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         {label}
       </div>
-      <div className="mt-1 text-xl font-semibold tabular-nums">{value}</div>
+      <div
+        className={cn(
+          "mt-1.5 font-serif text-2xl font-semibold tabular-nums",
+          toneClass
+        )}
+      >
+        {value}
+      </div>
       {sub && (
-        <div className="mt-0.5 text-[11px] text-muted-foreground">{sub}</div>
+        <div className="mt-1 text-[11px] text-muted-foreground">{sub}</div>
       )}
     </div>
   )

@@ -12,14 +12,14 @@ function pctColor(pct: number | null, kind: "sales" | "waste"): string {
   if (pct === null) return "text-muted-foreground"
   if (kind === "sales") {
     // % of daily target — higher is better.
-    if (pct >= 95) return "text-emerald-700"
-    if (pct >= 80) return "text-amber-700"
-    return "text-red-700"
+    if (pct >= 95) return "text-green-text"
+    if (pct >= 80) return "text-amber-text"
+    return "text-red-text"
   }
   // waste week-over-week — lower is better, negative = improvement.
-  if (pct <= -10) return "text-emerald-700"
+  if (pct <= -10) return "text-green-text"
   if (pct <= 10) return "text-muted-foreground"
-  return "text-red-700"
+  return "text-red-text"
 }
 
 export function DashboardHighlights({
@@ -41,12 +41,12 @@ export function DashboardHighlights({
         href="/dashboard"
         className="group rounded-xl border border-gray-200 bg-white p-4 transition hover:shadow-sm"
       >
-        <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+        <div className="flex items-center gap-1.5 font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           <Banknote className="h-3.5 w-3.5" />
           Sales today
         </div>
         <div className="mt-2 flex items-baseline gap-2">
-          <span className="text-2xl font-bold tabular-nums">
+          <span className="font-serif text-2xl font-semibold tabular-nums">
             ${Math.round(salesToday.totalRevenue).toLocaleString()}
           </span>
           {salesPct !== null && (
@@ -94,12 +94,12 @@ export function DashboardHighlights({
         href="/wastage"
         className="group rounded-xl border border-gray-200 bg-white p-4 transition hover:shadow-sm"
       >
-        <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+        <div className="flex items-center gap-1.5 font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           <Trash2 className="h-3.5 w-3.5" />
           Waste this week
         </div>
         <div className="mt-2 flex items-baseline gap-2">
-          <span className="text-2xl font-bold tabular-nums">
+          <span className="font-serif text-2xl font-semibold tabular-nums">
             ${Math.round(waste.totalCost).toLocaleString()}
           </span>
           {waste.weekOverWeekChange !== null && (
@@ -141,14 +141,14 @@ export function DashboardHighlights({
           supplierSpike ? "border-red-200 bg-red-50" : "border-gray-200 bg-white"
         }`}
       >
-        <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+        <div className="flex items-center gap-1.5 font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           <TrendingUp className="h-3.5 w-3.5" />
           Top supplier spike
         </div>
         {supplierSpike ? (
           <>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-2xl font-bold tabular-nums text-red-700">
+              <span className="font-serif text-2xl font-semibold tabular-nums text-red-text">
                 +{supplierSpike.pctIncrease.toFixed(0)}%
               </span>
               <span className="text-sm tabular-nums text-muted-foreground">
@@ -165,7 +165,7 @@ export function DashboardHighlights({
           </>
         ) : (
           <>
-            <div className="mt-2 text-2xl font-bold tabular-nums text-emerald-700">
+            <div className="mt-2 font-serif text-2xl font-semibold tabular-nums text-green-text">
               No spike
             </div>
             <p className="mt-0.5 text-[11px] text-muted-foreground">

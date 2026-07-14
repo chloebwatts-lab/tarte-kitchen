@@ -446,22 +446,27 @@ function Tile({
 }) {
   const toneCls =
     valueTone === "red"
-      ? "text-red-700"
+      ? "text-red-text"
       : valueTone === "amber"
-      ? "text-amber-700"
+      ? "text-amber-text"
       : valueTone === "green"
-      ? "text-green-700"
+      ? "text-green-text"
       : "text-foreground"
   return (
-    <div className="rounded-md border border-border bg-background p-3">
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+    <div className="rounded-xl border-[1.5px] border-border bg-card p-4">
+      <div className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         {label}
       </div>
-      <div className={cn("mt-1 text-xl font-semibold tabular-nums", toneCls)}>
+      <div
+        className={cn(
+          "mt-1.5 font-serif text-2xl font-semibold tabular-nums",
+          toneCls
+        )}
+      >
         {value}
       </div>
       {sub && (
-        <div className="mt-0.5 text-[11px] text-muted-foreground">{sub}</div>
+        <div className="mt-1 text-[11px] text-muted-foreground">{sub}</div>
       )}
     </div>
   )

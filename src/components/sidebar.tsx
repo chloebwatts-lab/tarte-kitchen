@@ -147,27 +147,27 @@ export function Sidebar({
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex flex-col border-r border-border bg-background transition-all duration-200",
+          "fixed inset-y-0 left-0 z-40 flex flex-col bg-sage transition-all duration-200",
           collapsed ? "w-16" : "w-64",
           "max-md:shadow-lg",
           collapsed && "max-md:-translate-x-full"
         )}
       >
         {/* Brand */}
-        <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/30 px-4">
           {!collapsed && (
             <span className="flex items-baseline gap-2.5">
-              <span className="font-serif text-[22px] font-semibold leading-none tracking-tight text-foreground">
+              <span className="font-serif text-[22px] font-semibold leading-none tracking-tight text-white">
                 Tarte.
               </span>
-              <span className="font-serif text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              <span className="font-serif text-[11px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
                 Kitchen
               </span>
             </span>
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="rounded-md p-1.5 text-foreground/60 hover:bg-white/40 hover:text-foreground"
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? (
@@ -184,9 +184,9 @@ export function Sidebar({
             <div key={group.label ?? gi}>
               {group.label ? (
                 collapsed ? (
-                  <div className="mx-2 my-2 border-t border-border" />
+                  <div className="mx-2 my-2 border-t border-white/30" />
                 ) : (
-                  <div className="px-3 pb-1 pt-4 font-serif text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
+                  <div className="px-3 pb-1 pt-4 font-serif text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/60">
                     {group.label}
                   </div>
                 )
@@ -204,8 +204,8 @@ export function Sidebar({
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
                         isActive
-                          ? "bg-secondary font-medium text-secondary-foreground"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          ? "bg-white font-medium text-foreground shadow-sm"
+                          : "text-foreground/90 hover:bg-white/50 hover:text-foreground"
                       )}
                     >
                       <item.icon
@@ -224,9 +224,9 @@ export function Sidebar({
         </nav>
 
         {/* Footer */}
-        <div className="shrink-0 border-t border-border p-3">
+        <div className="shrink-0 border-t border-white/30 p-3">
           {!collapsed && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-foreground/60">
               Tarte Bakery &amp; Café
             </span>
           )}
