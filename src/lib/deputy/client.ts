@@ -168,15 +168,20 @@ export async function listOpUnits(): Promise<DeputyOpUnit[]> {
 export async function listEmployees(): Promise<DeputyEmployee[]> {
   const PAGE = 500
   const out: DeputyEmployee[] = []
-  for (let start = 0; ; start += PAGE) {
+  // Deputy IGNORES ?start= on plain resource GETs and returns the same
+  // first 500 rows for every page — pagination only works via the QUERY
+  // endpoint's POST body.
+  for (let start = 0; start < 20000; start += PAGE) {
     const page = await deputyFetch<DeputyEmployee[]>(
-      `/api/v1/resource/Employee?start=${start}`
+      "/api/v1/resource/Employee/QUERY",
+      {
+        method: "POST",
+        body: { search: {}, max: PAGE, start, sort: { Id: "asc" } },
+      }
     )
     if (!Array.isArray(page) || page.length === 0) break
     out.push(...page)
     if (page.length < PAGE) break
-    // Safety cap so a misbehaving server can't put us in an infinite loop.
-    if (start >= 10000) break
   }
   return out
 }
