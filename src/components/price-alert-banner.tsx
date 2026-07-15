@@ -28,13 +28,13 @@ export function PriceAlertBanner() {
   return (
     <div className="flex items-center justify-between border-b border-gold bg-gold-soft px-4 py-2 md:px-6">
       <Link
-        href="/suppliers"
+        href="/price-alerts"
         className="flex items-center gap-2 text-sm text-amber-text hover:underline"
       >
         <AlertTriangle className="h-4 w-4" />
         <span>
-          {count} price change{count !== 1 ? "s" : ""} detected — review in
-          Suppliers
+          {count} price alert{count !== 1 ? "s" : ""} open — review in Price
+          Alerts
         </span>
       </Link>
       <button

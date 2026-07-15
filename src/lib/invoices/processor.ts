@@ -178,6 +178,9 @@ export async function applyPriceChanges(invoiceId: string): Promise<number> {
       priceChanged: true,
       priceApproved: null,
       ingredientId: { not: null },
+      // Only lines whose price passed the units.ts gate — raw unitPrice on a
+      // pack-priced line is NOT a purchase price.
+      normalisedUnitPrice: { not: null },
     },
   })
 
@@ -186,11 +189,23 @@ export async function applyPriceChanges(invoiceId: string): Promise<number> {
   // Import dynamically to avoid circular deps
   const { bulkUpdatePrices } = await import("@/lib/actions/ingredients")
 
+  // Ingredient.purchasePrice covers purchaseQuantity purchase-units, while
+  // normalisedUnitPrice is per single purchase-unit — multiply back up.
+  // (The old code wrote the RAW invoice unitPrice as the purchasePrice,
+  // so approving a carton-priced alert corrupted a per-kg ingredient and
+  // every invoice after that re-alerted against the corrupted price.)
+  const ingredients = await db.ingredient.findMany({
+    where: { id: { in: changedItems.map((i) => i.ingredientId!) } },
+    select: { id: true, purchaseQuantity: true },
+  })
+  const qtyById = new Map(ingredients.map((i) => [i.id, Number(i.purchaseQuantity)]))
+
   const updates = changedItems
-    .filter((item) => item.ingredientId !== null)
+    .filter((item) => item.ingredientId !== null && qtyById.has(item.ingredientId))
     .map((item) => ({
       id: item.ingredientId!,
-      purchasePrice: Number(item.unitPrice),
+      purchasePrice:
+        Number(item.normalisedUnitPrice) * qtyById.get(item.ingredientId!)!,
     }))
 
   await bulkUpdatePrices(updates)

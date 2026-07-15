@@ -103,6 +103,12 @@ export function unitsAreCompatible(a: string | null, b: string | null): boolean 
 const PACK_REGEX =
   /(\d+(?:\.\d+)?)\s*(?:x\s*(\d+(?:\.\d+)?)\s*)?(kgs?|kilos?|kilograms?|gms?|gr|grams?|ml|millilitres?|milliliters?|l|lt|ltrs?|litres?|liters?|ea|each|pcs?|pieces?|dz|dozen)\b/i
 
+// Reversed multiplier form: "1L x 6", "400ml x 12" (unit before the count).
+// Tried FIRST — the forward regex would otherwise match just the "1L" and
+// drop the ×6.
+const PACK_REGEX_REVERSED =
+  /(\d+(?:\.\d+)?)\s*(kgs?|kilos?|kilograms?|gms?|gr|grams?|ml|millilitres?|milliliters?|l|lt|ltrs?|litres?|liters?|ea|each|pcs?|pieces?|dz|dozen)\s*x\s*(\d+(?:\.\d+)?)\b/i
+
 export interface ParsedPackSize {
   /** Total quantity in canonical unit (e.g. kg/L/ea). */
   qty: number
@@ -111,11 +117,21 @@ export interface ParsedPackSize {
 }
 
 export function parsePackSize(description: string): ParsedPackSize | null {
-  const m = description.match(PACK_REGEX)
-  if (!m) return null
-  const a = parseFloat(m[1])
-  const b = m[2] ? parseFloat(m[2]) : null
-  const raw = m[3].toLowerCase()
+  let a: number
+  let b: number | null
+  let raw: string
+  const rev = description.match(PACK_REGEX_REVERSED)
+  if (rev) {
+    a = parseFloat(rev[1])
+    raw = rev[2].toLowerCase()
+    b = parseFloat(rev[3])
+  } else {
+    const m = description.match(PACK_REGEX)
+    if (!m) return null
+    a = parseFloat(m[1])
+    b = m[2] ? parseFloat(m[2]) : null
+    raw = m[3].toLowerCase()
+  }
   const qty = b !== null ? a * b : a
 
   if (/^(kg|kilo|kilogram)/.test(raw)) return { qty, unit: "kg" }
@@ -145,22 +161,57 @@ export function parsePackSize(description: string): ParsedPackSize | null {
 export function inferConversionFromPack(
   pack: ParsedPackSize,
   storedUnit: string,
-  storedQuantity: number
+  // Kept for call-site compatibility; the correct factor doesn't depend on
+  // the ingredient's purchaseQuantity (storedUnitPrice already divides by it).
+  _storedQuantity: number
 ): number | null {
   const stored = normaliseUnit(storedUnit)
 
-  // Ingredient stored in the same canonical unit family as the pack.
-  if (pack.unit === "kg" && stored === "kg") return pack.qty / storedQuantity
-  if (pack.unit === "kg" && stored === "g") return (pack.qty * 1000) / storedQuantity
-  if (pack.unit === "l" && stored === "l") return pack.qty / storedQuantity
-  if (pack.unit === "l" && stored === "ml") return (pack.qty * 1000) / storedQuantity
-  if (pack.unit === "ea" && stored === "ea") return pack.qty / storedQuantity
+  // The invoice line is priced per PACK (unit didn't match the stored unit,
+  // e.g. "bag"/"CTN"/"PKT") and the description tells us how much the pack
+  // holds. Price per stored unit = pack price ÷ (pack contents expressed in
+  // stored units), so the multiplier is 1 / contents-in-stored-units.
+  //
+  // The previous formula multiplied by contents and divided by
+  // purchaseQuantity — "SUGAR Brown 15kg bag $35.90" against sugar stored
+  // per-kg came out as $35.90/kg (+1237%) instead of $2.39/kg (−11%). That
+  // one inversion produced most of the bogus >200% price alerts.
+  if (pack.unit === "kg" && stored === "kg") return 1 / pack.qty
+  if (pack.unit === "kg" && stored === "g") return 1 / (pack.qty * 1000)
+  if (pack.unit === "l" && stored === "l") return 1 / pack.qty
+  if (pack.unit === "l" && stored === "ml") return 1 / (pack.qty * 1000)
+  if (pack.unit === "ea" && stored === "ea") return 1 / pack.qty
 
   // Ingredient stored as a pack-unit (carton, case, bag) with a fixed
   // purchaseQuantity — interpret purchaseQuantity as "1 carton contains
   // <purchaseQuantity> base units".  We can't trust the pack-unit alone
   // without a base measure; needs explicit conversion.
   return null
+}
+
+// Metric scaling between weight units (kg↔g) and volume units (l↔ml).
+// `unitsAreCompatible` treats kg and g as different groups, so a per-kg
+// invoice line against a per-g ingredient previously fell through to
+// pack-parsing (or a unit-changed flag) instead of a simple ×1/1000.
+// Returns the multiplier converting an invoice per-unit price into the
+// stored per-unit price, or null when the units aren't both metric
+// siblings of the same family.
+const METRIC_BASE: Record<string, { family: "mass" | "vol"; toBase: number }> = {
+  kg: { family: "mass", toBase: 1000 },
+  g: { family: "mass", toBase: 1 },
+  l: { family: "vol", toBase: 1000 },
+  ml: { family: "vol", toBase: 1 },
+}
+
+export function metricConversionFactor(
+  invoiceUnit: string | null,
+  storedUnit: string
+): number | null {
+  const inv = METRIC_BASE[normaliseUnit(invoiceUnit)]
+  const sto = METRIC_BASE[normaliseUnit(storedUnit)]
+  if (!inv || !sto || inv.family !== sto.family) return null
+  // $ per invoice-unit → $ per stored-unit: scale by size ratio.
+  return sto.toBase / inv.toBase
 }
 
 export function compareUnits(
@@ -194,7 +245,9 @@ export function compareUnits(
     }
   }
 
-  // 2. Mapping has a stored conversion factor → apply it.
+  // 2. Mapping has a stored conversion factor → apply it. Chef-confirmed
+  // knowledge outranks unit-label heuristics (a mapping can encode "this
+  // 'L'-labelled line is really priced per 5L bottle").
   if (mappingConversion && Number.isFinite(mappingConversion) && mappingConversion > 0) {
     const invoiceInStored = invoiceUnitPrice * mappingConversion
     const changeAmount = invoiceInStored - storedUnitPrice
@@ -205,6 +258,23 @@ export function compareUnits(
       invoiceUnitPriceInStoredUnits: invoiceInStored,
       conversionFactor: mappingConversion,
       conversionSource: "mapping",
+      changePct,
+      changeAmount,
+    }
+  }
+
+  // 2.5. Metric siblings (kg↔g, l↔ml) → deterministic scale factor.
+  const metricFactor = metricConversionFactor(line.unit, ingredient.purchaseUnit)
+  if (metricFactor !== null) {
+    const invoiceInStored = invoiceUnitPrice * metricFactor
+    const changeAmount = invoiceInStored - storedUnitPrice
+    const changePct = (changeAmount / storedUnitPrice) * 100
+    return {
+      kind: "converted",
+      storedUnitPrice,
+      invoiceUnitPriceInStoredUnits: invoiceInStored,
+      conversionFactor: metricFactor,
+      conversionSource: "description",
       changePct,
       changeAmount,
     }
@@ -277,7 +347,12 @@ export function evaluatePriceChange(
   }
 
   if (result.kind === "same_unit") {
-    const changed = Math.abs(result.changeAmount) >= 0.01
+    // Percentage-led threshold: the old flat ">= 1 cent" rule both let
+    // cent-level flapping through on per-kg lines AND suppressed every
+    // alert on per-g/per-ml ingredients (where a whole cent is a 100%
+    // move). ≥1% with a tiny absolute epsilon handles both scales.
+    const changed =
+      Math.abs(result.changePct) >= 1 && Math.abs(result.changeAmount) >= 0.0001
     return {
       priceChanged: changed,
       unitChanged: false,
@@ -289,7 +364,8 @@ export function evaluatePriceChange(
   }
 
   if (result.kind === "converted") {
-    const changed = Math.abs(result.changeAmount) >= 0.01
+    const changed =
+      Math.abs(result.changePct) >= 1 && Math.abs(result.changeAmount) >= 0.0001
     return {
       priceChanged: changed,
       unitChanged: false,

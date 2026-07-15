@@ -27,6 +27,7 @@ import {
   Star,
   Gauge,
   Mail,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -67,6 +68,7 @@ const navGroups: NavGroup[] = [
     label: "Ordering",
     items: [
       { label: "Suppliers", href: "/suppliers", icon: Truck },
+      { label: "Price Alerts", href: "/price-alerts", icon: TrendingUp },
       { label: "Orders", href: "/orders", icon: ShoppingCart },
       { label: "Order Checklists", href: "/order-checklists", icon: ClipboardCheck },
       { label: "Par Levels", href: "/par-levels", icon: Gauge },

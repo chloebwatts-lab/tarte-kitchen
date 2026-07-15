@@ -184,6 +184,12 @@ model Ingredient {
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
+  /// Canonical name — brand/pack-size stripped, used for cross-supplier
+  /// grouping in the price alert system (so "American Burger cheese" and
+  /// "Cheese Slices Burger Hi Melt" cluster as one item). Backfilled
+  /// 2026-06-13. Populated by deterministic strip + sorted tokens.
+  canonicalName        String?
+
   // Relations
   priceHistory         PriceHistory[]
   supplierPrices       SupplierPrice[]
@@ -196,8 +202,10 @@ model Ingredient {
   stocktakeItems       StocktakeItem[]
   purchaseOrderLines   PurchaseOrderLine[]
   approvedSupplierItems ApprovedSupplierItem[]
+  priceAlerts          PriceAlert[]
 
   @@unique([name, supplierId])
+  @@index([canonicalName])
 }
 
 /// Per-venue par level for an ingredient. Replaces the legacy Ingredient.parLevel
@@ -1630,6 +1638,57 @@ model UnknownInvoiceSender {
   resolvedAt      DateTime?
 
   @@index([resolved, senderEmail])
+}
+
+// ============================================================
+// PRICE ALERTS v2 — produce vs stable streams (built 2026-06-13)
+// Replaces InvoiceLineItem.priceChanged single-row flag with a
+// canonical-name-grouped alert state.
+// See docs/price-alert-rebuild.md for design.
+// ============================================================
+
+enum PriceAlertStream {
+  PRODUCE    // fresh produce: fruit / veg / herb / mushroom / salad
+  STABLE     // everything else: dairy / dry / pantry / etc.
+}
+
+enum PriceAlertStatus {
+  OPEN
+  ACCEPTED   // chef confirmed new price → flowed to Ingredient.purchasePrice
+  DISMISSED  // chef rejected (e.g. unit-mismatch ghost)
+}
+
+model PriceAlert {
+  id                  String              @id @default(cuid())
+  ingredientId        String
+  ingredient          Ingredient          @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  /// Canonical group — so cross-supplier moves on the same effective product
+  /// surface as one row, not N.
+  canonicalName       String
+  stream              PriceAlertStream
+  /// Current invoice-derived price (per currentUnit).
+  currentPrice        Decimal             @db.Decimal(12, 4)
+  currentUnit         String
+  /// Last known accepted price (per same unit). For PRODUCE this is the
+  /// trailing-median target; for STABLE this is Ingredient.purchasePrice.
+  priorPrice          Decimal             @db.Decimal(12, 4)
+  /// PRODUCE only — 4-week trailing median used as the comparison floor.
+  priorPeriodMedian   Decimal?            @db.Decimal(12, 4)
+  changePct           Decimal             @db.Decimal(8, 2)
+  /// Estimated weekly $ impact — usage rate × delta. Used for digest sort.
+  weeklyImpactDollars Decimal?            @db.Decimal(10, 2)
+  status              PriceAlertStatus    @default(OPEN)
+  /// Supplier that triggered this alert (so chef knows who to chase).
+  supplierName        String?
+  firstSeenAt         DateTime            @default(now())
+  lastSeenAt          DateTime            @default(now())
+  resolvedAt          DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([status, stream])
+  @@index([canonicalName])
+  @@index([ingredientId])
 }
 
 // ============================================================
