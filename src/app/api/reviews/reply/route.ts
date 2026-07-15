@@ -121,7 +121,11 @@ async function runApprove(
   if (result.posted) {
     await db.googleReview.update({
       where: { id: review.id },
-      data: { replyStatus: "POSTED", replyPostedAt: new Date() },
+      data: {
+        replyStatus: "POSTED",
+        replyPostedAt: new Date(),
+        replyText, // mirror the live owner reply, same as the dashboard action
+      },
     })
     return htmlPage(
       "Reply posted",

@@ -351,17 +351,23 @@ async function buildReviewsSection(week: DigestWeek): Promise<ReviewsSection> {
       text: r.text ? truncate(r.text, 400) : null,
     }))
 
+  // A negative counts as answered if Google's payload shows a reply OR
+  // we posted one through the app (replyStatus POSTED) — the GBP list
+  // can lag behind a successful post.
   const answered = watchNegatives.filter(
-    (r) => r.replyText && r.replyText.trim().length > 0
+    (r) =>
+      (r.replyText && r.replyText.trim().length > 0) ||
+      r.replyStatus === "POSTED"
   )
   const responseDays = answered
-    .filter((r) => r.replyTime)
-    .map(
-      (r) =>
-        (r.replyTime!.getTime() - r.publishTime.getTime()) /
-        (24 * 60 * 60 * 1000)
+    .map((r) => r.replyTime ?? r.replyPostedAt)
+    .map((t, i) =>
+      t
+        ? (t.getTime() - answered[i].publishTime.getTime()) /
+          (24 * 60 * 60 * 1000)
+        : null
     )
-    .filter((d) => d >= 0)
+    .filter((d): d is number => d != null && d >= 0)
     .sort((a, b) => a - b)
   const medianResponseDays = responseDays.length
     ? responseDays[Math.floor(responseDays.length / 2)]
@@ -369,7 +375,11 @@ async function buildReviewsSection(week: DigestWeek): Promise<ReviewsSection> {
   // 2-day grace: brand-new negatives already show under "Needs
   // attention" — this list is for ones going stale without a reply.
   const unanswered = watchNegatives
-    .filter((r) => !r.replyText || r.replyText.trim().length === 0)
+    .filter(
+      (r) =>
+        (!r.replyText || r.replyText.trim().length === 0) &&
+        r.replyStatus !== "POSTED"
+    )
     .map((r) => ({
       venue: VENUE_LABEL[r.venue],
       rating: r.rating,

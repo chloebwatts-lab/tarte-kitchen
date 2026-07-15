@@ -287,7 +287,26 @@ async function ingestVenueGbp(
           select: { id: true, googleReviewId: true, taggedAt: true },
         }))
 
-      if (existing?.taggedAt) continue
+      if (existing?.taggedAt) {
+        // Already tagged — skip the expensive re-tag, but still refresh
+        // the owner-reply mirror: replies land AFTER first ingest, and
+        // skipping here outright left replyText/replyTime permanently
+        // stale for every app-posted reply. Only write when the payload
+        // actually has a reply, so a lagging GBP cache can't null out a
+        // reply we know we posted.
+        if (r.reviewReply?.comment) {
+          await db.googleReview.update({
+            where: { id: existing.id },
+            data: {
+              replyText: r.reviewReply.comment,
+              replyTime: r.reviewReply.updateTime
+                ? new Date(r.reviewReply.updateTime)
+                : null,
+            },
+          })
+        }
+        continue
+      }
 
       let tagging: ReviewTagging | null = null
       if (text && text.length > 0) {
