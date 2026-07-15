@@ -74,8 +74,8 @@ const UNIT_SYNONYMS: Record<string, string> = {
   bottle: "bottle", bottles: "bottle", btl: "bottle",
   jar: "jar", jars: "jar",
   box: "box", boxes: "box",
-  punnet: "punnet", punnets: "punnet",
-  bunch: "bunch", bunches: "bunch",
+  punnet: "punnet", punnets: "punnet", pnt: "punnet", pun: "punnet",
+  bunch: "bunch", bunches: "bunch", bun: "bunch", bch: "bunch",
   tray: "tray", trays: "tray",
 }
 
@@ -101,13 +101,13 @@ export function unitsAreCompatible(a: string | null, b: string | null): boolean 
 //   "Olive Oil 4 x 4L"                  → { qty: 16,   unit: "l"  }
 //   "Eggs Free Range 15dz"              → { qty: 180,  unit: "ea" } (1dz = 12ea)
 const PACK_REGEX =
-  /(\d+(?:\.\d+)?)\s*(?:x\s*(\d+(?:\.\d+)?)\s*)?(kgs?|kilos?|kilograms?|gms?|gr|grams?|ml|millilitres?|milliliters?|l|lt|ltrs?|litres?|liters?|ea|each|pcs?|pieces?|dz|dozen)\b/i
+  /(\d+(?:\.\d+)?)\s*(?:x\s*(\d+(?:\.\d+)?)\s*)?(kgs?|kilos?|kilograms?|grams?|grms?|gms?|gr|g|ml|millilitres?|milliliters?|litres?|liters?|ltrs?|lt|l|ea|each|pcs?|pieces?|dz|dozen)\b/i
 
 // Reversed multiplier form: "1L x 6", "400ml x 12" (unit before the count).
 // Tried FIRST — the forward regex would otherwise match just the "1L" and
 // drop the ×6.
 const PACK_REGEX_REVERSED =
-  /(\d+(?:\.\d+)?)\s*(kgs?|kilos?|kilograms?|gms?|gr|grams?|ml|millilitres?|milliliters?|l|lt|ltrs?|litres?|liters?|ea|each|pcs?|pieces?|dz|dozen)\s*x\s*(\d+(?:\.\d+)?)\b/i
+  /(\d+(?:\.\d+)?)\s*(kgs?|kilos?|kilograms?|grams?|grms?|gms?|gr|g|ml|millilitres?|milliliters?|litres?|liters?|ltrs?|lt|l|ea|each|pcs?|pieces?|dz|dozen)\s*x\s*(\d+(?:\.\d+)?)\b/i
 
 export interface ParsedPackSize {
   /** Total quantity in canonical unit (e.g. kg/L/ea). */
