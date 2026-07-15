@@ -7,6 +7,7 @@ import {
 } from "./venue-from-address"
 import type { InvoiceStatus } from "@/generated/prisma"
 import { evaluatePriceChange } from "./units"
+import { streamForCategory } from "@/lib/price-alerts/classifier"
 
 export interface ProcessingResult {
   invoiceId: string
@@ -89,7 +90,7 @@ export async function processInvoice(
 
       const ing = await db.ingredient.findUnique({
         where: { id: ingredientId },
-        select: { purchasePrice: true, purchaseQuantity: true, purchaseUnit: true },
+        select: { purchasePrice: true, purchaseQuantity: true, purchaseUnit: true, category: true },
       })
       // If the matcher reused a SupplierItemMapping it may already carry a
       // conversion factor (a one-tap confirm from a prior invoice).
@@ -120,6 +121,14 @@ export async function processInvoice(
         currentPrice = evaluation.currentPrice
         suggestedConversionFactor = evaluation.suggestedConversionFactor
         normalisedUnitPrice = evaluation.normalisedUnitPrice
+        // Chloe 2026-07-15: fruit & veg with floating pack sizes (tray one
+        // week, bunch the next) must NOT pile into the unit-review queue —
+        // produce only alerts on like-for-like comparisons (same unit or a
+        // confirmed conversion). Unresolvable produce units skip silently.
+        if (unitChanged && streamForCategory(ing.category) === "PRODUCE") {
+          unitChanged = false
+          suggestedConversionFactor = null
+        }
         if (priceChanged) priceChanges++
       }
     } else {

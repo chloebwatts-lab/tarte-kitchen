@@ -17,6 +17,11 @@ import { PrismaPg } from "@prisma/adapter-pg"
 import { Pool } from "pg"
 import { evaluatePriceChange } from "../src/lib/invoices/units"
 
+// Mirror of price-alerts/classifier.ts PRODUCE set (script can't import the
+// "@/"-aliased module). Chloe 2026-07-15: unresolvable produce units skip
+// the review queue — only like-for-like produce comparisons alert.
+const PRODUCE_CATEGORIES = new Set(["VEGETABLE", "FRUIT", "HERB", "MUSHROOM", "SALAD"])
+
 const db = new PrismaClient({
   adapter: new PrismaPg(new Pool({ connectionString: process.env.DATABASE_URL })),
 })
@@ -31,7 +36,7 @@ async function main() {
     },
     include: {
       ingredient: {
-        select: { purchaseUnit: true, purchaseQuantity: true, purchasePrice: true },
+        select: { purchaseUnit: true, purchaseQuantity: true, purchasePrice: true, category: true },
       },
       invoice: { select: { invoiceDate: true } },
     },
@@ -69,6 +74,10 @@ async function main() {
       },
       (li.mappingId ? conversionByMapping.get(li.mappingId) : null) ?? null
     )
+    if (evaln.unitChanged && PRODUCE_CATEGORIES.has(String(li.ingredient.category))) {
+      evaln.unitChanged = false
+      evaln.suggestedConversionFactor = null
+    }
 
     if (APPLY) {
       await db.invoiceLineItem.update({
