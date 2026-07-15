@@ -278,8 +278,7 @@ function wagesSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative
   return `
     ${sectionHeader("Wages vs target", narrative.sectionNotes.wages)}
     <div style="height:14px;"></div>
-    ${venueBlocks}
-    <div style="padding:4px 28px 0;color:${C.inkMute};font-size:11px;font-style:italic;">Beach House Pastry % is measured against Beach House revenue plus 50% of Tea Garden revenue, since that pastry team also bakes for Tea Garden.</div>`
+    ${venueBlocks}`
 }
 
 function cogsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative) {

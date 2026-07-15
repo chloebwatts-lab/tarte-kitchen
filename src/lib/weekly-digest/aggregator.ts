@@ -17,7 +17,6 @@ import { db } from "@/lib/db"
 import { Venue, ReviewSentiment } from "@/generated/prisma/enums"
 import { lastCompletedTarteWeek } from "@/lib/dates"
 import { normaliseUnit } from "@/lib/invoices/units"
-import { TG_PASTRY_REVENUE_SHARE } from "@/lib/labour/buckets"
 
 const SINGLE_VENUES: Venue[] = [
   Venue.BURLEIGH,
@@ -782,11 +781,9 @@ async function buildLabour(): Promise<LabourSection> {
     function addGroup(
       label: string,
       dollars: number,
-      target: { min: number; max: number } | null,
-      denomOverride?: number | null
+      target: { min: number; max: number } | null
     ) {
-      const denom = denomOverride ?? rev
-      const pct = denom && denom > 0 ? (dollars / denom) * 100 : null
+      const pct = rev && rev > 0 ? (dollars / rev) * 100 : null
       let status: "ok" | "amber" | "red" | "no-target" = "no-target"
       if (pct != null && target) {
         // For wage targets, only overspend is bad. Coming in under the
@@ -810,15 +807,9 @@ async function buildLabour(): Promise<LabourSection> {
       const chefsKp = Number(r.wagesChef ?? 0) + Number(r.wagesKp ?? 0)
       const foh = Number(r.wagesFoh ?? 0) + Number(r.wagesBarista ?? 0)
       const pastry = Number(r.wagesPastry ?? 0)
-      // Beach House pastry also supplies Tea Garden — credit half of TG's
-      // ex-GST revenue into the pastry denominator (see TG_PASTRY_REVENUE_SHARE).
-      const tgRow = rows.find((x) => x.venue === Venue.TEA_GARDEN)
-      const tgRev = tgRow?.revenueExGst ? Number(tgRow.revenueExGst) : 0
-      const pastryDenom =
-        rev != null ? rev + tgRev * TG_PASTRY_REVENUE_SHARE : null
       addGroup("Chefs + KP", chefsKp, targets?.chefsKp ?? null)
       addGroup("FOH (incl. Barista)", foh, targets?.foh ?? null)
-      addGroup("Pastry", pastry, targets?.pastry ?? null, pastryDenom)
+      addGroup("Pastry", pastry, targets?.pastry ?? null)
     } else {
       // Tea Garden — targets TBD per memory; just show raw groupings.
       const chefsKp = Number(r.wagesChef ?? 0) + Number(r.wagesKp ?? 0)
