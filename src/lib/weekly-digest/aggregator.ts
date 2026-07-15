@@ -17,6 +17,7 @@ import { db } from "@/lib/db"
 import { Venue, ReviewSentiment } from "@/generated/prisma/enums"
 import { lastCompletedTarteWeek } from "@/lib/dates"
 import { normaliseUnit } from "@/lib/invoices/units"
+import { TG_PASTRY_REVENUE_SHARE } from "@/lib/labour/buckets"
 
 const SINGLE_VENUES: Venue[] = [
   Venue.BURLEIGH,
@@ -122,6 +123,24 @@ interface ReviewsSection {
     summary: string | null
     text: string | null
   }>
+  /// Rolling 28-day watch on negative-review replies (Google owner
+  /// responses). Added after the Q2 2026 ReviewPro report showed
+  /// negatives averaging 11.5 days to answer, with some never answered.
+  responseWatch: {
+    windowDays: number
+    negativesTotal: number
+    negativesAnswered: number
+    /// Median days from publish to owner reply, for negatives answered
+    /// inside the window. Null when none answered yet.
+    medianResponseDays: number | null
+    unanswered: Array<{
+      venue: string
+      rating: number
+      author: string | null
+      summary: string | null
+      daysWaiting: number
+    }>
+  }
 }
 
 interface PriceSpikesSection {
@@ -252,13 +271,32 @@ function dateKey(d: Date): string {
 
 // ─── Section builders ────────────────────────────────────────────────
 
+const RESPONSE_WATCH_DAYS = 28
+
 async function buildReviewsSection(week: DigestWeek): Promise<ReviewsSection> {
-  const [thisWeekReviews, places] = await Promise.all([
+  const watchStart = new Date(
+    week.end.getTime() - RESPONSE_WATCH_DAYS * 24 * 60 * 60 * 1000
+  )
+  const [thisWeekReviews, places, watchNegatives] = await Promise.all([
     db.googleReview.findMany({
       where: { publishTime: { gte: week.start, lte: week.end } },
       orderBy: [{ rating: "asc" }, { publishTime: "desc" }],
     }),
     db.googleVenuePlace.findMany(),
+    db.googleReview.findMany({
+      where: {
+        publishTime: { gte: watchStart, lte: week.end },
+        OR: [
+          { rating: { lte: 3 } },
+          {
+            sentiment: {
+              in: [ReviewSentiment.NEGATIVE, ReviewSentiment.MIXED],
+            },
+          },
+        ],
+      },
+      orderBy: { publishTime: "asc" },
+    }),
   ])
 
   const perVenue: ReviewsSection["perVenue"] = SINGLE_VENUES.map((v) => {
@@ -314,6 +352,36 @@ async function buildReviewsSection(week: DigestWeek): Promise<ReviewsSection> {
       text: r.text ? truncate(r.text, 400) : null,
     }))
 
+  const answered = watchNegatives.filter(
+    (r) => r.replyText && r.replyText.trim().length > 0
+  )
+  const responseDays = answered
+    .filter((r) => r.replyTime)
+    .map(
+      (r) =>
+        (r.replyTime!.getTime() - r.publishTime.getTime()) /
+        (24 * 60 * 60 * 1000)
+    )
+    .filter((d) => d >= 0)
+    .sort((a, b) => a - b)
+  const medianResponseDays = responseDays.length
+    ? responseDays[Math.floor(responseDays.length / 2)]
+    : null
+  // 2-day grace: brand-new negatives already show under "Needs
+  // attention" — this list is for ones going stale without a reply.
+  const unanswered = watchNegatives
+    .filter((r) => !r.replyText || r.replyText.trim().length === 0)
+    .map((r) => ({
+      venue: VENUE_LABEL[r.venue],
+      rating: r.rating,
+      author: r.authorName,
+      summary: r.taggedSummary,
+      daysWaiting: Math.floor(
+        (week.end.getTime() - r.publishTime.getTime()) / (24 * 60 * 60 * 1000)
+      ),
+    }))
+    .filter((r) => r.daysWaiting >= 2)
+
   return {
     totalCount: thisWeekReviews.length,
     averageRating: thisWeekReviews.length
@@ -322,6 +390,16 @@ async function buildReviewsSection(week: DigestWeek): Promise<ReviewsSection> {
       : null,
     perVenue,
     overallNegatives,
+    responseWatch: {
+      windowDays: RESPONSE_WATCH_DAYS,
+      negativesTotal: watchNegatives.length,
+      negativesAnswered: answered.length,
+      medianResponseDays:
+        medianResponseDays != null
+          ? Math.round(medianResponseDays * 10) / 10
+          : null,
+      unanswered,
+    },
   }
 }
 
@@ -704,9 +782,11 @@ async function buildLabour(): Promise<LabourSection> {
     function addGroup(
       label: string,
       dollars: number,
-      target: { min: number; max: number } | null
+      target: { min: number; max: number } | null,
+      denomOverride?: number | null
     ) {
-      const pct = rev && rev > 0 ? (dollars / rev) * 100 : null
+      const denom = denomOverride ?? rev
+      const pct = denom && denom > 0 ? (dollars / denom) * 100 : null
       let status: "ok" | "amber" | "red" | "no-target" = "no-target"
       if (pct != null && target) {
         // For wage targets, only overspend is bad. Coming in under the
@@ -730,9 +810,15 @@ async function buildLabour(): Promise<LabourSection> {
       const chefsKp = Number(r.wagesChef ?? 0) + Number(r.wagesKp ?? 0)
       const foh = Number(r.wagesFoh ?? 0) + Number(r.wagesBarista ?? 0)
       const pastry = Number(r.wagesPastry ?? 0)
+      // Beach House pastry also supplies Tea Garden — credit half of TG's
+      // ex-GST revenue into the pastry denominator (see TG_PASTRY_REVENUE_SHARE).
+      const tgRow = rows.find((x) => x.venue === Venue.TEA_GARDEN)
+      const tgRev = tgRow?.revenueExGst ? Number(tgRow.revenueExGst) : 0
+      const pastryDenom =
+        rev != null ? rev + tgRev * TG_PASTRY_REVENUE_SHARE : null
       addGroup("Chefs + KP", chefsKp, targets?.chefsKp ?? null)
       addGroup("FOH (incl. Barista)", foh, targets?.foh ?? null)
-      addGroup("Pastry", pastry, targets?.pastry ?? null)
+      addGroup("Pastry", pastry, targets?.pastry ?? null, pastryDenom)
     } else {
       // Tea Garden — targets TBD per memory; just show raw groupings.
       const chefsKp = Number(r.wagesChef ?? 0) + Number(r.wagesKp ?? 0)

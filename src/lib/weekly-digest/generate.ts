@@ -37,7 +37,7 @@ Schema:
     "wastage"?: string,
     "prices"?: string,
     "topSellers"?: string,
-    "reviews"?: string,
+    "reviews"?: string,       // if responseWatch shows unanswered negatives or median response over 2 days, lead with that
     "operations"?: string  // 1-2 sentences on checklist completion + any temp/cooling breaches. Lead with breaches if any.
   },
   "actionItems": string[]       // 3-6 concrete actions ranked by impact

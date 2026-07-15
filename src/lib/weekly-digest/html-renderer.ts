@@ -278,7 +278,8 @@ function wagesSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative
   return `
     ${sectionHeader("Wages vs target", narrative.sectionNotes.wages)}
     <div style="height:14px;"></div>
-    ${venueBlocks}`
+    ${venueBlocks}
+    <div style="padding:4px 28px 0;color:${C.inkMute};font-size:11px;font-style:italic;">Beach House Pastry % is measured against Beach House revenue plus 50% of Tea Garden revenue, since that pastry team also bakes for Tea Garden.</div>`
 }
 
 function cogsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative) {
@@ -640,12 +641,34 @@ function reviewsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrati
         </div>`
       : ""
 
+  const watch = snapshot.reviews.responseWatch
+  const watchSummary =
+    watch.negativesTotal > 0
+      ? `${watch.negativesAnswered} of ${watch.negativesTotal} negatives in the last ${watch.windowDays} days have a reply` +
+        (watch.medianResponseDays != null
+          ? ` · median ${watch.medianResponseDays} days to respond`
+          : "")
+      : `No negative reviews in the last ${watch.windowDays} days`
+  const watchColor = watch.unanswered.length > 0 ? C.red : C.inkSoft
+  const responseWatch = `
+    <div style="margin:12px 18px 0;padding:10px 14px;background:${C.card};border:1px solid ${C.border};border-radius:6px;">
+      <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${watchColor};font-weight:600;">Reply watch</div>
+      <div style="margin-top:4px;font-size:13px;color:${C.ink};">${escapeHtml(watchSummary)}</div>
+      ${watch.unanswered
+        .map(
+          (r) => `
+          <div style="margin-top:6px;font-size:12px;color:${C.red};">Still waiting: ${escapeHtml(r.venue)} · ${r.rating}★ · ${escapeHtml(r.author ?? "Anonymous")} · ${r.daysWaiting}d${r.summary ? ` · ${escapeHtml(r.summary)}` : ""}</div>`
+        )
+        .join("")}
+    </div>`
+
   return `
     ${sectionHeader("Google reviews", narrative.sectionNotes.reviews)}
     <div style="padding:14px 18px 0;">
       ${venueTiles}
     </div>
-    ${negatives}`
+    ${negatives}
+    ${responseWatch}`
 }
 
 function actionList(narrative: DigestNarrative) {
@@ -787,6 +810,20 @@ export function renderDigestText(
     lines.push(
       `  ${v.venue.padEnd(14)} ${v.aggregateRating != null ? v.aggregateRating.toFixed(1) + "★" : "—"}  ${v.count} new`
     )
+  }
+  const watch = snapshot.reviews.responseWatch
+  if (watch.negativesTotal > 0) {
+    lines.push(
+      `  Reply watch: ${watch.negativesAnswered}/${watch.negativesTotal} negatives answered (last ${watch.windowDays}d)` +
+        (watch.medianResponseDays != null
+          ? `, median ${watch.medianResponseDays}d`
+          : "")
+    )
+    for (const r of watch.unanswered) {
+      lines.push(
+        `    Still waiting: ${r.venue} ${r.rating}★ ${r.author ?? "Anonymous"} (${r.daysWaiting}d)`
+      )
+    }
   }
   if (narrative.actionItems.length > 0) {
     lines.push(``)
