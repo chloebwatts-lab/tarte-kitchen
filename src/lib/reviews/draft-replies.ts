@@ -41,6 +41,8 @@ For POSITIVE reviews (4-5 stars): short and personal, 2-3 sentences. Acknowledge
 
 For NEGATIVE reviews (1-3 stars): honest apology, take ownership, name the specific issue. Invite them back for another chance. Never defensive. 3-4 sentences.
 
+For RATING-ONLY reviews (no written text): for 4-5 stars, one or two short sentences thanking them by name where available and mentioning the venue naturally; vary the wording so replies don't read templated. For 1-3 stars, a brief genuine note that we'd like to understand what went wrong, inviting them to email hello@tarte.com.au.
+
 Hard rules - breaking any of these is a failure:
 - No em dashes or en dashes (no -- or - used as a dash mid-sentence)
 - No ellipsis (no ...)
@@ -57,7 +59,7 @@ Output: the reply text only. No preamble, no quotation marks.`
 async function generateDraftReply(review: {
   venue: Venue
   rating: number
-  text: string
+  text: string | null
   authorName: string | null
 }): Promise<string> {
   const venueName = VENUE_SHORT_LABEL[review.venue] ?? review.venue
@@ -67,7 +69,7 @@ async function generateDraftReply(review: {
     review.authorName ? `Reviewer: ${review.authorName}` : null,
     ``,
     `Review:`,
-    review.text,
+    review.text ?? "(rating only, no written text)",
   ]
     .filter(Boolean)
     .join("\n")
@@ -111,7 +113,7 @@ type DraftedReview = {
   venue: Venue
   rating: number
   authorName: string | null
-  text: string
+  text: string | null
   publishTime: Date
   draftReply: string
   replyToken: string
@@ -158,7 +160,7 @@ function buildEmailHtml(reviews: DraftedReview[]): { html: string; text: string 
         ${r.authorName ? `&nbsp;·&nbsp;<em style="opacity:.85;">${r.authorName}</em>` : ""}
       </div>
       <div style="padding:14px 16px;background:#fff;">
-        <p style="margin:0 0 12px;color:#1f1d1a;line-height:1.55;font-size:14px;">${(r.text || "").replace(/\n/g, "<br>")}</p>
+        <p style="margin:0 0 12px;color:#1f1d1a;line-height:1.55;font-size:14px;">${(r.text || "<em>Rating only, no written text</em>").replace(/\n/g, "<br>")}</p>
         <div style="background:${bg};border:1px solid #d9d2c4;border-radius:6px;padding:12px 14px;margin-bottom:14px;">
           <div style="font-size:11px;color:#8a857c;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;">Suggested reply</div>
           <p style="margin:0;color:#1f1d1a;line-height:1.6;font-size:14px;">${r.draftReply.replace(/\n/g, "<br>")}</p>
@@ -251,12 +253,18 @@ export async function draftAndNotifyNewReviews(): Promise<number> {
   // years of historical GBP reviews would flood Chloe with thousands of
   // drafts she'd never reply to. New reviews land daily anyway.
   const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-  const needsDraft = await db.googleReview.findMany({
+  const candidates = await db.googleReview.findMany({
     where: {
       replyText: null,    // no existing Google reply
       replyStatus: null,  // not yet drafted
-      text: { not: null },
       publishTime: { gte: since30d },
+      // Rating-only reviews are worth replying to as well (they count
+      // toward the response ratio Google and ReviewPro measure), but
+      // only when GBP-ingested so the reply can actually be auto-posted.
+      OR: [
+        { text: { not: null } },
+        { googleReviewId: { startsWith: "accounts/" } },
+      ],
     },
     orderBy: [
       { rating: "asc" },          // negatives first
@@ -264,6 +272,26 @@ export async function draftAndNotifyNewReviews(): Promise<number> {
     ],
     take: 50,  // cap per run — leftover picked up next day
   })
+
+  // Google sometimes re-issues a review under a new id when it's edited,
+  // leaving a places/ + accounts/ twin pair. Drafting both would email
+  // Chloe the same review twice, so keep one per author+venue+rating
+  // cluster, preferring the accounts/ row (postable via the GBP API).
+  const clusterKey = (r: (typeof candidates)[number]) =>
+    `${r.authorName ?? ""}|${r.venue}|${r.rating}`
+  const byCluster = new Map<string, (typeof candidates)[number]>()
+  for (const r of candidates) {
+    const key = clusterKey(r)
+    const existing = byCluster.get(key)
+    if (
+      !existing ||
+      (r.googleReviewId.startsWith("accounts/") &&
+        !existing.googleReviewId.startsWith("accounts/"))
+    ) {
+      byCluster.set(key, r)
+    }
+  }
+  const needsDraft = Array.from(byCluster.values())
 
   if (needsDraft.length === 0) return 0
 
@@ -273,7 +301,7 @@ export async function draftAndNotifyNewReviews(): Promise<number> {
         const draftReply = await generateDraftReply({
           venue: r.venue,
           rating: r.rating,
-          text: r.text!,
+          text: r.text,
           authorName: r.authorName,
         })
         const replyToken = randomUUID()
