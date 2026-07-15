@@ -259,7 +259,7 @@ export default async function CouncilVenuePage({
           Icon={ClipboardList}
         />
         <LiveTile
-          href={`/dishes/allergen-matrix?venue=${venue}`}
+          href={`/council/${venue}/allergens`}
           label="Active dishes"
           value={dishesCount}
           Icon={ChefHat}
