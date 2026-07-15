@@ -19,13 +19,29 @@ import { db } from "@/lib/db"
 import { Venue, ParSource } from "@/generated/prisma"
 import { revalidatePath } from "next/cache"
 
-// Local conversion: kg→g and L→ml, everything else passes through. Mirrors
-// the helper in orders.ts so par suggestions and order math use identical
-// arithmetic.
-function toBaseUnits(qty: number, unit: string, baseType: "WEIGHT" | "VOLUME" | "COUNT"): number {
+// Local conversion to base units (g / ml / ea). Mirrors the helper in
+// orders.ts so par suggestions and order math use identical arithmetic.
+// `baseUnitsPerOne` is how many base units one `unit` contains
+// (Ingredient.baseUnitsPerPurchase ÷ purchaseQuantity) — REQUIRED for
+// pack-named units ("bag", "punnet", "btl"): without it a 25,000 g flour
+// bag was treated as 1 g and the suggested par inflated ~25,000×.
+function toBaseUnits(
+  qty: number,
+  unit: string,
+  baseType: "WEIGHT" | "VOLUME" | "COUNT",
+  baseUnitsPerOne?: number | null
+): number {
   const u = unit.toLowerCase()
-  if (baseType === "WEIGHT") return u === "kg" ? qty * 1000 : qty
-  if (baseType === "VOLUME") return u === "l" ? qty * 1000 : qty
+  if (baseType === "WEIGHT") {
+    if (u === "kg" || u === "kgs") return qty * 1000
+    if (u === "g" || u === "gm" || u === "gms" || u === "gram" || u === "grams") return qty
+  } else if (baseType === "VOLUME") {
+    if (u === "l" || u === "lt" || u === "ltr" || u === "litre" || u === "litres") return qty * 1000
+    if (u === "ml") return qty
+  } else {
+    if (u === "ea" || u === "each") return qty
+  }
+  if (baseUnitsPerOne && baseUnitsPerOne > 0) return qty * baseUnitsPerOne
   return qty
 }
 
@@ -109,7 +125,11 @@ export async function getParSuggestions(): Promise<ParSuggestionRow[]> {
     const packUnit = ing.purchaseUnit
 
     // Convert pack size to base units to compare with usage.
-    const packBase = toBaseUnits(packQty, packUnit, baseType)
+    const perOne =
+      Number(ing.baseUnitsPerPurchase) > 0 && packQty > 0
+        ? Number(ing.baseUnitsPerPurchase) / packQty
+        : null
+    const packBase = toBaseUnits(packQty, packUnit, baseType, perOne)
 
     const deliveryDays = (ing.supplier?.deliveryDays as number[] | undefined) ?? []
     const cover = coverMultiplierFor(deliveryDays)

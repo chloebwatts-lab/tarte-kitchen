@@ -161,8 +161,10 @@ export function preparationLineCost(
   const yieldUnitLower = yieldUnit.toLowerCase()
 
   // COUNT → COUNT: e.g. "1 ea cookie" from a "70 ea" batch, or "2 serve" from a "180 serve" batch
-  const unitIsCount = unitLower === "serve" || unitLower === "ea" || unitLower === "dozen"
-  const yieldIsCount = yieldUnitLower === "serve" || yieldUnitLower === "ea"
+  const unitIsCount =
+    unitLower === "serve" || unitLower === "serves" || unitLower === "ea" || unitLower === "dozen"
+  const yieldIsCount =
+    yieldUnitLower === "serve" || yieldUnitLower === "serves" || yieldUnitLower === "ea"
   if (unitIsCount && yieldIsCount) {
     const baseQ = toBaseUnits(q, unitLower)           // ea→1, dozen→12, serve→1
     const baseYield = toBaseUnits(yieldQty, yieldUnitLower)

@@ -131,7 +131,14 @@ export async function GET(request: Request) {
 
     let afterQuery = ""
     if (connection.lastScanAt) {
-      const epochSec = Math.floor(connection.lastScanAt.getTime() / 1000)
+      // 24h slack: GmailConnection.lastScanAt is SHARED with check-invoices
+      // (runs every 2h), so by the time this daily scan fires the watermark
+      // is hours past any EOD email that arrived between runs — and unlike
+      // check-invoices this route had no sweep to recover skips. Re-reads
+      // are free: LightspeedReportImport dedupes by gmailMessageId.
+      const epochSec = Math.floor(
+        (connection.lastScanAt.getTime() - 24 * 60 * 60 * 1000) / 1000
+      )
       afterQuery = ` after:${epochSec}`
     } else {
       const twoDaysAgoSec = Math.floor(

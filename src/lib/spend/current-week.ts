@@ -132,6 +132,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
         invoiceDate: true,
         venue: true,
         total: true,
+        subtotal: true,
       },
     }),
     db.managerSalesForecast.findMany({
@@ -158,6 +159,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
         supplierName: true,
         invoiceDate: true,
         total: true,
+        subtotal: true,
         invoiceNumber: true,
       },
       orderBy: { invoiceDate: "desc" },
@@ -185,7 +187,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
         status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE"] },
         venue: { not: null },
       },
-      select: { invoiceDate: true, venue: true, total: true },
+      select: { invoiceDate: true, venue: true, total: true, subtotal: true },
     }),
   ])
 
@@ -232,7 +234,9 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
 
   for (const inv of invoices) {
     if (!inv.invoiceDate || inv.total == null) continue
-    const amt = Number(inv.total)
+    // ex-GST to match the budget basis (subtotal falls back to total for
+    // the odd invoice whose parser found no subtotal line)
+    const amt = Number(inv.subtotal ?? inv.total)
     // Venue BOTH = genuinely shared spend (per Chris 2026-07-14 Breadtop
     // is a 50/50 split) — half the total lands in each bucket.
     const targets: Array<{ bucket: SpendBucket; amount: number }> =
@@ -347,15 +351,16 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     for (const row of invoiceHistory) {
       if (!row.invoiceDate || row.total == null) continue
       const idx = tradingDayIndex(row.invoiceDate, true)
+      const exGst = Number(row.subtotal ?? row.total)
       if (row.venue === "BOTH") {
-        const half = Number(row.total) / 2
+        const half = exGst / 2
         spendRows.BURLEIGH.push({ idx, amount: half })
         spendRows.CURRUMBIN.push({ idx, amount: half })
         continue
       }
       const bucket = venueToBucket(row.venue)
       if (!bucket) continue
-      spendRows[bucket].push({ idx, amount: Number(row.total) })
+      spendRows[bucket].push({ idx, amount: exGst })
     }
     for (const bucket of SPEND_BUCKETS) {
       revenueShares[bucket] = buildShares(revRows[bucket])

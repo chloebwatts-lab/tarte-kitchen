@@ -138,7 +138,10 @@ export default async function OrderChecklistsPage({
   searchParams: Promise<{ venue?: string }>
 }) {
   const { venue: venueParam } = await searchParams
-  const venue = (venueParam as Venue) || "BURLEIGH"
+  const VALID_VENUES = ["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN", "BOTH"] as const
+  const venue: Venue = (VALID_VENUES as readonly string[]).includes(venueParam ?? "")
+    ? (venueParam as Venue)
+    : "BURLEIGH"
   const cards = await listSupplierOrderCards(venue)
 
   const withDraft = cards.filter((c) => c.todayDraft)

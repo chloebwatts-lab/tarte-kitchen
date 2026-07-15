@@ -88,31 +88,49 @@ function todayAest(): Date {
   return new Date(aest.toISOString().split("T")[0])
 }
 
+// `baseUnitsPerOne` = base units (g/ml/ea) contained in ONE `unit`
+// (Ingredient.baseUnitsPerPurchase ÷ purchaseQuantity). Required for
+// pack-named units ("bag", "punnet", "btl") — treating those as 1 base
+// unit inflated order suggestions by the pack size (a 25 kg flour bag
+// suggested ~282,000 bags / a $5M draft PO).
 function toBaseUnits(
   qty: number,
   unit: string,
-  baseType: "WEIGHT" | "VOLUME" | "COUNT"
+  baseType: "WEIGHT" | "VOLUME" | "COUNT",
+  baseUnitsPerOne?: number | null
 ): number {
   const u = unit.toLowerCase()
   if (baseType === "WEIGHT") {
-    if (u === "kg") return qty * 1000
-    return qty
+    if (u === "kg" || u === "kgs") return qty * 1000
+    if (u === "g" || u === "gm" || u === "gms" || u === "gram" || u === "grams") return qty
+  } else if (baseType === "VOLUME") {
+    if (u === "l" || u === "lt" || u === "ltr" || u === "litre" || u === "litres") return qty * 1000
+    if (u === "ml") return qty
+  } else {
+    if (u === "ea" || u === "each") return qty
   }
-  if (baseType === "VOLUME") {
-    if (u === "l") return qty * 1000
-    return qty
-  }
+  if (baseUnitsPerOne && baseUnitsPerOne > 0) return qty * baseUnitsPerOne
   return qty
 }
 
 function fromBaseUnits(
   baseQty: number,
   purchaseUnit: string,
-  baseType: "WEIGHT" | "VOLUME" | "COUNT"
+  baseType: "WEIGHT" | "VOLUME" | "COUNT",
+  baseUnitsPerOne?: number | null
 ): number {
   const u = purchaseUnit.toLowerCase()
-  if (baseType === "WEIGHT" && u === "kg") return baseQty / 1000
-  if (baseType === "VOLUME" && u === "l") return baseQty / 1000
+  if (baseType === "WEIGHT" && (u === "kg" || u === "kgs")) return baseQty / 1000
+  if (baseType === "VOLUME" && (u === "l" || u === "lt" || u === "ltr" || u === "litre" || u === "litres")) return baseQty / 1000
+  if (
+    baseUnitsPerOne &&
+    baseUnitsPerOne > 0 &&
+    !(baseType === "WEIGHT" && (u === "g" || u === "gm" || u === "gms" || u === "gram" || u === "grams")) &&
+    !(baseType === "VOLUME" && u === "ml") &&
+    !(baseType === "COUNT" && (u === "ea" || u === "each"))
+  ) {
+    return baseQty / baseUnitsPerOne
+  }
   return baseQty
 }
 
@@ -243,17 +261,21 @@ export async function suggestOrders(params: {
   for (const ing of orderable) {
     if (!ing.supplier) continue
     const baseType = ing.baseUnitType as "WEIGHT" | "VOLUME" | "COUNT"
+    const perOne =
+      Number(ing.baseUnitsPerPurchase) > 0 && Number(ing.purchaseQuantity) > 0
+        ? Number(ing.baseUnitsPerPurchase) / Number(ing.purchaseQuantity)
+        : null
     // Build a per-venue par map. Per-venue IngredientPar wins; if none for
     // a given venue, fall back to legacy Ingredient.parLevel (applied as
     // BURLEIGH only — that's how we backfilled).
     const parByVenue = new Map<Venue, number>()
     for (const p of ing.pars) {
-      const base = toBaseUnits(Number(p.parLevel), p.parUnit, baseType)
+      const base = toBaseUnits(Number(p.parLevel), p.parUnit, baseType, perOne)
       parByVenue.set(p.venue, base)
     }
     if (!parByVenue.has("BURLEIGH") && ing.parLevel != null) {
       const base = ing.parUnit
-        ? toBaseUnits(Number(ing.parLevel), ing.parUnit, baseType)
+        ? toBaseUnits(Number(ing.parLevel), ing.parUnit, baseType, perOne)
         : Number(ing.parLevel)
       parByVenue.set("BURLEIGH", base)
     }
@@ -283,7 +305,7 @@ export async function suggestOrders(params: {
       if (needBase <= 0) continue
 
       // Convert back to purchase unit, then round up to the supplier's pack
-      const purchaseQty = fromBaseUnits(needBase, ing.purchaseUnit, baseType)
+      const purchaseQty = fromBaseUnits(needBase, ing.purchaseUnit, baseType, perOne)
       const pack = Number(ing.purchaseQuantity) || 1
       const packedQty = roundUpToPack(purchaseQty, pack)
       const lineTotal =

@@ -1,6 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
+import { preparationLineCost as calcPrepLineCost } from "@/lib/units"
 import { revalidatePath } from "next/cache"
 import Decimal from "decimal.js"
 import type { Ingredient, Supplier, PriceHistory, SupplierPrice, PreparationItem, DishComponent, Preparation, Dish } from "@/generated/prisma/client"
@@ -357,18 +358,19 @@ async function recalculatePreparationCost(prepId: string) {
         lineCost = baseQty.mul(cpbu)
       }
     } else if (item.subPreparationId && item.subPreparation) {
+      // Same function the save path uses (units.ts) — the old hand-rolled
+      // version only special-cased unit === "serve", so "ea"/"dozen" lines
+      // against count-yield preps fell into the weight path and recalc
+      // rewrote correct lineCosts ~100x low (the hollandaise bug family).
       const sub = item.subPreparation
-      const q = new Decimal(String(item.quantity))
-      const batch = new Decimal(String(sub.batchCost))
-
-      if (item.unit.toLowerCase() === "serve") {
-        const yieldQty = new Decimal(String(sub.yieldQuantity))
-        lineCost = yieldQty.gt(0) ? q.div(yieldQty).mul(batch) : new Decimal(0)
-      } else {
-        const baseQty = q.mul(UNIT_MULT[item.unit.toLowerCase()] ?? 1)
-        const yieldGrams = new Decimal(String(sub.yieldWeightGrams))
-        lineCost = yieldGrams.gt(0) ? baseQty.div(yieldGrams).mul(batch) : new Decimal(0)
-      }
+      lineCost = calcPrepLineCost(
+        new Decimal(String(item.quantity)),
+        item.unit,
+        new Decimal(String(sub.batchCost)),
+        new Decimal(String(sub.yieldQuantity)),
+        sub.yieldUnit,
+        new Decimal(String(sub.yieldWeightGrams))
+      )
     }
 
     lineCost = lineCost.toDecimalPlaces(4)
@@ -429,18 +431,17 @@ async function recalculateDishCost(dishId: string) {
         lineCost = baseQty.mul(cpbu)
       }
     } else if (comp.preparationId && comp.preparation) {
+      // Canonical units.ts costing — see the matching comment in
+      // recalculatePreparationCost above.
       const prep = comp.preparation
-      const q = new Decimal(String(comp.quantity))
-      const batch = new Decimal(String(prep.batchCost))
-
-      if (comp.unit.toLowerCase() === "serve") {
-        const yieldQty = new Decimal(String(prep.yieldQuantity))
-        lineCost = yieldQty.gt(0) ? q.div(yieldQty).mul(batch) : new Decimal(0)
-      } else {
-        const baseQty = q.mul(UNIT_MULT[comp.unit.toLowerCase()] ?? 1)
-        const yieldGrams = new Decimal(String(prep.yieldWeightGrams))
-        lineCost = yieldGrams.gt(0) ? baseQty.div(yieldGrams).mul(batch) : new Decimal(0)
-      }
+      lineCost = calcPrepLineCost(
+        new Decimal(String(comp.quantity)),
+        comp.unit,
+        new Decimal(String(prep.batchCost)),
+        new Decimal(String(prep.yieldQuantity)),
+        prep.yieldUnit,
+        new Decimal(String(prep.yieldWeightGrams))
+      )
     }
 
     lineCost = lineCost.toDecimalPlaces(4)

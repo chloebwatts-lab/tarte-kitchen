@@ -251,7 +251,7 @@ export function CogsDashboard({ initial }: { initial: CogsDashboardData }) {
                     ? `${latestCell.cogsPct.toFixed(1)}%`
                     : "—"
                 }
-                sub={`w/e ${shortLabel(latestCell.weekStartWed)}`}
+                sub={`wk of ${shortLabel(latestCell.weekStartWed)}`}
                 tone={bandVariant(latestCell.cogsPct)}
               />
               <Stat

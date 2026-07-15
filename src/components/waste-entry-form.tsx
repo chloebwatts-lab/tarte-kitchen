@@ -71,7 +71,7 @@ export function WasteEntryForm({ items }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
-  const today = new Date().toISOString().split("T")[0]
+  const today = new Date(new Date().getTime() + 10 * 3600 * 1000).toISOString().split("T")[0]
   const [date, setDate] = useState(today)
   const [venue, setVenue] = useState<string>("")
   const [selectedItem, setSelectedItem] = useState<FormItem | null>(null)

@@ -19,7 +19,10 @@ export default async function OrderRunPage({
 }) {
   const { supplierId } = await params
   const { venue: venueParam, order: orderParam } = await searchParams
-  const venue = (venueParam as Venue) || "BURLEIGH"
+  const VALID_VENUES = ["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN", "BOTH"] as const
+  const venue: Venue = (VALID_VENUES as readonly string[]).includes(venueParam ?? "")
+    ? (venueParam as Venue)
+    : "BURLEIGH"
 
   // Resolve to a specific draft order: explicit query param wins, otherwise
   // find-or-create today's draft for this (supplier, venue).

@@ -191,10 +191,17 @@ export async function getOrderRunRows(
   }
 
   const rows: SupplierOrderRow[] = items.map((it) => {
+    // Must mirror upsertOrderLine's description format — lines are written
+    // as "Name (packSize)", so a bare-name lookup never matched and every
+    // saved quantity looked lost after a reload.
+    const descKey = (it.packSize ? `${it.name} (${it.packSize})` : it.name).toLowerCase()
     let draft: LineRef | null = null
     if (it.ingredientId && linesByIngredient.has(it.ingredientId)) {
       draft = linesByIngredient.get(it.ingredientId) ?? null
+    } else if (linesByDescription.has(descKey)) {
+      draft = linesByDescription.get(descKey) ?? null
     } else if (linesByDescription.has(it.name.toLowerCase())) {
+      // Legacy lines written before the packSize suffix existed
       draft = linesByDescription.get(it.name.toLowerCase()) ?? null
     }
     return {
@@ -295,13 +302,15 @@ export async function upsertOrderLine(params: {
     select: { lineTotal: true },
   })
   const subtotal = lines.reduce((s, l) => s + Number(l.lineTotal), 0)
-  await db.purchaseOrder.update({
+  const order = await db.purchaseOrder.update({
     where: { id: orderId },
     data: { subtotal: new Decimal(subtotal) },
+    select: { supplierId: true },
   })
 
   revalidatePath(`/order-checklists`)
-  revalidatePath(`/order-checklists/${params.orderId}`)
+  // Route segment is [supplierId], not the order id
+  revalidatePath(`/order-checklists/${order.supplierId}`)
 }
 
 // ---------- Re-export venue list helper for the landing ----------

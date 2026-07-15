@@ -37,7 +37,7 @@ export const maxDuration = 300
 
 const SENDER = "kilgour1@hotmail.com"
 const SUBJECT = "Reports"
-const SEARCH_QUERY = `from:${SENDER} subject:${SUBJECT} newer_than:3d has:attachment`
+const SEARCH_QUERY = `from:${SENDER} subject:${SUBJECT} newer_than:7d has:attachment`
 
 // Sensitive output → chloe@ only (tarte_recipients.md).
 const NOTIFY_RECIPIENT =

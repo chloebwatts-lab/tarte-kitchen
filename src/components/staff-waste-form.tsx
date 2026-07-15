@@ -200,7 +200,7 @@ export function StaffWasteForm({ items }: Props) {
     if (!reason) return setError("Select a reason")
     startTransition(async () => {
       try {
-        const today = new Date().toISOString().split("T")[0]
+        const today = new Date(Date.now() + 10 * 3600 * 1000).toISOString().split("T")[0]
         await createWasteEntry({
           date: today,
           venue,
