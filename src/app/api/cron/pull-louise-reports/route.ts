@@ -36,8 +36,13 @@ export const dynamic = "force-dynamic"
 export const maxDuration = 300
 
 const SENDER = "kilgour1@hotmail.com"
+const FORWARDER = "chloe@tarte.com.au"
 const SUBJECT = "Reports"
-const SEARCH_QUERY = `from:${SENDER} subject:${SUBJECT} newer_than:7d has:attachment`
+// Louise sometimes leaves accounts@ off and Chloe forwards her email by hand
+// (first seen 2026-07-16). Match either the direct email or the manual
+// forward: subject:Reports also hits "Fwd: Reports", and the forwarded body
+// always cites Louise's address, which keeps Chloe's other mail out.
+const SEARCH_QUERY = `{from:${SENDER} (from:${FORWARDER} "${SENDER}")} subject:${SUBJECT} newer_than:7d has:attachment`
 
 // Sensitive output → chloe@ only (tarte_recipients.md).
 const NOTIFY_RECIPIENT =
