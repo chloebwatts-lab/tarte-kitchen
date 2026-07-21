@@ -25,6 +25,41 @@ interface Props {
 const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
 
+/** Evidence photos don't need 12MP — downscale to ≤1600px JPEG before
+ *  uploading so iPad camera shots (~4–6MB) become a few hundred KB. */
+const MAX_DIMENSION = 1600
+const JPEG_QUALITY = 0.8
+
+async function compressImage(file: File): Promise<Blob> {
+  try {
+    const url = URL.createObjectURL(file)
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new Image()
+        el.onload = () => resolve(el)
+        el.onerror = () => reject(new Error("decode failed"))
+        el.src = url
+      })
+      const scale = Math.min(1, MAX_DIMENSION / Math.max(img.naturalWidth, img.naturalHeight))
+      const canvas = document.createElement("canvas")
+      canvas.width = Math.round(img.naturalWidth * scale)
+      canvas.height = Math.round(img.naturalHeight * scale)
+      const ctx = canvas.getContext("2d")
+      if (!ctx) return file
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY)
+      )
+      // Only use the re-encode if it actually helped.
+      return blob && blob.size < file.size ? blob : file
+    } finally {
+      URL.revokeObjectURL(url)
+    }
+  } catch {
+    return file
+  }
+}
+
 export function ChecklistPhotoUpload({
   runId,
   initialPhotos = [],
@@ -54,31 +89,34 @@ export function ChecklistPhotoUpload({
     setError(null)
     setUploading(true)
     try {
-      for (const file of Array.from(files)) {
-        const form = new FormData()
-        form.append("file", file)
-        form.append("upload_preset", UPLOAD_PRESET!)
-        form.append("folder", `tarte-kitchen/checklists/${runId}`)
+      await Promise.all(
+        Array.from(files).map(async (file) => {
+          const compressed = await compressImage(file)
+          const form = new FormData()
+          form.append("file", compressed)
+          form.append("upload_preset", UPLOAD_PRESET!)
+          form.append("folder", `tarte-kitchen/checklists/${runId}`)
 
-        const res = await fetch(
-          `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-          { method: "POST", body: form }
-        )
-        if (!res.ok) throw new Error(`Upload failed (${res.status})`)
-        const data = await res.json()
+          const res = await fetch(
+            `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+            { method: "POST", body: form }
+          )
+          if (!res.ok) throw new Error(`Upload failed (${res.status})`)
+          const data = await res.json()
 
-        await saveChecklistPhoto({
-          runId,
-          url: data.secure_url,
-          publicId: data.public_id,
-          uploadedBy: uploadedBy ?? null,
+          await saveChecklistPhoto({
+            runId,
+            url: data.secure_url,
+            publicId: data.public_id,
+            uploadedBy: uploadedBy ?? null,
+          })
+
+          setPhotos((prev) => [
+            ...prev,
+            { id: data.public_id, url: data.secure_url, publicId: data.public_id },
+          ])
         })
-
-        setPhotos((prev) => [
-          ...prev,
-          { id: data.public_id, url: data.secure_url, publicId: data.public_id },
-        ])
-      }
+      )
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed")
     } finally {

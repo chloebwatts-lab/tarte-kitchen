@@ -13,7 +13,7 @@ import { KitchenChecklistRow } from "@/components/kitchen/KitchenChecklistRow"
 import { KitchenSignOffRow } from "@/components/kitchen/KitchenSignOffRow"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 
-const MIN_CLEANING_PHOTOS = 5
+const MIN_CLEANING_PHOTOS = 3
 
 type Filter = "all" | "todo" | "done"
 

@@ -62,7 +62,7 @@ export async function getOverdueChecklists(): Promise<OverdueRun[]> {
       dueByHour: { not: null, lte: currentHour },
     },
     include: {
-      _count: { select: { items: true } },
+      _count: { select: { items: { where: { archived: false } } } },
       runs: {
         where: { runDate: today },
         include: {
@@ -247,7 +247,7 @@ export async function getDailySummaryData(): Promise<{
   const templates = await db.checklistTemplate.findMany({
     where: { isActive: true, dueByHour: { not: null } },
     include: {
-      _count: { select: { items: true } },
+      _count: { select: { items: { where: { archived: false } } } },
       runs: {
         where: { runDate: today },
         include: {

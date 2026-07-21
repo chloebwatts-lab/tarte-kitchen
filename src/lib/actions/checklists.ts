@@ -75,7 +75,7 @@ export async function listChecklistTemplates(params?: {
   const templates = await db.checklistTemplate.findMany({
     where: { isActive: true, ...venueFilter },
     include: {
-      _count: { select: { items: true } },
+      _count: { select: { items: { where: { archived: false } } } },
       runs: {
         where: { runDate: todayAest() },
         include: { _count: { select: { items: true } }, items: { select: { checkedAt: true } } },
@@ -179,7 +179,7 @@ export async function startChecklistRun(params: {
     return existing.id
   }
   const items = await db.checklistTemplateItem.findMany({
-    where: { templateId: params.templateId },
+    where: { templateId: params.templateId, archived: false },
     orderBy: { sortOrder: "asc" },
     select: { id: true },
   })
