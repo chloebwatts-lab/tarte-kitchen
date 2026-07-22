@@ -436,7 +436,7 @@ function CountRow({
             onChange={(e) =>
               onChange({ note: e.target.value.trim() || null }, "note")
             }
-            className="w-full rounded-[12px] border border-[var(--tk-line)] bg-[var(--tk-bg)] px-3 py-2.5 text-[14px] text-[var(--tk-charcoal)] outline-none focus:border-[var(--tk-sage)]"
+            className="w-full rounded-[12px] border border-[var(--tk-line)] bg-[var(--tk-bg)] px-3 py-2.5 text-[16px] text-[var(--tk-charcoal)] outline-none focus:border-[var(--tk-sage)]"
           />
         </div>
       )}

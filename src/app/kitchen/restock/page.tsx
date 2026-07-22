@@ -96,7 +96,7 @@ export default async function RestockHubPage({
                 </div>
               </div>
               <div
-                className="shrink-0 rounded-full px-3 py-1.5 text-[12px] font-semibold"
+                className="hidden shrink-0 rounded-full px-3 py-1.5 text-[12px] font-semibold sm:block"
                 style={{ background: chip.bg, color: chip.fg }}
               >
                 {chip.label}
@@ -139,7 +139,7 @@ export default async function RestockHubPage({
           </div>
           {hub.pendingRunSheets > 0 && (
             <div
-              className="shrink-0 rounded-full px-3 py-1.5 text-[12px] font-semibold"
+              className="hidden shrink-0 rounded-full px-3 py-1.5 text-[12px] font-semibold sm:block"
               style={{ background: "var(--tk-gold-soft)", color: "#8a6d1f" }}
             >
               Ready

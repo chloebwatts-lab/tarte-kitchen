@@ -129,7 +129,9 @@ export function KitchenRunView({
 
       {/* Title + progress */}
       <div className="flex flex-wrap items-end justify-between gap-6">
-        <div className="min-w-0 flex-1">
+        {/* min-w keeps the title column readable — below it, the progress
+            meter wraps to its own row instead of crushing the heading */}
+        <div className="min-w-[240px] max-w-full flex-1">
           <div className="tk-caps mb-1.5" style={{ color: "var(--tk-ink-mute)" }}>
             {venueFull.replace(/\s*\(.*\)$/, "")} · {category}
             {initial.area && ` · ${initial.area}`}
@@ -156,8 +158,8 @@ export function KitchenRunView({
             )}
           </div>
         </div>
-        <div className="shrink-0 text-right">
-          <div className="flex items-baseline justify-end gap-1.5">
+        <div className="shrink-0 text-left sm:text-right">
+          <div className="flex items-baseline justify-start gap-1.5 sm:justify-end">
             <div
               className="tk-display tabular-nums leading-none"
               style={{ fontSize: 32, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--tk-charcoal)" }}
