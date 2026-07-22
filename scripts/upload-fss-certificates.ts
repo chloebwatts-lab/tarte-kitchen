@@ -104,6 +104,17 @@ const docs: Doc[] = [
     mime: "application/pdf",
   },
   {
+    venues: CURRUMBIN,
+    type: "FSS_CERTIFICATE",
+    title: "FSS units – Alan Nicolas Urquiza (Record of Results)",
+    description:
+      "Greenwich College Record of Results for SIT40521 Certificate IV in Kitchen Management #257765, issued 27 Jun 2025. Confirms the Food Safety Supervisor units passed: SITXFSA005 Use hygienic practices for food safety and SITXFSA006 Participate in safe food handling practices (also SITXFSA008 Develop and implement a food safety program). Completes the unit evidence for his testamur on file.",
+    issuedOn: "2025-06-27",
+    expiresOn: null,
+    file: "record-of-results-alan-urquiza.pdf",
+    mime: "application/pdf",
+  },
+  {
     venues: ALL,
     type: "TRAINING_RECORD",
     title: "Food safety questionnaire (staff knowledge check + answer key)",
