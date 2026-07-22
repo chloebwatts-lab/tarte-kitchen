@@ -35,4 +35,24 @@ eq("bracket grade 500g", parsePackSize("Slipper Bug Meat Raw [50g+] 500g"), { qt
   const r = compareUnits({ purchaseUnit: "kg", purchaseQuantity: 1, purchasePrice: 5.88 }, { unit: "kg", unitPrice: 6.3, description: "CAPSICUM RED KG" }, null)
   eq("same-unit direct", r.kind, "same_unit")
 }
+// ── 2026-07-22 major-audit additions ─────────────────────────────────────
+import { effectiveUnitPrice } from "../src/lib/invoices/units"
+// triple multiplier: 4 trays x 6 cans x 250ml = 6 L
+eq("triple multiplier", parsePackSize("SODA WATER 4 X 6 X 250ML"), { qty: 6, unit: "l" })
+// size + container word + count: 1kg tub x 6 = 6 kg
+eq("worded reversed", parsePackSize("YOGHURT GREEK 1kg tub x 6"), { qty: 6, unit: "kg" })
+// existing forms still parse
+eq("plain reversed", parsePackSize("Olive Oil 1L x 6"), { qty: 6, unit: "l" })
+eq("forward multi", parsePackSize("MANGO CHUNKS IQF ENTYCE 4x2.5kg"), { qty: 10, unit: "kg" })
+eq("inch marks safe", parsePackSize('TORTILLAS FLOUR 10" CATERERS C 12\'s'), null)
+// effective unit price: Jensens per-line discount — paid price wins
+eq("effective price discount", effectiveUnitPrice(5.95, 1, 5.35), 5.35)
+// LLM lineTotal-as-unitPrice slip: 6 x $6.99 = $41.94, unitPrice wrongly 41.94
+eq("effective price llm slip", Math.round((effectiveUnitPrice(41.94, 6, 41.94) ?? 0) * 100) / 100, 6.99)
+// agreement within 5% → trust unitPrice
+eq("effective price agree", effectiveUnitPrice(7.1, 2, 14.2), 7.1)
+// credits / zero totals → keep raw
+eq("effective price credit", effectiveUnitPrice(11.2, 12, -134.4), 11.2)
+eq("effective price zero total", effectiveUnitPrice(6.95, 11, 0), 6.95)
+
 process.exit(fails ? 1 : 0)

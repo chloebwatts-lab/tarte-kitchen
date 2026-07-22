@@ -118,6 +118,24 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
   // Track which ingredient IDs already have an alert decision this run.
   const stillOpen = new Set<string>()
 
+  // Recently resolved alerts, so a chef's decision STICKS: a DISMISSED
+  // alert must not resurrect nightly at the same price (zombie), and an
+  // ACCEPTED produce alert must not re-fire while the trailing median
+  // catches up to the accepted price. Only a further price move re-alerts.
+  const recentlyResolved = new Map<string, Decimal>()
+  const resolved = await db.priceAlert.findMany({
+    where: {
+      status: { in: ["DISMISSED", "ACCEPTED"] },
+      resolvedAt: { gte: daysAgo(45) },
+    },
+    orderBy: { resolvedAt: "asc" },
+    select: { ingredientId: true, currentPrice: true },
+  })
+  for (const r of resolved) {
+    // asc order → the latest resolution per ingredient wins.
+    recentlyResolved.set(r.ingredientId, new Decimal(r.currentPrice.toString()))
+  }
+
   for (const [ingId, ingLines] of byIng.entries()) {
     evaluated++
     const ing = ingLines[0].ingredient!
@@ -156,10 +174,14 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
     let triggered = false
 
     if (stream === "PRODUCE") {
-      // 4-week trailing median target
-      const inWindow = validLines.filter(
-        (l) => (l.invoice?.invoiceDate?.getTime() ?? 0) >= fourWeeksAgo.getTime()
-      )
+      // 4-week trailing median target, EXCLUDING the latest delivery being
+      // tested — a self-referential median drags itself up toward the spike
+      // (with 2 points, "+25% vs median" silently required +67% vs prior).
+      const latestDate = latest.invoice!.invoiceDate!.getTime()
+      const inWindow = validLines.filter((l) => {
+        const t = l.invoice?.invoiceDate?.getTime() ?? 0
+        return t >= fourWeeksAgo.getTime() && t < latestDate
+      })
       if (inWindow.length < 2) {
         counts.dismissed++
         continue
@@ -174,13 +196,22 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
           : sortedPrices[mid - 1].plus(sortedPrices[mid]).div(2)
       priorPrice = priorMedian
 
-      // Require ≥2 consecutive recent deliveries above threshold
-      const recentN = Math.min(
-        PRODUCE_CONFIRMATION_DELIVERIES,
-        validLines.length
-      )
-      const recent = validLines.slice(-recentN)
-      const allAbove = recent.every((l) => {
+      // Require ≥2 consecutive recent DELIVERIES above threshold — distinct
+      // invoice dates, not the last N line items (one invoice with two lines
+      // for the same ingredient must not self-confirm a one-off spike).
+      const byDate = new Map<number, LineWithRels>()
+      for (const l of validLines) {
+        byDate.set(l.invoice!.invoiceDate!.getTime(), l) // last line per date wins
+      }
+      const deliveryDates = [...byDate.keys()].sort((a, b) => a - b)
+      if (deliveryDates.length < PRODUCE_CONFIRMATION_DELIVERIES) {
+        counts.dismissed++
+        continue
+      }
+      const recentDeliveries = deliveryDates
+        .slice(-PRODUCE_CONFIRMATION_DELIVERIES)
+        .map((d) => byDate.get(d)!)
+      const allAbove = recentDeliveries.every((l) => {
         const p = new Decimal(l.normalisedUnitPrice!.toString())
         const pctDelta = p.minus(priorMedian!).div(priorMedian!).mul(100)
         return pctDelta.gte(PRODUCE_FLAG_THRESHOLD_PCT)
@@ -213,17 +244,30 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
       continue
     }
 
+    // Chef decisions stick: if this ingredient's alert was dismissed or
+    // accepted recently AT THIS PRICE (±2%), don't re-open it. A further
+    // move re-alerts as normal.
+    const resolvedAt = recentlyResolved.get(ingId)
+    if (
+      resolvedAt &&
+      resolvedAt.gt(0) &&
+      currentPrice.minus(resolvedAt).abs().div(resolvedAt).lt(0.02)
+    ) {
+      counts.dismissed++
+      continue
+    }
+
     const changePct = currentPrice
       .minus(priorPrice)
       .div(priorPrice)
       .mul(100)
       .toDecimalPlaces(2)
 
-    // Hard sanity cap: real supplier moves never exceed 100% in either
-    // direction. Anything beyond that is a unit-mismatch ghost the
-    // normalisedUnitPrice gate let slip — skip silently rather than
-    // surface garbage to the chef.
-    if (changePct.abs().gte(100)) {
+    // Sanity cap for unit-mismatch ghosts. With conversions unit-scoped and
+    // normalised prices rebuilt, big moves are usually REAL (cocoa doubled;
+    // vanilla paste +115% was being hidden by the old 100% cap) — only
+    // truly absurd multiples are still worth suppressing.
+    if (changePct.abs().gte(500)) {
       counts.dismissed++
       continue
     }
@@ -269,8 +313,15 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
       })
       refreshed++
     } else {
-      await db.priceAlert.create({ data: alertData })
-      newAlerts++
+      try {
+        await db.priceAlert.create({ data: alertData })
+        newAlerts++
+      } catch {
+        // Partial unique index (one OPEN per ingredient): a concurrent run
+        // (manual Recompute racing the cron) created it first — that run's
+        // values are equivalent; skip rather than duplicate.
+        refreshed++
+      }
     }
   }
 

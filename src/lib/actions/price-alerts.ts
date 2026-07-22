@@ -36,7 +36,13 @@ export async function listOpenAlerts(
         },
       },
     },
-    orderBy: [{ stream: "asc" }, { changePct: "desc" }],
+    orderBy: [{ stream: "asc" }],
+  })
+  // Sort by |changePct| desc within stream — a −40% drop (Bidfood rebate)
+  // matters as much as a +40% rise and must not sink below +5% noise.
+  alerts.sort((a, b) => {
+    if (a.stream !== b.stream) return a.stream < b.stream ? -1 : 1
+    return Math.abs(Number(b.changePct)) - Math.abs(Number(a.changePct))
   })
   return alerts as PriceAlertWithIngredient[]
 }
@@ -50,7 +56,12 @@ export async function acceptAlert(alertId: string) {
     where: { id: alertId },
     include: { ingredient: true },
   })
-  if (!alert || alert.status !== "OPEN") return
+  if (!alert) return { ok: false as const, reason: "Alert no longer exists" }
+  // The nightly recompute can flip an alert to DISMISSED between the chef's
+  // page load and their tap. That's a stale-close race, not a real refusal —
+  // the chef is looking at the numbers and accepting THEM, so honour it.
+  // Only a genuinely already-accepted alert is a no-op.
+  if (alert.status === "ACCEPTED") return { ok: true as const, reason: "Already accepted" }
 
   const ing = alert.ingredient
   // New purchasePrice = currentPrice (per-unit) × purchaseQuantity
@@ -79,6 +90,14 @@ export async function acceptAlert(alertId: string) {
     }),
   ])
 
+  // Keep the v1 per-line alert surface (/suppliers) in sync: the pending
+  // priceChanged flags for this ingredient are now resolved by this accept,
+  // so they must not keep showing as open alerts on the other page.
+  await db.invoiceLineItem.updateMany({
+    where: { ingredientId: ing.id, priceChanged: true, priceApproved: null },
+    data: { priceApproved: true },
+  })
+
   // Cascade to recipes / dishes
   const { recalculateAll } = await import("@/lib/actions/ingredients")
   await recalculateAll()
@@ -87,6 +106,8 @@ export async function acceptAlert(alertId: string) {
   revalidatePath("/price-alerts")
   revalidatePath("/ingredients")
   revalidatePath("/dishes")
+  revalidatePath("/suppliers")
+  return { ok: true as const }
 }
 
 export async function dismissAlert(alertId: string) {

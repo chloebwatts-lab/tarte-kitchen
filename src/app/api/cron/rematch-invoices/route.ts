@@ -11,7 +11,8 @@
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { matchLineItem } from "@/lib/invoices/matcher"
-import { evaluatePriceChange } from "@/lib/invoices/units"
+import { evaluatePriceChange, effectiveUnitPrice } from "@/lib/invoices/units"
+import { streamForCategory } from "@/lib/price-alerts/classifier"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 1500
@@ -73,17 +74,19 @@ export async function GET(req: NextRequest) {
         if (line.unitPrice != null) {
           const ing = await db.ingredient.findUnique({
             where: { id: match.ingredientId },
-            select: { purchasePrice: true, purchaseQuantity: true, purchaseUnit: true },
+            select: { purchasePrice: true, purchaseQuantity: true, purchaseUnit: true, category: true },
           })
           let mappingConversion: number | null = null
           let mappingInvoiceUnit: string | null = null
           if (match.mappingId) {
             const mapping = await db.supplierItemMapping.findUnique({
               where: { id: match.mappingId },
-              select: { conversionFactor: true, invoiceUnit: true },
+              select: { conversionFactor: true, invoiceUnit: true, ignored: true },
             })
-            mappingConversion = mapping?.conversionFactor ? Number(mapping.conversionFactor) : null
-            mappingInvoiceUnit = mapping?.invoiceUnit ?? null
+            if (mapping && !mapping.ignored) {
+              mappingConversion = mapping.conversionFactor ? Number(mapping.conversionFactor) : null
+              mappingInvoiceUnit = mapping.invoiceUnit ?? null
+            }
           }
           if (ing) {
             const evaluation = evaluatePriceChange(
@@ -94,7 +97,11 @@ export async function GET(req: NextRequest) {
               },
               {
                 unit: line.unit,
-                unitPrice: Number(line.unitPrice),
+                unitPrice: effectiveUnitPrice(
+                  Number(line.unitPrice),
+                  line.quantity != null ? Number(line.quantity) : null,
+                  line.lineTotal != null ? Number(line.lineTotal) : null
+                ),
                 description: line.description,
               },
               mappingConversion,
@@ -105,6 +112,13 @@ export async function GET(req: NextRequest) {
             currentPrice = evaluation.currentPrice
             suggestedConversionFactor = evaluation.suggestedConversionFactor
             normalisedUnitPrice = evaluation.normalisedUnitPrice
+            // Produce never enters the unit-review queue (standing rule
+            // 2026-07-15) — the processor suppresses this; the rematch
+            // path must too or produce piles back in nightly.
+            if (unitChanged && streamForCategory(ing.category) === "PRODUCE") {
+              unitChanged = false
+              suggestedConversionFactor = null
+            }
             if (priceChanged) newPriceChanges++
           }
         }

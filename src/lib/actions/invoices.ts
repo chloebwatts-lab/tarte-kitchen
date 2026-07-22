@@ -6,8 +6,10 @@ import type { Invoice, InvoiceLineItem, Ingredient, Supplier } from "@/generated
 import {
   compareUnits,
   evaluatePriceChange,
+  effectiveUnitPrice,
   newPurchasePriceFromComparison,
 } from "@/lib/invoices/units"
+import { streamForCategory } from "@/lib/price-alerts/classifier"
 
 type InvoiceWithItems = Invoice & {
   lineItems: (InvoiceLineItem & { ingredient: (Ingredient & { supplier: Supplier | null }) | null })[]
@@ -81,7 +83,7 @@ export async function matchLineItem(lineItemId: string, ingredientId: string) {
 
   const ingredient = await db.ingredient.findUnique({
     where: { id: ingredientId },
-    select: { id: true, name: true, purchasePrice: true, purchaseQuantity: true, purchaseUnit: true },
+    select: { id: true, name: true, purchasePrice: true, purchaseQuantity: true, purchaseUnit: true, category: true },
   })
   if (!ingredient) throw new Error("Ingredient not found")
 
@@ -97,10 +99,15 @@ export async function matchLineItem(lineItemId: string, ingredientId: string) {
           invoiceDescription: lineItem.description,
         },
       },
-      select: { conversionFactor: true, invoiceUnit: true },
+      select: { conversionFactor: true, invoiceUnit: true, ignored: true, ingredientId: true },
     })
-    mappingConversion = existing?.conversionFactor ? Number(existing.conversionFactor) : null
-    mappingInvoiceUnit = existing?.invoiceUnit ?? null
+    // An ignored mapping's factor is knowledge about a REJECTED pairing —
+    // never apply it. And a factor learned for a different ingredient is in
+    // that ingredient's unit basis — also unusable here.
+    if (existing && !existing.ignored && existing.ingredientId === ingredientId) {
+      mappingConversion = existing.conversionFactor ? Number(existing.conversionFactor) : null
+      mappingInvoiceUnit = existing.invoiceUnit ?? null
+    }
   }
 
   const evaluation = evaluatePriceChange(
@@ -111,7 +118,11 @@ export async function matchLineItem(lineItemId: string, ingredientId: string) {
     },
     {
       unit: lineItem.unit,
-      unitPrice: lineItem.unitPrice ? Number(lineItem.unitPrice) : null,
+      unitPrice: effectiveUnitPrice(
+        lineItem.unitPrice ? Number(lineItem.unitPrice) : null,
+        lineItem.quantity ? Number(lineItem.quantity) : null,
+        lineItem.lineTotal ? Number(lineItem.lineTotal) : null
+      ),
       description: lineItem.description,
     },
     mappingConversion,
@@ -126,14 +137,32 @@ export async function matchLineItem(lineItemId: string, ingredientId: string) {
       matchedName: ingredient.name,
       currentPrice: evaluation.currentPrice,
       priceChanged: evaluation.priceChanged,
-      unitChanged: evaluation.unitChanged,
+      // Produce never enters the unit-review queue (standing rule
+      // 2026-07-15) — floating tray/bunch pack sizes skip silently.
+      unitChanged:
+        streamForCategory(ingredient.category) === "PRODUCE" ? false : evaluation.unitChanged,
       normalisedUnitPrice: evaluation.normalisedUnitPrice,
-      suggestedConversionFactor: evaluation.suggestedConversionFactor,
+      suggestedConversionFactor:
+        streamForCategory(ingredient.category) === "PRODUCE" ? null : evaluation.suggestedConversionFactor,
     },
   })
 
-  // Create supplier-item mapping for future auto-matching
+  // Create supplier-item mapping for future auto-matching. On a RE-map the
+  // old ingredient's conversion factor is meaningless for the new one (it's
+  // in the old ingredient's unit basis) — clear it so the pipeline falls
+  // back to description parsing / unit review rather than silently applying
+  // a factor from a different product. A manual re-map also un-ignores.
   if (lineItem.invoice.supplierId) {
+    const prior = await db.supplierItemMapping.findUnique({
+      where: {
+        supplierId_invoiceDescription: {
+          supplierId: lineItem.invoice.supplierId,
+          invoiceDescription: lineItem.description,
+        },
+      },
+      select: { ingredientId: true },
+    })
+    const isRemap = prior !== null && prior.ingredientId !== ingredientId
     await db.supplierItemMapping.upsert({
       where: {
         supplierId_invoiceDescription: {
@@ -144,6 +173,10 @@ export async function matchLineItem(lineItemId: string, ingredientId: string) {
       update: {
         ingredientId,
         lastUsed: new Date(),
+        ignored: false,
+        ignoredAt: null,
+        ignoredBy: null,
+        ...(isRemap ? { conversionFactor: null, invoiceUnit: lineItem.unit } : {}),
       },
       create: {
         supplierId: lineItem.invoice.supplierId,
@@ -244,10 +277,12 @@ export async function approvePriceChange(lineItemId: string) {
           invoiceDescription: li.description,
         },
       },
-      select: { conversionFactor: true, invoiceUnit: true },
+      select: { conversionFactor: true, invoiceUnit: true, ignored: true },
     })
-    mappingConversion = mapping?.conversionFactor ? Number(mapping.conversionFactor) : null
-    mappingInvoiceUnit = mapping?.invoiceUnit ?? null
+    if (mapping && !mapping.ignored) {
+      mappingConversion = mapping.conversionFactor ? Number(mapping.conversionFactor) : null
+      mappingInvoiceUnit = mapping.invoiceUnit ?? null
+    }
   }
 
   const result = compareUnits(
@@ -258,7 +293,11 @@ export async function approvePriceChange(lineItemId: string) {
     },
     {
       unit: li.unit,
-      unitPrice: Number(li.unitPrice),
+      unitPrice: effectiveUnitPrice(
+        Number(li.unitPrice),
+        li.quantity ? Number(li.quantity) : null,
+        li.lineTotal ? Number(li.lineTotal) : null
+      ),
       description: li.description,
     },
     mappingConversion,
@@ -299,6 +338,14 @@ export async function approvePriceChange(lineItemId: string) {
   await db.invoiceLineItem.update({
     where: { id: lineItemId },
     data: { priceApproved: true },
+  })
+
+  // Keep the v2 alert surface (/price-alerts) in sync: applying the price
+  // here resolves the open PriceAlert for this ingredient too — otherwise
+  // the other page keeps showing an alert the chef already actioned.
+  await db.priceAlert.updateMany({
+    where: { ingredientId: li.ingredientId, status: "OPEN" },
+    data: { status: "ACCEPTED", resolvedAt: new Date() },
   })
 
   // Cascade recalculation (reuse existing logic)
@@ -425,11 +472,19 @@ export async function approveAllPriceChanges(invoiceId?: string) {
     },
   })
 
+  // One refused line (unit changed since flagging, mapping since ignored)
+  // must not abort the rest of the batch — collect and report instead.
+  let applied = 0
+  const failed: string[] = []
   for (const li of lineItems) {
-    await approvePriceChange(li.id)
+    try {
+      await approvePriceChange(li.id)
+      applied++
+    } catch {
+      failed.push(li.description)
+    }
   }
-
-  return true
+  return { applied, failed }
 }
 
 export async function getGmailStatus() {
@@ -490,6 +545,7 @@ export async function getPriceAlerts() {
   if (lookupKeys.length > 0) {
     const mappings = await db.supplierItemMapping.findMany({
       where: {
+        ignored: false,
         OR: lookupKeys.map((k) => ({
           supplierId: k.supplierId,
           invoiceDescription: k.description,
@@ -636,15 +692,19 @@ export async function getUnitChangedAlerts(): Promise<UnitChangedAlert[]> {
 
 /**
  * User has confirmed how the invoice unit relates to the stored purchase
- * unit (e.g. 1 carton = 5kg → factor = 5 when stored per-kg). Writes the
- * factor to the SupplierItemMapping so future invoices auto-resolve, then
- * re-evaluates this line. If the converted price now diverges from the
- * stored one it moves into the priceChanged bucket for normal approval.
+ * unit. The argument is the HUMAN answer to "1 <invoice unit> = how many
+ * <stored unit>s?" (e.g. 1 carton = 5 when stored per-kg and the carton
+ * holds 5 kg). The ENGINE multiplies invoice price × factor to get the
+ * per-stored-unit price, so what we store is the RECIPROCAL: 1/5.
+ * Getting this backwards was the single biggest source of corrupted
+ * prices (a 5 kg carton saved as ×5 instead of ÷5 = 25× off) — keep the
+ * human semantics at this boundary and the engine semantics below it.
  */
-export async function confirmConversion(lineItemId: string, conversionFactor: number) {
-  if (!Number.isFinite(conversionFactor) || conversionFactor <= 0) {
-    throw new Error("Conversion factor must be a positive number")
+export async function confirmConversion(lineItemId: string, storedUnitsPerInvoiceUnit: number) {
+  if (!Number.isFinite(storedUnitsPerInvoiceUnit) || storedUnitsPerInvoiceUnit <= 0) {
+    throw new Error("Conversion must be a positive number")
   }
+  const conversionFactor = 1 / storedUnitsPerInvoiceUnit
 
   const li = await db.invoiceLineItem.findUnique({
     where: { id: lineItemId },
@@ -688,7 +748,11 @@ export async function confirmConversion(lineItemId: string, conversionFactor: nu
     },
     {
       unit: li.unit,
-      unitPrice: li.unitPrice ? Number(li.unitPrice) : null,
+      unitPrice: effectiveUnitPrice(
+        li.unitPrice ? Number(li.unitPrice) : null,
+        li.quantity ? Number(li.quantity) : null,
+        li.lineTotal ? Number(li.lineTotal) : null
+      ),
       description: li.description,
     },
     conversionFactor,

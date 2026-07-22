@@ -135,6 +135,10 @@ services:
         */30 * * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" 'http://app:3000/api/cron/sync-sales?days=2' 2>&1
         # Every 15 min — pull Deputy rosters so /labour stays fresh
         */15 * * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-deputy 2>&1
+        # 09:30 AEST (23:30 UTC) — retry unmatched invoice lines against
+        # newly added ingredients/mappings, after the 09:00 sweep and
+        # before the 10:00 alert recompute so fresh matches feed it.
+        30 23 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/rematch-invoices 2>&1
         # 10:00 AEST (00:00 UTC) — recompute v2 price alerts, after the
         # 09:00 invoice sweep. Idempotent full recompute; auto-closes
         # alerts that stopped firing.

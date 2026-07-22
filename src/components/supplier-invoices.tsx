@@ -45,11 +45,19 @@ interface IngredientOption {
 // real bugs behind ignoreBuildErrors.
 type InvoiceDetail = NonNullable<Awaited<ReturnType<typeof getInvoice>>>
 
+// Keys are the ACTUAL InvoiceStatus enum values — the previous set
+// (PROCESSED/NEEDS_REVIEW/FAILED) matched nothing, so every invoice badge
+// fell through to "Pending".
 const statusConfig: Record<string, { label: string; variant: "green" | "amber" | "red" | "secondary" }> = {
-  PROCESSED: { label: "Processed", variant: "green" },
-  NEEDS_REVIEW: { label: "Needs Review", variant: "amber" },
-  FAILED: { label: "Failed", variant: "red" },
-  PENDING: { label: "Pending", variant: "secondary" },
+  MATCHED: { label: "Matched", variant: "green" },
+  APPROVED: { label: "Approved", variant: "green" },
+  EXTRACTED: { label: "Needs Review", variant: "amber" },
+  PENDING: { label: "Processing", variant: "secondary" },
+  PROCESSING: { label: "Processing", variant: "secondary" },
+  REJECTED: { label: "Rejected", variant: "red" },
+  ERROR: { label: "Failed", variant: "red" },
+  DUPLICATE: { label: "Duplicate", variant: "secondary" },
+  STATEMENT: { label: "Statement", variant: "secondary" },
 }
 
 export function SupplierInvoices({

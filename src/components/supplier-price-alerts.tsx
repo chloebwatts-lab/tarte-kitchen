@@ -71,6 +71,7 @@ export function SupplierPriceAlerts({
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const unacknowledged = alerts.filter((a) => !a.acknowledged)
   const acknowledged = alerts.filter((a) => a.acknowledged)
@@ -83,8 +84,16 @@ export function SupplierPriceAlerts({
   }
 
   function handleApplyAndAcknowledge(id: string) {
+    setActionError(null)
     startTransition(async () => {
-      await applyAndAcknowledgeAlert(id)
+      try {
+        await applyAndAcknowledgeAlert(id)
+      } catch (e) {
+        // The apply path REFUSES when the line is no longer like-for-like
+        // (unit changed, mapping since ignored). Silence here previously
+        // made the button look broken — surface the refusal.
+        setActionError(e instanceof Error ? e.message : "Could not apply this price")
+      }
       router.refresh()
     })
   }
@@ -111,8 +120,14 @@ export function SupplierPriceAlerts({
   }
 
   function handleApplyAll() {
+    setActionError(null)
     startTransition(async () => {
-      await applyAllPriceChanges()
+      const result = await applyAllPriceChanges()
+      if (result && result.failed.length > 0) {
+        setActionError(
+          `${result.applied} applied; ${result.failed.length} refused (need unit review): ${result.failed.slice(0, 3).join(", ")}${result.failed.length > 3 ? "…" : ""}`
+        )
+      }
       router.refresh()
     })
   }
@@ -133,6 +148,11 @@ export function SupplierPriceAlerts({
 
   return (
     <div className="space-y-4">
+      {actionError && (
+        <div className="rounded-lg border border-red-text/30 bg-red-light/40 px-3 py-2 text-sm text-red-text">
+          {actionError}
+        </div>
+      )}
       {unitChangedAlerts.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
@@ -335,9 +355,13 @@ function UnitChangedRow({
 }) {
   const router = useRouter()
   const [localPending, startLocal] = useTransition()
+  // The input is the HUMAN semantics ("1 carton = N kg"); the engine stores
+  // 1/N (invoice price × stored-factor = per-stored-unit price). The
+  // suggestion from parsing arrives in ENGINE semantics, so invert it for
+  // display. confirmConversion inverts the typed value back on save.
   const [factor, setFactor] = useState<string>(
-    alert.suggestedConversionFactor != null
-      ? String(alert.suggestedConversionFactor)
+    alert.suggestedConversionFactor != null && alert.suggestedConversionFactor > 0
+      ? String(Math.round((1 / alert.suggestedConversionFactor) * 10000) / 10000)
       : ""
   )
   const [error, setError] = useState<string | null>(null)
@@ -362,7 +386,8 @@ function UnitChangedRow({
     })
   }
 
-  const impliedStoredPrice = valid ? alert.invoiceUnitPrice * parsed : null
+  // "1 invoice unit = N stored units" → per-stored-unit price = price ÷ N.
+  const impliedStoredPrice = valid ? alert.invoiceUnitPrice / parsed : null
 
   return (
     <div className="rounded-lg border border-amber-text/20 bg-amber-light/40 p-3 space-y-2">

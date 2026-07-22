@@ -122,6 +122,19 @@ export interface ParsedPackSize {
 const PACK_REGEX_MULTIPACK =
   /(\d+)\s*(?:pk|pack)\b[^0-9]{0,6}(\d+(?:\.\d+)?)\s*(kgs?|grams?|gms?|gr|g|ml|litres?|liters?|ltrs?|lt|l)\b/i
 
+// Triple multiplier: "SODA WATER 4 X 6 X 250ML" (4 trays of 6 cans). The
+// forward regex anchors on the inner "6 X 250ML" and silently drops the
+// outer 4× — a 6 L case normalising as 1.5 L (price 4× high). Tried FIRST.
+const PACK_REGEX_TRIPLE =
+  /(\d+)\s*x\s*(\d+)\s*x\s*(\d+(?:\.\d+)?)\s*(kgs?|grams?|gms?|gr|g|ml|litres?|liters?|ltrs?|lt|l)\b/i
+
+// Size + container word + count: "YOGHURT GREEK 1kg tub x 6". The reversed
+// regex requires the unit immediately before the ×, so the container word
+// broke it and only the bare "1kg" matched (price 6× high). Allows one
+// non-numeric word (≤12 chars) between the size and the multiplier.
+const PACK_REGEX_WORDED_REVERSED =
+  /(\d+(?:\.\d+)?)\s*(kgs?|grams?|gms?|gr|g|ml|litres?|liters?|ltrs?|lt|l)\s+[a-z]{2,12}\s*x\s*(\d+)\b/i
+
 export function parsePackSize(rawDescription: string): ParsedPackSize | null {
   // Strip bracketed size-grades before parsing: "Slipper Bug Meat Raw
   // [10-50g] 1kg" grades the PIECES at 10-50 g — parsing "50g" as the pack
@@ -130,16 +143,24 @@ export function parsePackSize(rawDescription: string): ParsedPackSize | null {
   let a: number
   let b: number | null
   let raw: string
+  const metricTotal = (qty: number, u: string): ParsedPackSize => {
+    if (/^(kg)/.test(u)) return { qty, unit: "kg" }
+    if (/^(g|gr|gm|gram)/.test(u)) return { qty: qty / 1000, unit: "kg" }
+    if (/^(ml)/.test(u)) return { qty: qty / 1000, unit: "l" }
+    return { qty, unit: "l" }
+  }
+  const triple = description.match(PACK_REGEX_TRIPLE)
+  if (triple) {
+    const qty = parseFloat(triple[1]) * parseFloat(triple[2]) * parseFloat(triple[3])
+    return metricTotal(qty, triple[4].toLowerCase())
+  }
   const multi = description.match(PACK_REGEX_MULTIPACK)
   if (multi) {
-    a = parseFloat(multi[1])
-    b = parseFloat(multi[2])
-    raw = multi[3].toLowerCase()
-    const qty = a * b
-    if (/^(kg)/.test(raw)) return { qty, unit: "kg" }
-    if (/^(g|gr|gm|gram)/.test(raw)) return { qty: qty / 1000, unit: "kg" }
-    if (/^(ml)/.test(raw)) return { qty: qty / 1000, unit: "l" }
-    return { qty, unit: "l" }
+    return metricTotal(parseFloat(multi[1]) * parseFloat(multi[2]), multi[3].toLowerCase())
+  }
+  const worded = description.match(PACK_REGEX_WORDED_REVERSED)
+  if (worded) {
+    return metricTotal(parseFloat(worded[1]) * parseFloat(worded[3]), worded[2].toLowerCase())
   }
   const rev = description.match(PACK_REGEX_REVERSED)
   if (rev) {
@@ -233,6 +254,38 @@ export function metricConversionFactor(
   if (!inv || !sto || inv.family !== sto.family) return null
   // $ per invoice-unit → $ per stored-unit: scale by size ratio.
   return sto.toBase / inv.toBase
+}
+
+/**
+ * The unit price that was actually PAID. Two failure modes make the raw
+ * `unitPrice` field lie: the PDF extractor occasionally emits the line
+ * total as the unit price, and some suppliers (Jensens) print a list
+ * unit price then apply per-line discounts, so unitPrice × qty overstates
+ * the real spend by ~10% on every line. When quantity and lineTotal are
+ * both present, positive, and disagree with unitPrice × qty by more than
+ * 5%, lineTotal ÷ qty is the truth. Otherwise trust unitPrice.
+ */
+export function effectiveUnitPrice(
+  unitPrice: number | null,
+  quantity: number | null,
+  lineTotal: number | null
+): number | null {
+  if (
+    unitPrice !== null &&
+    quantity !== null &&
+    lineTotal !== null &&
+    Number.isFinite(unitPrice) &&
+    Number.isFinite(quantity) &&
+    Number.isFinite(lineTotal) &&
+    quantity > 0 &&
+    lineTotal > 0 &&
+    unitPrice > 0
+  ) {
+    const implied = lineTotal / quantity
+    const disagreement = Math.abs(unitPrice * quantity - lineTotal)
+    if (disagreement > Math.max(0.05 * lineTotal, 0.05)) return implied
+  }
+  return unitPrice
 }
 
 export function compareUnits(

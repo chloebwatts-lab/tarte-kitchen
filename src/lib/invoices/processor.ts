@@ -6,7 +6,7 @@ import {
   defaultVenueForSupplier,
 } from "./venue-from-address"
 import type { InvoiceStatus } from "@/generated/prisma"
-import { evaluatePriceChange } from "./units"
+import { evaluatePriceChange, effectiveUnitPrice } from "./units"
 import { streamForCategory } from "@/lib/price-alerts/classifier"
 
 export interface ProcessingResult {
@@ -113,7 +113,11 @@ export async function processInvoice(
           },
           {
             unit: lineItem.unit,
-            unitPrice: lineItem.unitPrice,
+            unitPrice: effectiveUnitPrice(
+              lineItem.unitPrice,
+              lineItem.quantity ?? null,
+              lineItem.totalPrice ?? null
+            ),
             description: lineItem.description,
           },
           mappingConversion,

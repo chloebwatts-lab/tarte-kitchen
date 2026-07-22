@@ -96,6 +96,12 @@ export async function matchLineItem(
     }
   }
 
+  // An IGNORED mapping is a rejected pairing: this description must never
+  // re-match to that ingredient via ANY later step (fuzzy/token would
+  // happily re-derive the same wrong answer and undo the user's rejection
+  // on the next rematch run — the "2L CAPO → Caperberry forever" loop).
+  const rejectedIngredientId = mapping?.ignored ? mapping.ingredientId : null
+
   // 2. Case-insensitive mapping match (also skip ignored)
   const fuzzyMapping = await db.supplierItemMapping.findFirst({
     where: {
@@ -126,19 +132,20 @@ export async function matchLineItem(
       includeScore: true,
     })
     const results = fuse.search(invoiceDescription)
-    const top = results[0]
+    const top = results.find((r) => r.item.id !== rejectedIngredientId)
     if (top && top.score !== undefined && top.score < 0.4) {
-      const newMapping = await db.supplierItemMapping.create({
-        data: {
-          supplierId,
-          ingredientId: top.item.id,
-          invoiceDescription,
-        },
-      })
+      // safeCreateMapping, NOT create: an ignored mapping row already
+      // holding this (supplier, description) key would make a bare create
+      // throw and take the WHOLE invoice down with it.
+      const mappingId = await safeCreateMapping(
+        supplierId,
+        invoiceDescription,
+        top.item.id
+      )
       return {
         matched: true,
         ingredientId: top.item.id,
-        mappingId: newMapping.id,
+        mappingId,
       }
     }
   }
@@ -167,6 +174,7 @@ export async function matchLineItem(
 
   let bestTokenMatch: { id: string; name: string; specificity: number } | null = null
   for (const ing of list) {
+    if (ing.id === rejectedIngredientId) continue
     const ingNameLower = ing.name.toLowerCase()
     // Tokens for matching (length ≥3, stemmed).
     const ingTokens = ingNameLower
@@ -215,8 +223,15 @@ export async function matchLineItem(
 
   // 5. Cross-supplier fuzzy as a final fallback (tight threshold —
   // typo recovery, not generic matching).
+  //
+  // Short-residue guard: Fuse's bitap score is relative to pattern length,
+  // so a 4-char residue tolerates a whole edit inside 0.28 — that's how
+  // "2L CAPO (BROWN)" (residue "capo") matched "Caperberry" at 0.25.
+  // Below 8 chars there isn't enough signal for typo-recovery to be
+  // distinguishable from coincidence; leave the line for a human.
+  if (normalised.replace(/\s+/g, "").length < 8) return { matched: false }
   const results = fuse.search(normalised)
-  const top = results[0]
+  const top = results.find((r) => r.item.id !== rejectedIngredientId)
   if (top && top.score !== undefined && top.score < 0.28) {
     const mappingId = await safeCreateMapping(
       supplierId,

@@ -6,7 +6,7 @@
  */
 import "dotenv/config"
 import { Pool } from "pg"
-import { evaluatePriceChange } from "../src/lib/invoices/units"
+import { evaluatePriceChange, effectiveUnitPrice } from "../src/lib/invoices/units"
 
 const WRITE = process.argv.includes("--write")
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
@@ -17,7 +17,7 @@ async function main() {
   const c = await pool.connect()
   try {
     const lines = await c.query(
-      `SELECT l.id, l.description, l.unit, l."unitPrice"::float up, l."normalisedUnitPrice"::float oldnorm,
+      `SELECT l.id, l.description, l.unit, l."unitPrice"::float up, l.quantity::float qty, l."lineTotal"::float lt, l."normalisedUnitPrice"::float oldnorm,
               l."unitChanged" olduc, i.id iid, i.name, i.category, i."purchaseUnit" pu, i."purchaseQuantity"::float pq,
               i."purchasePrice"::float ppr, m."conversionFactor"::float mf, m."invoiceUnit" miu
        FROM "InvoiceLineItem" l
@@ -31,7 +31,7 @@ async function main() {
     for (const l of lines.rows) {
       const ev = evaluatePriceChange(
         { purchaseUnit: l.pu, purchaseQuantity: l.pq, purchasePrice: l.ppr },
-        { unit: l.unit, unitPrice: l.up, description: l.description },
+        { unit: l.unit, unitPrice: effectiveUnitPrice(l.up, l.qty ?? null, l.lt ?? null), description: l.description },
         l.mf ?? null,
         l.miu ?? null
       )
