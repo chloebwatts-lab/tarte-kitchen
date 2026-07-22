@@ -95,12 +95,14 @@ export async function processInvoice(
       // If the matcher reused a SupplierItemMapping it may already carry a
       // conversion factor (a one-tap confirm from a prior invoice).
       let mappingConversion: number | null = null
+      let mappingInvoiceUnit: string | null = null
       if (mappingId) {
         const mapping = await db.supplierItemMapping.findUnique({
           where: { id: mappingId },
-          select: { conversionFactor: true },
+          select: { conversionFactor: true, invoiceUnit: true },
         })
         mappingConversion = mapping?.conversionFactor ? Number(mapping.conversionFactor) : null
+        mappingInvoiceUnit = mapping?.invoiceUnit ?? null
       }
       if (ing) {
         const evaluation = evaluatePriceChange(
@@ -114,7 +116,8 @@ export async function processInvoice(
             unitPrice: lineItem.unitPrice,
             description: lineItem.description,
           },
-          mappingConversion
+          mappingConversion,
+          mappingInvoiceUnit
         )
         priceChanged = evaluation.priceChanged
         unitChanged = evaluation.unitChanged

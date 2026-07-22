@@ -26,7 +26,7 @@ interface PriceAlert {
   id: string
   invoiceDate: string | null
   supplierName: string
-  supplierId: string
+  supplierId: string | null
   ingredientId: string | null
   ingredientName: string
   unitPrice: number
@@ -98,9 +98,10 @@ export function SupplierPriceHistory({ alerts }: { alerts: PriceAlert[] }) {
 
     const latestBySupplier = new Map<string, PriceAlert>()
     for (const a of filteredAlerts) {
-      const existing = latestBySupplier.get(a.supplierId)
+      const key = a.supplierId ?? a.supplierName
+      const existing = latestBySupplier.get(key)
       if (!existing || new Date(a.createdAt) > new Date(existing.createdAt)) {
-        latestBySupplier.set(a.supplierId, a)
+        latestBySupplier.set(key, a)
       }
     }
 

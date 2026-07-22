@@ -20,7 +20,7 @@ interface Supplier {
 
 interface InvoiceSummary {
   id: string
-  supplierId: string
+  supplierId: string | null
   supplierName: string
   invoiceNumber: string | null
   invoiceDate: string | null
@@ -38,7 +38,7 @@ interface PriceAlert {
   invoiceNumber: string | null
   invoiceDate: string | null
   supplierName: string
-  supplierId: string
+  supplierId: string | null
   description: string
   ingredientId: string | null
   ingredientName: string

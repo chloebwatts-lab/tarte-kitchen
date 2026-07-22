@@ -76,12 +76,14 @@ export async function GET(req: NextRequest) {
             select: { purchasePrice: true, purchaseQuantity: true, purchaseUnit: true },
           })
           let mappingConversion: number | null = null
+          let mappingInvoiceUnit: string | null = null
           if (match.mappingId) {
             const mapping = await db.supplierItemMapping.findUnique({
               where: { id: match.mappingId },
-              select: { conversionFactor: true },
+              select: { conversionFactor: true, invoiceUnit: true },
             })
             mappingConversion = mapping?.conversionFactor ? Number(mapping.conversionFactor) : null
+            mappingInvoiceUnit = mapping?.invoiceUnit ?? null
           }
           if (ing) {
             const evaluation = evaluatePriceChange(
@@ -95,7 +97,8 @@ export async function GET(req: NextRequest) {
                 unitPrice: Number(line.unitPrice),
                 description: line.description,
               },
-              mappingConversion
+              mappingConversion,
+              mappingInvoiceUnit
             )
             priceChanged = evaluation.priceChanged
             unitChanged = evaluation.unitChanged

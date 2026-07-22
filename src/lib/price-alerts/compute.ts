@@ -241,7 +241,10 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
       canonicalName: ing.canonicalName ?? ing.name,
       stream,
       currentPrice: currentPrice.toDecimalPlaces(4).toNumber(),
-      currentUnit: latest.unit ?? ing.purchaseUnit,
+      // normalisedUnitPrice is per single purchase-unit (per g / ml / piece),
+      // so that is the unit the alert must display. The raw invoice label
+      // (PKT / CTN / BTL) made every converted row read as nonsense.
+      currentUnit: ing.purchaseUnit,
       priorPrice: priorPrice.toDecimalPlaces(4).toNumber(),
       priorPeriodMedian: priorMedian
         ? priorMedian.toDecimalPlaces(4).toNumber()

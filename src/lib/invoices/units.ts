@@ -116,10 +116,31 @@ export interface ParsedPackSize {
   unit: "kg" | "l" | "ea"
 }
 
-export function parsePackSize(description: string): ParsedPackSize | null {
+// Multipack count without a unit on the count: "12PK : 500ML", "6pk 375ml".
+// Neither base regex catches these — "PK" isn't a measure unit, so the size
+// alone matched and a 12×500ml case normalised as if it held one 500ml can.
+const PACK_REGEX_MULTIPACK =
+  /(\d+)\s*(?:pk|pack)\b[^0-9]{0,6}(\d+(?:\.\d+)?)\s*(kgs?|grams?|gms?|gr|g|ml|litres?|liters?|ltrs?|lt|l)\b/i
+
+export function parsePackSize(rawDescription: string): ParsedPackSize | null {
+  // Strip bracketed size-grades before parsing: "Slipper Bug Meat Raw
+  // [10-50g] 1kg" grades the PIECES at 10-50 g — parsing "50g" as the pack
+  // size made a 1 kg bag normalise 20x too high.
+  const description = rawDescription.replace(/\[[^\]]*\]/g, " ")
   let a: number
   let b: number | null
   let raw: string
+  const multi = description.match(PACK_REGEX_MULTIPACK)
+  if (multi) {
+    a = parseFloat(multi[1])
+    b = parseFloat(multi[2])
+    raw = multi[3].toLowerCase()
+    const qty = a * b
+    if (/^(kg)/.test(raw)) return { qty, unit: "kg" }
+    if (/^(g|gr|gm|gram)/.test(raw)) return { qty: qty / 1000, unit: "kg" }
+    if (/^(ml)/.test(raw)) return { qty: qty / 1000, unit: "l" }
+    return { qty, unit: "l" }
+  }
   const rev = description.match(PACK_REGEX_REVERSED)
   if (rev) {
     a = parseFloat(rev[1])
@@ -217,7 +238,13 @@ export function metricConversionFactor(
 export function compareUnits(
   ingredient: IngredientUnitInfo,
   line: InvoiceLineUnitInfo,
-  mappingConversion: number | null
+  mappingConversion: number | null,
+  // Unit the mapping's factor was confirmed against. Suppliers reuse one
+  // description across pack formats (Bidfood "BUTTER SALTED" ships as a
+  // 500g PAT and a 5kg BLK) — a factor learned on one format is garbage on
+  // the other, so when we know the mapping's unit, the factor only applies
+  // to lines billed in that unit. Null (legacy mappings) keeps old behaviour.
+  mappingInvoiceUnit?: string | null
 ): CompareResult {
   const invoiceUnitPrice = line.unitPrice ?? 0
   if (!Number.isFinite(invoiceUnitPrice) || invoiceUnitPrice <= 0) {
@@ -231,6 +258,34 @@ export function compareUnits(
   }
 
   const storedUnitPrice = ingredient.purchasePrice / ingredient.purchaseQuantity
+
+  // 0. A unit-scoped mapping outranks even a same-unit label match. Some
+  // suppliers bill cartons as "ea" (Eustralis: "Bridor Croissant 70g, 2 ea
+  // @ $65.15" = two 60-packs) — the label agrees with the stored unit but
+  // lies about the quantity, and only chef-confirmed knowledge can say so.
+  // Requires BOTH a factor and a matching invoiceUnit so a legacy unscoped
+  // factor can't hijack genuine like-for-like lines.
+  if (
+    mappingConversion &&
+    Number.isFinite(mappingConversion) &&
+    mappingConversion > 0 &&
+    mappingInvoiceUnit &&
+    line.unit &&
+    normaliseUnit(mappingInvoiceUnit) === normaliseUnit(line.unit)
+  ) {
+    const invoiceInStored = invoiceUnitPrice * mappingConversion
+    const changeAmount = invoiceInStored - storedUnitPrice
+    const changePct = (changeAmount / storedUnitPrice) * 100
+    return {
+      kind: "converted",
+      storedUnitPrice,
+      invoiceUnitPriceInStoredUnits: invoiceInStored,
+      conversionFactor: mappingConversion,
+      conversionSource: "mapping",
+      changePct,
+      changeAmount,
+    }
+  }
 
   // 1. Same unit → direct compare.
   if (unitsAreCompatible(line.unit, ingredient.purchaseUnit)) {
@@ -248,7 +303,11 @@ export function compareUnits(
   // 2. Mapping has a stored conversion factor → apply it. Chef-confirmed
   // knowledge outranks unit-label heuristics (a mapping can encode "this
   // 'L'-labelled line is really priced per 5L bottle").
-  if (mappingConversion && Number.isFinite(mappingConversion) && mappingConversion > 0) {
+  const mappingUnitMatches =
+    !mappingInvoiceUnit ||
+    !line.unit ||
+    normaliseUnit(mappingInvoiceUnit) === normaliseUnit(line.unit)
+  if (mappingUnitMatches && mappingConversion && Number.isFinite(mappingConversion) && mappingConversion > 0) {
     const invoiceInStored = invoiceUnitPrice * mappingConversion
     const changeAmount = invoiceInStored - storedUnitPrice
     const changePct = (changeAmount / storedUnitPrice) * 100
@@ -332,9 +391,10 @@ export interface PriceEvaluation {
 export function evaluatePriceChange(
   ingredient: IngredientUnitInfo,
   line: InvoiceLineUnitInfo,
-  mappingConversion: number | null
+  mappingConversion: number | null,
+  mappingInvoiceUnit?: string | null
 ): PriceEvaluation {
-  const result = compareUnits(ingredient, line, mappingConversion)
+  const result = compareUnits(ingredient, line, mappingConversion, mappingInvoiceUnit)
 
   if (result.kind === "skip") {
     return {

@@ -66,6 +66,8 @@ export async function getInvoice(id: string) {
       unitPrice: li.unitPrice ? Number(li.unitPrice) : null,
       lineTotal: li.lineTotal ? Number(li.lineTotal) : null,
       currentPrice: li.currentPrice ? Number(li.currentPrice) : null,
+      normalisedUnitPrice: li.normalisedUnitPrice ? Number(li.normalisedUnitPrice) : null,
+      suggestedConversionFactor: li.suggestedConversionFactor ? Number(li.suggestedConversionFactor) : null,
     })),
   }
 }
@@ -86,6 +88,7 @@ export async function matchLineItem(lineItemId: string, ingredientId: string) {
   // Look up an existing supplier-item conversion factor if one was confirmed
   // for an earlier line. Keyed by (supplier, description).
   let mappingConversion: number | null = null
+  let mappingInvoiceUnit: string | null = null
   if (lineItem.invoice.supplierId) {
     const existing = await db.supplierItemMapping.findUnique({
       where: {
@@ -94,9 +97,10 @@ export async function matchLineItem(lineItemId: string, ingredientId: string) {
           invoiceDescription: lineItem.description,
         },
       },
-      select: { conversionFactor: true },
+      select: { conversionFactor: true, invoiceUnit: true },
     })
     mappingConversion = existing?.conversionFactor ? Number(existing.conversionFactor) : null
+    mappingInvoiceUnit = existing?.invoiceUnit ?? null
   }
 
   const evaluation = evaluatePriceChange(
@@ -110,7 +114,8 @@ export async function matchLineItem(lineItemId: string, ingredientId: string) {
       unitPrice: lineItem.unitPrice ? Number(lineItem.unitPrice) : null,
       description: lineItem.description,
     },
-    mappingConversion
+    mappingConversion,
+    mappingInvoiceUnit
   )
 
   await db.invoiceLineItem.update({
@@ -230,6 +235,7 @@ export async function approvePriceChange(lineItemId: string) {
   // the stored price. Refuses to apply unless the line is like-for-like or
   // a conversion exists.
   let mappingConversion: number | null = null
+  let mappingInvoiceUnit: string | null = null
   if (li.invoice.supplierId) {
     const mapping = await db.supplierItemMapping.findUnique({
       where: {
@@ -238,9 +244,10 @@ export async function approvePriceChange(lineItemId: string) {
           invoiceDescription: li.description,
         },
       },
-      select: { conversionFactor: true },
+      select: { conversionFactor: true, invoiceUnit: true },
     })
     mappingConversion = mapping?.conversionFactor ? Number(mapping.conversionFactor) : null
+    mappingInvoiceUnit = mapping?.invoiceUnit ?? null
   }
 
   const result = compareUnits(
@@ -254,7 +261,8 @@ export async function approvePriceChange(lineItemId: string) {
       unitPrice: Number(li.unitPrice),
       description: li.description,
     },
-    mappingConversion
+    mappingConversion,
+    mappingInvoiceUnit
   )
 
   if (result.kind === "skip" || result.kind === "unit_changed") {
@@ -406,10 +414,11 @@ export async function rejectAndIgnoreMapping(lineItemId: string) {
   return { ok: true }
 }
 
-export async function approveAllPriceChanges(invoiceId: string) {
+export async function approveAllPriceChanges(invoiceId?: string) {
+  // No invoiceId = the alerts tab's "Apply all": every pending change.
   const lineItems = await db.invoiceLineItem.findMany({
     where: {
-      invoiceId,
+      ...(invoiceId ? { invoiceId } : {}),
       priceChanged: true,
       priceApproved: null,
       ingredientId: { not: null },
@@ -474,7 +483,7 @@ export async function getPriceAlerts() {
   // Pre-fetch any conversion factors so we can show the user the price in
   // the ingredient's purchase unit (not the invoice's), keeping the +%
   // honest for converted rows.
-  const conversionLookup = new Map<string, number>()
+  const conversionLookup = new Map<string, { factor: number; invoiceUnit: string | null }>()
   const lookupKeys = items
     .filter((li) => li.invoice.supplierId && li.ingredient)
     .map((li) => ({ supplierId: li.invoice.supplierId!, description: li.description }))
@@ -486,14 +495,14 @@ export async function getPriceAlerts() {
           invoiceDescription: k.description,
         })),
       },
-      select: { supplierId: true, invoiceDescription: true, conversionFactor: true },
+      select: { supplierId: true, invoiceDescription: true, conversionFactor: true, invoiceUnit: true },
     })
     for (const m of mappings) {
       if (m.conversionFactor) {
-        conversionLookup.set(
-          `${m.supplierId}::${m.invoiceDescription}`,
-          Number(m.conversionFactor)
-        )
+        conversionLookup.set(`${m.supplierId}::${m.invoiceDescription}`, {
+          factor: Number(m.conversionFactor),
+          invoiceUnit: m.invoiceUnit ?? null,
+        })
       }
     }
   }
@@ -526,7 +535,8 @@ export async function getPriceAlerts() {
           unitPrice: rawInvoiceUnitPrice,
           description: li.description,
         },
-        conversion ?? null
+        conversion?.factor ?? null,
+        conversion?.invoiceUnit ?? null
       )
       if (result.kind === "converted") {
         displayUnit = li.ingredient.purchaseUnit
@@ -681,7 +691,10 @@ export async function confirmConversion(lineItemId: string, conversionFactor: nu
       unitPrice: li.unitPrice ? Number(li.unitPrice) : null,
       description: li.description,
     },
-    conversionFactor
+    conversionFactor,
+    // The mapping upserted just above records invoiceUnit = this line's unit,
+    // so the factor is by construction valid for this line.
+    li.unit
   )
 
   await db.invoiceLineItem.update({
@@ -732,7 +745,7 @@ export async function applyAndAcknowledgeAlert(lineItemId: string) {
   return approvePriceChange(lineItemId)
 }
 
-export async function applyAllPriceChanges(invoiceId: string) {
+export async function applyAllPriceChanges(invoiceId?: string) {
   return approveAllPriceChanges(invoiceId)
 }
 

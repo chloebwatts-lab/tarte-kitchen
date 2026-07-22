@@ -19,11 +19,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { FileText, ChevronDown, ChevronUp, AlertTriangle, Link2 } from "lucide-react"
-import { getInvoice, createManualMapping } from "@/lib/actions/invoices"
+import { getInvoice, matchLineItem } from "@/lib/actions/invoices"
 
 interface InvoiceSummary {
   id: string
-  supplierId: string
+  supplierId: string | null
   supplierName: string
   invoiceNumber: string | null
   invoiceDate: string | null
@@ -40,22 +40,10 @@ interface IngredientOption {
   name: string
 }
 
-interface InvoiceDetail {
-  lineItems: Array<{
-    id: string
-    description: string
-    quantity: number
-    unit: string
-    unitPrice: number
-    lineTotal: number
-    ingredientId: string | null
-    ingredientName: string | null
-    priceChanged: boolean
-    previousPrice: number | null
-    priceChangePercent: number | null
-    acknowledged: boolean
-  }>
-}
+// Shape comes from the server action, not a hand-maintained mirror — the two
+// had drifted (Decimal vs number, missing nullability) and the mismatch hid
+// real bugs behind ignoreBuildErrors.
+type InvoiceDetail = NonNullable<Awaited<ReturnType<typeof getInvoice>>>
 
 const statusConfig: Record<string, { label: string; variant: "green" | "amber" | "red" | "secondary" }> = {
   PROCESSED: { label: "Processed", variant: "green" },
@@ -202,11 +190,21 @@ function LineItemsTable({
           </tr>
         </thead>
         <tbody>
-          {lineItems.map((item) => (
+          {lineItems.map((item) => {
+            // "was" price: the stored per-unit price captured at evaluation
+            // time (currentPrice) vs the invoice's normalised per-unit price
+            // — both in the ingredient's purchase-unit basis, so the pct is
+            // apples-to-apples even for converted pack sizes.
+            const wasPrice = item.currentPrice
+            const nowPrice = item.normalisedUnitPrice
+            const pct =
+              wasPrice && nowPrice ? ((nowPrice - wasPrice) / wasPrice) * 100 : null
+            const acknowledged = item.priceApproved !== null
+            return (
             <tr
               key={item.id}
               className={`border-b border-border/50 ${
-                item.priceChanged && !item.acknowledged
+                item.priceChanged && !acknowledged
                   ? "bg-amber-light"
                   : item.ingredientId === null
                   ? "bg-muted/30"
@@ -220,25 +218,26 @@ function LineItemsTable({
                     <AlertTriangle className="h-3 w-3 text-amber-text shrink-0" />
                   )}
                 </div>
-                {item.priceChanged && item.previousPrice !== null && (
+                {item.priceChanged && wasPrice !== null && (
                   <span className="text-xs text-amber-text">
-                    was ${item.previousPrice.toFixed(2)} ({item.priceChangePercent?.toFixed(1)}%)
+                    was ${wasPrice.toFixed(2)}/{item.ingredient?.purchaseUnit ?? item.unit}
+                    {pct !== null ? ` (${pct > 0 ? "+" : ""}${pct.toFixed(1)}%)` : ""}
                   </span>
                 )}
               </td>
               <td className="text-right py-2 px-2">{item.quantity}</td>
               <td className="py-2 px-2">{item.unit}</td>
               <td className="text-right py-2 px-2">
-                ${item.unitPrice.toFixed(2)}
+                {item.unitPrice !== null ? `$${item.unitPrice.toFixed(2)}` : "—"}
               </td>
               <td className="text-right py-2 px-2">
-                ${item.lineTotal.toFixed(2)}
+                {item.lineTotal !== null ? `$${item.lineTotal.toFixed(2)}` : "—"}
               </td>
               <td className="py-2 pl-2">
                 {item.ingredientId ? (
                   <Badge variant="green" className="text-[10px]">
                     <Link2 className="h-2.5 w-2.5 mr-1" />
-                    {item.ingredientName}
+                    {item.matchedName ?? item.ingredient?.name}
                   </Badge>
                 ) : (
                   <MappingSelect
@@ -248,7 +247,8 @@ function LineItemsTable({
                 )}
               </td>
             </tr>
-          ))}
+            )
+          })}
         </tbody>
       </table>
     </div>
@@ -267,7 +267,7 @@ function MappingSelect({
 
   function handleMap(ingredientId: string) {
     startTransition(async () => {
-      await createManualMapping(lineItemId, ingredientId)
+      await matchLineItem(lineItemId, ingredientId)
       router.refresh()
     })
   }
