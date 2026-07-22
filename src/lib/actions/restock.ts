@@ -31,6 +31,8 @@ export interface CountSheetLine {
   available: number | null
   requested: number | null
   priority: boolean
+  /// 1 = make first. Assigned in tap order on the count sheet.
+  priorityRank: number | null
   note: string | null
 }
 
@@ -62,6 +64,8 @@ export interface RunItem {
   unit: string | null
   category: string
   priority: boolean
+  /// Lowest rank across stations; null if starred without a rank.
+  priorityRank: number | null
   totalRequested: number
   totalSupplied: number
   stations: RunStationLine[]
@@ -233,6 +237,7 @@ export async function getCountSheet(params: {
         available: num(line?.available),
         requested: num(line?.requested),
         priority: line?.priority ?? false,
+        priorityRank: line?.priorityRank ?? null,
         note: line?.note ?? null,
       }
     }),
@@ -245,6 +250,7 @@ export async function saveCountLine(params: {
   available?: number | null
   requested?: number | null
   priority?: boolean
+  priorityRank?: number | null
   note?: string | null
 }): Promise<{ ok: boolean; error?: string }> {
   const sheet = await db.restockSheet.findUnique({
@@ -259,11 +265,18 @@ export async function saveCountLine(params: {
     available?: number | null
     requested?: number | null
     priority?: boolean
+    priorityRank?: number | null
     note?: string | null
   } = {}
   if ("available" in params) patch.available = params.available
   if ("requested" in params) patch.requested = params.requested
   if (params.priority !== undefined) patch.priority = params.priority
+  if ("priorityRank" in params) {
+    patch.priorityRank = params.priorityRank
+    // Rank is the source of truth — keep the flag in sync so older
+    // consumers (report chips etc.) stay correct.
+    patch.priority = params.priorityRank != null
+  }
   if ("note" in params) patch.note = params.note
 
   await db.restockLine.upsert({
@@ -275,7 +288,8 @@ export async function saveCountLine(params: {
       itemId: params.itemId,
       available: params.available ?? null,
       requested: params.requested ?? null,
-      priority: params.priority ?? false,
+      priority: params.priorityRank != null || (params.priority ?? false),
+      priorityRank: params.priorityRank ?? null,
       note: params.note ?? null,
     },
     update: patch,
@@ -408,11 +422,18 @@ export async function getRestockRun(venue: Venue): Promise<RestockRun> {
         unit: line.item.unit,
         category: line.item.category,
         priority: false,
+        priorityRank: null,
         totalRequested: 0,
         totalSupplied: 0,
         stations: [],
       }
       entry.priority = entry.priority || line.priority
+      if (line.priorityRank != null) {
+        entry.priorityRank =
+          entry.priorityRank == null
+            ? line.priorityRank
+            : Math.min(entry.priorityRank, line.priorityRank)
+      }
       entry.totalRequested += requested
       entry.totalSupplied += num(line.supplied) ?? 0
       entry.stations.push({
@@ -434,6 +455,8 @@ export async function getRestockRun(venue: Venue): Promise<RestockRun> {
   const items = Array.from(itemsByKey.values()).sort(
     (a, b) =>
       Number(b.priority) - Number(a.priority) ||
+      // Within priority items: Jose's rank order, unranked stars last
+      (a.priorityRank ?? 99) - (b.priorityRank ?? 99) ||
       catRank(a.category) - catRank(b.category) ||
       a.category.localeCompare(b.category) ||
       a.name.localeCompare(b.name)
@@ -523,6 +546,7 @@ export interface ReportSheet {
     requested: number | null
     supplied: number | null
     priority: boolean
+    priorityRank: number | null
     note: string | null
   }[]
 }
@@ -577,6 +601,7 @@ export async function getRestockReport(params: {
         requested: num(l.requested),
         supplied: num(l.supplied),
         priority: l.priority,
+        priorityRank: l.priorityRank,
         note: l.note,
       })),
   }))

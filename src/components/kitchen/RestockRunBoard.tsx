@@ -213,7 +213,7 @@ export function RestockRunBoard({ initialRun }: { initialRun: RestockRun }) {
             style={{ color: "#8a6d1f" }}
           >
             <Star className="h-3.5 w-3.5" fill="var(--tk-gold)" stroke="var(--tk-gold)" />
-            Priority first
+            Priority — work top to bottom
           </div>
           {priorityItems.map((item) => (
             <RunItemCard
@@ -302,13 +302,20 @@ function RunItemCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            {item.priority && (
+            {item.priorityRank != null ? (
+              <span
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[13px] font-bold tabular-nums"
+                style={{ background: "var(--tk-gold)", color: "#5d4a12" }}
+              >
+                {item.priorityRank}
+              </span>
+            ) : item.priority ? (
               <Star
                 className="h-4 w-4 shrink-0"
                 fill="var(--tk-gold)"
                 stroke="var(--tk-gold)"
               />
-            )}
+            ) : null}
             <span
               className="text-[18px] font-semibold leading-snug text-[var(--tk-charcoal)]"
               style={{ letterSpacing: "-0.01em" }}

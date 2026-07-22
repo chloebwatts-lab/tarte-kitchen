@@ -65,12 +65,30 @@ export function RestockCountSheet({
     )
   }
 
+  /**
+   * Jose's priority system: a tap order, not a flag. First tap = 1,
+   * next = 2, and so on; tapping a ranked item clears its number
+   * (later numbers keep their value — gaps don't matter, order does).
+   */
+  function toggleRank(line: CountSheetLine) {
+    if (line.priorityRank != null) {
+      patchLine(line.itemId, { priorityRank: null, priority: false })
+      persist(line.itemId, { priorityRank: null })
+    } else {
+      const next =
+        Math.max(0, ...lines.map((l) => l.priorityRank ?? 0)) + 1
+      patchLine(line.itemId, { priorityRank: next, priority: true })
+      persist(line.itemId, { priorityRank: next })
+    }
+  }
+
   function persist(
     itemId: string,
     patch: {
       available?: number | null
       requested?: number | null
       priority?: boolean
+      priorityRank?: number | null
       note?: string | null
     },
     debounceKey?: string
@@ -241,6 +259,7 @@ export function RestockCountSheet({
                 key={line.itemId}
                 line={line}
                 readOnly={readOnly}
+                onToggleRank={() => toggleRank(line)}
                 onChange={(patch, debounceKey) => {
                   patchLine(line.itemId, patch)
                   persist(line.itemId, patch, debounceKey)
@@ -326,10 +345,12 @@ function CountRow({
   line,
   readOnly,
   onChange,
+  onToggleRank,
 }: {
   line: CountSheetLine
   readOnly: boolean
   onChange: (patch: Partial<CountSheetLine>, debounceKey?: string) => void
+  onToggleRank: () => void
 }) {
   const [showNote, setShowNote] = useState(!!line.note)
   const needsAttention =
@@ -389,15 +410,20 @@ function CountRow({
         />
         <button
           disabled={readOnly}
-          onClick={() => onChange({ priority: !line.priority })}
+          onClick={onToggleRank}
           className="flex h-11 w-11 items-center justify-center justify-self-center rounded-full transition active:scale-90"
-          aria-label={`${line.name} priority`}
+          aria-label={`${line.name} priority order`}
         >
-          <Star
-            className="h-5 w-5"
-            fill={line.priority ? "var(--tk-gold)" : "none"}
-            stroke={line.priority ? "var(--tk-gold)" : "var(--tk-ink-mute)"}
-          />
+          {line.priorityRank != null ? (
+            <span
+              className="flex h-8 w-8 items-center justify-center rounded-full text-[15px] font-bold tabular-nums"
+              style={{ background: "var(--tk-gold)", color: "#5d4a12" }}
+            >
+              {line.priorityRank}
+            </span>
+          ) : (
+            <Star className="h-5 w-5" fill="none" stroke="var(--tk-ink-mute)" />
+          )}
         </button>
       </div>
       {showNote && (

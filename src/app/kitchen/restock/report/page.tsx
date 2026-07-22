@@ -192,13 +192,20 @@ export default async function RestockReportPage({
                         >
                           <td className="px-5 py-2.5 text-[var(--tk-charcoal)]">
                             <span className="inline-flex items-center gap-1.5">
-                              {l.priority && (
+                              {l.priorityRank != null ? (
+                                <span
+                                  className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold tabular-nums"
+                                  style={{ background: "var(--tk-gold)", color: "#5d4a12" }}
+                                >
+                                  {l.priorityRank}
+                                </span>
+                              ) : l.priority ? (
                                 <Star
                                   className="h-3.5 w-3.5"
                                   fill="var(--tk-gold)"
                                   stroke="var(--tk-gold)"
                                 />
-                              )}
+                              ) : null}
                               {l.name}
                               {l.unit && (
                                 <span className="text-[12px] text-[var(--tk-ink-soft)]">

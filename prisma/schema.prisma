@@ -1810,6 +1810,11 @@ model RestockLine {
   /// requested line = shortfall; surfaces on the daily prep stock report.
   supplied   Decimal?      @db.Decimal(8, 2)
   priority   Boolean       @default(false)
+  /// Jose's priority system is a SEQUENCE (1 = do first), not a flag.
+  /// Tapping the priority button on the count sheet assigns the next free
+  /// rank; the morning run sorts by it. `priority` is kept true whenever a
+  /// rank is set.
+  priorityRank Int?
   note       String?
   suppliedBy String?
   suppliedAt DateTime?

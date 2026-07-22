@@ -152,9 +152,13 @@ function ReportTab({ venue, report }: { venue: Venue; report: RestockReport }) {
                           <tr key={`${l.name}-${i}`} className="border-b last:border-0">
                             <td className="py-2 pr-3">
                               <span className="inline-flex items-center gap-1.5">
-                                {l.priority && (
+                                {l.priorityRank != null ? (
+                                  <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold tabular-nums text-amber-950">
+                                    {l.priorityRank}
+                                  </span>
+                                ) : l.priority ? (
                                   <Star className="h-3 w-3 fill-amber-400 stroke-amber-400" />
-                                )}
+                                ) : null}
                                 {l.name}
                                 {l.unit && (
                                   <span className="text-xs text-muted-foreground">
