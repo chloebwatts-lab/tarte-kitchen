@@ -194,7 +194,7 @@ function runDatesFor(cadence: string, name: string, windowDates: string[]): stri
 async function backfillChecklists(client: import("pg").PoolClient, windowDates: string[]) {
   const where = ALL_TEMPLATES
     ? `"isActive" = true`
-    : `cadence = 'DAILY' AND ("isFoodSafety" = true OR area = 'Food Safety') AND "isActive" = true`
+    : `cadence IN ('DAILY', 'ON_DEMAND') AND ("isFoodSafety" = true OR area = 'Food Safety') AND "isActive" = true`
   const tpls = await client.query(
     `SELECT id, name, venue, cadence, shift, area, "dueByHour" FROM "ChecklistTemplate" WHERE ${where} ORDER BY venue, cadence, name`
   )
