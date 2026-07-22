@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useTransition, useMemo } from "react"
-import { ChevronLeft, ChevronRight, Flame, Trash2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Flame, Trash2, Zap } from "lucide-react"
 import { KitchenButton } from "@/components/kitchen/KitchenButton"
 import {
   savePastryRotationEntry,
   deletePastryRotationEntry,
+  zeroFillPastryRotation,
   type PastryRotationDay,
   type PastryEntryRecord,
   type PastryProductRecord,
@@ -44,12 +45,31 @@ export function PastryRotationDashboard({
     bakeTime: PastryBakeTime
     existing: PastryEntryRecord | null
   }>(null)
+  const [zeroFillOpen, setZeroFillOpen] = useState(false)
 
   const entryMap = useMemo(() => {
     const m = new Map<string, PastryEntryRecord>()
     for (const e of day.entries) m.set(entryKey(e.productId, e.bakeTime), e)
     return m
   }, [day.entries])
+
+  const remainingByBake = useMemo(() => {
+    const m = new Map<PastryBakeTime, number>()
+    for (const b of BAKE_ORDER) {
+      let n = 0
+      for (const p of day.products) {
+        if (!entryMap.has(entryKey(p.id, b))) n++
+      }
+      m.set(b, n)
+    }
+    return m
+  }, [day.products, entryMap])
+
+  const remainingTotal = useMemo(() => {
+    let n = 0
+    for (const v of remainingByBake.values()) n += v
+    return n
+  }, [remainingByBake])
 
   function navigateTo(newDate: string) {
     const url = new URL(window.location.href)
@@ -124,6 +144,27 @@ export function PastryRotationDashboard({
           </button>
         )}
       </div>
+
+      {/* Quick zero-fill */}
+      {day.products.length > 0 && remainingTotal > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border border-[var(--tk-line)] bg-white px-4 py-3">
+          <div className="text-[14px] text-[var(--tk-ink-soft)]">
+            <span className="font-semibold text-[var(--tk-charcoal)]">
+              {remainingTotal}
+            </span>{" "}
+            {remainingTotal === 1 ? "cell" : "cells"} not logged yet. Nothing
+            left after a bake? Zero them in one go.
+          </div>
+          <button
+            type="button"
+            onClick={() => setZeroFillOpen(true)}
+            className="inline-flex items-center gap-2 rounded-full bg-[var(--tk-charcoal)] px-4 py-2 text-[13px] font-semibold text-white transition active:scale-[0.98]"
+          >
+            <Zap className="h-4 w-4" />
+            Zero the rest
+          </button>
+        </div>
+      )}
 
       {/* Grid */}
       {day.products.length === 0 ? (
@@ -229,6 +270,155 @@ export function PastryRotationDashboard({
           onClose={() => setOpenCell(null)}
         />
       )}
+
+      {zeroFillOpen && (
+        <ZeroFillForm
+          venue={day.venue}
+          date={day.date}
+          remainingByBake={remainingByBake}
+          onClose={() => setZeroFillOpen(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+function ZeroFillForm({
+  venue,
+  date,
+  remainingByBake,
+  onClose,
+}: {
+  venue: PastryRotationDay["venue"]
+  date: string
+  remainingByBake: Map<PastryBakeTime, number>
+  onClose: () => void
+}) {
+  const [pending, startTransition] = useTransition()
+  const [staffName, setStaffName] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Set<PastryBakeTime>>(
+    () => new Set(BAKE_ORDER.filter((b) => (remainingByBake.get(b) ?? 0) > 0))
+  )
+
+  const toggle = (b: PastryBakeTime) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(b)) next.delete(b)
+      else next.add(b)
+      return next
+    })
+  }
+
+  const selectedCount = BAKE_ORDER.reduce(
+    (n, b) => n + (selected.has(b) ? (remainingByBake.get(b) ?? 0) : 0),
+    0
+  )
+
+  const submit = () => {
+    setError(null)
+    if (!staffName.trim()) {
+      return setError("Name required")
+    }
+    if (selectedCount === 0) {
+      return setError("Pick at least one bake with cells left to fill.")
+    }
+    startTransition(async () => {
+      try {
+        await zeroFillPastryRotation({
+          venue,
+          date,
+          bakeTimes: BAKE_ORDER.filter((b) => selected.has(b)),
+          staffName,
+        })
+        onClose()
+        window.location.reload()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Save failed")
+      }
+    })
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-6"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-[520px] rounded-t-[24px] bg-white p-6 sm:rounded-[24px]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className="tk-display mb-1 leading-none text-[var(--tk-charcoal)]"
+          style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.02em" }}
+        >
+          Zero the rest
+        </div>
+        <div className="mb-4 text-[13px] text-[var(--tk-ink-soft)]">
+          Logs 0 prepared / 0 sold / 0 discarded for every product not yet
+          logged. Anything already logged is left alone.
+        </div>
+
+        <div className="space-y-2">
+          {BAKE_ORDER.map((b) => {
+            const remaining = remainingByBake.get(b) ?? 0
+            const done = remaining === 0
+            return (
+              <button
+                key={b}
+                type="button"
+                disabled={done}
+                onClick={() => toggle(b)}
+                className="flex w-full items-center justify-between rounded-[12px] border px-4 py-3 text-left transition active:scale-[0.99]"
+                style={{
+                  borderColor: selected.has(b)
+                    ? "var(--tk-charcoal)"
+                    : "var(--tk-line)",
+                  background: selected.has(b)
+                    ? "var(--tk-charcoal-soft)"
+                    : "white",
+                  opacity: done ? 0.4 : 1,
+                }}
+              >
+                <span className="inline-flex items-center gap-2 text-[14px] font-semibold text-[var(--tk-charcoal)]">
+                  <Flame className="h-4 w-4" />
+                  {BAKE_LABEL[b]}
+                </span>
+                <span className="text-[13px] tabular-nums text-[var(--tk-ink-soft)]">
+                  {done ? "all logged" : `${remaining} to fill`}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="mt-4">
+          <FieldLabel>Name</FieldLabel>
+          <input
+            className={inputClass}
+            placeholder="First name"
+            value={staffName}
+            onChange={(e) => setStaffName(e.target.value)}
+          />
+        </div>
+
+        {error && (
+          <div className="mt-3 rounded-[10px] bg-[var(--tk-warn-soft)] px-3 py-2 text-[13px] text-[var(--tk-warn)]">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-5 flex justify-end gap-3">
+          <KitchenButton variant="secondary" onClick={onClose} disabled={pending}>
+            Cancel
+          </KitchenButton>
+          <KitchenButton variant="primary" onClick={submit} disabled={pending}>
+            {pending
+              ? "Saving…"
+              : `Approve ${selectedCount > 0 ? `${selectedCount} at zero` : ""}`}
+          </KitchenButton>
+        </div>
+      </div>
     </div>
   )
 }

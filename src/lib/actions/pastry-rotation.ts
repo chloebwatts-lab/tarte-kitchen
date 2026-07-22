@@ -140,6 +140,42 @@ export async function savePastryRotationEntry(params: {
   revalidatePath("/kitchen/inspection")
 }
 
+/**
+ * Zero-fill every cell (product × bake) that has no entry yet for the day.
+ * Existing entries are never touched — skipDuplicates on the unique key —
+ * so staff can log real counts first (or after) and bulk-zero the rest.
+ */
+export async function zeroFillPastryRotation(params: {
+  venue: Venue
+  date: string // yyyy-mm-dd
+  bakeTimes: PastryBakeTime[]
+  staffName: string
+}): Promise<{ created: number }> {
+  const staffName = params.staffName.trim()
+  if (!staffName) throw new Error("Name required")
+  if (params.bakeTimes.length === 0) return { created: 0 }
+  const entryDate = parseAestDate(params.date)
+  const products = await listPastryProducts(params.venue)
+  const result = await db.pastryRotationEntry.createMany({
+    data: products.flatMap((p) =>
+      params.bakeTimes.map((bakeTime) => ({
+        venue: params.venue,
+        entryDate,
+        bakeTime,
+        productId: p.id,
+        prepared: 0,
+        sold: 0,
+        discarded: 0,
+        staffName,
+      }))
+    ),
+    skipDuplicates: true,
+  })
+  revalidatePath("/kitchen/pastry")
+  revalidatePath("/kitchen/inspection")
+  return { created: result.count }
+}
+
 export async function deletePastryRotationEntry(params: {
   venue: Venue
   date: string
