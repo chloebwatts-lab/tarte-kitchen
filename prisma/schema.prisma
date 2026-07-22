@@ -305,6 +305,7 @@ model Preparation {
   dishComponents   DishComponent[]
   // Self-referential: a preparation can be used in other preparations
   usedInItems      PreparationItem[]   @relation("SubPreparation")
+  stockItems       PrepStockItem[]
 }
 
 model PreparationItem {
@@ -1722,4 +1723,99 @@ model TrainingRecord {
   updatedAt          DateTime  @updatedAt
 
   @@index([venue, staffName])
+}
+
+// ============================================================
+// KITCHEN RESTOCK & PREP COUNTS
+// ============================================================
+
+/// A physical kitchen within a venue. Beach House runs two (Restaurant +
+/// Cafe); Burleigh and Tea Garden each run one (MAIN).
+enum KitchenStation {
+  RESTAURANT
+  CAFE
+  MAIN
+}
+
+enum RestockSheetStatus {
+  IN_PROGRESS
+  SUBMITTED
+  RESTOCKED
+}
+
+/// Master catalogue of countable prep/stock items — one row per thing a
+/// closing chef counts at a station (Egg mix, H.C.C., Lobster Mayo …).
+/// Seeded from the head chef's paper sheets; managed in admin → Restock.
+model PrepStockItem {
+  id            String         @id @default(cuid())
+  venue         Venue          @default(BEACH_HOUSE)
+  station       KitchenStation
+  name          String
+  /// Count unit shown next to the number ("tub", "bottle", "tray", "kg").
+  /// Null = freeform count, chefs know what a "2" means for this item.
+  unit          String?
+  /// Grouping header on the count sheet ("Station restock", "Daily prep").
+  category      String         @default("Station restock")
+  /// Target on-hand at start of service, in `unit`s. Shown as a hint so
+  /// requests converge on a standard level.
+  parLevel      Decimal?       @db.Decimal(8, 2)
+  sortOrder     Int            @default(0)
+  /// Optional link to the costed recipe once prep cards are loaded.
+  preparationId String?
+  preparation   Preparation?   @relation(fields: [preparationId], references: [id])
+  notes         String?
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  lines RestockLine[]
+
+  @@unique([venue, station, name])
+  @@index([venue, station, isActive])
+}
+
+/// One end-of-shift count + restock request per station per day — the
+/// closing chef's "Kitchen Restock Request" sheet, digitised.
+model RestockSheet {
+  id          String             @id @default(cuid())
+  venue       Venue              @default(BEACH_HOUSE)
+  station     KitchenStation
+  sheetDate   DateTime           @db.Date
+  status      RestockSheetStatus @default(IN_PROGRESS)
+  countedBy   String?
+  submittedAt DateTime?
+  restockedBy String?
+  restockedAt DateTime?
+  notes       String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  lines RestockLine[]
+
+  @@unique([venue, station, sheetDate])
+  @@index([venue, status])
+}
+
+model RestockLine {
+  id         String        @id @default(cuid())
+  sheetId    String
+  sheet      RestockSheet  @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  itemId     String
+  item       PrepStockItem @relation(fields: [itemId], references: [id])
+  /// Counted on hand at close, in the item's unit. Null = not counted.
+  available  Decimal?      @db.Decimal(8, 2)
+  /// Amount the station needs for tomorrow. Null/0 = nothing requested.
+  requested  Decimal?      @db.Decimal(8, 2)
+  /// What the prep chef actually delivered on the morning run. Null on a
+  /// requested line = shortfall; surfaces on the daily prep stock report.
+  supplied   Decimal?      @db.Decimal(8, 2)
+  priority   Boolean       @default(false)
+  note       String?
+  suppliedBy String?
+  suppliedAt DateTime?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@unique([sheetId, itemId])
+  @@index([itemId])
 }

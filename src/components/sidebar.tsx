@@ -28,6 +28,7 @@ import {
   Gauge,
   Mail,
   TrendingUp,
+  PackageOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +60,7 @@ const navGroups: NavGroup[] = [
     label: "Kitchen",
     items: [
       { label: "Prep Sheet", href: "/prep-sheet", icon: ClipboardList },
+      { label: "Restock", href: "/restock", icon: PackageOpen },
       { label: "Checklists", href: "/checklists", icon: ClipboardCheck },
       { label: "Stocktake", href: "/stocktake", icon: Boxes },
       { label: "Wastage", href: "/wastage", icon: Trash2 },
