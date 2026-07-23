@@ -45,10 +45,11 @@ export default async function RestockCountPage({
           {STATION_LABEL[station]} — evening count
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
-          Count what&apos;s left of each item and enter how much the kitchen
-          needs for tomorrow. Leave &ldquo;Need&rdquo; empty for anything
-          you&apos;re fine on. It saves as you go — send it to the prep chef
-          when you&apos;re done.
+          Count your <strong>backup prep in the coolroom</strong> — not
+          what&apos;s in the section, that&apos;s always topped up. Count in
+          each item&apos;s usual container. Leave &ldquo;Need&rdquo; empty for
+          anything you&apos;re fine on. It saves as you go — send it to the
+          prep chef when you&apos;re done.
         </p>
       </div>
 

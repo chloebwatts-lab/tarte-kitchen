@@ -169,7 +169,7 @@ export default async function RestockReportPage({
                   <thead>
                     <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-[var(--tk-ink-soft)]">
                       <th className="px-5 py-2.5">Item</th>
-                      <th className="px-3 py-2.5 text-right">Left at close</th>
+                      <th className="px-3 py-2.5 text-right">Coolroom at close</th>
                       <th className="px-3 py-2.5 text-right">Requested</th>
                       <th className="px-3 py-2.5 text-right">Supplied</th>
                       <th className="px-5 py-2.5">Note</th>

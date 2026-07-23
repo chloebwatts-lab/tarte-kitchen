@@ -17,8 +17,9 @@ import {
   submitCountSheet,
   type CountSheet,
   type CountSheetLine,
+  type SiblingItem,
 } from "@/lib/actions/restock"
-import { STATION_LABEL } from "@/lib/stations"
+import { STATION_LABEL, STATION_SHORT_LABEL } from "@/lib/stations"
 
 /**
  * Closing chef's count sheet. Mirrors the paper "Kitchen Restock Request"
@@ -32,6 +33,11 @@ export function RestockCountSheet({
 }) {
   const [sheet, setSheet] = useState(initialSheet)
   const [lines, setLines] = useState<CountSheetLine[]>(initialSheet.lines)
+  const [sibs, setSibs] = useState<SiblingItem[]>(initialSheet.siblingItems)
+  const [sibsOpen, setSibsOpen] = useState(
+    // Auto-open when a request is already on the sheet
+    initialSheet.siblingItems.some((s) => (s.requested ?? 0) > 0)
+  )
   const [name, setName] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -55,9 +61,9 @@ export function RestockCountSheet({
   }, [lines])
 
   const countedCount = lines.filter((l) => l.available != null).length
-  const requestedCount = lines.filter(
-    (l) => l.requested != null && l.requested > 0
-  ).length
+  const requestedCount =
+    lines.filter((l) => l.requested != null && l.requested > 0).length +
+    sibs.filter((s) => (s.requested ?? 0) > 0).length
 
   function patchLine(itemId: string, patch: Partial<CountSheetLine>) {
     setLines((prev) =>
@@ -70,15 +76,43 @@ export function RestockCountSheet({
    * next = 2, and so on; tapping a ranked item clears its number
    * (later numbers keep their value — gaps don't matter, order does).
    */
+  // Ranks form one sequence across the whole sheet, other-kitchen
+  // requests included.
+  function nextRank() {
+    return (
+      Math.max(
+        0,
+        ...lines.map((l) => l.priorityRank ?? 0),
+        ...sibs.map((s) => s.priorityRank ?? 0)
+      ) + 1
+    )
+  }
+
   function toggleRank(line: CountSheetLine) {
     if (line.priorityRank != null) {
       patchLine(line.itemId, { priorityRank: null, priority: false })
       persist(line.itemId, { priorityRank: null })
     } else {
-      const next =
-        Math.max(0, ...lines.map((l) => l.priorityRank ?? 0)) + 1
+      const next = nextRank()
       patchLine(line.itemId, { priorityRank: next, priority: true })
       persist(line.itemId, { priorityRank: next })
+    }
+  }
+
+  function patchSib(itemId: string, patch: Partial<SiblingItem>) {
+    setSibs((prev) =>
+      prev.map((s) => (s.itemId === itemId ? { ...s, ...patch } : s))
+    )
+  }
+
+  function toggleSibRank(item: SiblingItem) {
+    if (item.priorityRank != null) {
+      patchSib(item.itemId, { priorityRank: null })
+      persist(item.itemId, { priorityRank: null })
+    } else {
+      const next = nextRank()
+      patchSib(item.itemId, { priorityRank: next })
+      persist(item.itemId, { priorityRank: next })
     }
   }
 
@@ -248,7 +282,7 @@ export function RestockCountSheet({
             {/* Column headers */}
             <div className="grid grid-cols-[1fr_88px_88px_44px] items-center gap-2 border-b border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--tk-ink-soft)] sm:grid-cols-[1fr_110px_110px_52px]">
               <span>Item</span>
-              <span className="text-center">Left now</span>
+              <span className="text-center">In coolroom</span>
               <span className="text-center">Need</span>
               <span className="text-center">
                 <Star className="mx-auto h-3.5 w-3.5" />
@@ -269,6 +303,102 @@ export function RestockCountSheet({
           </div>
         </div>
       ))}
+
+      {/* Jose's one-kitchen model: see the sibling kitchen's prep stock
+          and request from it without messaging anyone */}
+      {sheet.siblingStation && sibs.length > 0 && (
+        <div className="overflow-hidden rounded-[18px] border border-[var(--tk-line)] bg-white">
+          <button
+            onClick={() => setSibsOpen((o) => !o)}
+            className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left"
+          >
+            <div>
+              <div
+                className="text-[16px] font-semibold text-[var(--tk-charcoal)]"
+                style={{ letterSpacing: "-0.01em" }}
+              >
+                Need something the {STATION_SHORT_LABEL[sheet.siblingStation]}{" "}
+                preps?
+              </div>
+              <div className="mt-0.5 text-[13px] text-[var(--tk-ink-soft)]">
+                Their coolroom count is shown — add a &ldquo;Need&rdquo; and it
+                lands on the same morning run.
+              </div>
+            </div>
+            <span className="shrink-0 text-[13px] font-medium text-[var(--tk-ink-soft)]">
+              {sibsOpen ? "Hide" : `Show ${sibs.length}`}
+            </span>
+          </button>
+          {sibsOpen && (
+            <div>
+              <div className="grid grid-cols-[1fr_88px_88px_44px] items-center gap-2 border-y border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--tk-ink-soft)] sm:grid-cols-[1fr_110px_110px_52px]">
+                <span>Item</span>
+                <span className="text-center">They have</span>
+                <span className="text-center">Need</span>
+                <span className="text-center">
+                  <Star className="mx-auto h-3.5 w-3.5" />
+                </span>
+              </div>
+              {sibs.map((item) => (
+                <div
+                  key={item.itemId}
+                  className="grid grid-cols-[1fr_88px_88px_44px] items-center gap-2 border-b border-[var(--tk-line)] px-4 py-3 last:border-b-0 sm:grid-cols-[1fr_110px_110px_52px]"
+                >
+                  <div className="min-w-0">
+                    <span className="text-[16px] font-medium leading-snug text-[var(--tk-charcoal)]">
+                      {item.name}
+                    </span>
+                    {item.unit && (
+                      <span className="ml-1.5 text-[13px] text-[var(--tk-ink-soft)]">
+                        {item.unit}
+                      </span>
+                    )}
+                    <div className="text-[12px] text-[var(--tk-ink-mute)]">
+                      {item.theirCountedAt
+                        ? `counted ${new Date(item.theirCountedAt).toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}`
+                        : "no recent count"}
+                    </div>
+                  </div>
+                  <div className="flex min-h-[48px] items-center justify-center rounded-[12px] bg-[var(--tk-bg)] text-[17px] font-semibold tabular-nums text-[var(--tk-ink-soft)]">
+                    {item.theirAvailable ?? "—"}
+                  </div>
+                  <QtyInput
+                    value={item.requested}
+                    disabled={readOnly}
+                    emphasis
+                    ariaLabel={`${item.name} needed from ${STATION_SHORT_LABEL[item.station]}`}
+                    onCommit={(v) => {
+                      patchSib(item.itemId, { requested: v })
+                      persist(item.itemId, { requested: v }, "requested")
+                    }}
+                  />
+                  <button
+                    disabled={readOnly}
+                    onClick={() => toggleSibRank(item)}
+                    className="flex h-11 w-11 items-center justify-center justify-self-center rounded-full transition active:scale-90"
+                    aria-label={`${item.name} priority order`}
+                  >
+                    {item.priorityRank != null ? (
+                      <span
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-[15px] font-bold tabular-nums"
+                        style={{ background: "var(--tk-gold)", color: "#5d4a12" }}
+                      >
+                        {item.priorityRank}
+                      </span>
+                    ) : (
+                      <Star
+                        className="h-5 w-5"
+                        fill="none"
+                        stroke="var(--tk-ink-mute)"
+                      />
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Add missing item — the blank rows at the bottom of the paper sheet */}
       {!readOnly && (

@@ -383,7 +383,7 @@ function RunItemCard({
                   <span className="tabular-nums">{formatQty(s.requested)}</span>
                   {s.available != null && (
                     <span className="ml-1.5 text-[13px] font-normal text-[var(--tk-ink-soft)]">
-                      ({formatQty(s.available)} left at close)
+                      ({formatQty(s.available)} in coolroom at close)
                     </span>
                   )}
                 </div>

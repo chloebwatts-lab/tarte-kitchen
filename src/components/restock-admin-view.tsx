@@ -136,7 +136,7 @@ function ReportTab({ venue, report }: { venue: Venue; report: RestockReport }) {
                     <thead>
                       <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
                         <th className="py-2 pr-3">Item</th>
-                        <th className="py-2 pr-3 text-right">Left at close</th>
+                        <th className="py-2 pr-3 text-right">Coolroom at close</th>
                         <th className="py-2 pr-3 text-right">Requested</th>
                         <th className="py-2 pr-3 text-right">Supplied</th>
                         <th className="py-2">Note</th>

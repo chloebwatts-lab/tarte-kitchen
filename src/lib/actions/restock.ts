@@ -36,6 +36,25 @@ export interface CountSheetLine {
   note: string | null
 }
 
+/**
+ * An item the OTHER kitchen preps for the house (Jose's one-kitchen model:
+ * restaurant does lemons for both, cafe does W.C. for both). Shown at the
+ * bottom of the count sheet so a kitchen can see the house stock and
+ * request more without messaging anyone.
+ */
+export interface SiblingItem {
+  itemId: string
+  name: string
+  unit: string | null
+  station: KitchenStation
+  /// Their latest coolroom count within the last 36h, if they took one.
+  theirAvailable: number | null
+  theirCountedAt: string | null
+  /// This kitchen's request against their item (line lives on OUR sheet).
+  requested: number | null
+  priorityRank: number | null
+}
+
 export interface CountSheet {
   sheetId: string
   venue: Venue
@@ -45,6 +64,8 @@ export interface CountSheet {
   countedBy: string | null
   submittedAt: string | null
   lines: CountSheetLine[]
+  siblingStation: KitchenStation | null
+  siblingItems: SiblingItem[]
 }
 
 export interface RunStationLine {
@@ -238,6 +259,58 @@ export async function getCountSheet(params: {
   })
   const lineByItem = new Map(sheet.lines.map((l) => [l.itemId, l]))
 
+  // Jose's one-kitchen model: surface the sibling kitchen's items (the ones
+  // only THEY prep) with their latest coolroom count, so this kitchen can
+  // check house stock and request more. Requests are lines on OUR sheet
+  // pointing at THEIR item — the run attributes them to us via the sheet.
+  const siblingStation =
+    stationsForVenue(venue).find((s) => s !== station) ?? null
+  let siblingItems: SiblingItem[] = []
+  if (siblingStation) {
+    const myNames = new Set(items.map((i) => i.name.toLowerCase().trim()))
+    const theirItems = await db.prepStockItem.findMany({
+      where: { venue, station: siblingStation, isActive: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    })
+    const onlyTheirs = theirItems.filter(
+      (i) => !myNames.has(i.name.toLowerCase().trim())
+    )
+    // Their most recent counts (any status) from the last 36 hours
+    const cutoff = new Date(Date.now() - 36 * 60 * 60 * 1000)
+    const theirSheets = await db.restockSheet.findMany({
+      where: {
+        venue,
+        station: siblingStation,
+        updatedAt: { gte: cutoff },
+      },
+      orderBy: { sheetDate: "desc" },
+      take: 2,
+      include: { lines: true },
+    })
+    const theirCount = new Map<string, { v: number | null; at: Date }>()
+    for (const s of theirSheets) {
+      for (const l of s.lines) {
+        if (l.available == null) continue
+        if (!theirCount.has(l.itemId))
+          theirCount.set(l.itemId, { v: num(l.available), at: l.updatedAt })
+      }
+    }
+    siblingItems = onlyTheirs.map((i) => {
+      const mine = lineByItem.get(i.id)
+      const theirs = theirCount.get(i.id)
+      return {
+        itemId: i.id,
+        name: i.name,
+        unit: i.unit,
+        station: siblingStation,
+        theirAvailable: theirs?.v ?? null,
+        theirCountedAt: theirs?.at.toISOString() ?? null,
+        requested: num(mine?.requested),
+        priorityRank: mine?.priorityRank ?? null,
+      }
+    })
+  }
+
   return {
     sheetId: sheet.id,
     venue,
@@ -246,6 +319,8 @@ export async function getCountSheet(params: {
     status: sheet.status,
     countedBy: sheet.countedBy,
     submittedAt: sheet.submittedAt?.toISOString() ?? null,
+    siblingStation,
+    siblingItems,
     lines: items.map((item) => {
       const line = lineByItem.get(item.id)
       return {
