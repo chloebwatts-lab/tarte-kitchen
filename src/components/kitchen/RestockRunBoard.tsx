@@ -117,8 +117,8 @@ export function RestockRunBoard({ initialRun }: { initialRun: RestockRun }) {
         </p>
         <p className="mx-auto mt-3 max-w-xl text-[14px] leading-snug text-[var(--tk-ink-soft)]">
           {run.sheets.length > 0
-            ? "The submitted counts didn't request anything — all kitchens are stocked."
-            : "No kitchen has sent an evening count yet. Once a closing chef submits one, it lands here."}
+            ? "The counts didn't request anything — all kitchens are stocked."
+            : "No kitchen has entered an evening count yet. As soon as a closing chef starts one it lands here, even if they forget to tap Send."}
         </p>
         <a
           href={`/kitchen/restock?venue=${run.venue}`}
@@ -190,11 +190,18 @@ export function RestockRunBoard({ initialRun }: { initialRun: RestockRun }) {
             {run.sheets
               .map(
                 (s) =>
-                  `${STATION_SHORT_LABEL[s.station]}${s.countedBy ? ` (${s.countedBy})` : ""}`
+                  `${STATION_SHORT_LABEL[s.station]}${s.countedBy ? ` (${s.countedBy})` : ""}${s.sent ? "" : " — not sent"}`
               )
               .join(" + ")}
           </div>
         </div>
+        {run.sheets.some((s) => !s.sent) && (
+          <p className="mt-2 text-[13px]" style={{ color: "#8a6d1f" }}>
+            A count marked &ldquo;not sent&rdquo; was never sent by the closing
+            chef — it&apos;s included anyway so nothing is lost. Double-check it
+            looks finished before you rely on it.
+          </p>
+        )}
       </div>
 
       {error && (

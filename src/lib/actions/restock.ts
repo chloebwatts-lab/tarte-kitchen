@@ -79,6 +79,9 @@ export interface RestockRun {
     sheetDate: string
     countedBy: string | null
     submittedAt: string | null
+    /// False when the closing chef never tapped "Send" — the count is
+    /// auto-included so a forgotten tap can't lose a night's work.
+    sent: boolean
     lineCount: number
   }[]
   items: RunItem[]
@@ -122,12 +125,30 @@ export async function getRestockHub(venue: Venue): Promise<RestockHub> {
   const stations = stationsForVenue(venue)
   const today = todayAest()
 
+  const staleCutoff = new Date(today.getTime() - 3 * 24 * 60 * 60 * 1000)
   const [sheets, pending, lastRestocked] = await Promise.all([
     db.restockSheet.findMany({
       where: { venue, sheetDate: today },
       include: { lines: { select: { available: true, requested: true } } },
     }),
-    db.restockSheet.count({ where: { venue, status: "SUBMITTED" } }),
+    // Same rule as the run itself: sent counts, plus unsent ones with data
+    db.restockSheet.count({
+      where: {
+        venue,
+        sheetDate: { gte: staleCutoff },
+        OR: [
+          { status: "SUBMITTED" },
+          {
+            status: "IN_PROGRESS",
+            lines: {
+              some: {
+                OR: [{ available: { not: null } }, { requested: { not: null } }],
+              },
+            },
+          },
+        ],
+      },
+    }),
     db.restockSheet.findFirst({
       where: { venue, status: "RESTOCKED" },
       orderBy: { restockedAt: "desc" },
@@ -399,14 +420,30 @@ export async function addCatalogItem(params: {
 // ------------------------------------------------------------------
 
 /**
- * All SUBMITTED sheets for the venue (counted last night or this morning),
- * consolidated by item name so the prep chef makes each thing ONCE and
- * splits it across stations. Sheets older than 3 days are ignored as stale.
+ * Every count waiting for the venue, consolidated by item name so the prep
+ * chef makes each thing ONCE and splits it across stations. Includes both
+ * SUBMITTED sheets and unsent IN_PROGRESS sheets that contain real entries
+ * — a closing chef forgetting to tap "Send" must never lose the count.
+ * Sheets older than 3 days are ignored as stale.
  */
 export async function getRestockRun(venue: Venue): Promise<RestockRun> {
   const staleCutoff = new Date(todayAest().getTime() - 3 * 24 * 60 * 60 * 1000)
+  const hasData = {
+    lines: {
+      some: {
+        OR: [{ available: { not: null } }, { requested: { not: null } }],
+      },
+    },
+  }
   const sheets = await db.restockSheet.findMany({
-    where: { venue, status: "SUBMITTED", sheetDate: { gte: staleCutoff } },
+    where: {
+      venue,
+      sheetDate: { gte: staleCutoff },
+      OR: [
+        { status: "SUBMITTED" },
+        { status: "IN_PROGRESS", ...hasData },
+      ],
+    },
     include: { lines: { include: { item: true } } },
     orderBy: { station: "asc" },
   })
@@ -470,6 +507,7 @@ export async function getRestockRun(venue: Venue): Promise<RestockRun> {
       sheetDate: ymd(s.sheetDate),
       countedBy: s.countedBy,
       submittedAt: s.submittedAt?.toISOString() ?? null,
+      sent: s.status === "SUBMITTED",
       lineCount: s.lines.filter((l) => (num(l.requested) ?? 0) > 0).length,
     })),
     items,
@@ -494,10 +532,11 @@ export async function supplyRunLine(params: {
 }
 
 /**
- * Close out the morning run: every SUBMITTED sheet in the run flips to
- * RESTOCKED. Requested lines left without a supplied quantity stay null —
- * they surface as shortfalls on the daily report rather than being
- * silently marked as done.
+ * Close out the morning run: every sheet that was part of it flips to
+ * RESTOCKED — including unsent IN_PROGRESS counts that carried entries,
+ * mirroring what getRestockRun showed. Requested lines left without a
+ * supplied quantity stay null — they surface as shortfalls on the daily
+ * report rather than being silently marked as done.
  */
 export async function completeRestockRun(params: {
   venue: Venue
@@ -510,8 +549,18 @@ export async function completeRestockRun(params: {
   const updated = await db.restockSheet.updateMany({
     where: {
       venue: params.venue,
-      status: "SUBMITTED",
       sheetDate: { gte: staleCutoff },
+      OR: [
+        { status: "SUBMITTED" },
+        {
+          status: "IN_PROGRESS",
+          lines: {
+            some: {
+              OR: [{ available: { not: null } }, { requested: { not: null } }],
+            },
+          },
+        },
+      ],
     },
     data: {
       status: "RESTOCKED",
@@ -520,7 +569,7 @@ export async function completeRestockRun(params: {
     },
   })
   if (updated.count === 0)
-    return { ok: false, error: "Nothing to complete — no submitted sheets" }
+    return { ok: false, error: "Nothing to complete — no counts waiting" }
   revalidatePath("/kitchen/restock")
   return { ok: true }
 }

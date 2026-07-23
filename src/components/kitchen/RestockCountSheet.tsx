@@ -333,7 +333,9 @@ export function RestockCountSheet({
           <p className="mt-2 text-[13px] text-[var(--tk-ink-soft)]">
             {requestedCount === 0
               ? "Nothing requested yet — you can still send an all-good count."
-              : `${requestedCount} item${requestedCount === 1 ? "" : "s"} will go on the prep chef's morning run.`}
+              : `${requestedCount} item${requestedCount === 1 ? "" : "s"} will go on the prep chef's morning run.`}{" "}
+            Forget to send? The count still reaches the prep chef — sending
+            just signs it off with your name.
           </p>
         </div>
       )}
