@@ -58,6 +58,7 @@ const statusConfig: Record<string, { label: string; variant: "green" | "amber" |
   ERROR: { label: "Failed", variant: "red" },
   DUPLICATE: { label: "Duplicate", variant: "secondary" },
   STATEMENT: { label: "Statement", variant: "secondary" },
+  ORDER_CONFIRMATION: { label: "Order Confirmation", variant: "secondary" },
 }
 
 export function SupplierInvoices({

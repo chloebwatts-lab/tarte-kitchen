@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     const batch = await db.invoiceLineItem.findMany({
       where: {
         ingredientId: null,
-        invoice: { status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE"] } },
+        invoice: { status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION"] } },
       },
       include: { invoice: { select: { supplierId: true } } },
       orderBy: { id: "asc" },

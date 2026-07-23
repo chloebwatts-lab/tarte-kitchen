@@ -849,6 +849,12 @@ enum InvoiceStatus {
   /// + invoice number, different Gmail message — typically a forward).
   /// Stored for audit, excluded from spend / variance sums.
   DUPLICATE
+  /// Pre-delivery order confirmation (e.g. Fresho "THIS IS NOT AN INVOICE"
+  /// PDFs from Coastal Fresh / Marrow Meats). Carries an indicative total
+  /// and shares its order ref with the real tax invoice that follows, so it
+  /// must be excluded from spend AND from the content-dedupe candidate set —
+  /// otherwise the real invoice gets marked DUPLICATE of it.
+  ORDER_CONFIRMATION
 }
 
 model Invoice {
@@ -1607,6 +1613,10 @@ model InvoiceSyncRun {
   invoicesIngested  Int      @default(0)
   duplicates        Int      @default(0)
   statements        Int      @default(0)
+  orderConfirmations Int     @default(0)
+  /// Invoices stuck in PENDING >2h (crashed run) or ERROR that a sweep
+  /// re-parsed from the stored PDF.
+  rescued           Int      @default(0)
   errors            Int      @default(0)
   /// First 4000 chars of the error list, for in-DB triage without
   /// shelling into the droplet.

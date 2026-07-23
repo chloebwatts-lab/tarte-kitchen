@@ -57,19 +57,27 @@ export async function processInvoice(
     venueFromText(parsedData.billTo) ??
     (pdfCorroboratesSupplier ? defaultVenueForSupplier(canonicalName) : null)
 
-  // Update invoice metadata from parsed data
-  await db.invoice.update({
-    where: { id: invoiceId },
-    data: {
-      invoiceNumber: parsedData.invoiceNumber,
-      invoiceDate: parsedData.invoiceDate ? new Date(parsedData.invoiceDate) : null,
-      subtotal: parsedData.subtotal,
-      gst: parsedData.gst,
-      total: parsedData.total,
-      venue,
-      extractedData: JSON.parse(JSON.stringify(parsedData)),
-    },
-  })
+  // Match every line first, buffering the rows to write. All writes happen
+  // in one transaction at the end (metadata + delete-and-recreate of the
+  // invoice's lines + status), keyed by invoiceId — so re-running
+  // processInvoice on the same invoice (rescue of a crashed run, retry of
+  // an ERROR row) can never leave duplicate or half-written line items.
+  type LineRow = {
+    description: string
+    quantity: number | null
+    unit: string | null
+    unitPrice: number | null
+    lineTotal: number | null
+    ingredientId: string | null
+    mappingId: string | null
+    priceChanged: boolean
+    unitChanged: boolean
+    currentPrice: number | null
+    normalisedUnitPrice: number | null
+    suggestedConversionFactor: number | null
+    sortOrder: number
+  }
+  const lineRows: LineRow[] = []
 
   for (const lineItem of parsedData.lineItems) {
     // Try to match this line item to a TK ingredient
@@ -142,36 +150,68 @@ export async function processInvoice(
       unmatchedItems++
     }
 
-    await db.invoiceLineItem.create({
-      data: {
-        invoiceId,
-        description: lineItem.description,
-        quantity: lineItem.quantity,
-        unit: lineItem.unit,
-        unitPrice: lineItem.unitPrice,
-        lineTotal: lineItem.totalPrice,
-        ingredientId,
-        mappingId,
-        priceChanged,
-        unitChanged,
-        currentPrice,
-        normalisedUnitPrice,
-        suggestedConversionFactor,
-      },
+    lineRows.push({
+      description: lineItem.description,
+      quantity: lineItem.quantity ?? null,
+      unit: lineItem.unit ?? null,
+      unitPrice: lineItem.unitPrice ?? null,
+      lineTotal: lineItem.totalPrice ?? null,
+      ingredientId,
+      mappingId,
+      priceChanged,
+      unitChanged,
+      currentPrice,
+      normalisedUnitPrice,
+      suggestedConversionFactor,
+      sortOrder: lineRows.length,
     })
   }
 
   // Set invoice status. Schema's InvoiceStatus enum does not have
   // PROCESSED / NEEDS_REVIEW — use the closest equivalents.
-  const status: InvoiceStatus = unmatchedItems > 0 ? "EXTRACTED" : "MATCHED"
+  //
+  // Zero line items on an INVOICE is never "fully processed": it's either a
+  // long document whose line extraction blew the output budget
+  // (lineItemsTruncated) or a parse that found nothing. Marking those
+  // MATCHED used to make them look done while all line detail was silently
+  // missing — surface them as EXTRACTED (needs review) with a note instead.
+  let status: InvoiceStatus = unmatchedItems > 0 ? "EXTRACTED" : "MATCHED"
+  let errorMessage: string | null = null
+  if (parsedData.lineItems.length === 0) {
+    status = "EXTRACTED"
+    errorMessage = parsedData.lineItemsTruncated
+      ? `Line items not extracted — document too long for the extraction budget (${
+          parsedData.pageCount ?? "?"
+        } pages). Header totals captured; line detail needs manual review.`
+      : "Parsed with zero line items — needs manual review."
+  }
 
-  await db.invoice.update({
-    where: { id: invoiceId },
-    data: {
-      status,
-      processedAt: new Date(),
-    },
-  })
+  await db.$transaction([
+    db.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        invoiceNumber: parsedData.invoiceNumber,
+        invoiceDate: parsedData.invoiceDate ? new Date(parsedData.invoiceDate) : null,
+        subtotal: parsedData.subtotal,
+        gst: parsedData.gst,
+        total: parsedData.total,
+        venue,
+        extractedData: JSON.parse(JSON.stringify(parsedData)),
+      },
+    }),
+    db.invoiceLineItem.deleteMany({ where: { invoiceId } }),
+    ...(lineRows.length > 0
+      ? [db.invoiceLineItem.createMany({ data: lineRows.map((r) => ({ ...r, invoiceId })) })]
+      : []),
+    db.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        status,
+        errorMessage,
+        processedAt: new Date(),
+      },
+    }),
+  ])
 
   return {
     invoiceId,

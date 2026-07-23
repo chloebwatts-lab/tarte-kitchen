@@ -18,6 +18,8 @@ import { saveInvoicePdf } from "@/lib/invoices/storage"
 import { parseInvoicePdf } from "@/lib/invoices/parser"
 import { processInvoice } from "@/lib/invoices/processor"
 import Fuse from "fuse.js"
+import { readFile } from "fs/promises"
+import path from "path"
 
 /**
  * Resilient supplier-invoice ingestion.
@@ -149,7 +151,93 @@ interface ProcessStats {
   invoicesIngested: number
   duplicates: number
   statements: number
+  orderConfirmations: number
+  rescued: number
   errors: string[]
+}
+
+/**
+ * Shared post-parse pipeline for a freshly parsed PDF that already has an
+ * Invoice row: classify statements and order confirmations, content-dedupe
+ * against active invoices, otherwise run the full line-item processor.
+ * Used by both the Gmail ingestion loop and the sweep rescue path.
+ */
+async function finalizeParsedInvoice(
+  invoiceId: string,
+  supplier: SupplierRef,
+  parsed: Awaited<ReturnType<typeof parseInvoicePdf>>,
+  stats: ProcessStats
+): Promise<void> {
+  const parsedMeta = {
+    invoiceNumber: parsed.invoiceNumber,
+    invoiceDate: parsed.invoiceDate ? new Date(parsed.invoiceDate) : null,
+    total: parsed.total,
+    extractedData: JSON.parse(JSON.stringify(parsed)),
+    processedAt: new Date(),
+  }
+
+  if (parsed.documentType === "STATEMENT") {
+    await db.invoice.update({
+      where: { id: invoiceId },
+      data: { status: "STATEMENT", ...parsedMeta },
+    })
+    stats.statements++
+    return
+  }
+
+  // Pre-delivery order confirmations (Fresho et al) share their order ref
+  // with the tax invoice that follows. They must never count as spend and
+  // must never sit in the dedupe candidate set — when they did, every real
+  // Fresho invoice was marked DUPLICATE of its own confirmation and the
+  // indicative total was kept instead of the actual one.
+  if (parsed.documentType === "ORDER_CONFIRMATION") {
+    await db.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        status: "ORDER_CONFIRMATION",
+        ...parsedMeta,
+        errorMessage: null,
+      },
+    })
+    stats.orderConfirmations++
+    return
+  }
+
+  // Content-level dedup across multi-channel forwarding. Candidates exclude
+  // non-invoice documents (STATEMENT / ORDER_CONFIRMATION) so a real invoice
+  // is only ever a duplicate of another real invoice.
+  if (parsed.invoiceNumber || (parsed.invoiceDate && parsed.total != null)) {
+    const dup = await db.invoice.findFirst({
+      where: {
+        id: { not: invoiceId },
+        supplierId: supplier.id,
+        status: { notIn: ["ERROR", "DUPLICATE", "STATEMENT", "ORDER_CONFIRMATION"] },
+        ...(parsed.invoiceNumber
+          ? { invoiceNumber: parsed.invoiceNumber }
+          : {
+              invoiceNumber: null,
+              invoiceDate: parsed.invoiceDate ? new Date(parsed.invoiceDate) : null,
+              total: parsed.total,
+            }),
+      },
+      select: { id: true, invoiceNumber: true },
+    })
+    if (dup) {
+      await db.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          status: "DUPLICATE",
+          ...parsedMeta,
+          errorMessage: `Duplicate of invoice ${dup.id}${dup.invoiceNumber ? ` (${dup.invoiceNumber})` : ""}`,
+        },
+      })
+      stats.duplicates++
+      return
+    }
+  }
+
+  await processInvoice(invoiceId, supplier.id, parsed)
+  stats.invoicesIngested++
 }
 
 async function processMessages(
@@ -162,17 +250,21 @@ async function processMessages(
     invoicesIngested: 0,
     duplicates: 0,
     statements: 0,
+    orderConfirmations: 0,
+    rescued: 0,
     errors: [],
   }
 
   for (const ref of messageRefs) {
     try {
       // Per-message isolation — one bad parse can't kill the run.
-      const existing = await db.invoice.findUnique({
-        where: { gmailMessageId: ref.id },
-      })
-      if (existing) continue
-
+      //
+      // Deliberately NO message-level "already seen" fast-path here: dedupe
+      // is per ATTACHMENT below. A bare `gmailMessageId: ref.id` skip meant
+      // that if a run died after ingesting only the first PDF of a
+      // multi-attachment email (GC Eggs sends 6-8 invoices per email), every
+      // re-scan skipped the whole message and attachments 2..n were lost
+      // for good.
       const message = await getMessage(accessToken, ref.id)
       const senderEmail = extractSenderEmail(message)
       const senderName = extractSenderName(message)
@@ -188,18 +280,16 @@ async function processMessages(
         const attachment = attachments[attIdx]
         // Invoice.gmailMessageId is @unique, but suppliers like GC Eggs
         // attach 6-8 invoice PDFs to ONE email. Key the first attachment
-        // by the bare message id (back-compat with every existing row and
-        // the fast-path skip above) and subsequent ones as `id-a2`,
-        // `id-a3`… so each PDF gets its own Invoice row instead of
-        // throwing a unique violation after the first.
+        // by the bare message id (back-compat with every existing row)
+        // and subsequent ones as `id-a2`, `id-a3`… so each PDF gets its
+        // own Invoice row instead of throwing a unique violation after
+        // the first.
         const messageKey =
           attIdx === 0 ? ref.id : `${ref.id}-a${attIdx + 1}`
-        if (attIdx > 0) {
-          const attExisting = await db.invoice.findUnique({
-            where: { gmailMessageId: messageKey },
-          })
-          if (attExisting) continue
-        }
+        const attExisting = await db.invoice.findUnique({
+          where: { gmailMessageId: messageKey },
+        })
+        if (attExisting) continue
         const pdfBuffer = await getAttachment(accessToken, ref.id, attachment.attachmentId)
         let parsed
         try {
@@ -230,60 +320,8 @@ async function processMessages(
           },
         })
 
-        if (parsed.documentType === "STATEMENT") {
-          await db.invoice.update({
-            where: { id: invoice.id },
-            data: {
-              status: "STATEMENT",
-              invoiceNumber: parsed.invoiceNumber,
-              invoiceDate: parsed.invoiceDate ? new Date(parsed.invoiceDate) : null,
-              total: parsed.total,
-              extractedData: JSON.parse(JSON.stringify(parsed)),
-              processedAt: new Date(),
-            },
-          })
-          stats.statements++
-          continue
-        }
-
-        // Content-level dedup across multi-channel forwarding.
-        if (parsed.invoiceNumber || (parsed.invoiceDate && parsed.total != null)) {
-          const dup = await db.invoice.findFirst({
-            where: {
-              id: { not: invoice.id },
-              supplierId: supplier.id,
-              status: { notIn: ["ERROR", "DUPLICATE"] },
-              ...(parsed.invoiceNumber
-                ? { invoiceNumber: parsed.invoiceNumber }
-                : {
-                    invoiceNumber: null,
-                    invoiceDate: parsed.invoiceDate ? new Date(parsed.invoiceDate) : null,
-                    total: parsed.total,
-                  }),
-            },
-            select: { id: true, invoiceNumber: true },
-          })
-          if (dup) {
-            await db.invoice.update({
-              where: { id: invoice.id },
-              data: {
-                status: "DUPLICATE",
-                invoiceNumber: parsed.invoiceNumber,
-                invoiceDate: parsed.invoiceDate ? new Date(parsed.invoiceDate) : null,
-                total: parsed.total,
-                extractedData: JSON.parse(JSON.stringify(parsed)),
-                processedAt: new Date(),
-                errorMessage: `Duplicate of invoice ${dup.id}${dup.invoiceNumber ? ` (${dup.invoiceNumber})` : ""}`,
-              },
-            })
-            stats.duplicates++
-            continue
-          }
-        }
-
         try {
-          await processInvoice(invoice.id, supplier.id, parsed)
-          stats.invoicesIngested++
+          await finalizeParsedInvoice(invoice.id, supplier, parsed, stats)
         } catch (procErr) {
           const errMsg = procErr instanceof Error ? procErr.message : String(procErr)
           await db.invoice.update({
@@ -302,6 +340,83 @@ async function processMessages(
 }
 
 /**
+ * Sweep-mode rescue for rows the pipeline abandoned:
+ *  - PENDING stuck >2h — a run crashed between creating the Invoice row and
+ *    finishing processInvoice. Previously invisible forever (the row exists,
+ *    so Gmail-side dedupe skips the attachment on every re-scan).
+ *  - ERROR rows — a transient parse/API failure was never retried.
+ *
+ * Re-parses the stored PDF from disk and pushes it through the same
+ * finalize pipeline as fresh ingestion. Safe to re-run because
+ * processInvoice deletes-and-recreates its line items transactionally.
+ * Bounded per sweep so a poison PDF can't dominate a run; each attempt
+ * bumps updatedAt, so a persistent failure retries at most once per sweep.
+ */
+async function rescueStuckInvoices(stats: ProcessStats): Promise<void> {
+  const stuckCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000)
+  const retryWindow = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  const stuck = await db.invoice.findMany({
+    where: {
+      supplierId: { not: null },
+      OR: [
+        { status: { in: ["PENDING", "PROCESSING"] }, createdAt: { lt: stuckCutoff } },
+        {
+          status: "ERROR",
+          updatedAt: { lt: stuckCutoff },
+          createdAt: { gt: retryWindow },
+          pdfUrl: { not: null },
+        },
+      ],
+    },
+    select: {
+      id: true,
+      status: true,
+      pdfUrl: true,
+      supplierId: true,
+      supplierName: true,
+      gmailMessageId: true,
+    },
+    orderBy: { createdAt: "asc" },
+    take: 15,
+  })
+
+  for (const inv of stuck) {
+    try {
+      if (!inv.pdfUrl) {
+        // Stuck PENDING with no stored PDF — nothing to re-parse from.
+        await db.invoice.update({
+          where: { id: inv.id },
+          data: {
+            status: "ERROR",
+            errorMessage: `Stuck in ${inv.status} with no stored PDF — cannot retry. Re-ingest Gmail message ${inv.gmailMessageId} manually if needed.`,
+          },
+        })
+        stats.errors.push(`rescue ${inv.id} (${inv.supplierName}): no stored PDF`)
+        continue
+      }
+      const pdfBuffer = await readFile(path.resolve(process.cwd(), inv.pdfUrl))
+      const parsed = await parseInvoicePdf(pdfBuffer)
+      await finalizeParsedInvoice(
+        inv.id,
+        { id: inv.supplierId!, name: inv.supplierName },
+        parsed,
+        stats
+      )
+      stats.rescued++
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      await db.invoice
+        .update({
+          where: { id: inv.id },
+          data: { status: "ERROR", errorMessage: `Rescue failed: ${errMsg}` },
+        })
+        .catch(() => {})
+      stats.errors.push(`rescue ${inv.id} (${inv.supplierName}): ${errMsg}`)
+    }
+  }
+}
+
+/**
  * Standing venue-assignment rules from Chris (2026-07-14), applied after
  * every ingestion run so these suppliers never sit in the unassigned
  * panel:
@@ -315,7 +430,7 @@ async function processMessages(
 async function applyStandingVenueRules(): Promise<string[]> {
   const notes: string[] = []
   const activeStatuses = {
-    notIn: ["ERROR", "STATEMENT", "DUPLICATE"] as InvoiceStatus[],
+    notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION"] as InvoiceStatus[],
   }
 
   const breadtop = await db.invoice.updateMany({
@@ -443,6 +558,15 @@ export async function GET(request: Request) {
 
     const stats = await processMessages(accessToken, emailMap, messageRefs)
 
+    // Sweep runs also rescue rows a crashed/errored run left behind.
+    if (mode === "sweep") {
+      try {
+        await rescueStuckInvoices(stats)
+      } catch (e) {
+        stats.errors.push(`rescue pass: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
+
     let venueRuleNotes: string[] = []
     try {
       venueRuleNotes = await applyStandingVenueRules()
@@ -485,6 +609,8 @@ export async function GET(request: Request) {
         invoicesIngested: stats.invoicesIngested,
         duplicates: stats.duplicates,
         statements: stats.statements,
+        orderConfirmations: stats.orderConfirmations,
+        rescued: stats.rescued,
         errors: stats.errors.length,
         errorSummary: stats.errors.length > 0 ? stats.errors.join("\n").slice(0, 4000) : null,
         healthy,
@@ -498,6 +624,8 @@ export async function GET(request: Request) {
       invoicesIngested: stats.invoicesIngested,
       duplicates: stats.duplicates,
       statements: stats.statements,
+      orderConfirmations: stats.orderConfirmations,
+      rescued: stats.rescued,
       unknownSendersLogged: unknownLogged,
       supplierEmailsConfigured: allEmails.length,
       venueRules: venueRuleNotes.length > 0 ? venueRuleNotes : undefined,
