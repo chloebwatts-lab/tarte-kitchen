@@ -64,6 +64,20 @@ function fmtMoneyFine(n: number | null | undefined) {
   return `$${n.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
+// Per-unit alert prices are per base unit (per g / ml / piece), so they are
+// often fractions of a cent — 2dp would render "$0.01 → $0.01 +25.7%".
+function fmtUnitPrice(n: number | null | undefined, unit: string) {
+  if (n == null || Number.isNaN(n)) return "—"
+  const dp = Math.abs(n) < 0.1 ? 4 : 2
+  return `$${n.toLocaleString("en-AU", { minimumFractionDigits: dp, maximumFractionDigits: dp })}/${unit}`
+}
+
+function fmtImpact(n: number | null | undefined) {
+  if (n == null || Number.isNaN(n)) return "—"
+  const sign = n > 0 ? "+" : n < 0 ? "-" : ""
+  return `${sign}$${Math.abs(n).toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/wk`
+}
+
 function fmtPct(n: number | null | undefined, opts?: { signed?: boolean; decimals?: number }) {
   if (n == null || Number.isNaN(n)) return "—"
   const d = opts?.decimals ?? 1
@@ -525,44 +539,78 @@ function operationsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarr
     ${coolingFootnote}`
 }
 
-function priceSpikesSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative) {
-  if (snapshot.priceSpikes.count === 0) {
-    return `${sectionHeader("Supplier price changes", narrative.sectionNotes.prices)}
-      <div style="padding:8px 28px 0;color:${C.inkMute};font-size:13px;">No invoice-driven price changes registered this week.</div>`
-  }
-  const rows = snapshot.priceSpikes.items
+type PriceAlertRow = WeeklyDigestSnapshot["priceSpikes"]["stable"][number]
+
+function priceAlertTable(
+  items: PriceAlertRow[],
+  total: number,
+  title: string,
+  subtitle: string
+) {
+  if (items.length === 0) return ""
+  const countLabel =
+    total > items.length ? `top ${items.length} of ${total} · ${subtitle}` : subtitle
+  const rows = items
     .map((p) => {
-      const tone = Math.abs(p.changePct) >= 15 ? "red" : Math.abs(p.changePct) >= 8 ? "amber" : "neutral"
-      const toneColor = tone === "red" ? C.red : tone === "amber" ? C.amber : C.inkSoft
-      const toneBg = tone === "red" ? C.redSoft : tone === "amber" ? C.amberSoft : "transparent"
+      // Drops are savings — show them green. Increases keep the old
+      // severity ramp on |%|.
+      const tone =
+        p.changePct < 0
+          ? "green"
+          : Math.abs(p.changePct) >= 15
+            ? "red"
+            : Math.abs(p.changePct) >= 8
+              ? "amber"
+              : "neutral"
+      const toneColor =
+        tone === "red" ? C.red : tone === "amber" ? C.amber : tone === "green" ? C.green : C.inkSoft
+      const toneBg =
+        tone === "red" ? C.redSoft : tone === "amber" ? C.amberSoft : tone === "green" ? C.greenSoft : "transparent"
+      const newBadge = p.isNew
+        ? ` <span style="display:inline-block;padding:1px 6px;background:${C.accentSoft};color:${C.accent};border-radius:4px;font-size:10px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;vertical-align:1px;">new</span>`
+        : ""
       return `
         <tr>
-          <td style="padding:8px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.ink};">${escapeHtml(p.ingredient)}</td>
-          <td style="padding:8px 14px;border-bottom:1px solid ${C.borderSoft};font-size:12px;color:${C.inkSoft};">${escapeHtml(p.supplier ?? "—")}</td>
-          <td style="padding:8px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.inkSoft};text-align:right;font-variant-numeric:tabular-nums;">${fmtMoneyFine(p.oldPrice)}</td>
-          <td style="padding:8px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.ink};text-align:right;font-variant-numeric:tabular-nums;font-weight:600;">${fmtMoneyFine(p.newPrice)}</td>
-          <td style="padding:8px 14px;border-bottom:1px solid ${C.borderSoft};text-align:right;">
+          <td style="padding:8px 10px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.ink};">${escapeHtml(p.ingredient)}${newBadge}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid ${C.borderSoft};font-size:12px;color:${C.inkSoft};">${escapeHtml(p.supplier ?? "—")}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid ${C.borderSoft};font-size:12px;color:${C.inkSoft};text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;">${fmtUnitPrice(p.oldPrice, p.unit)}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid ${C.borderSoft};font-size:12px;color:${C.ink};text-align:right;font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;">${fmtUnitPrice(p.newPrice, p.unit)}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid ${C.borderSoft};text-align:right;">
             <span style="display:inline-block;padding:2px 8px;background:${toneBg};color:${toneColor};border-radius:4px;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;">${fmtPct(p.changePct, { signed: true })}</span>
           </td>
+          <td style="padding:8px 10px;border-bottom:1px solid ${C.borderSoft};font-size:12px;color:${p.weeklyImpactDollars != null && p.weeklyImpactDollars < 0 ? C.green : C.inkSoft};text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;">${fmtImpact(p.weeklyImpactDollars)}</td>
         </tr>`
     })
     .join("")
   return `
-    ${sectionHeader("Supplier price changes", narrative.sectionNotes.prices)}
     <div style="padding:14px 18px 0;">
+      <div style="padding:0 2px 6px;font-size:13px;font-weight:600;color:${C.ink};">${escapeHtml(title)} <span style="font-weight:400;color:${C.inkMute};font-size:12px;">· ${escapeHtml(countLabel)}</span></div>
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:8px;border-collapse:collapse;overflow:hidden;">
         <thead>
           <tr style="background:${C.borderSoft};">
-            <th style="padding:9px 14px;text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Ingredient</th>
-            <th style="padding:9px 14px;text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Supplier</th>
-            <th style="padding:9px 14px;text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Was</th>
-            <th style="padding:9px 14px;text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Now</th>
-            <th style="padding:9px 14px;text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Change</th>
+            <th style="padding:9px 10px;text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Ingredient</th>
+            <th style="padding:9px 10px;text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Supplier</th>
+            <th style="padding:9px 10px;text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Was</th>
+            <th style="padding:9px 10px;text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Now</th>
+            <th style="padding:9px 10px;text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Change</th>
+            <th style="padding:9px 10px;text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Est. impact</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`
+}
+
+function priceSpikesSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative) {
+  if (snapshot.priceSpikes.count === 0) {
+    return `${sectionHeader("Supplier price changes", narrative.sectionNotes.prices)}
+      <div style="padding:8px 28px 0;color:${C.inkMute};font-size:13px;">No open price alerts. One-off produce market moves are filtered out automatically.</div>`
+  }
+  return `
+    ${sectionHeader("Supplier price changes", narrative.sectionNotes.prices)}
+    ${priceAlertTable(snapshot.priceSpikes.stable, snapshot.priceSpikes.stableTotal, "Staples", "vs list price, moves of 5% or more")}
+    ${priceAlertTable(snapshot.priceSpikes.produce, snapshot.priceSpikes.produceTotal, "Produce", "25%+ above 4-week median, confirmed on 2+ deliveries")}
+    <div style="padding:8px 28px 0;color:${C.inkMute};font-size:11px;">Prices are per base unit. Est. impact = recent purchase volume at the new price vs the old one; negative is a saving. Review alerts in Kitchen under Suppliers.</div>`
 }
 
 function topSellersSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative) {
@@ -797,10 +845,15 @@ export function renderDigestText(
   if (snapshot.priceSpikes.count > 0) {
     lines.push(``)
     lines.push(`SUPPLIER PRICE CHANGES`)
-    for (const p of snapshot.priceSpikes.items.slice(0, 5)) {
-      lines.push(
-        `  ${p.ingredient} (${p.supplier ?? "—"}): ${fmtMoneyFine(p.oldPrice)} → ${fmtMoneyFine(p.newPrice)} (${fmtPct(p.changePct, { signed: true })})`
-      )
+    const alertLine = (p: PriceAlertRow) =>
+      `    ${p.ingredient} (${p.supplier ?? "—"}): ${fmtUnitPrice(p.oldPrice, p.unit)} → ${fmtUnitPrice(p.newPrice, p.unit)} (${fmtPct(p.changePct, { signed: true })}${p.weeklyImpactDollars != null ? `, ~${fmtImpact(p.weeklyImpactDollars)}` : ""})`
+    if (snapshot.priceSpikes.stable.length > 0) {
+      lines.push(`  Staples:`)
+      for (const p of snapshot.priceSpikes.stable.slice(0, 6)) lines.push(alertLine(p))
+    }
+    if (snapshot.priceSpikes.produce.length > 0) {
+      lines.push(`  Produce (confirmed vs 4-week median):`)
+      for (const p of snapshot.priceSpikes.produce.slice(0, 4)) lines.push(alertLine(p))
     }
   }
   lines.push(``)

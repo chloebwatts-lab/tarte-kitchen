@@ -263,6 +263,32 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
       .mul(100)
       .toDecimalPlaces(2)
 
+    // Estimated weekly $ impact = recent purchase volume × per-unit delta.
+    // Volume comes from the trailing 28 days of validated lines: each line's
+    // base-unit quantity is lineTotal / normalisedUnitPrice (both already
+    // unit-safe), so carton/pack conversions can't distort it. Null when no
+    // line in the window carries a total — the digest sorts those last.
+    let volumeBaseUnits = new Decimal(0)
+    let hasVolume = false
+    for (const l of validLines) {
+      const t = l.invoice?.invoiceDate
+      if (!t || t < fourWeeksAgo) continue
+      if (l.lineTotal == null) continue
+      const perUnit = new Decimal(l.normalisedUnitPrice!.toString())
+      if (perUnit.lte(0)) continue
+      volumeBaseUnits = volumeBaseUnits.plus(
+        new Decimal(l.lineTotal.toString()).div(perUnit)
+      )
+      hasVolume = true
+    }
+    const weeklyImpactDollars = hasVolume
+      ? volumeBaseUnits
+          .div(PRODUCE_WINDOW_WEEKS)
+          .mul(currentPrice.minus(priorPrice))
+          .toDecimalPlaces(2)
+          .toNumber()
+      : null
+
     // Sanity cap for unit-mismatch ghosts. With conversions unit-scoped and
     // normalised prices rebuilt, big moves are usually REAL (cocoa doubled;
     // vanilla paste +115% was being hidden by the old 100% cap) — only
@@ -294,6 +320,7 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
         ? priorMedian.toDecimalPlaces(4).toNumber()
         : null,
       changePct: changePct.toNumber(),
+      weeklyImpactDollars,
       supplierName,
       lastSeenAt: new Date(),
     }
@@ -307,6 +334,7 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
           priorPrice: alertData.priorPrice,
           priorPeriodMedian: alertData.priorPeriodMedian,
           changePct: alertData.changePct,
+          weeklyImpactDollars: alertData.weeklyImpactDollars,
           supplierName: alertData.supplierName,
           lastSeenAt: alertData.lastSeenAt,
         },

@@ -16,7 +16,6 @@
 import { db } from "@/lib/db"
 import { Venue, ReviewSentiment } from "@/generated/prisma/enums"
 import { lastCompletedTarteWeek } from "@/lib/dates"
-import { normaliseUnit } from "@/lib/invoices/units"
 
 const SINGLE_VENUES: Venue[] = [
   Venue.BURLEIGH,
@@ -142,16 +141,30 @@ interface ReviewsSection {
   }
 }
 
+interface PriceAlertDigestItem {
+  ingredient: string
+  supplier: string | null
+  /// Per-unit prices in `unit` (the ingredient's purchase base unit —
+  /// per g / ml / piece), NOT per carton/pack.
+  oldPrice: number
+  newPrice: number
+  unit: string
+  changePct: number
+  /// Recent purchase volume × delta, computed by the alert engine.
+  /// Negative = weekly saving (price drop).
+  weeklyImpactDollars: number | null
+  /// Alert first fired inside the digest week.
+  isNew: boolean
+}
+
 interface PriceSpikesSection {
   count: number
-  items: Array<{
-    ingredient: string
-    supplier: string | null
-    oldPrice: number
-    newPrice: number
-    changePct: number
-    changedAt: string
-  }>
+  produce: PriceAlertDigestItem[]
+  stable: PriceAlertDigestItem[]
+  /// Total OPEN alerts per stream — the lists above are capped, and the
+  /// email says "top N of M" rather than silently truncating.
+  produceTotal: number
+  stableTotal: number
 }
 
 interface WastageSection {
@@ -413,100 +426,56 @@ async function buildReviewsSection(week: DigestWeek): Promise<ReviewsSection> {
 }
 
 async function buildPriceSpikes(week: DigestWeek): Promise<PriceSpikesSection> {
-  // We query InvoiceLineItem (not PriceHistory) because PriceHistory only
-  // captures *applied* changes — i.e. ones a human clicked through in the
-  // suppliers UI. Most price changes sit pending review. For the digest
-  // we want everything the parser detected this week so Chloe sees the
-  // real movement, not just the rows already acknowledged.
-  //
-  // Each line has `priceChanged=true` when the invoice unit price
-  // differed from the matched ingredient's purchasePrice at parse time,
-  // and `currentPrice` stores what the previous master price was at that
-  // moment (despite the field name).
-  const lines = await db.invoiceLineItem.findMany({
-    where: {
-      priceChanged: true,
-      ingredientId: { not: null },
-      invoice: {
-        invoiceDate: { gte: week.start, lte: week.end },
-        status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE"] },
-      },
-    },
-    include: {
-      ingredient: {
-        select: {
-          name: true,
-          purchaseUnit: true,
-          supplier: { select: { name: true } },
-        },
-      },
-      invoice: {
-        select: { invoiceDate: true, supplierName: true },
-      },
-    },
-    take: 400,
+  // v2: read the PriceAlert table (rebuilt nightly by
+  // /api/cron/compute-price-alerts) instead of re-deriving moves from raw
+  // InvoiceLineItem.priceChanged flags. The alert engine already handles
+  // unit normalisation, the produce-vs-stable split, multi-delivery
+  // confirmation for produce (so one-off market moves never reach Chloe),
+  // and chef dismissals sticking. The digest must not second-guess it.
+  const alerts = await db.priceAlert.findMany({
+    where: { status: "OPEN" },
   })
 
-  // Dedupe: a single ingredient may appear on multiple invoices the same
-  // week; keep the biggest absolute % move per ingredient.
-  const bestByIngredient = new Map<
-    string,
-    {
-      ingredient: string
-      supplier: string | null
-      oldPrice: number
-      newPrice: number
-      changePct: number
-      changedAt: string
-    }
-  >()
-  for (const l of lines) {
-    if (l.currentPrice == null) continue
-    const oldP = Number(l.currentPrice)
-    if (oldP <= 0) continue
+  const toItem = (a: (typeof alerts)[number]): PriceAlertDigestItem => ({
+    ingredient: a.canonicalName,
+    // Who actually billed the triggering price, not the ingredient's
+    // default supplier — those diverge when the chef shops around.
+    supplier: a.supplierName,
+    oldPrice: Number(a.priorPrice),
+    newPrice: Number(a.currentPrice),
+    unit: a.currentUnit,
+    changePct: Number(a.changePct),
+    weeklyImpactDollars:
+      a.weeklyImpactDollars != null ? Number(a.weeklyImpactDollars) : null,
+    isNew: a.firstSeenAt >= week.start,
+  })
 
-    // Use the per-base-unit normalised invoice price written by the
-    // processor — it's already converted to the ingredient's purchase
-    // unit so direct comparison against currentPrice is apples-to-apples.
-    // Fallback to the same-unit safety filter for legacy rows that
-    // haven't been backfilled yet.
-    let newP: number | null = null
-    if (l.normalisedUnitPrice != null) {
-      newP = Number(l.normalisedUnitPrice)
-    } else if (l.unitPrice != null) {
-      const invUnit = normaliseUnit(l.unit)
-      const stUnit = normaliseUnit(l.ingredient?.purchaseUnit ?? null)
-      if (invUnit && stUnit && invUnit === stUnit) {
-        newP = Number(l.unitPrice)
-      }
+  // Dollar impact ranks the list — a 6% flour move can cost more per week
+  // than a 40% saffron move. Alerts without an impact estimate sort after
+  // the ones with dollars attached, by |%| among themselves.
+  const byImpact = (a: PriceAlertDigestItem, b: PriceAlertDigestItem) => {
+    if (a.weeklyImpactDollars != null && b.weeklyImpactDollars != null) {
+      return (
+        Math.abs(b.weeklyImpactDollars) - Math.abs(a.weeklyImpactDollars)
+      )
     }
-    if (newP == null || newP <= 0) continue
-
-    const changePct = ((newP - oldP) / oldP) * 100
-    // Hard guard against any residual unit mismatch sneaking through.
-    if (Math.abs(changePct) >= 200) continue
-    if (Math.abs(changePct) < 5) continue
-
-    const key = l.ingredientId ?? l.ingredient?.name ?? l.description
-    const existing = bestByIngredient.get(key)
-    if (!existing || Math.abs(changePct) > Math.abs(existing.changePct)) {
-      bestByIngredient.set(key, {
-        ingredient: l.ingredient?.name ?? l.description,
-        supplier:
-          l.ingredient?.supplier?.name ?? l.invoice?.supplierName ?? null,
-        oldPrice: oldP,
-        newPrice: newP,
-        changePct,
-        changedAt: (l.invoice?.invoiceDate ?? new Date()).toISOString(),
-      })
-    }
+    if (a.weeklyImpactDollars != null) return -1
+    if (b.weeklyImpactDollars != null) return 1
+    return Math.abs(b.changePct) - Math.abs(a.changePct)
   }
 
-  const items = Array.from(bestByIngredient.values())
-    .sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct))
-    .slice(0, 12)
+  const stableAll = alerts.filter((a) => a.stream === "STABLE")
+  const produceAll = alerts.filter((a) => a.stream === "PRODUCE")
+  const stable = stableAll.map(toItem).sort(byImpact).slice(0, 12)
+  const produce = produceAll.map(toItem).sort(byImpact).slice(0, 8)
 
-  return { count: items.length, items }
+  return {
+    count: stable.length + produce.length,
+    produce,
+    stable,
+    produceTotal: produceAll.length,
+    stableTotal: stableAll.length,
+  }
 }
 
 async function buildWastage(week: DigestWeek): Promise<WastageSection> {
