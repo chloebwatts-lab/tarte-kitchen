@@ -91,6 +91,14 @@ async function buildSupplierEmailMap(): Promise<{
 const SENDER_PROBE_HINTS: Array<{ probe: string; supplier: string }> = [
   { probe: "ka wai chan", supplier: "Breadtop" },
   { probe: "eac business group", supplier: "Breadtop" },
+  // Coastal Fresh also sends via Xero's relay ("Accounts Receivable -
+  // Coastal Fresh" from messaging-service@post.xero.com). The token
+  // fast-path ties between "Coastal Fresh" and "Gold Coast Premium Foods"
+  // ("coast" hits both), and Fuse then rejects the long display name, so
+  // these invoices were never ingested. Their legal entity is The Dave's
+  // Wholesale Trust.
+  { probe: "coastal fresh", supplier: "Coastal Fresh" },
+  { probe: "dave's wholesale", supplier: "Coastal Fresh" },
 ]
 
 // Known NON-FOOD senders on the shared Xero address. Deliberately not
