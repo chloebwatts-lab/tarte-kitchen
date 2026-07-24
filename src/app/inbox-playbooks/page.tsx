@@ -19,6 +19,7 @@ const CATEGORY_GROUP: Record<string, (typeof GROUP_ORDER)[number]> = {
   suppliers: "Operations",
   reviews: "Operations",
   bookings_dine_in: "Operations",
+  donations_fundraisers: "Operations",
   job_applications: "Operations",
   marketing_cold_outreach: "Other",
   accounts_invoices: "Other",
