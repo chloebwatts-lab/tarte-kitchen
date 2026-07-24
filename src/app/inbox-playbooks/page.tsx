@@ -7,6 +7,8 @@ import {
   listRecentInboxLearnings,
 } from "@/lib/actions/inbox-playbooks"
 import { InboxPlaybookEditor } from "@/components/inbox-playbook-editor"
+import { HouseNotesSection } from "@/components/house-notes"
+import { listHouseNotes } from "@/lib/actions/house-notes"
 
 const GROUP_ORDER = ["Events", "Operations", "Other"] as const
 
@@ -46,10 +48,11 @@ function fmtRelative(d: Date): string {
 }
 
 export default async function InboxPlaybooksPage() {
-  const [playbooks, runs, learnings] = await Promise.all([
+  const [playbooks, runs, learnings, houseNotes] = await Promise.all([
     listInboxPlaybooks(),
     listRecentInboxRuns(20),
     listRecentInboxLearnings(15),
+    listHouseNotes(),
   ])
 
   const lastRun = runs[0]
@@ -127,6 +130,12 @@ export default async function InboxPlaybooksPage() {
           </p>
         </div>
       )}
+
+      {/* House notes (live drafter guidance) + suggestion box */}
+      <HouseNotesSection
+        notes={houseNotes.notes}
+        suggestions={houseNotes.suggestions}
+      />
 
       {/* Recent edits */}
       {learnings.length > 0 && (
