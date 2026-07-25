@@ -195,6 +195,7 @@ export function RestockCountSheet({
             available: null,
             requested: null,
             priority: false,
+            priorityRank: null,
             note: null,
           },
         ])

@@ -1,30 +1,99 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowRight, Check, Flag, Loader2, Star } from "lucide-react"
+import { ArrowRight, Check, Flag, History, Loader2, Star } from "lucide-react"
 import {
+  clearStaleRunSheet,
   completeRestockRun,
   supplyRunLine,
   type RestockRun,
   type RunStationLine,
 } from "@/lib/actions/restock"
 import { STATION_SHORT_LABEL } from "@/lib/stations"
+import type { KitchenStation } from "@/generated/prisma"
+
+type StationFilter = KitchenStation | "ALL"
+
+function todayAestYmd(): string {
+  return new Date(Date.now() + 10 * 60 * 60 * 1000).toISOString().split("T")[0]
+}
+
+/** "Wed 23 Jul" for a yyyy-mm-dd string. */
+function shortDate(ymd: string): string {
+  const d = new Date(`${ymd}T00:00:00Z`)
+  return d.toLocaleDateString("en-AU", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  })
+}
+
+function nightLabel(ymd: string, today: string): string {
+  if (ymd >= today) return "tonight's count"
+  const days = Math.round(
+    (Date.parse(today) - Date.parse(ymd)) / (24 * 60 * 60 * 1000)
+  )
+  if (days === 1) return "last night"
+  return shortDate(ymd)
+}
 
 /**
  * The prep chef's consolidated morning list. Every requested line from all
  * submitted evening counts, grouped by item — priority flags first. Tick a
  * station chip to log "delivered as requested"; long-tap/edit for partial.
+ * At Beach House the Restaurant/Cafe toggle filters to one kitchen's
+ * requests — items both kitchens asked for stay visible in either view so
+ * the batch still gets made once and split.
  */
-export function RestockRunBoard({ initialRun }: { initialRun: RestockRun }) {
+export function RestockRunBoard({
+  initialRun,
+  initialStation = "ALL",
+}: {
+  initialRun: RestockRun
+  initialStation?: StationFilter
+}) {
   const [run, setRun] = useState(initialRun)
   const [name, setName] = useState("")
+  const [stationFilter, setStationFilter] = useState<StationFilter>(initialStation)
   const [finishing, setFinishing] = useState(false)
   const [finished, setFinished] = useState(false)
+  const [clearing, setClearing] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  const today = todayAestYmd()
   const allLines = run.items.flatMap((i) => i.stations)
   const suppliedLines = allLines.filter((l) => l.supplied != null)
   const gapLines = allLines.filter((l) => l.supplied == null)
+
+  // The newest count in the run is "current"; anything older stacked under
+  // it (the finish step was skipped), or older than last night outright,
+  // gets flagged for clearing.
+  const latestDate = run.sheets.reduce(
+    (max, s) => (s.sheetDate > max ? s.sheetDate : max),
+    ""
+  )
+  const yesterday = new Date(Date.parse(today) - 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split("T")[0]
+  const oldSheets = run.sheets.filter(
+    (s) =>
+      (s.sheetDate < latestDate || s.sheetDate < yesterday) &&
+      s.sheetDate < today
+  )
+
+  const stationsInRun = Array.from(
+    new Set(run.sheets.map((s) => s.station))
+  ).sort()
+  const showToggle = stationsInRun.length > 1
+
+  function selectStation(v: StationFilter) {
+    setStationFilter(v)
+    const url = new URL(window.location.href)
+    if (v === "ALL") url.searchParams.delete("station")
+    else url.searchParams.set("station", v)
+    window.history.replaceState(null, "", url)
+  }
 
   function patchLine(lineId: string, patch: Partial<RunStationLine>) {
     setRun((prev) => ({
@@ -86,6 +155,42 @@ export function RestockRunBoard({ initialRun }: { initialRun: RestockRun }) {
     if (!res.ok) setError("Couldn't save — try again")
   }
 
+  async function clearSheet(sheetId: string) {
+    if (!name.trim()) {
+      setError("Add your name at the top first")
+      window.scrollTo({ top: 0, behavior: "smooth" })
+      return
+    }
+    const sheet = run.sheets.find((s) => s.sheetId === sheetId)
+    const ok = window.confirm(
+      `Clear the ${sheet ? STATION_SHORT_LABEL[sheet.station] : ""} count from ${sheet ? shortDate(sheet.sheetDate) : "that night"}? Its requests come off this run — anything not delivered shows as a shortfall on that day's report.`
+    )
+    if (!ok) return
+    setClearing(sheetId)
+    setError(null)
+    const res = await clearStaleRunSheet({ sheetId, clearedBy: name.trim() })
+    setClearing(null)
+    if (!res.ok) {
+      setError(res.error ?? "Couldn't clear — try again")
+      return
+    }
+    setRun((prev) => ({
+      ...prev,
+      sheets: prev.sheets.filter((s) => s.sheetId !== sheetId),
+      items: prev.items
+        .map((item) => {
+          const stations = item.stations.filter((l) => l.sheetId !== sheetId)
+          return {
+            ...item,
+            stations,
+            totalRequested: stations.reduce((t, l) => t + l.requested, 0),
+            totalSupplied: stations.reduce((t, l) => t + (l.supplied ?? 0), 0),
+          }
+        })
+        .filter((item) => item.stations.length > 0),
+    }))
+  }
+
   async function handleFinish() {
     if (!name.trim()) {
       setError("Add your name to finish the run")
@@ -94,7 +199,7 @@ export function RestockRunBoard({ initialRun }: { initialRun: RestockRun }) {
     }
     if (gapLines.length > 0) {
       const ok = window.confirm(
-        `${gapLines.length} requested line${gapLines.length === 1 ? " has" : "s have"} nothing logged as delivered. Finish anyway? They'll show as shortfalls on the daily report.`
+        `${gapLines.length} requested line${gapLines.length === 1 ? " has" : "s have"} nothing logged as delivered${stationFilter !== "ALL" ? " (across BOTH kitchens, not just the one you're viewing)" : ""}. Finish anyway? They'll show as shortfalls on the daily report.`
       )
       if (!ok) return
     }
@@ -169,8 +274,14 @@ export function RestockRunBoard({ initialRun }: { initialRun: RestockRun }) {
     )
   }
 
-  const priorityItems = run.items.filter((i) => i.priority)
-  const normalItems = run.items.filter((i) => !i.priority)
+  const visibleItems =
+    stationFilter === "ALL"
+      ? run.items
+      : run.items.filter((i) =>
+          i.stations.some((s) => s.station === stationFilter)
+        )
+  const priorityItems = visibleItems.filter((i) => i.priority)
+  const normalItems = visibleItems.filter((i) => !i.priority)
 
   return (
     <div className="space-y-6 pb-24">
@@ -190,7 +301,7 @@ export function RestockRunBoard({ initialRun }: { initialRun: RestockRun }) {
             {run.sheets
               .map(
                 (s) =>
-                  `${STATION_SHORT_LABEL[s.station]}${s.countedBy ? ` (${s.countedBy})` : ""}${s.sent ? "" : " — not sent"}`
+                  `${STATION_SHORT_LABEL[s.station]} ${nightLabel(s.sheetDate, today)}${s.countedBy ? ` (${s.countedBy})` : ""}${s.sent ? "" : " — not sent"}`
               )
               .join(" + ")}
           </div>
@@ -203,6 +314,95 @@ export function RestockRunBoard({ initialRun }: { initialRun: RestockRun }) {
           </p>
         )}
       </div>
+
+      {/* Old counts that never got closed out */}
+      {oldSheets.length > 0 && (
+        <div
+          className="rounded-[20px] border p-5"
+          style={{ borderColor: "#e3cf96", background: "#fdf6e3" }}
+        >
+          <div
+            className="flex items-center gap-1.5 text-[14px] font-semibold"
+            style={{ color: "#8a6d1f" }}
+          >
+            <History className="h-4 w-4" />
+            Old counts are stacked on this run
+          </div>
+          <p className="mt-1 text-[13px] leading-snug" style={{ color: "#8a6d1f" }}>
+            These earlier nights were never finished, so their requests are
+            added on top of the newest count. If they were already handled,
+            clear them — undelivered lines go down as shortfalls on their own
+            day&apos;s report.
+          </p>
+          <div className="mt-3 space-y-2">
+            {oldSheets.map((s) => (
+              <div
+                key={s.sheetId}
+                className="flex items-center justify-between gap-3 rounded-[14px] bg-white px-4 py-2.5"
+              >
+                <div className="text-[14px] text-[var(--tk-charcoal)]">
+                  <span className="font-medium">
+                    {STATION_SHORT_LABEL[s.station]} — {shortDate(s.sheetDate)}
+                  </span>{" "}
+                  <span className="text-[var(--tk-ink-soft)]">
+                    {s.countedBy ? `by ${s.countedBy} · ` : ""}
+                    {s.lineCount} request{s.lineCount === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <button
+                  onClick={() => clearSheet(s.sheetId)}
+                  disabled={clearing === s.sheetId}
+                  className="shrink-0 rounded-full border px-4 py-1.5 text-[13px] font-medium transition active:scale-95 disabled:opacity-40"
+                  style={{ borderColor: "#e3cf96", color: "#8a6d1f" }}
+                >
+                  {clearing === s.sheetId ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Clear"
+                  )}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Kitchen filter — Beach House runs two kitchens */}
+      {showToggle && (
+        <div className="flex flex-wrap items-center gap-3 px-1">
+          <div className="inline-flex rounded-full border border-[var(--tk-line)] bg-white p-1">
+            {(["ALL", ...stationsInRun] as StationFilter[]).map((v) => {
+              const active = stationFilter === v
+              const count =
+                v === "ALL"
+                  ? run.items.length
+                  : run.items.filter((i) =>
+                      i.stations.some((s) => s.station === v)
+                    ).length
+              return (
+                <button
+                  key={v}
+                  onClick={() => selectStation(v)}
+                  className="min-h-[44px] rounded-full px-5 text-[15px] font-medium transition"
+                  style={{
+                    background: active ? "var(--tk-charcoal)" : "transparent",
+                    color: active ? "#fff" : "var(--tk-ink-soft)",
+                  }}
+                >
+                  {v === "ALL" ? "All" : STATION_SHORT_LABEL[v]}{" "}
+                  <span className="tabular-nums opacity-70">({count})</span>
+                </button>
+              )
+            })}
+          </div>
+          {stationFilter !== "ALL" && (
+            <span className="text-[13px] text-[var(--tk-ink-soft)]">
+              Items the other kitchen also asked for stay listed — make once,
+              split the batch.
+            </span>
+          )}
+        </div>
+      )}
 
       {error && (
         <div
@@ -226,6 +426,8 @@ export function RestockRunBoard({ initialRun }: { initialRun: RestockRun }) {
             <RunItemCard
               key={item.name}
               item={item}
+              today={today}
+              latestDate={latestDate}
               onToggle={toggleSupplied}
               onAdjust={adjustSupplied}
             />
@@ -244,6 +446,8 @@ export function RestockRunBoard({ initialRun }: { initialRun: RestockRun }) {
             <RunItemCard
               key={item.name}
               item={item}
+              today={today}
+              latestDate={latestDate}
               onToggle={toggleSupplied}
               onAdjust={adjustSupplied}
             />
@@ -264,6 +468,7 @@ export function RestockRunBoard({ initialRun }: { initialRun: RestockRun }) {
                 <Flag className="h-4 w-4" />
                 {gapLines.length} line{gapLines.length === 1 ? "" : "s"} not
                 logged yet
+                {stationFilter !== "ALL" ? " across both kitchens" : ""}
               </span>
             )}
           </div>
@@ -281,6 +486,12 @@ export function RestockRunBoard({ initialRun }: { initialRun: RestockRun }) {
             Finish restock run
           </button>
         </div>
+        {stationFilter !== "ALL" && (
+          <p className="mt-2 text-[13px] text-[var(--tk-ink-soft)]">
+            Finishing closes the whole run for both kitchens, not just{" "}
+            {STATION_SHORT_LABEL[stationFilter]}.
+          </p>
+        )}
       </div>
     </div>
   )
@@ -288,14 +499,20 @@ export function RestockRunBoard({ initialRun }: { initialRun: RestockRun }) {
 
 function RunItemCard({
   item,
+  today,
+  latestDate,
   onToggle,
   onAdjust,
 }: {
   item: RestockRun["items"][number]
+  today: string
+  latestDate: string
   onToggle: (line: RunStationLine) => void
   onAdjust: (line: RunStationLine) => void
 }) {
-  const multiStation = item.stations.length > 1
+  const distinctStations = new Set(item.stations.map((s) => s.station))
+  const multiKitchen = distinctStations.size > 1
+  const repeatNights = item.stations.length > distinctStations.size
   const allDone = item.stations.every((s) => s.supplied != null)
 
   return (
@@ -335,13 +552,19 @@ function RunItemCard({
               </span>
             )}
           </div>
-          {multiStation && (
+          {multiKitchen && (
             <div className="mt-0.5 text-[13px] text-[var(--tk-ink-soft)]">
               Both kitchens — make{" "}
               <strong className="text-[var(--tk-charcoal)]">
                 {formatQty(item.totalRequested)}
               </strong>{" "}
               total, split below
+            </div>
+          )}
+          {repeatNights && (
+            <div className="mt-0.5 text-[13px]" style={{ color: "#8a6d1f" }}>
+              Asked for on more than one night — check the older requests are
+              still needed before making the lot
             </div>
           )}
         </div>
@@ -359,6 +582,7 @@ function RunItemCard({
         {item.stations.map((s) => {
           const done = s.supplied != null
           const partial = done && s.supplied! < s.requested
+          const old = s.sheetDate < latestDate
           return (
             <div
               key={s.lineId}
@@ -381,6 +605,14 @@ function RunItemCard({
                 <div className="text-[15px] font-medium text-[var(--tk-charcoal)]">
                   {STATION_SHORT_LABEL[s.station]} — needs{" "}
                   <span className="tabular-nums">{formatQty(s.requested)}</span>
+                  {old && (
+                    <span
+                      className="ml-1.5 rounded-full px-2 py-0.5 text-[12px] font-semibold"
+                      style={{ background: "#fdf6e3", color: "#8a6d1f" }}
+                    >
+                      {nightLabel(s.sheetDate, today)}
+                    </span>
+                  )}
                   {s.available != null && (
                     <span className="ml-1.5 text-[13px] font-normal text-[var(--tk-ink-soft)]">
                       ({formatQty(s.available)} in coolroom at close)

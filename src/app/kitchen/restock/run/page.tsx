@@ -4,6 +4,7 @@ import { getRestockRun } from "@/lib/actions/restock"
 import { RestockRunBoard } from "@/components/kitchen/RestockRunBoard"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { VENUE_LABEL } from "@/lib/venues"
+import { isKitchenStation, stationsForVenue } from "@/lib/stations"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
 
@@ -22,6 +23,14 @@ export default async function RestockRunPage({
 
   const run = await getRestockRun(venue)
   const venueLabel = VENUE_LABEL[venue].replace(/\s*\(.*\)$/, "")
+
+  // Optional ?station=CAFE deep link so each kitchen can bookmark its view
+  const stationParam = typeof sp.station === "string" ? sp.station : null
+  const initialStation =
+    isKitchenStation(stationParam) &&
+    stationsForVenue(venue).includes(stationParam)
+      ? stationParam
+      : ("ALL" as const)
 
   return (
     <div className="space-y-6">
@@ -49,7 +58,7 @@ export default async function RestockRunPage({
         </p>
       </div>
 
-      <RestockRunBoard initialRun={run} />
+      <RestockRunBoard initialRun={run} initialStation={initialStation} />
     </div>
   )
 }

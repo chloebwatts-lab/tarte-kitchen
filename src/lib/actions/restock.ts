@@ -72,6 +72,9 @@ export interface RunStationLine {
   lineId: string
   sheetId: string
   station: KitchenStation
+  /// The count sheet's date — lines can come from up to 3 nights back, so
+  /// the board must show WHICH night asked for this.
+  sheetDate: string
   available: number | null
   requested: number
   supplied: number | null
@@ -552,6 +555,7 @@ export async function getRestockRun(venue: Venue): Promise<RestockRun> {
         lineId: line.id,
         sheetId: sheet.id,
         station: sheet.station,
+        sheetDate: ymd(sheet.sheetDate),
         available: num(line.available),
         requested,
         supplied: num(line.supplied),
@@ -603,6 +607,44 @@ export async function supplyRunLine(params: {
       suppliedAt: params.supplied == null ? null : new Date(),
     },
   })
+  return { ok: true }
+}
+
+/**
+ * Drop ONE old count out of the run without logging any deliveries — for
+ * when a night's requests were handled off-app (or superseded by a newer
+ * count) and would otherwise stack on top of tonight's. Only sheets from
+ * before today can be cleared; unsupplied lines show as shortfalls on that
+ * date's report rather than vanishing.
+ */
+export async function clearStaleRunSheet(params: {
+  sheetId: string
+  clearedBy: string
+}): Promise<{ ok: boolean; error?: string }> {
+  const clearedBy = params.clearedBy.trim()
+  if (!clearedBy) return { ok: false, error: "Add your name first" }
+
+  const sheet = await db.restockSheet.findUnique({
+    where: { id: params.sheetId },
+    select: { status: true, sheetDate: true },
+  })
+  if (!sheet) return { ok: false, error: "Sheet not found" }
+  if (sheet.status === "RESTOCKED") return { ok: true }
+  if (ymd(sheet.sheetDate) >= ymd(todayAest()))
+    return {
+      ok: false,
+      error: "That's today's count — finish the run instead of clearing it",
+    }
+
+  await db.restockSheet.update({
+    where: { id: params.sheetId },
+    data: {
+      status: "RESTOCKED",
+      restockedBy: clearedBy,
+      restockedAt: new Date(),
+    },
+  })
+  revalidatePath("/kitchen/restock")
   return { ok: true }
 }
 
