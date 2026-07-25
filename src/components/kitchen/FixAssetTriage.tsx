@@ -411,6 +411,7 @@ function ErrorCodeLookup({
 }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState("")
+  const [picked, setPicked] = useState<number | null>(null)
   const isOpen = open || autoOpen
   const filtered = q.trim()
     ? codes.filter((c) =>
@@ -432,34 +433,57 @@ function ErrorCodeLookup({
         />
       </button>
       {isOpen && (
-        <div className="mt-4 space-y-3">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Type the code — e.g. 032, Er04, AF02…"
-            className="w-full rounded-xl border border-[var(--tk-line)] px-4 py-3 text-[16px] outline-none focus:border-[var(--tk-sage)]"
-          />
-          <div className="space-y-2">
-            {filtered.map((c, i) => (
-              <div key={i} className="rounded-xl bg-[var(--tk-bg)] p-3">
-                <div className="flex flex-wrap items-baseline gap-2">
-                  <span className="rounded-md bg-[var(--tk-charcoal)] px-2 py-0.5 font-mono text-[13px] font-bold text-white">
-                    {c.code}
-                  </span>
-                  <span className="text-[15px] font-semibold text-[var(--tk-charcoal)]">
-                    {c.meaning}
-                  </span>
-                </div>
-                <div className="mt-1 text-[14px] text-[var(--tk-ink-soft)]">{c.action}</div>
-              </div>
-            ))}
-            {filtered.length === 0 && (
-              <div className="text-[14px] text-[var(--tk-ink-soft)]">
-                Code not in the list — photo the screen and log it below; the exact code
-                halves the tech's diagnosis time.
-              </div>
-            )}
+        <div className="mt-4 space-y-4">
+          {codes.length > 8 && (
+            <input
+              value={q}
+              onChange={(e) => { setQ(e.target.value); setPicked(null) }}
+              placeholder="Type the code — e.g. 032, Er04, AF02…"
+              className="w-full rounded-xl border border-[var(--tk-line)] px-4 py-3 text-[16px] outline-none focus:border-[var(--tk-sage)]"
+            />
+          )}
+          <div className="flex flex-wrap gap-2">
+            {filtered.map((c, i) => {
+              const active = picked === i
+              return (
+                <button
+                  key={i}
+                  onClick={() => setPicked(active ? null : i)}
+                  className={`min-h-[52px] rounded-xl border-2 px-4 py-2 font-mono text-[17px] font-bold transition active:scale-95 ${
+                    active
+                      ? "border-[var(--tk-charcoal)] bg-[var(--tk-charcoal)] text-white"
+                      : "border-[var(--tk-line)] bg-[var(--tk-bg)] text-[var(--tk-charcoal)] hover:border-[var(--tk-sage)]"
+                  }`}
+                >
+                  {c.code}
+                </button>
+              )
+            })}
           </div>
+          {picked !== null && filtered[picked] && (
+            <div className="rounded-2xl border-2 border-[var(--tk-charcoal)] bg-[var(--tk-bg)] p-5">
+              <div className="text-[13px] font-bold uppercase tracking-wide text-[var(--tk-ink-mute)]">
+                {filtered[picked].code}
+              </div>
+              <div className="mt-1 text-[19px] font-bold leading-snug text-[var(--tk-charcoal)]">
+                {filtered[picked].meaning}
+              </div>
+              <div className="mt-2 text-[16px] leading-snug text-[var(--tk-ink)]">
+                {filtered[picked].action}
+              </div>
+            </div>
+          )}
+          {picked === null && (
+            <div className="text-[13px] text-[var(--tk-ink-mute)]">
+              Tap the code you see on the display. Not listed? Photo the screen and log
+              it below — the exact code halves the tech's diagnosis time.
+            </div>
+          )}
+          {filtered.length === 0 && (
+            <div className="text-[14px] text-[var(--tk-ink-soft)]">
+              Code not in the list — photo the screen and log it below.
+            </div>
+          )}
         </div>
       )}
     </div>

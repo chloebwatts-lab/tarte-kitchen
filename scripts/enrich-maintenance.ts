@@ -76,6 +76,13 @@ const UNOX_CODES: EC[] = [
   { code: "Internal Error!! FW…", meaning: "Firmware crash", action: "Power off at the wall 60s. If it repeats, note the FW number and call the tech." },
 ]
 
+// Electric UNOX units (Bakertop EPLM, XEBPC prover): same AF/WF families but
+// no gas ignition/exhaust codes — showing gas advice on an electric oven
+// sends staff hunting for a gas cock that doesn't exist.
+const UNOX_ELECTRIC_CODES: EC[] = UNOX_CODES.filter(
+  (c) => !c.code.includes("GAS") && c.code !== "AF06" && c.code !== "AF23"
+)
+
 const RATIONAL_CODES: EC[] = [
   { code: "Service 11 / 12", meaning: "Water intake / measurement problem", action: "Check the tap is on and inlet hose/filter clear. Cooking still possible; persists → call the tech." },
   { code: "Service 25", meaning: "Not enough water for cleaning (iCare)", action: "Check tap, water filter/pressure, clean the drain sieve. No cooking until cleared." },
@@ -206,8 +213,8 @@ const ENRICH: Enrich[] = [
   { mx: "10918419", note: W.hoshizaki, codes: HOSHI_B },
   { mx: "10918412", note: W.bromic },
   { mx: "10869942", note: W.lamarzocco },
-  { mx: "10869242", note: W.unox, codes: UNOX_CODES },
-  { mx: "10869251", note: W.unox, codes: UNOX_CODES },
+  { mx: "10869242", note: W.unox, codes: UNOX_ELECTRIC_CODES },
+  { mx: "10869251", note: W.unox, codes: UNOX_ELECTRIC_CODES },
   { mx: "11225929", note: W.rational, codes: RATIONAL_CODES },
   { mx: "13350850", months: 12, provider: "Commercial Kitchen Company", note: W.everlasting + " Warranty runs to ~Oct 2026 from the Oct 2025 delivery." },
   { mx: "10918374", note: W.turboair, codes: TURBOAIR_K },
