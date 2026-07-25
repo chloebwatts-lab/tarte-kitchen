@@ -35,6 +35,7 @@ const pageTitles: Record<string, string> = {
   "/inbox-playbooks": "Inbox Playbooks",
   "/wastage/analytics": "Wastage Analytics",
   "/reviews": "Google Reviews",
+  "/maintenance": "Maintenance",
 };
 
 function getPageTitle(pathname: string): string {

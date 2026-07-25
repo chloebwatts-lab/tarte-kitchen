@@ -1834,3 +1834,137 @@ model RestockLine {
   @@unique([sheetId, itemId])
   @@index([itemId])
 }
+
+// ─── Maintenance module (MaintainX replacement) ─────────────────────────────
+
+enum MaintenanceAssetStatus {
+  ACTIVE
+  RETIRED
+}
+
+enum MaintenanceIssueStatus {
+  OPEN
+  FIXED
+  DISMISSED
+}
+
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+/// A trade / service contact ("who do we call"). Specialties are free-form
+/// category slugs matched against MaintenanceAsset.category so the fix page
+/// can suggest the right person for the machine that's broken.
+model MaintenanceContact {
+  id          String   @id @default(cuid())
+  name        String
+  company     String?
+  phone       String?
+  email       String?
+  /// Category slugs this contact covers (e.g. "refrigeration", "dishwasher",
+  /// "gas-cooking", "warranty"). Matched against asset categories.
+  specialties String[] @default([])
+  notes       String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  issues MaintenanceIssue[]
+}
+
+/// A physical machine at one of the venues. `slug` is the short code printed
+/// on the QR sticker (e.g. "B07") — stable, human-typeable, reprintable.
+model MaintenanceAsset {
+  id       String                 @id @default(cuid())
+  slug     String                 @unique
+  venue    Venue
+  /// Sub-location within the venue, e.g. "Main Kitchen", "Restaurant Bar".
+  location String
+  name     String
+  /// What staff actually call it ("the big oven", "Silvia") — searched.
+  aliases  String[]               @default([])
+  /// Category slug driving symptom lists, quick fixes and contact matching:
+  /// dishwasher | refrigeration | freezer | ice-machine | gas-cooking |
+  /// fryer | oven | coffee | mixer-blender | other
+  category String                 @default("other")
+  status   MaintenanceAssetStatus @default(ACTIVE)
+
+  manufacturer String?
+  model        String?
+  serial       String?
+  /// Manufacture year as written on the data plate (free text: "2024", "11/24").
+  year         String?
+  photoUrl     String?
+  photoPublicId String?
+
+  purchaseDate       DateTime? @db.Date
+  purchasePriceCents Int?
+  /// Where it was bought (Commercial Kitchen Company, Nisbets, ...).
+  supplier           String?
+  warrantyMonths     Int?
+  /// Who handles warranty claims — usually the supplier, not the manufacturer.
+  warrantyProvider   String?
+  warrantyNotes      String?
+
+  notes     String?
+  /// MaintainX asset id this row was migrated from (traceability only).
+  mxId      String?
+  retiredAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  issues MaintenanceIssue[]
+
+  @@index([venue, status])
+}
+
+/// One problem report ("work order"). History migrated from MaintainX keeps
+/// its original timestamps via createdAt override on import.
+model MaintenanceIssue {
+  id      String  @id @default(cuid())
+  assetId String?
+  asset   MaintenanceAsset? @relation(fields: [assetId], references: [id])
+  venue   Venue
+
+  title       String
+  description String?
+  status      MaintenanceIssueStatus @default(OPEN)
+  priority    MaintenancePriority?
+  /// Gas leaks, electrical faults, fire risks — renders the red banner and
+  /// "stop using this machine" guidance on the staff page.
+  isSafety    Boolean                @default(false)
+
+  reportedBy String?
+  contactId  String?
+  contact    MaintenanceContact? @relation(fields: [contactId], references: [id])
+
+  fixSummary  String?
+  fixedBy     String?
+  fixedAt     DateTime?
+  costCents   Int?
+  wasWarranty Boolean   @default(false)
+
+  /// MaintainX work-order number ("#34") for migrated rows.
+  legacyRef String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events MaintenanceIssueEvent[]
+
+  @@index([assetId, status])
+  @@index([venue, status])
+}
+
+/// Comment / activity trail on an issue.
+model MaintenanceIssueEvent {
+  id      String           @id @default(cuid())
+  issueId String
+  issue   MaintenanceIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  body    String
+  author  String?
+  createdAt DateTime @default(now())
+
+  @@index([issueId])
+}

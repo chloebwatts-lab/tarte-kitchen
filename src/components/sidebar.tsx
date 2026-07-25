@@ -29,6 +29,7 @@ import {
   Mail,
   TrendingUp,
   PackageOpen,
+  Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -64,6 +65,7 @@ const navGroups: NavGroup[] = [
       { label: "Checklists", href: "/checklists", icon: ClipboardCheck },
       { label: "Stocktake", href: "/stocktake", icon: Boxes },
       { label: "Wastage", href: "/wastage", icon: Trash2 },
+      { label: "Maintenance", href: "/maintenance", icon: Wrench },
     ],
   },
   {
