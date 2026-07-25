@@ -50,8 +50,8 @@ const HOBART_ECOMAX: EC[] = [
   { code: "28", meaning: "Tank level too low at start", action: "Machine refills itself; if the code stays on, call the tech." },
   { code: "29", meaning: "Water treatment cartridge depleted", action: "Replace the demineralisation cartridge." },
   { code: "SA Lt", meaning: "Regeneration salt low", action: "Refill salt." },
-  { code: "01–10", meaning: "Boiler/tank sensor faults", action: "Call the tech." },
-  { code: "032 (Message number)", meaning: "Check if inlet/tap is open (ECOMAX+ message screen)", action: "Open the water tap — exactly what the display says." },
+  { code: "01–12", meaning: "Boiler/tank sensor or level faults", action: "Call the tech." },
+  { code: "Seeing 'Message number 032'?", meaning: "That's the newer Hobart touch display (PROFI/GC family) — same fault family as Er 17/18/31", action: "032 = water not coming in. Open the water tap, press ✓." },
 ]
 
 const ESWOOD_SW: EC[] = [
@@ -63,24 +63,26 @@ const ESWOOD_SW: EC[] = [
   { code: "ErSF", meaning: "Safety cutout tripped (temp/level unsafe)", action: "Call the tech — don't keep restarting it." },
 ]
 
+// UNOX MIND.Maps generation (all Tarte units). Verified against the official
+// MIND.Maps service manual 25/07/26 — the older XVC-era codes (AF05/AF06,
+// bare "GAS" prompt) don't exist on this generation.
 const UNOX_CODES: EC[] = [
-  { code: "GAS / Gas restart", meaning: "No flame detected — burner shut off", action: "Check gas cock is open, press START/STOP to re-ignite. If it will NOT restart: close the gas cock and call the tech." },
+  { code: "AF23 GAS UNIT LOCK", meaning: "No flame / lack of gas — burner locked out", action: "Check the gas cock is open, then press GAS REARM on screen once. If it will NOT relight: close the gas cock, stop using it, call the tech (licensed gas)." },
   { code: "AF01", meaning: "Motors overheated", action: "Turn off, cool 30 min, restart. Comes back → call the tech." },
   { code: "AF02", meaning: "Safety thermostat tripped (oven overheated)", action: "Cool 30 min, restart once. Repeats → call the tech." },
-  { code: "AF04 / AF05", meaning: "Control panel lost contact with power/gas board", action: "Power off at wall 60s, restart. Persists → call the tech." },
-  { code: "AF06", meaning: "Exhaust fumes too hot (gas)", action: "Stop using it, call the tech." },
-  { code: "AF23", meaning: "Gas alarm", action: "Stop using it — licensed gas tech required." },
-  { code: "WF16 / WF27", meaning: "No water — no steam / no washing", action: "Check water tap and the UNOX.Pure filter cartridge isn't blocked/expired." },
+  { code: "AF04", meaning: "Control panel lost contact with power board", action: "Power off at wall 60s, restart. Persists → call the tech." },
+  { code: "WF29", meaning: "Gas fumes temperature too high", action: "Stop using it, call the tech." },
+  { code: "WF16 / WF27", meaning: "No water reaching the oven", action: "Check water tap and the UNOX.Pure filter cartridge isn't blocked/expired." },
   { code: "WF19", meaning: "Detergent empty (DET&Rinse)", action: "Replace detergent tank, rerun wash." },
   { code: "WC01 / WC05 / WC06", meaning: "Hood warnings: fume probe / fumes too hot / hood lack of power", action: "Check the hood's own power switch and breaker (WC06 = hood has no power). Persists → call the tech." },
-  { code: "Internal Error!! FW…", meaning: "Firmware crash", action: "Power off at the wall 60s. If it repeats, note the FW number and call the tech." },
+  { code: "Internal Error!! FW…", meaning: "Controller crash (seen on our Bakertop 24/07/26)", action: "Power off at the wall 60s. If it repeats, photo the screen and call the tech." },
 ]
 
 // Electric UNOX units (Bakertop EPLM, XEBPC prover): same AF/WF families but
 // no gas ignition/exhaust codes — showing gas advice on an electric oven
 // sends staff hunting for a gas cock that doesn't exist.
 const UNOX_ELECTRIC_CODES: EC[] = UNOX_CODES.filter(
-  (c) => !c.code.includes("GAS") && c.code !== "AF06" && c.code !== "AF23"
+  (c) => !c.code.includes("GAS") && c.code !== "WF29"
 )
 
 const RATIONAL_CODES: EC[] = [
@@ -89,8 +91,10 @@ const RATIONAL_CODES: EC[] = [
   { code: "Service 26 / 27", meaning: "Drain valve stuck", action: "No cooking. Check drain isn't blocked, then call the tech." },
   { code: "Service 28.x", meaning: "Over temperature", action: "Switch off, call the tech." },
   { code: "Service 29", meaning: "Electronics too hot", action: "Check vents/air filter around the unit aren't blocked, cool down. Repeats → call the tech." },
-  { code: "Service 10 / 13", meaning: "Steam generator faults", action: "Log it and call the tech (cooking may still work in hot-air mode)." },
-  { code: "Service 20.x / 31.x", meaning: "Temperature probe defective", action: "Call the tech." },
+  { code: "Service 10", meaning: "Steam-generator auto-clean not working", action: "Cooking still works — log it and call the tech." },
+  { code: "Service 13", meaning: "Steam generator water-level detection fault", action: "Hot-air mode still works. Call the tech." },
+  { code: "Service 20.x", meaning: "Temperature probe defective", action: "Call the tech (20.1 = no cooking; 20.8 = hot-air only)." },
+  { code: "Service 31.x", meaning: "Core temperature probe defective", action: "Keep cooking without the core probe; call the tech." },
   { code: "Service 34.x", meaning: "Internal communication fault", action: "Power-cycle once; persists → call the tech." },
 ]
 
@@ -129,7 +133,7 @@ const TURBOAIR_K: EC[] = [
   { code: "d1 / rt", meaning: "Defrost / room sensor fault", action: "Machine keeps cooling — book the tech at next service." },
   { code: "EP", meaning: "Controller memory error", action: "Power-cycle at the wall; returns → call the tech." },
   { code: "(no display, won't restart)", meaning: "4-minute compressor lockout after stopping", action: "Normal — wait 4 minutes after any power blip." },
-  { code: "How to read codes", meaning: "Codes are stored, not always shown", action: "Hold ▼+▲ together 5s (shows SL), then press ▼ four times. 'no' = no errors." },
+  { code: "How to read codes", meaning: "Codes are stored, not always shown", action: "Hold ▼+▲ together 5s (shows SL), then press ▼ four times. 'no' = no errors. (Drawer models: same controller family, codes assumed identical.)" },
 ]
 
 const ROBOTCOUPE_CODES: EC[] = [
@@ -140,7 +144,7 @@ const ROBOTCOUPE_CODES: EC[] = [
 ]
 
 const LM_LINEA_PB: EC[] = [
-  { code: "Autofill Failed / Level Timeout", meaning: "Boiler didn't fill in time — machine shuts down for safety", action: "Check the water tap + filter system, press ON/OFF to reset. Repeats → call the tech." },
+  { code: "Autofill Failed", meaning: "Boiler didn't fill in time — machine shuts down for safety", action: "Check the water tap + filter system, press ON/OFF to reset. Repeats → call the tech." },
   { code: "… Is Not Heating", meaning: "A boiler didn't reach temperature in time", action: "Power-cycle once; repeats → call the tech (element/relay)." },
   { code: "… Overheated", meaning: "Boiler over max temperature", action: "Stop using that boiler and call the tech." },
   { code: "… Probe Failed", meaning: "Temperature probe fault", action: "Call the tech." },
