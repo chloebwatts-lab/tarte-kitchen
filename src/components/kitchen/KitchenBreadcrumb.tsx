@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ChevronRight } from "lucide-react"
+import { ChevronRight, LayoutGrid } from "lucide-react"
 import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
 
 export type Crumb = {
@@ -48,8 +48,17 @@ export function KitchenBreadcrumb({ crumbs }: { crumbs: Crumb[] }) {
           )
         })}
       </nav>
-      <div className="hidden md:block">
-        <KitchenLogo size={0.85} />
+      <div className="flex shrink-0 items-center gap-3">
+        {/* One obvious tap back to the all-tools hub, on every staff page. */}
+        <Link
+          href="/staffaccess"
+          className="flex items-center gap-2 rounded-full bg-[var(--tk-charcoal)] px-4 py-2 text-[13px] font-bold text-white transition active:scale-95"
+        >
+          <LayoutGrid className="h-4 w-4" /> Staff tools
+        </Link>
+        <div className="hidden md:block">
+          <KitchenLogo size={0.85} />
+        </div>
       </div>
     </div>
   )

@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowRight, Clock } from "lucide-react"
+import { ArrowRight, Clock, LayoutGrid } from "lucide-react"
 import { SINGLE_VENUES, VENUE_LABEL } from "@/lib/venues"
 import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
 
@@ -31,12 +31,21 @@ export function KitchenVenuePicker() {
       {/* top bar */}
       <div className="flex items-center justify-between px-8 pt-8 md:px-12">
         <KitchenLogo onDark />
-        <div
-          className="flex items-center gap-2 rounded-full px-3.5 py-2 text-[13px] font-semibold text-white"
-          style={{ background: "rgba(255,255,255,0.15)" }}
-        >
-          <Clock className="h-3.5 w-3.5" />
-          <span>{formatNow()}</span>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/staffaccess"
+            className="flex items-center gap-2 rounded-full px-3.5 py-2 text-[13px] font-bold text-white transition active:scale-95"
+            style={{ background: "rgba(255,255,255,0.25)" }}
+          >
+            <LayoutGrid className="h-3.5 w-3.5" /> Staff tools
+          </Link>
+          <div
+            className="hidden items-center gap-2 rounded-full px-3.5 py-2 text-[13px] font-semibold text-white md:flex"
+            style={{ background: "rgba(255,255,255,0.15)" }}
+          >
+            <Clock className="h-3.5 w-3.5" />
+            <span>{formatNow()}</span>
+          </div>
         </div>
       </div>
 
