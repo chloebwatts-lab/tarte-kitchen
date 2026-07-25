@@ -156,24 +156,33 @@ export function FixAssetTriage({
           </div>
         </div>
 
-        {/* Warranty banner */}
+        {/* Warranty banner — deliberately loud so nobody pays for a free repair */}
         {underWarranty === true && (
-          <div className="flex items-center gap-3 bg-[var(--tk-done-soft)] px-6 py-4">
-            <ShieldCheck className="h-6 w-6 shrink-0 text-[var(--tk-done)]" />
-            <div className="text-[15px] leading-snug text-[var(--tk-charcoal)]">
-              <b>Under warranty until {fmtDate(asset.warrantyEnd!)}.</b> Don't pay a
-              trade — call{" "}
-              <b>{asset.warrantyProvider ?? warrantyContact?.name ?? "the supplier"}</b>
-              {warrantyContact?.phone ? (
-                <>
-                  {" "}
-                  on{" "}
-                  <a className="font-bold underline" href={`tel:${warrantyContact.phone}`}>
-                    {warrantyContact.phone}
-                  </a>
-                </>
-              ) : null}
-              .
+          <div className="bg-[#0e9f5c] px-6 py-5 text-white">
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="h-9 w-9 shrink-0" strokeWidth={2.2} />
+              <div className="min-w-0">
+                <div className="text-[13px] font-extrabold uppercase tracking-[0.14em] text-white/80">
+                  Under warranty
+                </div>
+                <div className="text-[22px] font-extrabold leading-tight">
+                  Covered until {fmtDate(asset.warrantyEnd!)}
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <div className="text-[16px] font-semibold leading-snug">
+                Don't pay a trade — this repair should be FREE. Call{" "}
+                {asset.warrantyProvider ?? warrantyContact?.name ?? "the supplier"}.
+              </div>
+              {warrantyContact?.phone && (
+                <a
+                  href={`tel:${warrantyContact.phone.replace(/\s+/g, "")}`}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-[16px] font-extrabold text-[#0e7a47] shadow-sm active:scale-95"
+                >
+                  <Phone className="h-4 w-4" /> {warrantyContact.phone}
+                </a>
+              )}
             </div>
           </div>
         )}

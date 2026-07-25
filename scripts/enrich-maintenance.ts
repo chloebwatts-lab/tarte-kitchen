@@ -272,10 +272,10 @@ async function main() {
   for (const e of ENRICH) {
     const asset = await db.maintenanceAsset.findFirst({ where: { mxId: e.mx } })
     if (!asset) { console.warn("missing mxId", e.mx); continue }
-    const notes = [asset.warrantyNotes, e.note]
-      .filter(Boolean)
-      .filter((v, i, a) => a.indexOf(v) === i)
-      .join(" · ")
+    // Idempotent append: segments are " · "-joined; only add what's missing.
+    const segments = (asset.warrantyNotes ?? "").split(" · ").filter(Boolean)
+    if (!segments.includes(e.note)) segments.push(e.note)
+    const notes = segments.filter((v, i, a) => a.indexOf(v) === i).join(" · ")
     await db.maintenanceAsset.update({
       where: { id: asset.id },
       data: {
