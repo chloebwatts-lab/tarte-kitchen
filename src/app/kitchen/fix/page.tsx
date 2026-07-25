@@ -1,11 +1,85 @@
 export const dynamic = "force-dynamic"
 
+import Link from "next/link"
+import { ArrowRight, ClipboardCheck, QrCode, Wrench } from "lucide-react"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
 import { FixAssetList } from "@/components/kitchen/FixAssetList"
 import { getFixAssets } from "@/lib/actions/maintenance"
-import Link from "next/link"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE"
+
+const VENUES: Array<{ key: Venue; title: string; sub: string }> = [
+  { key: "BURLEIGH", title: "Burleigh", sub: "Tarte Bakery · 2 West Street" },
+  { key: "BEACH_HOUSE", title: "Beach House", sub: "Currumbin · incl. Cafe, Restaurant & Tea Garden" },
+]
+
+function VenueLanding() {
+  return (
+    <div
+      className="relative -mx-6 -my-5 min-h-screen overflow-hidden rounded-[14px] md:-mx-10 md:-my-8"
+      style={{ background: "var(--tk-sage)" }}
+    >
+      <div className="flex items-center justify-between px-8 pt-8 md:px-12">
+        <KitchenLogo onDark />
+        <Link
+          href="/kitchen"
+          className="flex items-center gap-2 rounded-full px-3.5 py-2 text-[13px] font-semibold text-white"
+          style={{ background: "rgba(255,255,255,0.15)" }}
+        >
+          <ClipboardCheck className="h-3.5 w-3.5" /> All staff tools
+        </Link>
+      </div>
+
+      <div className="px-8 pt-14 pb-6 text-center md:px-12 md:pt-20">
+        <h1
+          className="tk-display mx-auto leading-none text-white"
+          style={{ fontSize: "clamp(56px, 9vw, 88px)", fontWeight: 600, letterSpacing: "-0.035em" }}
+        >
+          Maintenance
+        </h1>
+        <p className="mx-auto mt-5 max-w-xl text-[20px] leading-snug" style={{ color: "rgba(255,255,255,0.85)" }}>
+          Something broken? No login needed. Scan the machine's QR sticker — or pick
+          your venue below.
+        </p>
+      </div>
+
+      <div className="mx-auto max-w-[800px] px-8 pb-8 md:px-12">
+        <div className="grid gap-4 md:grid-cols-2">
+          {VENUES.map((v) => (
+            <Link
+              key={v.key}
+              href={`/kitchen/fix?venue=${v.key}`}
+              className="group flex min-h-[170px] flex-col justify-between rounded-[20px] bg-white/95 p-6 text-left transition active:scale-[0.99]"
+              style={{ color: "var(--tk-charcoal)" }}
+            >
+              <div>
+                <div className="tk-display leading-tight" style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em" }}>
+                  {v.title}
+                </div>
+                <div className="mt-1 text-[14px] text-[var(--tk-ink-soft)]">{v.sub}</div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-2 text-[14px] font-semibold text-[var(--tk-ink-soft)]">
+                  <Wrench className="h-4 w-4" /> Find the machine
+                </span>
+                <ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" />
+              </div>
+            </Link>
+          ))}
+        </div>
+        <div
+          className="mx-auto mt-6 flex max-w-md items-center gap-3 rounded-2xl px-5 py-4 text-[14px] leading-snug text-white"
+          style={{ background: "rgba(255,255,255,0.12)" }}
+        >
+          <QrCode className="h-8 w-8 shrink-0" />
+          Fastest way: open your phone camera and scan the QR sticker on the machine —
+          it goes straight to that machine's page.
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default async function FixHubPage({
   searchParams,
@@ -15,71 +89,57 @@ export default async function FixHubPage({
   const sp = await searchParams
   const venueParam = typeof sp.venue === "string" ? sp.venue : null
   // Tea Garden gear lives under the Currumbin site in maintenance.
-  const venue: Venue =
+  const venue: Venue | null =
     venueParam === "BURLEIGH"
       ? "BURLEIGH"
       : venueParam === "BEACH_HOUSE" || venueParam === "TEA_GARDEN"
         ? "BEACH_HOUSE"
-        : sp.venue === undefined
-          ? "BURLEIGH"
-          : "BURLEIGH"
+        : null
 
-  if (!venueParam) {
-    return (
-      <div className="space-y-8">
-        <KitchenBreadcrumb crumbs={[{ label: "Venues", href: "/kitchen" }, { label: "Something broken?" }]} />
-        <div
-          className="tk-display leading-none text-[var(--tk-charcoal)]"
-          style={{ fontSize: 44, fontWeight: 700, letterSpacing: "-0.025em" }}
-        >
-          Something broken?
-        </div>
-        <p className="text-[17px] text-[var(--tk-ink-soft)]">
-          Best way: scan the QR sticker on the machine itself. Otherwise pick the venue.
-        </p>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {(
-            [
-              ["BURLEIGH", "Tarte Bakery — Burleigh"],
-              ["BEACH_HOUSE", "Beach House — Currumbin"],
-            ] as const
-          ).map(([v, label]) => (
-            <Link
-              key={v}
-              href={`/kitchen/fix?venue=${v}`}
-              className="rounded-2xl border border-[var(--tk-line)] bg-[var(--tk-card)] p-8 text-[22px] font-semibold text-[var(--tk-charcoal)] shadow-sm transition hover:border-[var(--tk-sage)]"
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
-      </div>
-    )
-  }
+  if (!venue) return <VenueLanding />
 
   const assets = await getFixAssets(venue)
-  const venueLabel = venue === "BURLEIGH" ? "Burleigh" : "Beach House (Currumbin)"
+  const here = VENUES.find((v) => v.key === venue)!
 
   return (
     <div className="space-y-6">
       <KitchenBreadcrumb
         crumbs={[
-          { label: "Venues", href: "/kitchen" },
-          { label: "Something broken?", href: "/kitchen/fix" },
-          { label: venueLabel },
+          { label: "Staff tools", href: "/kitchen" },
+          { label: "Maintenance", href: "/kitchen/fix" },
+          { label: here.title },
         ]}
       />
-      <div className="px-1">
-        <div
-          className="tk-display leading-none text-[var(--tk-charcoal)]"
-          style={{ fontSize: 40, fontWeight: 700, letterSpacing: "-0.025em" }}
-        >
-          Which machine?
+
+      {/* Header: where am I + instant venue toggle */}
+      <div className="flex flex-wrap items-end justify-between gap-4 px-1">
+        <div>
+          <div className="tk-caps text-[13px] text-[var(--tk-ink-mute)]">Maintenance</div>
+          <div
+            className="tk-display leading-none text-[var(--tk-charcoal)]"
+            style={{ fontSize: 44, fontWeight: 700, letterSpacing: "-0.025em" }}
+          >
+            {here.title}
+          </div>
+          <div className="mt-1 text-[14px] text-[var(--tk-ink-soft)]">{here.sub}</div>
         </div>
-        <p className="mt-2 text-[16px] text-[var(--tk-ink-soft)]">
-          Tip: every machine has a QR sticker — scanning it with your phone camera skips straight to its page.
-        </p>
+        <div className="flex rounded-2xl border border-[var(--tk-line)] bg-[var(--tk-card)] p-1">
+          {VENUES.map((v) => (
+            <Link
+              key={v.key}
+              href={`/kitchen/fix?venue=${v.key}`}
+              className={`rounded-xl px-5 py-3 text-[16px] font-bold transition ${
+                v.key === venue
+                  ? "bg-[var(--tk-charcoal)] text-white"
+                  : "text-[var(--tk-ink-soft)] hover:text-[var(--tk-charcoal)]"
+              }`}
+            >
+              {v.title}
+            </Link>
+          ))}
+        </div>
       </div>
+
       <FixAssetList
         assets={assets.map((a) => ({
           slug: a.slug,
