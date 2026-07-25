@@ -47,6 +47,7 @@ export default async function FixAssetPage({
           warrantyNotes: asset.warrantyNotes,
           warrantyEnd: warrantyEnd ? warrantyEnd.toISOString() : null,
         }}
+        errorCodes={(asset.errorCodes as { code: string; meaning: string; action: string }[] | null) ?? []}
         symptoms={symptoms}
         suggestedContacts={suggestedContacts.map((c) => ({
           id: c.id,

@@ -1909,6 +1909,9 @@ model MaintenanceAsset {
   warrantyNotes      String?
 
   notes     String?
+  /// Error-code dictionary for this machine: [{code, meaning, action}].
+  /// Sourced from official service manuals; shown on the staff fix page.
+  errorCodes Json?
   /// MaintainX asset id this row was migrated from (traceability only).
   mxId      String?
   retiredAt DateTime?

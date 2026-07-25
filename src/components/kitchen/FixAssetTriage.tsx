@@ -67,18 +67,26 @@ function fmtDate(iso: string) {
   })
 }
 
+interface ErrorCodeRow {
+  code: string
+  meaning: string
+  action: string
+}
+
 export function FixAssetTriage({
   asset,
   symptoms,
   suggestedContacts,
   warrantyContact,
   issues,
+  errorCodes = [],
 }: {
   asset: AssetView
   symptoms: SymptomDef[]
   suggestedContacts: ContactRow[]
   warrantyContact: ContactRow | null
   issues: IssueRow[]
+  errorCodes?: ErrorCodeRow[]
 }) {
   const [symptomKey, setSymptomKey] = useState<string | null>(null)
   const [showReport, setShowReport] = useState(false)
@@ -316,6 +324,14 @@ export function FixAssetTriage({
         )}
       </div>
 
+      {/* ── Error codes ── */}
+      {errorCodes.length > 0 && (
+        <ErrorCodeLookup
+          codes={errorCodes}
+          autoOpen={!!symptom && /error|code/i.test(symptom.label)}
+        />
+      )}
+
       {/* ── Who to call ── */}
       <div className="rounded-3xl border border-[var(--tk-line)] bg-[var(--tk-card)] p-6 shadow-sm">
         <h2 className="text-[20px] font-bold text-[var(--tk-charcoal)]">
@@ -380,6 +396,70 @@ export function FixAssetTriage({
               Show all {fixedIssues.length} <ChevronDown className="h-4 w-4" />
             </button>
           )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ErrorCodeLookup({
+  codes,
+  autoOpen,
+}: {
+  codes: ErrorCodeRow[]
+  autoOpen: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState("")
+  const isOpen = open || autoOpen
+  const filtered = q.trim()
+    ? codes.filter((c) =>
+        (c.code + " " + c.meaning).toLowerCase().includes(q.trim().toLowerCase())
+      )
+    : codes
+
+  return (
+    <div className="rounded-3xl border border-[var(--tk-line)] bg-[var(--tk-card)] p-6 shadow-sm">
+      <button
+        onClick={() => setOpen(!isOpen)}
+        className="flex w-full items-center justify-between text-left"
+      >
+        <h2 className="text-[20px] font-bold text-[var(--tk-charcoal)]">
+          Error code on the display?
+        </h2>
+        <ChevronDown
+          className={`h-5 w-5 text-[var(--tk-ink-mute)] transition ${isOpen ? "rotate-180" : ""}`}
+        />
+      </button>
+      {isOpen && (
+        <div className="mt-4 space-y-3">
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Type the code — e.g. 032, Er04, AF02…"
+            className="w-full rounded-xl border border-[var(--tk-line)] px-4 py-3 text-[16px] outline-none focus:border-[var(--tk-sage)]"
+          />
+          <div className="space-y-2">
+            {filtered.map((c, i) => (
+              <div key={i} className="rounded-xl bg-[var(--tk-bg)] p-3">
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <span className="rounded-md bg-[var(--tk-charcoal)] px-2 py-0.5 font-mono text-[13px] font-bold text-white">
+                    {c.code}
+                  </span>
+                  <span className="text-[15px] font-semibold text-[var(--tk-charcoal)]">
+                    {c.meaning}
+                  </span>
+                </div>
+                <div className="mt-1 text-[14px] text-[var(--tk-ink-soft)]">{c.action}</div>
+              </div>
+            ))}
+            {filtered.length === 0 && (
+              <div className="text-[14px] text-[var(--tk-ink-soft)]">
+                Code not in the list — photo the screen and log it below; the exact code
+                halves the tech's diagnosis time.
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
