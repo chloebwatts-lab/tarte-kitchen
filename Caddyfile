@@ -16,6 +16,7 @@
 	@protected {
 		not path /log /log/*
 		not path /kitchen /kitchen/*
+		not path /maintenance-assets/*
 		not path /council /council/*
 		not path /api/council/*
 		not path /api/auth/*
