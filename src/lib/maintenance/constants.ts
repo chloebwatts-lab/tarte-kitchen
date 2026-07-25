@@ -375,3 +375,25 @@ export function warrantyEndDate(asset: {
   end.setMonth(end.getMonth() + asset.warrantyMonths)
   return end
 }
+
+/**
+ * Issue classification for repeat-fault detection. First matching class wins.
+ * Deliberately coarse: the goal is "3rd leak on this machine", not taxonomy.
+ */
+export const ISSUE_CLASSES: Array<{ key: string; label: string; test: RegExp }> = [
+  { key: "gas-safety", label: "gas safety", test: /gas smell|smell gas|explosion/i },
+  { key: "leak", label: "leaking", test: /leak|water on floor|filling up with water|water holding|full of water/i },
+  { key: "drain", label: "drainage", test: /drain/i },
+  { key: "fill", label: "not filling", test: /not filling|error code 202|won'?t fill|no water/i },
+  { key: "ignition", label: "ignition / burner", test: /flame|pilot|ignit|burner|not light|fire line/i },
+  { key: "cooling", label: "temperature", test: /not cool|too cold|freez|not cold|temperature|degrees|regulat/i },
+  { key: "heating", label: "heating", test: /heat|sanitis|thermostop/i },
+  { key: "power", label: "power", test: /power|not turning on|turn on|won'?t start|dead screen|not working consistent/i },
+  { key: "cycle", label: "cycle / timer", test: /cycle|timer/i },
+  { key: "mechanical", label: "mechanical", test: /capacitor|motor|fan|noisy|noise|belt|roller|treadmill/i },
+]
+
+export function classifyIssue(text: string): { key: string; label: string } | null {
+  for (const c of ISSUE_CLASSES) if (c.test.test(text)) return { key: c.key, label: c.label }
+  return null
+}

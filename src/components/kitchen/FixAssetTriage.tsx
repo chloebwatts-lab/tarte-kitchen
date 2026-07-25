@@ -12,6 +12,7 @@ import {
   Wrench,
 } from "lucide-react"
 import type { SymptomDef } from "@/lib/maintenance/constants"
+import { classifyIssue } from "@/lib/maintenance/constants"
 import { addIssueComment, markIssueFixed, reportIssue } from "@/lib/actions/maintenance"
 
 interface ContactRow {
@@ -99,26 +100,67 @@ export function FixAssetTriage({
 
   const symptom = symptoms.find((s) => s.key === symptomKey) ?? null
   const openIssues = issues.filter((i) => i.status === "OPEN")
-  const fixedIssues = issues.filter((i) => i.status !== "OPEN")
+  // History ordered by when it was actually fixed, newest first — "last time"
+  // must mean last time, not "last time someone wrote notes".
+  const fixedIssues = [...issues]
+    .filter((i) => i.status !== "OPEN")
+    .sort(
+      (a, b) =>
+        new Date(b.fixedAt ?? b.createdAt).getTime() - new Date(a.fixedAt ?? a.createdAt).getTime()
+    )
   const shownFixed = showAllHistory ? fixedIssues : fixedIssues.slice(0, 3)
+  const lastFix = fixedIssues[0] ?? null
 
   const underWarranty = useMemo(() => {
     if (!asset.warrantyEnd) return null
     return new Date(asset.warrantyEnd).getTime() > Date.now()
   }, [asset.warrantyEnd])
 
-  // Recurrence intelligence: has this symptom/machine been fixed before?
-  const lastFix = fixedIssues.find((i) => i.fixSummary)
+  // Repeat-fault intelligence: same class of problem on the same machine.
+  const priorSameClass = useMemo(() => {
+    if (!symptom) return null
+    const cls = classifyIssue(symptom.label)
+    if (!cls) return null
+    const prior = issues.filter(
+      (i) => classifyIssue(i.title + " " + (i.description ?? ""))?.key === cls.key
+    )
+    return prior.length >= 2
+      ? {
+          cls,
+          count: prior.length,
+          last: prior
+            .map((i) => i.fixedAt ?? i.createdAt)
+            .sort()
+            .at(-1)!,
+        }
+      : null
+  }, [symptom, issues])
+
+  // Chronic machine badge: any class with 3+ historical issues.
+  const chronic = useMemo(() => {
+    const counts = new Map<string, { label: string; n: number }>()
+    for (const i of issues) {
+      const c = classifyIssue(i.title + " " + (i.description ?? ""))
+      if (!c) continue
+      const cur = counts.get(c.key) ?? { label: c.label, n: 0 }
+      cur.n++
+      counts.set(c.key, cur)
+    }
+    return Array.from(counts.values()).filter((c) => c.n >= 3).sort((a, b) => b.n - a.n)[0] ?? null
+  }, [issues])
 
   function submitReport() {
     setError(null)
     startTransition(async () => {
       try {
+        const repeatTag = priorSameClass
+          ? `[REPEAT — this machine's ${priorSameClass.count + 1}th ${priorSameClass.cls.label} issue] `
+          : ""
         await reportIssue({
           assetSlug: asset.slug,
           symptomKey,
           title: symptom ? symptom.label : detail.slice(0, 80) || "Problem reported",
-          description: detail,
+          description: repeatTag + detail,
           reportedBy: name,
         })
         setDone(true)
@@ -211,16 +253,27 @@ export function FixAssetTriage({
       {/* ── Last fix (the "who fixed it last time" answer) ── */}
       {lastFix && (
         <div className="rounded-2xl border border-[var(--tk-line)] bg-[var(--tk-card)] p-5">
-          <div className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wide text-[var(--tk-ink-mute)]">
+          <div className="flex flex-wrap items-center gap-2 text-[13px] font-semibold uppercase tracking-wide text-[var(--tk-ink-mute)]">
             <History className="h-4 w-4" /> Last time this machine broke
+            {chronic && (
+              <span className="ml-auto rounded-full bg-[var(--tk-warn-soft)] px-2.5 py-0.5 text-[11px] font-bold normal-case tracking-normal text-[var(--tk-warn)]">
+                Repeat offender: {chronic.n}× {chronic.label}
+              </span>
+            )}
           </div>
           <div className="mt-2 text-[15px] text-[var(--tk-charcoal)]">
             <b>{lastFix.title}</b>{" "}
             <span className="text-[var(--tk-ink-soft)]">
               ({lastFix.fixedAt ? fmtDate(lastFix.fixedAt) : fmtDate(lastFix.createdAt)})
             </span>
+            {lastFix.fixedBy ? (
+              <span className="text-[var(--tk-ink-soft)]"> · closed by {lastFix.fixedBy}</span>
+            ) : null}
           </div>
-          <div className="mt-1 text-[15px] text-[var(--tk-ink-soft)]">{lastFix.fixSummary}</div>
+          <div className="mt-1 text-[15px] text-[var(--tk-ink-soft)]">
+            {lastFix.fixSummary ??
+              "No fix notes were recorded for this one — if you know how it was fixed, add it as a comment so next time is faster."}
+          </div>
         </div>
       )}
 
@@ -252,6 +305,21 @@ export function FixAssetTriage({
 
         {symptom && (
           <div className="mt-5 space-y-4">
+            {priorSameClass && (
+              <div className="flex items-start gap-3 rounded-xl border-2 border-[var(--tk-warn)] bg-[var(--tk-warn-soft)] p-4">
+                <History className="mt-0.5 h-5 w-5 shrink-0 text-[var(--tk-warn)]" />
+                <div className="text-[15px] leading-snug text-[var(--tk-charcoal)]">
+                  <b>
+                    This machine has had {priorSameClass.count} {priorSameClass.cls.label} issues
+                    before
+                  </b>{" "}
+                  (last one {fmtDate(priorSameClass.last)}). That usually means the previous fix
+                  didn't hold. <b>Please log it below even if you get it going again</b> — and
+                  mention it's a repeat to whoever fixes it. Repeat faults build the case for a
+                  warranty claim or replacement instead of another bill.
+                </div>
+              </div>
+            )}
             {symptom.safety && (
               <div className="flex items-start gap-3 rounded-xl bg-[#fdecea] p-4 text-[15px] font-semibold text-[#b3362a]">
                 <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />

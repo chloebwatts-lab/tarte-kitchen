@@ -23,7 +23,7 @@ function VenueLanding() {
       <div className="flex items-center justify-between px-8 pt-8 md:px-12">
         <KitchenLogo onDark />
         <Link
-          href="/kitchen"
+          href="/staffaccess"
           className="flex items-center gap-2 rounded-full px-3.5 py-2 text-[13px] font-semibold text-white"
           style={{ background: "rgba(255,255,255,0.15)" }}
         >
@@ -105,7 +105,7 @@ export default async function FixHubPage({
     <div className="space-y-6">
       <KitchenBreadcrumb
         crumbs={[
-          { label: "Staff tools", href: "/kitchen" },
+          { label: "Staff tools", href: "/staffaccess" },
           { label: "Maintenance", href: "/kitchen/fix" },
           { label: here.title },
         ]}
