@@ -136,17 +136,21 @@ export function FixAssetTriage({
       : null
   }, [symptom, issues])
 
-  // Chronic machine badge: any class with 3+ historical issues.
+  // Chronic machine banner: any fault class appearing 2+ times in history.
   const chronic = useMemo(() => {
-    const counts = new Map<string, { label: string; n: number }>()
+    const counts = new Map<string, { label: string; n: number; last: string }>()
     for (const i of issues) {
       const c = classifyIssue(i.title + " " + (i.description ?? ""))
       if (!c) continue
-      const cur = counts.get(c.key) ?? { label: c.label, n: 0 }
+      const when = i.fixedAt ?? i.createdAt
+      const cur = counts.get(c.key) ?? { label: c.label, n: 0, last: when }
       cur.n++
+      if (when > cur.last) cur.last = when
       counts.set(c.key, cur)
     }
-    return Array.from(counts.values()).filter((c) => c.n >= 3).sort((a, b) => b.n - a.n)[0] ?? null
+    return Array.from(counts.values())
+      .filter((c) => c.n >= 2)
+      .sort((a, b) => b.n - a.n)
   }, [issues])
 
   function submitReport() {
@@ -241,6 +245,28 @@ export function FixAssetTriage({
         )}
       </div>
 
+      {/* ── Known repeat problems — front and centre ── */}
+      {chronic.length > 0 && (
+        <div className="rounded-2xl border-2 border-[var(--tk-warn)] bg-[var(--tk-warn-soft)] p-5">
+          <div className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-[var(--tk-warn)]">
+            <History className="h-4 w-4" /> Known repeat problem on this machine
+          </div>
+          <div className="mt-2 space-y-1">
+            {chronic.map((c) => (
+              <div key={c.label} className="text-[16px] font-semibold text-[var(--tk-charcoal)]">
+                {c.n}× {c.label} issues
+                <span className="font-normal text-[var(--tk-ink-soft)]"> — most recent {fmtDate(c.last)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 text-[14px] leading-snug text-[var(--tk-ink-soft)]">
+            If it's doing the same thing again, log it below even if you get it going —
+            repeat faults mean the fixes aren't holding, and the record builds the case
+            for a warranty claim or replacement instead of another callout bill.
+          </div>
+        </div>
+      )}
+
       {/* ── Open issues on this machine ── */}
       {openIssues.length > 0 && (
         <div className="space-y-3">
@@ -255,11 +281,6 @@ export function FixAssetTriage({
         <div className="rounded-2xl border border-[var(--tk-line)] bg-[var(--tk-card)] p-5">
           <div className="flex flex-wrap items-center gap-2 text-[13px] font-semibold uppercase tracking-wide text-[var(--tk-ink-mute)]">
             <History className="h-4 w-4" /> Last time this machine broke
-            {chronic && (
-              <span className="ml-auto rounded-full bg-[var(--tk-warn-soft)] px-2.5 py-0.5 text-[11px] font-bold normal-case tracking-normal text-[var(--tk-warn)]">
-                Repeat offender: {chronic.n}× {chronic.label}
-              </span>
-            )}
           </div>
           <div className="mt-2 text-[15px] text-[var(--tk-charcoal)]">
             <b>{lastFix.title}</b>{" "}
