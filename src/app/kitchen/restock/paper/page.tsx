@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import { getCountSheet } from "@/lib/actions/restock"
-import { RestockCountSheet } from "@/components/kitchen/RestockCountSheet"
+import { RestockPaperSheet } from "@/components/kitchen/RestockPaperSheet"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { VENUE_LABEL } from "@/lib/venues"
 import { STATION_LABEL, isKitchenStation } from "@/lib/stations"
@@ -12,7 +12,13 @@ function isVenue(v: string | null): v is Venue {
   return v === "BURLEIGH" || v === "BEACH_HOUSE" || v === "TEA_GARDEN"
 }
 
-export default async function RestockCountPage({
+/**
+ * Paper-style alternative to the standard evening count — the same sheet
+ * records and autosave, laid out like Jose's printed restock request so a
+ * chef can fill it in with an Apple Pencil (iPad Scribble turns handwriting
+ * into digits right in the boxes — no photo, no transcription).
+ */
+export default async function RestockPaperPage({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
@@ -33,7 +39,7 @@ export default async function RestockCountPage({
           { label: "Venues", href: "/kitchen" },
           { label: venueLabel, href: `/kitchen?venue=${venue}` },
           { label: "Restock & prep", href: `/kitchen/restock?venue=${venue}` },
-          { label: STATION_LABEL[station] },
+          { label: `${STATION_LABEL[station]} — paper sheet` },
         ]}
       />
 
@@ -42,29 +48,29 @@ export default async function RestockCountPage({
           className="tk-display leading-none text-[var(--tk-charcoal)]"
           style={{ fontSize: 40, fontWeight: 700, letterSpacing: "-0.025em" }}
         >
-          {STATION_LABEL[station]} — evening count
+          {STATION_LABEL[station]} — restock sheet
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
-          Count your <strong>backup prep in the coolroom</strong> — not
-          what&apos;s in the section, that&apos;s always topped up. Count in
-          each item&apos;s usual container. Leave &ldquo;Need&rdquo; empty for
-          anything you&apos;re fine on. It saves as you go — send it to the
-          prep chef when you&apos;re done.
+          The paper sheet, on the iPad. Write straight into the boxes with the
+          Apple Pencil — the iPad turns your handwriting into numbers as you
+          go, so check the box shows what you meant. Count{" "}
+          <strong>backup prep in the coolroom</strong>{" "}only, leave
+          &ldquo;Need&rdquo; empty when you&apos;re fine. It saves as you
+          write.
         </p>
         <p className="mt-2 text-[14px] text-[var(--tk-ink-soft)]">
-          Got the Apple Pencil?{" "}
+          Prefer tapping?{" "}
           <a
-            href={`/kitchen/restock/paper?venue=${venue}&station=${station}`}
+            href={`/kitchen/restock/count?venue=${venue}&station=${station}`}
             className="font-medium text-[var(--tk-charcoal)] underline underline-offset-2"
           >
-            Try the paper-style sheet
-          </a>{" "}
-          — write in the boxes like the old printed one. Both fill in the
-          same count.
+            Use the standard count instead
+          </a>
+          . Both fill in the same sheet.
         </p>
       </div>
 
-      <RestockCountSheet initialSheet={sheet} />
+      <RestockPaperSheet initialSheet={sheet} />
     </div>
   )
 }
