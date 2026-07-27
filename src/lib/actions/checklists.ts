@@ -65,6 +65,48 @@ function todayAest(): Date {
   return new Date(aest.toISOString().split("T")[0])
 }
 
+function ymd(d: Date): string {
+  return d.toISOString().split("T")[0]
+}
+
+/**
+ * The date a run is filed under, given the template's cadence (all AEST):
+ *   DAILY / ON_DEMAND → today
+ *   WEEKLY            → Monday of the current week
+ *   MONTHLY           → the 1st of the current month
+ *
+ * Weekly/monthly runs are cycle-anchored (not stamped with the day they
+ * happened to be started) so a part-done list stays open and continuable
+ * for the whole cycle — you chip items off across days against one run —
+ * instead of looking "not started" again the next morning.
+ */
+function cycleAnchor(cadence: ChecklistCadence, ref?: Date): Date {
+  const base = ref ? new Date(ymd(ref)) : todayAest()
+  if (cadence === "WEEKLY") {
+    const d = new Date(base)
+    const daysSinceMonday = (d.getUTCDay() + 6) % 7 // getUTCDay: 0=Sun..6=Sat
+    d.setUTCDate(d.getUTCDate() - daysSinceMonday)
+    return d
+  }
+  if (cadence === "MONTHLY") {
+    const d = new Date(base)
+    d.setUTCDate(1)
+    return d
+  }
+  return base
+}
+
+/** The distinct set of anchor dates in play right now (today, this Monday,
+ *  the 1st) so one run query can serve templates of every cadence. */
+function distinctAnchorDates(): Date[] {
+  const byKey = new Map<string, Date>()
+  for (const c of ["DAILY", "WEEKLY", "MONTHLY"] as ChecklistCadence[]) {
+    const a = cycleAnchor(c)
+    byKey.set(ymd(a), a)
+  }
+  return [...byKey.values()]
+}
+
 export async function listChecklistTemplates(params?: {
   venue?: Venue | "ALL"
 }): Promise<ChecklistTemplateSummary[]> {
@@ -77,18 +119,24 @@ export async function listChecklistTemplates(params?: {
     include: {
       _count: { select: { items: { where: { archived: false } } } },
       runs: {
-        where: { runDate: todayAest() },
+        // Pull runs for every cadence's current anchor (today / this Monday /
+        // the 1st); each template then picks the one matching its own cadence.
+        where: { runDate: { in: distinctAnchorDates() } },
         include: { _count: { select: { items: true } }, items: { select: { checkedAt: true } } },
-        take: 3,
+        take: 10,
       },
     },
     orderBy: [{ cadence: "asc" }, { name: "asc" }],
   })
 
   return templates.map((t) => {
-    const firstRun = t.runs[0]
-    const completed = firstRun
-      ? firstRun.items.filter((i) => i.checkedAt !== null).length
+    const anchor = cycleAnchor(t.cadence)
+    // The run for THIS cadence's current cycle (weekly/monthly stay open all
+    // cycle; daily is still just today). `todayRun` kept as the field name so
+    // existing callers (/checklists, /kitchen) don't need to change.
+    const currentRun = t.runs.find((r) => ymd(r.runDate) === ymd(anchor)) ?? null
+    const completed = currentRun
+      ? currentRun.items.filter((i) => i.checkedAt !== null).length
       : 0
     return {
       id: t.id,
@@ -99,12 +147,12 @@ export async function listChecklistTemplates(params?: {
       shift: t.shift,
       isFoodSafety: t.isFoodSafety,
       itemCount: t._count.items,
-      todayRun: firstRun
+      todayRun: currentRun
         ? {
-            id: firstRun.id,
-            status: firstRun.status,
+            id: currentRun.id,
+            status: currentRun.status,
             completedItems: completed,
-            totalItems: firstRun._count.items,
+            totalItems: currentRun._count.items,
           }
         : null,
     }
@@ -163,7 +211,13 @@ export async function startChecklistRun(params: {
   venue: Venue
   shift?: ChecklistShift
 }) {
-  const date = todayAest()
+  // Anchor the run to its cadence's cycle so weekly/monthly checklists file
+  // every day's ticks against one open run for the week/month.
+  const template = await db.checklistTemplate.findUnique({
+    where: { id: params.templateId },
+    select: { cadence: true },
+  })
+  const date = cycleAnchor(template?.cadence ?? "DAILY")
   const shift = params.shift ?? "ANY"
   const existing = await db.checklistRun.findUnique({
     where: {

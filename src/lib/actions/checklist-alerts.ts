@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
-import { Venue } from "@/generated/prisma"
+import { Venue, ChecklistCadence } from "@/generated/prisma"
 
 export interface OverdueRun {
   alertId: string | null
@@ -318,4 +318,259 @@ export async function getDailySummaryData(): Promise<{
     totalTemplates: allRows.length,
     totalIncomplete: allRows.filter((r) => r.status !== "COMPLETED").length,
   }
+}
+
+// ─── CYCLE-END NUDGE (weekly / monthly) ─────────────────────────────────────
+// One quiet email near the close of each weekly (Sat/Sun) and monthly (last
+// few days) cycle, listing the items still not done so Chloe can see what got
+// left behind before the list rolls over. Idempotent per cycle via
+// ChecklistAlert, so at most one nudge per template per cycle. This is the
+// low-noise replacement for the paused every-15-min daily checklist crons.
+
+function ymd(d: Date): string {
+  return d.toISOString().split("T")[0]
+}
+
+/** Mirror of the anchor logic in checklists.ts (kept local — checklists.ts is
+ *  a "use server" module and can't export a sync helper). */
+function cycleAnchor(cadence: ChecklistCadence, ref?: Date): Date {
+  const base = ref ? new Date(ymd(ref)) : todayAest()
+  if (cadence === "WEEKLY") {
+    const d = new Date(base)
+    const daysSinceMonday = (d.getUTCDay() + 6) % 7
+    d.setUTCDate(d.getUTCDate() - daysSinceMonday)
+    return d
+  }
+  if (cadence === "MONTHLY") {
+    const d = new Date(base)
+    d.setUTCDate(1)
+    return d
+  }
+  return base
+}
+
+export interface CycleOpenItem {
+  label: string
+  /** ISO timestamp this line was last ticked in ANY prior run, or null. */
+  lastDone: string | null
+}
+
+export interface CycleEndingRow {
+  templateId: string
+  templateName: string
+  area: string | null
+  venue: Venue
+  cadence: "WEEKLY" | "MONTHLY"
+  /** Human cycle label, e.g. "week of Mon 21 Jul" or "July 2026". */
+  cycleLabel: string
+  /** Whole days left in the cycle (0 = last day). */
+  daysLeft: number
+  totalItems: number
+  openItems: CycleOpenItem[]
+}
+
+function cycleLabelFor(cadence: ChecklistCadence, anchor: Date): string {
+  if (cadence === "MONTHLY") {
+    return anchor.toLocaleDateString("en-AU", {
+      month: "long",
+      year: "numeric",
+      timeZone: "Australia/Brisbane",
+    })
+  }
+  const day = anchor.toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "short",
+    timeZone: "Australia/Brisbane",
+  })
+  return `week of Mon ${day}`
+}
+
+type CycleTemplate = {
+  id: string
+  name: string
+  area: string | null
+  venue: Venue
+  cadence: ChecklistCadence
+  items: { id: string; label: string }[]
+}
+
+function fetchCycleTemplates(cadences: ("WEEKLY" | "MONTHLY")[]) {
+  return db.checklistTemplate.findMany({
+    where: { isActive: true, cadence: { in: cadences } },
+    include: {
+      items: {
+        where: { archived: false },
+        select: { id: true, label: true },
+        orderBy: { sortOrder: "asc" },
+      },
+    },
+    orderBy: [{ venue: "asc" }, { area: "asc" }, { name: "asc" }],
+  })
+}
+
+function venuesFor(templateVenue: Venue): Venue[] {
+  return templateVenue === "BOTH"
+    ? (["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN"] as Venue[])
+    : [templateVenue]
+}
+
+const weeklyDaysLeft = (dow: number) => 6 - ((dow + 6) % 7) // Sat→1, Sun→0
+
+/** Read-only: build the row for one template+venue+cycle, or null if the cycle
+ *  is already fully done. Does not write anything. */
+async function buildCycleRow(
+  t: CycleTemplate,
+  v: Venue,
+  anchor: Date,
+  daysLeft: number
+): Promise<CycleEndingRow | null> {
+  const run = await db.checklistRun.findFirst({
+    where: { templateId: t.id, venue: v, runDate: anchor },
+    include: { items: { select: { templateItemId: true, checkedAt: true } } },
+  })
+  const checkedThisCycle = new Set(
+    (run?.items ?? [])
+      .filter((i) => i.checkedAt !== null)
+      .map((i) => i.templateItemId)
+  )
+  const openItems = t.items.filter((it) => !checkedThisCycle.has(it.id))
+  if (openItems.length === 0) return null // fully done this cycle
+
+  // Per-item last-done across ALL history, for rolling visibility on lines
+  // that have gone untouched for a while.
+  const history = await db.checklistRunItem.findMany({
+    where: {
+      run: { templateId: t.id, venue: v },
+      checkedAt: { not: null },
+      templateItemId: { in: openItems.map((i) => i.id) },
+    },
+    select: { templateItemId: true, checkedAt: true },
+  })
+  const lastDone = new Map<string, Date>()
+  for (const h of history) {
+    if (!h.checkedAt) continue
+    const prev = lastDone.get(h.templateItemId)
+    if (!prev || h.checkedAt > prev) lastDone.set(h.templateItemId, h.checkedAt)
+  }
+
+  return {
+    templateId: t.id,
+    templateName: t.name,
+    area: t.area,
+    venue: v,
+    cadence: t.cadence as "WEEKLY" | "MONTHLY",
+    cycleLabel: cycleLabelFor(t.cadence, anchor),
+    daysLeft,
+    totalItems: t.items.length,
+    openItems: openItems.map((it) => ({
+      label: it.label,
+      lastDone: lastDone.get(it.id)?.toISOString() ?? null,
+    })),
+  }
+}
+
+/**
+ * Find weekly/monthly checklists whose cycle is nearly up and still has open
+ * items. Creates (idempotently) a ChecklistAlert per (template, venue, cycle)
+ * and returns the rows to email plus the alert ids to mark emailed after send.
+ *
+ * Fires the WEEKLY set on Sat + Sun (Sat is the nudge; Sun is a retry if
+ * Saturday's email failed — idempotency stops a double send). Fires MONTHLY
+ * across the last 4 days of the month.
+ */
+export async function getCycleEndingChecklists(): Promise<{
+  rows: CycleEndingRow[]
+  alertIds: string[]
+}> {
+  const today = todayAest()
+  const dow = today.getUTCDay() // 0=Sun..6=Sat
+  const dayOfMonth = today.getUTCDate()
+  const lastOfMonth = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0)
+  ).getUTCDate()
+  const daysLeftInMonth = lastOfMonth - dayOfMonth
+
+  const cadences: ("WEEKLY" | "MONTHLY")[] = []
+  if (dow === 6 || dow === 0) cadences.push("WEEKLY")
+  if (daysLeftInMonth <= 3) cadences.push("MONTHLY")
+  if (cadences.length === 0) return { rows: [], alertIds: [] }
+
+  const templates = await fetchCycleTemplates(cadences)
+  const rows: CycleEndingRow[] = []
+  const alertIds: string[] = []
+
+  for (const t of templates) {
+    if (t.items.length === 0) continue
+    const anchor = cycleAnchor(t.cadence)
+    const daysLeft =
+      t.cadence === "WEEKLY" ? weeklyDaysLeft(dow) : daysLeftInMonth
+
+    for (const v of venuesFor(t.venue)) {
+      const row = await buildCycleRow(t, v, anchor, daysLeft)
+      if (!row) continue
+
+      const existing = await db.checklistAlert.findUnique({
+        where: {
+          templateId_venue_runDate: { templateId: t.id, venue: v, runDate: anchor },
+        },
+      })
+      if (existing?.emailedAt) continue // already nudged this cycle
+
+      const alert =
+        existing ??
+        (await db.checklistAlert.create({
+          data: {
+            templateId: t.id,
+            venue: v,
+            runDate: anchor,
+            completedItems: row.totalItems - row.openItems.length,
+            totalItems: row.totalItems,
+            emailedTo: ["chloe@tarte.com.au"],
+          },
+        }))
+      alertIds.push(alert.id)
+      rows.push(row)
+    }
+  }
+
+  return { rows, alertIds }
+}
+
+/**
+ * Read-only preview of what the cycle nudge would list right now: forces both
+ * cadences, ignores the day-of-cycle gate and the "already emailed" flag, and
+ * writes nothing. Backs the cron endpoint's ?preview=1 for manual checks.
+ */
+export async function previewCycleEndingChecklists(): Promise<CycleEndingRow[]> {
+  const today = todayAest()
+  const dow = today.getUTCDay()
+  const dayOfMonth = today.getUTCDate()
+  const lastOfMonth = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0)
+  ).getUTCDate()
+  const daysLeftInMonth = lastOfMonth - dayOfMonth
+
+  const templates = await fetchCycleTemplates(["WEEKLY", "MONTHLY"])
+  const rows: CycleEndingRow[] = []
+
+  for (const t of templates) {
+    if (t.items.length === 0) continue
+    const anchor = cycleAnchor(t.cadence)
+    const daysLeft =
+      t.cadence === "WEEKLY" ? weeklyDaysLeft(dow) : daysLeftInMonth
+    for (const v of venuesFor(t.venue)) {
+      const row = await buildCycleRow(t, v, anchor, daysLeft)
+      if (row) rows.push(row)
+    }
+  }
+
+  return rows
+}
+
+export async function markCycleAlertsEmailed(alertIds: string[]) {
+  if (alertIds.length === 0) return
+  await db.checklistAlert.updateMany({
+    where: { id: { in: alertIds } },
+    data: { emailedAt: new Date() },
+  })
 }

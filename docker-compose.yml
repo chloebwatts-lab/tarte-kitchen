@@ -151,6 +151,12 @@ services:
         # */15 * * * * curl -fsS -m 60 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/checklist-alerts 2>&1
         # 18:00 AEST (08:00 UTC) — daily checklist summary to chloe@
         # 0 8 * * * curl -fsS -m 60 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/daily-checklist-summary 2>&1
+        # 15:00 AEST (05:00 UTC) daily — weekly/monthly checklist cycle nudge.
+        # The endpoint self-gates: it only emails near a cycle's close (weekly
+        # Sat/Sun, monthly last few days) and only when items are still open,
+        # so this fires at most ~once per list per cycle. Low-noise successor
+        # to the two paused checklist crons above. Sends to chloe@.
+        0 5 * * * curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/checklist-cycle-alerts 2>&1
         # 08:00 AEST (22:00 UTC) — pull Google reviews, Claude-tag, draft
         # replies + email Chloe once per day. Was hourly back when Places
         # API capped each fetch at 5 reviews/venue — but GBP returns ALL

@@ -225,6 +225,87 @@ export async function sendChecklistAlertEmail(params: {
   })
 }
 
+export async function sendChecklistCycleEmail(params: {
+  rows: {
+    templateName: string
+    area: string | null
+    venue: Venue
+    cadence: "WEEKLY" | "MONTHLY"
+    cycleLabel: string
+    daysLeft: number
+    totalItems: number
+    openItems: { label: string; lastDone: string | null }[]
+  }[]
+}) {
+  const VENUE_LABEL: Record<string, string> = {
+    BURLEIGH: "Burleigh Bakery",
+    BEACH_HOUSE: "Beach House",
+    TEA_GARDEN: "Tea Garden",
+  }
+  const VENUE_ORDER = ["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN"]
+
+  const fmtLastDone = (iso: string | null) => {
+    if (!iso) return "never ticked"
+    return (
+      "last done " +
+      new Date(iso).toLocaleDateString("en-AU", {
+        day: "numeric",
+        month: "short",
+        timeZone: "Australia/Brisbane",
+      })
+    )
+  }
+  const plural = (n: number) => (n === 1 ? "" : "s")
+
+  const byVenue = new Map<string, typeof params.rows>()
+  for (const r of params.rows) {
+    if (!byVenue.has(r.venue)) byVenue.set(r.venue, [])
+    byVenue.get(r.venue)!.push(r)
+  }
+
+  const blocks: string[] = []
+  for (const v of VENUE_ORDER) {
+    const rows = byVenue.get(v)
+    if (!rows || rows.length === 0) continue
+    blocks.push(VENUE_LABEL[v] ?? v)
+    blocks.push("─".repeat(48))
+    for (const r of rows) {
+      const done = r.totalItems - r.openItems.length
+      const closes =
+        r.cadence === "WEEKLY"
+          ? r.daysLeft === 0
+            ? "closes today (Sunday)"
+            : `closes Sunday, ${r.daysLeft} day${plural(r.daysLeft)} left`
+          : r.daysLeft === 0
+          ? `last day of ${r.cycleLabel}`
+          : `${r.daysLeft} day${plural(r.daysLeft)} left in ${r.cycleLabel}`
+      blocks.push(`  ${r.templateName}  (${done}/${r.totalItems} done, ${closes})`)
+      for (const it of r.openItems) {
+        blocks.push(`    ✗ ${it.label}  (${fmtLastDone(it.lastDone)})`)
+      }
+      blocks.push("")
+    }
+  }
+
+  const totalOpen = params.rows.reduce((s, r) => s + r.openItems.length, 0)
+  const nLists = params.rows.length
+
+  const body = [
+    `Tarte Kitchen — Checklists closing soon`,
+    ``,
+    `${totalOpen} item${plural(totalOpen)} still open across ${nLists} checklist${plural(nLists)} that roll over shortly.`,
+    ``,
+    ...blocks,
+    `─────────────────────────────────────────────────`,
+    `Tick them off: https://kitchen.tarte.com.au/checklists`,
+    `— Tarte Kitchen`,
+  ].join("\n")
+
+  const subject = `[Tarte] Checklists closing soon - ${totalOpen} item${plural(totalOpen)} still open`
+
+  return sendEmail({ to: "chloe@tarte.com.au", subject, body })
+}
+
 export async function sendDailySummaryEmail(params: {
   date: string
   venues: {
