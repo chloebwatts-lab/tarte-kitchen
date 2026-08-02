@@ -29,6 +29,7 @@ export interface DigestNarrative {
     topSellers?: string
     reviews?: string
     operations?: string
+    commitments?: string
   }
   /// 3-6 concrete action bullets, ranked by impact.
   actionItems: string[]
@@ -718,6 +719,72 @@ function reviewsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrati
     ${responseWatch}`
 }
 
+function commitmentsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative) {
+  const c = snapshot.commitments
+  const allClear =
+    c.overdueOneOffs.length === 0 && c.standingConcerns.length === 0
+
+  if (allClear) {
+    const sub =
+      c.openCount > 0
+        ? `Nothing overdue. ${c.openCount} open promise${c.openCount === 1 ? "" : "s"} on track${c.doneLast7Days > 0 ? `, ${c.doneLast7Days} closed this week` : ""}.`
+        : "Nothing overdue and nothing waiting."
+    return `
+      ${sectionHeader("Commitments (Said + Done)", narrative.sectionNotes.commitments)}
+      <div style="padding:8px 28px 0;color:${C.inkMute};font-size:13px;">${escapeHtml(sub)}</div>`
+  }
+
+  const overdueRows = c.overdueOneOffs
+    .map(
+      (o) => `
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.ink};">
+            ${escapeHtml(o.promise)}
+            ${o.missedReason ? `<div style="margin-top:2px;font-size:11px;color:${C.inkMute};">Moved once — ${escapeHtml(o.missedReason)}</div>` : ""}
+          </td>
+          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.inkSoft};white-space:nowrap;">${escapeHtml(o.saidBy.charAt(0) + o.saidBy.slice(1).toLowerCase())}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};white-space:nowrap;text-align:right;">
+            <span style="display:inline-block;padding:2px 8px;background:${C.redSoft};color:${C.red};border-radius:4px;font-size:12px;font-weight:600;">${o.daysOverdue}d overdue</span>
+          </td>
+        </tr>`
+    )
+    .join("")
+
+  const overdueTable = c.overdueOneOffs.length
+    ? `
+    <div style="padding:14px 18px 4px;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:8px;border-collapse:collapse;overflow:hidden;">
+        <thead>
+          <tr style="background:${C.borderSoft};">
+            <th style="padding:9px 14px;text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Overdue promise</th>
+            <th style="padding:9px 14px;text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Who</th>
+            <th style="padding:9px 14px;text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Due</th>
+          </tr>
+        </thead>
+        <tbody>${overdueRows}</tbody>
+      </table>
+    </div>`
+    : ""
+
+  const standingList = c.standingConcerns.length
+    ? `
+    <div style="margin:12px 18px 0;padding:10px 14px;background:${C.card};border:1px solid ${C.border};border-radius:6px;">
+      <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.red};font-weight:600;">Standing commitments slipping</div>
+      ${c.standingConcerns
+        .map(
+          (s) => `
+          <div style="margin-top:6px;font-size:13px;color:${C.ink};">${escapeHtml(s.title)} — <span style="color:${C.red};font-weight:600;">${s.consecutiveMissedWeeks} weeks running</span>${s.lastNote ? ` · ${escapeHtml(s.lastNote)}` : ""}</div>`
+        )
+        .join("")}
+    </div>`
+    : ""
+
+  return `
+    ${sectionHeader("Commitments (Said + Done)", narrative.sectionNotes.commitments)}
+    ${overdueTable}
+    ${standingList}`
+}
+
 function actionList(narrative: DigestNarrative) {
   if (!narrative.actionItems.length) return ""
   return `
@@ -768,6 +835,7 @@ export function renderDigestHtml(
         <tr><td style="padding-top:18px;">${spendPacingSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${wastageSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${operationsSection(snapshot, narrative)}</td></tr>
+        <tr><td style="padding-top:18px;">${commitmentsSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${priceSpikesSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${topSellersSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${reviewsSection(snapshot, narrative)}</td></tr>
@@ -841,6 +909,24 @@ export function renderDigestText(
   }
   if (snapshot.operations.cooling.breaches.length > 0) {
     lines.push(`  Cooling breaches: ${snapshot.operations.cooling.breaches.length} of ${snapshot.operations.cooling.total} logs`)
+  }
+  const commitments = snapshot.commitments
+  if (
+    commitments.overdueOneOffs.length > 0 ||
+    commitments.standingConcerns.length > 0
+  ) {
+    lines.push(``)
+    lines.push(`COMMITMENTS (SAID + DONE)`)
+    for (const o of commitments.overdueOneOffs) {
+      lines.push(
+        `  ! ${o.promise} (${o.saidBy}) — due ${o.effectiveDueOn}, ${o.daysOverdue}d overdue${o.wasRescheduled ? " (already moved once)" : ""}`
+      )
+    }
+    for (const s of commitments.standingConcerns) {
+      lines.push(
+        `  ! ${s.title} — missed ${s.consecutiveMissedWeeks} weeks running${s.lastNote ? ` (${s.lastNote})` : ""}`
+      )
+    }
   }
   if (snapshot.priceSpikes.count > 0) {
     lines.push(``)

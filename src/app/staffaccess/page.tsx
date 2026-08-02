@@ -7,6 +7,7 @@ import {
   ClipboardList,
   Croissant,
   GraduationCap,
+  Handshake,
   PackageOpen,
   ShieldCheck,
   Snowflake,
@@ -29,6 +30,7 @@ const TOOLS: Array<{
   { title: "Pastry rotation", sub: "Prepared / sold / discarded per bake", href: "/kitchen/pastry", icon: Croissant },
   { title: "Cooling log", sub: "HACCP record for cooked items", href: "/kitchen/cooling", icon: Snowflake },
   { title: "Staff training", sub: "Food handler records", href: "/kitchen/training", icon: GraduationCap },
+  { title: "Said + Done", sub: "Kitchen commitments, week by week", href: "/kitchen/commitments", icon: Handshake },
   { title: "Inspection view", sub: "Council-ready last 30 days", href: "/kitchen/inspection", icon: ShieldCheck },
 ]
 
