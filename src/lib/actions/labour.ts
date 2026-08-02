@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { Venue } from "@/generated/prisma"
 import { SINGLE_VENUES } from "@/lib/venues"
+import { TG_PASTRY_REVENUE_SHARE } from "@/lib/labour/buckets"
 import { currentTarteWeekRange, startOfTarteWeekUtc, weekStartWedIso } from "@/lib/dates"
 import Decimal from "decimal.js"
 
@@ -26,6 +27,10 @@ export interface LabourWeekCard {
     hasActuals: boolean
     // Rich Mge-PDF fields (past weeks, when uploaded)
     actualRevenueExGst: number | null
+    // Denominator for the Pastry dept-group %. Same as actualRevenueExGst
+    // except Beach House, where it also credits 50% of Tea Garden revenue
+    // (that pastry team bakes for TG). See TG_PASTRY_REVENUE_SHARE.
+    pastryRevenueExGst: number | null
     actualWagesExAdmin: number | null
     actualWagesExAdminLeaveBackpay: number | null
     actualWagesLessLeaveBackpay: number | null
@@ -203,6 +208,16 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
       // what Deputy's Insights roster shows (salary admin excluded).
       const actualRevenueExGst =
         actual?.revenueExGst != null ? Number(actual.revenueExGst) : null
+      // Beach House pastry also bakes for Tea Garden — credit half of TG's
+      // ex-GST revenue into the pastry-% denominator. Other venues just use
+      // their own revenue. See TG_PASTRY_REVENUE_SHARE.
+      const pastryRevenueExGst = (() => {
+        if (actualRevenueExGst == null) return null
+        if (v !== Venue.BEACH_HOUSE) return actualRevenueExGst
+        const tg = actualsByKey.get(`${Venue.TEA_GARDEN}|${iso}`)
+        const tgRev = tg?.revenueExGst != null ? Number(tg.revenueExGst) : 0
+        return actualRevenueExGst + tgRev * TG_PASTRY_REVENUE_SHARE
+      })()
       const actualWagesExAdmin =
         actual?.grossWagesExAdmin != null
           ? Number(actual.grossWagesExAdmin)
@@ -262,6 +277,7 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
         labourPct,
         hasActuals: !!actual,
         actualRevenueExGst,
+        pastryRevenueExGst,
         actualWagesExAdmin,
         actualWagesExAdminLeaveBackpay,
         actualWagesLessLeaveBackpay,

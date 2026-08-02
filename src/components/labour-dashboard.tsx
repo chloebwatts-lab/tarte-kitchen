@@ -134,7 +134,9 @@ export function LabourDashboard({ initial }: { initial: LabourDashboardData }) {
         PDF&apos;s &ldquo;Total less Admin&rdquo; line (apples-to-apples with
         Deputy&apos;s rostered cost); denominator prefers actual revenue ex
         GST from the Mge PDF, then POS, then manager forecast. Bands:
-        &lt;28% green, 28–34% amber, ≥34% red.
+        &lt;28% green, 28–34% amber, ≥34% red. Beach House Pastry % uses
+        Beach House revenue plus 50% of Tea Garden revenue (that pastry team
+        also bakes for Tea Garden).
       </p>
     </div>
   )
@@ -265,9 +267,14 @@ function VenueDetailCard({
     const value = anyPresent
       ? vals.reduce<number>((s, v) => s + (v ?? 0), 0)
       : null
+    // The Pastry group divides by pastryRevenueExGst, which for Beach House
+    // folds in 50% of Tea Garden revenue (that pastry team bakes for TG).
+    // Every other group/venue uses plain venue revenue.
+    const isPastry = g.keys.length === 1 && g.keys[0] === "wagesPastry"
+    const denom = isPastry ? row.pastryRevenueExGst : row.actualRevenueExGst
     const pct =
-      value !== null && row.actualRevenueExGst && row.actualRevenueExGst > 0
-        ? Math.round((value / row.actualRevenueExGst) * 1000) / 10
+      value !== null && denom && denom > 0
+        ? Math.round((value / denom) * 1000) / 10
         : null
     return { ...g, value, pct }
   })

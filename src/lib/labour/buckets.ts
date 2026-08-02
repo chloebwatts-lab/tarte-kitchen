@@ -20,6 +20,16 @@ export interface BucketTarget {
   max: number
 }
 
+/**
+ * Beach House (Currumbin) pastry also bakes for Tea Garden, whose revenue
+ * sits in its own LabourWeekActual row. We credit this share of TG's ex-GST
+ * revenue into the Beach House pastry denominator so Pastry % reflects the
+ * revenue that team's output actually drives, instead of looking chronically
+ * over target. Only applied to the Beach House Pastry bucket — all other
+ * buckets and venues use their own venue revenue. Source: Chris, 2026-06-06.
+ */
+export const TG_PASTRY_REVENUE_SHARE = 0.5
+
 const BURLEIGH_AREAS: Record<string, Bucket> = {
   Kitchen: "chefsKp",
   KP: "chefsKp",
