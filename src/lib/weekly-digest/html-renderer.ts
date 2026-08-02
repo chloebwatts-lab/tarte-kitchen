@@ -723,7 +723,9 @@ function reviewsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrati
 function commitmentsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative) {
   const c = snapshot.commitments
   const allClear =
-    c.overdueOneOffs.length === 0 && c.standingConcerns.length === 0
+    c.overdueOneOffs.length === 0 &&
+    c.standingConcerns.length === 0 &&
+    c.overdueMeetingActions.length === 0
 
   if (allClear) {
     const sub =
@@ -767,6 +769,38 @@ function commitmentsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
     </div>`
     : ""
 
+  const meetingRows = c.overdueMeetingActions
+    .map(
+      (a) => `
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.ink};">
+            ${escapeHtml(a.action)}
+            <div style="margin-top:2px;font-size:11px;color:${C.inkMute};">${escapeHtml(a.sourceTag)}</div>
+          </td>
+          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.inkSoft};white-space:nowrap;">${escapeHtml(a.owner)}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};white-space:nowrap;text-align:right;">
+            <span style="display:inline-block;padding:2px 8px;background:${C.redSoft};color:${C.red};border-radius:4px;font-size:12px;font-weight:600;">${a.daysOverdue}d overdue</span>
+          </td>
+        </tr>`
+    )
+    .join("")
+
+  const meetingTable = c.overdueMeetingActions.length
+    ? `
+    <div style="padding:14px 18px 4px;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:8px;border-collapse:collapse;overflow:hidden;">
+        <thead>
+          <tr style="background:${C.borderSoft};">
+            <th style="padding:9px 14px;text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Overdue meeting action</th>
+            <th style="padding:9px 14px;text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Owner</th>
+            <th style="padding:9px 14px;text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Due</th>
+          </tr>
+        </thead>
+        <tbody>${meetingRows}</tbody>
+      </table>
+    </div>`
+    : ""
+
   const standingList = c.standingConcerns.length
     ? `
     <div style="margin:12px 18px 0;padding:10px 14px;background:${C.card};border:1px solid ${C.border};border-radius:6px;">
@@ -783,6 +817,7 @@ function commitmentsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
   return `
     ${sectionHeader("Commitments (Said + Done)", narrative.sectionNotes.commitments)}
     ${overdueTable}
+    ${meetingTable}
     ${standingList}`
 }
 
@@ -914,13 +949,19 @@ export function renderDigestText(
   const commitments = snapshot.commitments
   if (
     commitments.overdueOneOffs.length > 0 ||
-    commitments.standingConcerns.length > 0
+    commitments.standingConcerns.length > 0 ||
+    commitments.overdueMeetingActions.length > 0
   ) {
     lines.push(``)
     lines.push(`COMMITMENTS (SAID + DONE)`)
     for (const o of commitments.overdueOneOffs) {
       lines.push(
         `  ! ${o.promise} (${o.saidBy}) — due ${o.effectiveDueOn}, ${o.daysOverdue}d overdue${o.wasRescheduled ? " (already moved once)" : ""}`
+      )
+    }
+    for (const a of commitments.overdueMeetingActions) {
+      lines.push(
+        `  ! ${a.action} (${a.owner}, ${a.sourceTag}) — due ${a.dueOn}, ${a.daysOverdue}d overdue`
       )
     }
     for (const s of commitments.standingConcerns) {

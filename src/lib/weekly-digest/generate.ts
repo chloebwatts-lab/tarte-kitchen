@@ -39,7 +39,7 @@ Schema:
     "topSellers"?: string,
     "reviews"?: string,       // if responseWatch shows unanswered negatives or median response over 2 days, lead with that
     "operations"?: string,  // 1-2 sentences on checklist completion + any temp/cooling breaches. Lead with breaches if any.
-    "commitments"?: string  // Said + Done tracker. Only if something is overdue or a standing commitment slipped 2+ weeks — name it plainly, no scolding tone.
+    "commitments"?: string  // Said + Done tracker incl. meeting actions. Only if something is overdue or a standing commitment slipped 2+ weeks — name it plainly, no scolding tone.
   },
   "actionItems": string[]       // 3-6 concrete actions ranked by impact
 }

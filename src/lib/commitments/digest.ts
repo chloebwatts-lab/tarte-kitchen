@@ -24,6 +24,13 @@ export interface CommitmentsSection {
     consecutiveMissedWeeks: number
     lastNote: string | null
   }>
+  overdueMeetingActions: Array<{
+    action: string
+    owner: string
+    sourceTag: string
+    dueOn: string
+    daysOverdue: number
+  }>
   openCount: number
   doneLast7Days: number
 }
@@ -34,8 +41,9 @@ export async function buildCommitmentsSection(): Promise<CommitmentsSection> {
   const today = todayAest()
   const todayKey = ymd(today)
 
-  const [oneOffs, standing] = await Promise.all([
+  const [oneOffs, meetingActions, standing] = await Promise.all([
     db.oneOffCommitment.findMany(),
+    db.meetingAction.findMany({ where: { doneOn: null } }),
     db.standingCommitment.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: "asc" },
@@ -115,10 +123,24 @@ export async function buildCommitmentsSection(): Promise<CommitmentsSection> {
     }
   }
 
+  const overdueMeetingActions = meetingActions
+    .filter((a) => todayKey > ymd(a.dueOn))
+    .map((a) => ({
+      action: a.action,
+      owner: a.owner,
+      sourceTag: a.sourceTag,
+      dueOn: ymd(a.dueOn),
+      daysOverdue: Math.round(
+        (today.getTime() - a.dueOn.getTime()) / 86400000
+      ),
+    }))
+    .sort((a, b) => b.daysOverdue - a.daysOverdue)
+
   const sevenDaysAgo = addDays(today, -7)
   return {
     overdueOneOffs,
     standingConcerns,
+    overdueMeetingActions,
     openCount: withStatus.filter((x) => x.status === "open").length,
     doneLast7Days: withStatus.filter(
       (x) => x.o.doneOn && x.o.doneOn >= sevenDaysAgo

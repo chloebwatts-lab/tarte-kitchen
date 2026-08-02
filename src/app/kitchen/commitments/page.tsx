@@ -159,6 +159,52 @@ export default async function KitchenCommitmentsPage() {
         )}
       </div>
 
+      {/* Meeting actions (read-only) */}
+      {board.meetingActions.length > 0 && (
+        <div className="space-y-3">
+          <div className="tk-caps px-1" style={{ color: "var(--tk-ink-mute)" }}>
+            Meeting actions
+          </div>
+          {board.meetingActions.map((a) => (
+            <div
+              key={a.id}
+              className="flex min-h-[64px] items-center gap-5 rounded-[16px] border bg-white px-5 py-4"
+              style={{
+                borderColor:
+                  a.status === "overdue" ? "#c33d3d" : "var(--tk-line)",
+                background: a.status === "overdue" ? "#fdf1f1" : "white",
+              }}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="text-[17px] font-semibold leading-snug text-[var(--tk-charcoal)]">
+                  {a.action}
+                </div>
+                <div className="mt-0.5 text-[14px] text-[var(--tk-ink-soft)]">
+                  {a.owner} · {a.sourceTag} · due {formatDayMonth(a.dueOn)}
+                  {a.doneOn && ` · done ${formatDayMonth(a.doneOn)}`}
+                </div>
+              </div>
+              <div
+                className="shrink-0 rounded-full px-3 py-1.5 text-[12px] font-semibold"
+                style={
+                  a.status === "done"
+                    ? { background: "var(--tk-done-soft)", color: "var(--tk-done)" }
+                    : a.status === "overdue"
+                      ? { background: "#f6dcdc", color: "#9a2a2a" }
+                      : { background: "var(--tk-charcoal-soft)", color: "var(--tk-ink-soft)" }
+                }
+              >
+                {a.status === "done"
+                  ? "Done"
+                  : a.status === "overdue"
+                    ? "Overdue"
+                    : "Open"}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Paper sheet photos */}
       <Link
         href="/kitchen/commitments/photos"

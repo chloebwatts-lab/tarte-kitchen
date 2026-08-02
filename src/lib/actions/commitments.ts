@@ -112,6 +112,17 @@ export interface OneOffRow {
   status: OneOffStatus
 }
 
+export interface MeetingActionRow {
+  id: string
+  action: string
+  owner: string
+  agreedOn: string
+  dueOn: string
+  doneOn: string | null
+  sourceTag: string
+  status: OneOffStatus
+}
+
 export interface CommitmentPhotoRow {
   id: string
   weekStart: string
@@ -129,6 +140,8 @@ export interface CommitmentsBoard {
   weeks: string[]
   standing: StandingRow[]
   oneOffs: OneOffRow[]
+  /// Grouped client-side by sourceTag; newest meeting first.
+  meetingActions: MeetingActionRow[]
   photos: CommitmentPhotoRow[]
 }
 
@@ -145,7 +158,7 @@ export async function getCommitmentsBoard(params?: {
   const oldestWeek = weeks[weeks.length - 1]
   const today = ymd(todayAest())
 
-  const [standing, marks, oneOffs, photos] = await Promise.all([
+  const [standing, marks, oneOffs, meetingActions, photos] = await Promise.all([
     db.standingCommitment.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: "asc" },
@@ -154,6 +167,9 @@ export async function getCommitmentsBoard(params?: {
       where: { weekStart: { gte: new Date(oldestWeek) } },
     }),
     db.oneOffCommitment.findMany({ orderBy: { dueOn: "asc" } }),
+    db.meetingAction.findMany({
+      orderBy: [{ agreedOn: "desc" }, { dueOn: "asc" }],
+    }),
     db.commitmentWeekPhoto.findMany({
       orderBy: { uploadedAt: "desc" },
       take: 60,
@@ -214,12 +230,31 @@ export async function getCommitmentsBoard(params?: {
     }))
     .sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
 
+  const meetingActionRows: MeetingActionRow[] = meetingActions.map((a) => ({
+    id: a.id,
+    action: a.action,
+    owner: a.owner,
+    agreedOn: ymd(a.agreedOn),
+    dueOn: ymd(a.dueOn),
+    doneOn: a.doneOn ? ymd(a.doneOn) : null,
+    sourceTag: a.sourceTag,
+    status: oneOffStatus(
+      {
+        dueOn: ymd(a.dueOn),
+        newDueOn: null,
+        doneOn: a.doneOn ? ymd(a.doneOn) : null,
+      },
+      today
+    ),
+  }))
+
   return {
     todayYmd: today,
     currentWeekStart: currentWeekStart(),
     weeks,
     standing: rows,
     oneOffs: oneOffRows,
+    meetingActions: meetingActionRows,
     photos: photos.map((p) => ({
       id: p.id,
       weekStart: ymd(p.weekStart),
@@ -374,6 +409,90 @@ export async function rescheduleOneOff(params: {
 
 export async function deleteOneOff(params: { id: string }): Promise<void> {
   await db.oneOffCommitment.delete({ where: { id: params.id } })
+  revalidateCommitments()
+}
+
+// ─── Meeting actions ─────────────────────────────────────────────────
+
+export async function createMeetingAction(params: {
+  action: string
+  owner: string
+  agreedOn: string
+  dueOn: string
+  sourceTag: string
+}): Promise<void> {
+  const action = params.action.trim()
+  const owner = params.owner.trim()
+  const sourceTag = params.sourceTag.trim()
+  if (!action) throw new Error("Action text is required")
+  if (!owner) throw new Error("An owner is required")
+  if (!sourceTag) throw new Error("A meeting tag is required")
+  await db.meetingAction.create({
+    data: {
+      action,
+      owner,
+      sourceTag,
+      agreedOn: parseYmd(params.agreedOn, "agreedOn"),
+      dueOn: parseYmd(params.dueOn, "dueOn"),
+    },
+  })
+  revalidateCommitments()
+}
+
+export async function updateMeetingAction(params: {
+  id: string
+  action?: string
+  owner?: string
+  agreedOn?: string
+  dueOn?: string
+  sourceTag?: string
+}): Promise<void> {
+  const data: Record<string, unknown> = {}
+  if (params.action !== undefined) {
+    const action = params.action.trim()
+    if (!action) throw new Error("Action text is required")
+    data.action = action
+  }
+  if (params.owner !== undefined) {
+    const owner = params.owner.trim()
+    if (!owner) throw new Error("An owner is required")
+    data.owner = owner
+  }
+  if (params.sourceTag !== undefined) {
+    const sourceTag = params.sourceTag.trim()
+    if (!sourceTag) throw new Error("A meeting tag is required")
+    data.sourceTag = sourceTag
+  }
+  if (params.agreedOn !== undefined)
+    data.agreedOn = parseYmd(params.agreedOn, "agreedOn")
+  if (params.dueOn !== undefined) data.dueOn = parseYmd(params.dueOn, "dueOn")
+  await db.meetingAction.update({ where: { id: params.id }, data })
+  revalidateCommitments()
+}
+
+export async function markMeetingActionDone(params: {
+  id: string
+  doneOn?: string
+}): Promise<void> {
+  await db.meetingAction.update({
+    where: { id: params.id },
+    data: {
+      doneOn: params.doneOn ? parseYmd(params.doneOn, "doneOn") : todayAest(),
+    },
+  })
+  revalidateCommitments()
+}
+
+export async function reopenMeetingAction(params: { id: string }): Promise<void> {
+  await db.meetingAction.update({
+    where: { id: params.id },
+    data: { doneOn: null },
+  })
+  revalidateCommitments()
+}
+
+export async function deleteMeetingAction(params: { id: string }): Promise<void> {
+  await db.meetingAction.delete({ where: { id: params.id } })
   revalidateCommitments()
 }
 

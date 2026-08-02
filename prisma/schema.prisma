@@ -2041,6 +2041,25 @@ model OneOffCommitment {
   @@index([dueOn])
 }
 
+/// An action agreed in a sit-down meeting (fortnightly Jose/Chloe/Candy
+/// catch-ups). Same derived open/done/overdue logic as OneOffCommitment;
+/// `sourceTag` keeps one meeting's actions grouped ("Meeting 2026-08-02").
+model MeetingAction {
+  id       String    @id @default(cuid())
+  action   String
+  /// Jose / Chloe / Candy or any other name — free text with quick-picks.
+  owner    String
+  agreedOn DateTime  @db.Date
+  dueOn    DateTime  @db.Date
+  doneOn   DateTime? @db.Date
+  sourceTag String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dueOn])
+  @@index([sourceTag])
+}
+
 /// Photo of a paper sheet (weekly update, issue + solution, fault
 /// report) attached to a Monday-anchored week. Jose works on paper;
 /// this keeps the paper trail in the app.

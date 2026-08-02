@@ -30,14 +30,20 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
   clearStandingMark,
+  createMeetingAction,
   createOneOff,
+  deleteMeetingAction,
   deleteOneOff,
+  markMeetingActionDone,
   markOneOffDone,
+  reopenMeetingAction,
   reopenOneOff,
   rescheduleOneOff,
   setStandingMark,
+  updateMeetingAction,
   updateOneOff,
   type CommitmentsBoard,
+  type MeetingActionRow,
   type OneOffRow,
   type StandingCell,
 } from "@/lib/actions/commitments"
@@ -120,6 +126,12 @@ export function CommitmentsDashboard({ board }: { board: CommitmentsBoard }) {
     row?: OneOffRow
   } | null>(null)
   const [reschedule, setReschedule] = useState<OneOffRow | null>(null)
+
+  // Meeting-action dialog
+  const [actionForm, setActionForm] = useState<{
+    mode: "add" | "edit"
+    row?: MeetingActionRow
+  } | null>(null)
 
   const run = (fn: () => Promise<void>) =>
     startTransition(async () => {
@@ -330,6 +342,118 @@ export function CommitmentsDashboard({ board }: { board: CommitmentsBoard }) {
         )}
       </section>
 
+      {/* ── Meeting actions ──────────────────────────────────────── */}
+      <section>
+        <div className="mb-3 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold">Meeting actions</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Actions from the fortnightly sit-downs, grouped per meeting.
+              Same rule: past due and not done goes red.
+            </p>
+          </div>
+          <Button size="sm" onClick={() => setActionForm({ mode: "add" })}>
+            <Plus className="mr-1.5 h-4 w-4" /> Add
+          </Button>
+        </div>
+
+        {board.meetingActions.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+            No meeting actions yet — add them during or straight after the
+            next sit-down.
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {groupBySourceTag(board.meetingActions).map(([tag, actions]) => (
+              <div key={tag}>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {tag}
+                </div>
+                <div className="space-y-2">
+                  {actions.map((a) => (
+                    <div
+                      key={a.id}
+                      className={`rounded-lg border p-4 ${
+                        a.status === "overdue"
+                          ? "border-red-text/40 bg-red-light/40"
+                          : "bg-card"
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {a.status === "overdue" ? (
+                              <Badge variant="red">Overdue</Badge>
+                            ) : a.status === "done" ? (
+                              <Badge variant="green">Done</Badge>
+                            ) : (
+                              <Badge variant="secondary">Open</Badge>
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {a.owner} · agreed {formatDayMonth(a.agreedOn)}
+                            </span>
+                          </div>
+                          <p className="mt-1.5 font-medium">{a.action}</p>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Due {formatDayMonth(a.dueOn)}
+                            {a.doneOn && <> · done {formatDayMonth(a.doneOn)}</>}
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1">
+                          {a.status !== "done" ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={pending}
+                              onClick={() =>
+                                run(() => markMeetingActionDone({ id: a.id }))
+                              }
+                            >
+                              <Check className="mr-1 h-4 w-4" /> Done
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={pending}
+                              onClick={() =>
+                                run(() => reopenMeetingAction({ id: a.id }))
+                              }
+                            >
+                              <RotateCcw className="mr-1 h-4 w-4" /> Reopen
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() =>
+                              setActionForm({ mode: "edit", row: a })
+                            }
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={pending}
+                            onClick={() => {
+                              if (confirm("Delete this action?"))
+                                run(() => deleteMeetingAction({ id: a.id }))
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* ── Paper sheets ─────────────────────────────────────────── */}
       <section>
         <div className="mb-3 flex items-end justify-between gap-4">
@@ -501,8 +625,47 @@ export function CommitmentsDashboard({ board }: { board: CommitmentsBoard }) {
           })
         }
       />
+
+      {/* ── Meeting-action add/edit dialog ───────────────────────── */}
+      <MeetingActionFormDialog
+        state={actionForm}
+        pending={pending}
+        onClose={() => setActionForm(null)}
+        onSave={(values) =>
+          run(async () => {
+            if (actionForm?.mode === "edit" && actionForm.row) {
+              await updateMeetingAction({ id: actionForm.row.id, ...values })
+            } else {
+              await createMeetingAction(values)
+            }
+            setActionForm(null)
+          })
+        }
+        todayYmd={board.todayYmd}
+        defaultTag={defaultMeetingTag(board)}
+      />
     </div>
   )
+}
+
+/** Newest meeting first, actions in stored order inside each group. */
+function groupBySourceTag(
+  actions: MeetingActionRow[]
+): Array<[string, MeetingActionRow[]]> {
+  const groups = new Map<string, MeetingActionRow[]>()
+  for (const a of actions) {
+    groups.set(a.sourceTag, [...(groups.get(a.sourceTag) ?? []), a])
+  }
+  return [...groups.entries()]
+}
+
+/** Prefill for the add dialog: today's tag if that meeting already has
+ *  actions (so mid-meeting entry stays grouped), else a fresh one. */
+function defaultMeetingTag(board: CommitmentsBoard): string {
+  const todays = board.meetingActions.find(
+    (a) => a.agreedOn === board.todayYmd
+  )
+  return todays?.sourceTag ?? `Meeting ${board.todayYmd}`
 }
 
 // ─── One-off form dialog ─────────────────────────────────────────────
@@ -613,6 +776,153 @@ function OneOffFormDialog({
           >
             {pending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
             {state?.mode === "edit" ? "Save changes" : "Add commitment"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Meeting-action form dialog ──────────────────────────────────────
+
+function MeetingActionFormDialog({
+  state,
+  pending,
+  onClose,
+  onSave,
+  todayYmd,
+  defaultTag,
+}: {
+  state: { mode: "add" | "edit"; row?: MeetingActionRow } | null
+  pending: boolean
+  onClose: () => void
+  onSave: (values: {
+    action: string
+    owner: string
+    agreedOn: string
+    dueOn: string
+    sourceTag: string
+  }) => void
+  todayYmd: string
+  defaultTag: string
+}) {
+  const [action, setAction] = useState("")
+  const [owner, setOwner] = useState("Jose")
+  const [agreedOn, setAgreedOn] = useState(todayYmd)
+  const [dueOn, setDueOn] = useState("")
+  const [sourceTag, setSourceTag] = useState(defaultTag)
+
+  const [seenKey, setSeenKey] = useState<string | null>(null)
+  const key = state ? `${state.mode}:${state.row?.id ?? "new"}` : null
+  if (key !== seenKey) {
+    setSeenKey(key)
+    if (state) {
+      setAction(state.row?.action ?? "")
+      setOwner(state.row?.owner ?? "Jose")
+      setAgreedOn(state.row?.agreedOn ?? todayYmd)
+      setDueOn(state.row?.dueOn ?? "")
+      setSourceTag(state.row?.sourceTag ?? defaultTag)
+    }
+  }
+
+  const quickOwners = ["Jose", "Chloe", "Candy"]
+
+  return (
+    <Dialog open={state !== null} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {state?.mode === "edit" ? "Edit meeting action" : "New meeting action"}
+          </DialogTitle>
+          <DialogDescription>
+            The meeting tag keeps one sit-down&apos;s actions together.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="ma-action">Action</Label>
+            <Textarea
+              id="ma-action"
+              value={action}
+              onChange={(e) => setAction(e.target.value)}
+              placeholder="e.g. Trial the new bread supplier for two weeks"
+              className="mt-1.5"
+              rows={2}
+            />
+          </div>
+          <div>
+            <Label htmlFor="ma-owner">Owner</Label>
+            <div className="mt-1.5 flex gap-2">
+              {quickOwners.map((p) => (
+                <Button
+                  key={p}
+                  type="button"
+                  variant={owner === p ? "default" : "outline"}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setOwner(p)}
+                >
+                  {p}
+                </Button>
+              ))}
+            </div>
+            <Input
+              id="ma-owner"
+              value={owner}
+              onChange={(e) => setOwner(e.target.value)}
+              placeholder="Or type another name"
+              className="mt-2"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="ma-agreed">Date agreed</Label>
+              <Input
+                id="ma-agreed"
+                type="date"
+                value={agreedOn}
+                onChange={(e) => setAgreedOn(e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="ma-due">By when</Label>
+              <Input
+                id="ma-due"
+                type="date"
+                value={dueOn}
+                onChange={(e) => setDueOn(e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="ma-tag">Meeting tag</Label>
+            <Input
+              id="ma-tag"
+              value={sourceTag}
+              onChange={(e) => setSourceTag(e.target.value)}
+              placeholder="Meeting 2026-08-02"
+              className="mt-1.5"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            disabled={
+              pending ||
+              !action.trim() ||
+              !owner.trim() ||
+              !sourceTag.trim() ||
+              !agreedOn ||
+              !dueOn
+            }
+            onClick={() =>
+              onSave({ action, owner, agreedOn, dueOn, sourceTag })
+            }
+          >
+            {pending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+            {state?.mode === "edit" ? "Save changes" : "Add action"}
           </Button>
         </DialogFooter>
       </DialogContent>
