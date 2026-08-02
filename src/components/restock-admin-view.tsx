@@ -14,7 +14,7 @@ import {
   type RestockReport,
 } from "@/lib/actions/restock"
 import { STATION_LABEL, STATION_SHORT_LABEL, VENUE_STATIONS } from "@/lib/stations"
-import type { KitchenStation } from "@/generated/prisma"
+import type { KitchenStation } from "@/generated/prisma/client"
 import { Check, Loader2, Plus, Star } from "lucide-react"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"

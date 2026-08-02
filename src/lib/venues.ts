@@ -1,4 +1,4 @@
-import { Venue } from "@/generated/prisma"
+import { Venue } from "@/generated/prisma/client"
 
 /**
  * Human-readable labels for each venue. Use these anywhere a venue

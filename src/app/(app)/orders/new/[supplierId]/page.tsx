@@ -5,7 +5,7 @@ import Link from "next/link"
 import { getSupplierOrderForm } from "@/lib/actions/supplier-order"
 import { SupplierOrderForm } from "@/components/supplier-order-form"
 import { Card, CardContent } from "@/components/ui/card"
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 
 export default async function NewSupplierOrderPage({
   params,

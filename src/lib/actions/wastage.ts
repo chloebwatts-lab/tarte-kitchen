@@ -3,7 +3,7 @@
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import Decimal from "decimal.js"
-import { Venue, WasteReason } from "@/generated/prisma"
+import { Venue, WasteReason } from "@/generated/prisma/client"
 import { SINGLE_VENUES, VENUE_SHORT_LABEL, type SingleVenue } from "@/lib/venues"
 import { buildCanonicalizer } from "@/lib/wastage/canonical"
 

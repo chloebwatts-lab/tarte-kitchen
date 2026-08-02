@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import type { PrepSheet } from "@/lib/actions/prep-sheet"
 import { getPrepSheet } from "@/lib/actions/prep-sheet"
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 import { SINGLE_VENUES, VENUE_SHORT_LABEL } from "@/lib/venues"
 
 type VenueFilter = Venue | "ALL"

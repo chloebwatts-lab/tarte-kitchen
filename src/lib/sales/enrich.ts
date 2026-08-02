@@ -7,7 +7,7 @@
  */
 
 import { db } from "@/lib/db"
-import { Venue } from "@/generated/prisma"
+import { Venue } from "@/generated/prisma/client"
 import Decimal from "decimal.js"
 import Fuse from "fuse.js"
 

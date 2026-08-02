@@ -21,7 +21,7 @@ import {
 } from "@/lib/actions/cogs"
 import { cn } from "@/lib/utils"
 import { VENUE_LABEL, SINGLE_VENUES } from "@/lib/venues"
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 
 type FileType = "mge" | "cogs" | "csv" | "unknown"
 type FileStatus = "parsing" | "parsed" | "saving" | "saved" | "error"

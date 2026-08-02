@@ -1,6 +1,6 @@
 import { getActiveGmailConnection, getValidGmailAccessToken } from "@/lib/gmail/token"
 import { VENUE_SHORT_LABEL } from "@/lib/venues"
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 
 const GMAIL_API = "https://www.googleapis.com/gmail/v1/users/me"
 

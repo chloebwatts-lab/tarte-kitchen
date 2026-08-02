@@ -13,7 +13,7 @@ import {
   type AllergenVerificationRow,
   type AllergenProgress,
 } from "@/lib/actions/allergen-verification"
-import type { Allergen } from "@/generated/prisma"
+import type { Allergen } from "@/generated/prisma/client"
 
 type Filter = "needs-review" | "verified" | "all"
 

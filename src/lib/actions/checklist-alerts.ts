@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
-import { Venue, ChecklistCadence } from "@/generated/prisma"
+import { Venue, ChecklistCadence } from "@/generated/prisma/client"
 
 export interface OverdueRun {
   alertId: string | null

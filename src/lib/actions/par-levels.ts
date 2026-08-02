@@ -16,7 +16,7 @@
  */
 
 import { db } from "@/lib/db"
-import { Venue, ParSource } from "@/generated/prisma"
+import { Venue, ParSource } from "@/generated/prisma/client"
 import { revalidatePath } from "next/cache"
 
 // Local conversion to base units (g / ml / ea). Mirrors the helper in

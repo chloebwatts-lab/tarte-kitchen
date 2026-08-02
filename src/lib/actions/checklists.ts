@@ -7,7 +7,7 @@ import {
   ChecklistCadence,
   ChecklistShift,
   ChecklistRunStatus,
-} from "@/generated/prisma"
+} from "@/generated/prisma/client"
 import Decimal from "decimal.js"
 import { sendFoodSafetyEmail } from "@/lib/gmail/send"
 

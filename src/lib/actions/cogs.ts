@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
-import { Venue } from "@/generated/prisma"
+import { Venue } from "@/generated/prisma/client"
 import { SINGLE_VENUES } from "@/lib/venues"
 import { startOfTarteWeekUtc, weekStartWedIso } from "@/lib/dates"
 import Decimal from "decimal.js"

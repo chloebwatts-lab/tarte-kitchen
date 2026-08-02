@@ -8,7 +8,7 @@ import {
 import { searchMessages, getMessage, getAttachment } from "@/lib/gmail/client"
 import { parseLightspeedPdf, type LightspeedPdfReport } from "@/lib/lightspeed/pdf-parser"
 import { normalizeVenueSlug } from "@/lib/venues"
-import { Venue } from "@/generated/prisma"
+import { Venue } from "@/generated/prisma/client"
 import Decimal from "decimal.js"
 import {
   matchSalesToDishes,

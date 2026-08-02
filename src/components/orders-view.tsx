@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import type { OrderListRow, OrderSuggestion } from "@/lib/actions/orders"
 import { createDraftOrder, suggestOrders } from "@/lib/actions/orders"
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 import { SINGLE_VENUES, VENUE_SHORT_LABEL } from "@/lib/venues"
 
 type VenueFilter = Venue | "ALL"

@@ -1,4 +1,4 @@
-import { KitchenStation, Venue } from "@/generated/prisma"
+import { KitchenStation, Venue } from "@/generated/prisma/client"
 import type { SingleVenue } from "@/lib/venues"
 
 /**

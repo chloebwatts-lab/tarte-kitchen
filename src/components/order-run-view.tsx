@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils"
 import { upsertOrderLine } from "@/lib/actions/order-checklist"
 import { submitOrder } from "@/lib/actions/orders"
 import type { SupplierOrderRow } from "@/lib/actions/order-checklist"
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 import { VENUE_LABEL } from "@/lib/venues"
 
 type SupplierMeta = {

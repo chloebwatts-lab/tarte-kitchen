@@ -5,7 +5,7 @@ import {
   venueFromText,
   defaultVenueForSupplier,
 } from "./venue-from-address"
-import type { InvoiceStatus } from "@/generated/prisma"
+import type { InvoiceStatus } from "@/generated/prisma/client"
 import { evaluatePriceChange, effectiveUnitPrice } from "./units"
 import { streamForCategory } from "@/lib/price-alerts/classifier"
 

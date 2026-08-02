@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import { startChecklistRun } from "@/lib/actions/checklists"
-import { Venue } from "@/generated/prisma"
+import { Venue } from "@/generated/prisma/client"
 
 export default async function StartKitchenRun({
   params,

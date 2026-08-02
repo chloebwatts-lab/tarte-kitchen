@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { Venue } from "@/generated/prisma"
+import { Venue } from "@/generated/prisma/client"
 
 export async function getDailySalesSummaries(
   dateFrom: string,

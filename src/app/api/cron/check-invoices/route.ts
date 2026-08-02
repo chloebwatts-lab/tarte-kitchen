@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic"
 export const maxDuration = 600
 
 import { db } from "@/lib/db"
-import type { InvoiceStatus } from "@/generated/prisma"
+import type { InvoiceStatus } from "@/generated/prisma/client"
 import { getActiveGmailConnection } from "@/lib/gmail/token"
 import { getValidGmailAccessToken } from "@/lib/gmail/token"
 import {

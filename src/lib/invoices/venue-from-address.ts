@@ -1,4 +1,4 @@
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 
 /**
  * Infer the Tarte venue from any customer-side text on an invoice — the

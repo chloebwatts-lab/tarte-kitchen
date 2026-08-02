@@ -9,7 +9,7 @@
  * roles that aren't part of dept-bucket targets.
  */
 
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 
 export type Bucket = "chefsKp" | "fohBarista" | "pastry" | "other"
 

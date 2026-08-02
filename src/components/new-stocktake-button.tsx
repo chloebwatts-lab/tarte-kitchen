@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 import { SINGLE_VENUES, VENUE_SHORT_LABEL } from "@/lib/venues"
 import { cn } from "@/lib/utils"
 

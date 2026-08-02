@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic"
 import { db } from "@/lib/db"
 import { getActiveConnection } from "@/lib/lightspeed/token"
 import { lightspeedClient, groupSalesByItem } from "@/lib/lightspeed/client"
-import { Venue } from "@/generated/prisma"
+import { Venue } from "@/generated/prisma/client"
 import Decimal from "decimal.js"
 import {
   matchSalesToDishes,

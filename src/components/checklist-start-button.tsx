@@ -4,7 +4,7 @@ import { useTransition, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Play } from "lucide-react"
 import { startChecklistRun } from "@/lib/actions/checklists"
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 import { SINGLE_VENUES, VENUE_SHORT_LABEL } from "@/lib/venues"
 import {
   Popover,

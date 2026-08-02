@@ -1,4 +1,4 @@
-import type { PastryBakeTime } from "@/generated/prisma"
+import type { PastryBakeTime } from "@/generated/prisma/client"
 
 export const BAKE_ORDER: PastryBakeTime[] = ["SIX_AM", "NINE_AM", "TWELVE_PM"]
 

@@ -27,7 +27,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import type { WastageAnalytics } from "@/lib/actions/wastage-analytics"
 import { getWastageAnalytics } from "@/lib/actions/wastage-analytics"
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 import { SINGLE_VENUES, VENUE_SHORT_LABEL, VENUE_CHART_COLOR } from "@/lib/venues"
 
 type VenueFilter = Venue | "ALL"

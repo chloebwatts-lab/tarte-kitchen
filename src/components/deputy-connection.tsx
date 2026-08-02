@@ -31,7 +31,7 @@ import {
   type DeputyStatus,
 } from "@/lib/actions/deputy"
 import { VENUE_LABEL, SINGLE_VENUES } from "@/lib/venues"
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 
 interface Props {
   status: DeputyStatus

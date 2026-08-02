@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
-import { CommitmentParty } from "@/generated/prisma"
+import { CommitmentParty } from "@/generated/prisma/client"
 import { AUTO_SOURCES } from "@/lib/commitments/auto"
 import {
   boardWeekStarts,

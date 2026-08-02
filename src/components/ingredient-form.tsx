@@ -29,7 +29,7 @@ import { Separator } from "@/components/ui/separator"
 
 import { createIngredient, updateIngredient } from "@/lib/actions/ingredients"
 import { AllergenPicker } from "@/components/allergen-picker"
-import type { Allergen } from "@/generated/prisma"
+import type { Allergen } from "@/generated/prisma/client"
 
 // ---------------------------------------------------------------------------
 // Types

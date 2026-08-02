@@ -5,7 +5,7 @@
  */
 
 import { db } from "@/lib/db"
-import { Venue, ChecklistCadence } from "@/generated/prisma"
+import { Venue, ChecklistCadence } from "@/generated/prisma/client"
 import { addDays, todayAest, ymd } from "./weeks"
 
 export interface AutoMark {

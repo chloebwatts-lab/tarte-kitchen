@@ -20,7 +20,7 @@ import type {
   CurrentWeekSpendSnapshot,
   BucketSpendData,
 } from "@/lib/spend/types"
-import { Venue } from "@/generated/prisma"
+import { Venue } from "@/generated/prisma/client"
 
 const fmt = (n: number | null | undefined) =>
   n == null

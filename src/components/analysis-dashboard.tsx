@@ -22,7 +22,7 @@ import {
 } from "recharts"
 import type { AnalysisData } from "@/lib/actions/analysis"
 import { getAnalysisData } from "@/lib/actions/analysis"
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 import {
   SINGLE_VENUES,
   VENUE_LABEL,

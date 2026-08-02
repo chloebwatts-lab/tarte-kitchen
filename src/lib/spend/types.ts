@@ -4,7 +4,7 @@
  * "use server" files to export only async functions.
  */
 
-import { Venue } from "@/generated/prisma"
+import { Venue } from "@/generated/prisma/client"
 
 // Two reporting buckets: Burleigh (its own venue) and Currumbin
 // (BEACH_HOUSE + TEA_GARDEN combined for COGS).

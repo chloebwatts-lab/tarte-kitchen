@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
-import type { Allergen } from "@/generated/prisma"
+import type { Allergen } from "@/generated/prisma/client"
 
 // The tarte-inbox email agent (separate repo, same Postgres) assesses
 // ingredient allergens so it can answer customer dietary emails. Its

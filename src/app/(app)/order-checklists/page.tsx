@@ -14,7 +14,7 @@ import {
   type SupplierOrderCard,
 } from "@/lib/actions/order-checklist"
 import { SINGLE_VENUES, VENUE_SHORT_LABEL } from "@/lib/venues"
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 
 const DAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"]
 

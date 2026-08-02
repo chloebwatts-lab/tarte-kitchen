@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils"
 import { VENUE_SHORT_LABEL } from "@/lib/venues"
 import type { ChecklistRunDetail } from "@/lib/actions/checklists"
 import { tickChecklistItem, forceCompleteRun } from "@/lib/actions/checklists"
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 import { ChecklistPhotoUpload } from "@/components/checklist-photo-upload"
 
 export function ChecklistRunView({

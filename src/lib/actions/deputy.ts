@@ -4,7 +4,7 @@ import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { listOpUnits, syncDeputyAll } from "@/lib/deputy/client"
 import { encrypt } from "@/lib/encryption"
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 
 export interface DeputyStatus {
   connected: boolean

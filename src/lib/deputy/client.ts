@@ -1,6 +1,6 @@
 import { db } from "@/lib/db"
 import { decrypt, encrypt } from "@/lib/encryption"
-import { Venue } from "@/generated/prisma"
+import { Venue } from "@/generated/prisma/client"
 import Decimal from "decimal.js"
 
 /**

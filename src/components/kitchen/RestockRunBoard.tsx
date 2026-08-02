@@ -10,7 +10,7 @@ import {
   type RunStationLine,
 } from "@/lib/actions/restock"
 import { STATION_SHORT_LABEL } from "@/lib/stations"
-import type { KitchenStation } from "@/generated/prisma"
+import type { KitchenStation } from "@/generated/prisma/client"
 
 type StationFilter = KitchenStation | "ALL"
 

@@ -24,7 +24,7 @@ import type {
   MenuQuadrant,
 } from "@/lib/actions/menu-engineering"
 import { getMenuEngineeringData } from "@/lib/actions/menu-engineering"
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 import {
   SINGLE_VENUES,
   VENUE_LABEL,

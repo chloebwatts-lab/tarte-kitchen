@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
-import { Venue } from "@/generated/prisma"
+import { Venue } from "@/generated/prisma/client"
 
 export interface CoolingLogRecord {
   id: string

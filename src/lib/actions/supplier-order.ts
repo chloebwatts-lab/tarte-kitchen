@@ -17,7 +17,7 @@
  */
 
 import { db } from "@/lib/db"
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 
 export type SupplierOrderLine = {
   approvedItemId: string

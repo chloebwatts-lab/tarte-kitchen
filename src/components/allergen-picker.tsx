@@ -2,7 +2,7 @@
 
 import { useMemo } from "react"
 import { cn } from "@/lib/utils"
-import type { Allergen } from "@/generated/prisma"
+import type { Allergen } from "@/generated/prisma/client"
 
 export const ALLERGEN_OPTIONS: { value: Allergen; label: string; emoji: string }[] = [
   { value: "MILK", label: "Milk", emoji: "🥛" },

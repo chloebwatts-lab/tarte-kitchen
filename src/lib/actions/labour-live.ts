@@ -10,7 +10,7 @@ import {
   type Bucket,
   type BucketTarget,
 } from "@/lib/labour/buckets"
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 
 export interface LiveBucketRow {
   key: Bucket

@@ -6,7 +6,7 @@ import {
   KitchenStation,
   RestockSheetStatus,
   Venue,
-} from "@/generated/prisma"
+} from "@/generated/prisma/client"
 import { stationsForVenue } from "@/lib/stations"
 
 // ------------------------------------------------------------------

@@ -16,7 +16,7 @@
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import Decimal from "decimal.js"
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 import { SINGLE_VENUES } from "@/lib/venues"
 
 // ---------- Date helpers ----------

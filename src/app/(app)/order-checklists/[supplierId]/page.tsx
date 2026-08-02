@@ -8,7 +8,7 @@ import {
   getOrderRunRows,
 } from "@/lib/actions/order-checklist"
 import { OrderRunView } from "@/components/order-run-view"
-import type { Venue } from "@/generated/prisma"
+import type { Venue } from "@/generated/prisma/client"
 
 export default async function OrderRunPage({
   params,

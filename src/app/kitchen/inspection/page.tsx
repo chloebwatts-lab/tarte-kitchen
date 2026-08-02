@@ -15,7 +15,7 @@ import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { InspectionPrintButton } from "@/components/kitchen/InspectionPrintButton"
 import { InspectionChecklistCard } from "@/components/kitchen/InspectionChecklistCard"
 import { VENUE_LABEL, SINGLE_VENUES } from "@/lib/venues"
-import { Venue } from "@/generated/prisma"
+import { Venue } from "@/generated/prisma/client"
 
 type SingleVenue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
 type VenueFilter = SingleVenue | "ALL"

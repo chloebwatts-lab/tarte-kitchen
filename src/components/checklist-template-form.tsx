@@ -10,7 +10,7 @@ import type {
   Venue,
   ChecklistCadence,
   ChecklistShift,
-} from "@/generated/prisma"
+} from "@/generated/prisma/client"
 import { SINGLE_VENUES, VENUE_SHORT_LABEL } from "@/lib/venues"
 
 interface LocalItem {

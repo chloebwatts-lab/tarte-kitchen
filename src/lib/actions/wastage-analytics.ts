@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { Venue, WasteReason } from "@/generated/prisma"
+import { Venue, WasteReason } from "@/generated/prisma/client"
 import { SINGLE_VENUES } from "@/lib/venues"
 import { buildCanonicalizer } from "@/lib/wastage/canonical"
 

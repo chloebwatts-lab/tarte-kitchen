@@ -12,7 +12,7 @@ import {
   type PastryProductRecord,
 } from "@/lib/actions/pastry-rotation"
 import { BAKE_ORDER, BAKE_LABEL } from "@/lib/pastry-rotation-constants"
-import type { PastryBakeTime } from "@/generated/prisma"
+import type { PastryBakeTime } from "@/generated/prisma/client"
 
 function shiftDate(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00.000Z`)
