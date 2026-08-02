@@ -1971,3 +1971,89 @@ model MaintenanceIssueEvent {
 
   @@index([issueId])
 }
+
+// ============================================================
+// HEAD-CHEF COMMITMENTS — digitised "Said + Done" sheet from the
+// Jose/Candy kitchen reset meeting (July 2026)
+// ============================================================
+
+enum CommitmentParty {
+  JOSE
+  CHLOE
+  CANDY
+}
+
+/// A standing weekly commitment ("Roster posted 3 weeks ahead"). One
+/// Y/N mark per Monday-anchored week (same cycle convention as weekly
+/// checklist runs).
+model StandingCommitment {
+  id          String  @id @default(cuid())
+  /// Stable key so the seeded defaults can be upserted by code.
+  slug        String  @unique
+  title       String
+  description String?
+  sortOrder   Int     @default(0)
+  /// Auto-fill source: "checklists" derives the week's Y/N from checklist
+  /// completion data; "shifts-roster" is a hook for the Tarte Shifts app
+  /// (not wired yet). Null = manual tick only. A manual mark always
+  /// overrides the auto value.
+  autoSource  String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  marks StandingCommitmentMark[]
+}
+
+model StandingCommitmentMark {
+  id           String             @id @default(cuid())
+  commitmentId String
+  commitment   StandingCommitment @relation(fields: [commitmentId], references: [id], onDelete: Cascade)
+  /// Monday (AEST) anchoring the week the mark covers.
+  weekStart    DateTime           @db.Date
+  met          Boolean
+  note         String?
+  markedBy     String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@unique([commitmentId, weekStart])
+  @@index([weekStart])
+}
+
+/// A one-off promise with a firm due date. Status is derived, not
+/// stored: done when doneOn is set, overdue when the effective due date
+/// (newDueOn if rescheduled, else dueOn) is in the past, else open.
+model OneOffCommitment {
+  id       String          @id @default(cuid())
+  promise  String
+  saidBy   CommitmentParty
+  agreedOn DateTime        @db.Date
+  dueOn    DateTime        @db.Date
+  doneOn   DateTime?       @db.Date
+  /// Set together with missedReason when the original date was missed
+  /// and a new one agreed.
+  newDueOn     DateTime? @db.Date
+  missedReason String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([dueOn])
+}
+
+/// Photo of a paper sheet (weekly update, issue + solution, fault
+/// report) attached to a Monday-anchored week. Jose works on paper;
+/// this keeps the paper trail in the app.
+model CommitmentWeekPhoto {
+  id         String   @id @default(cuid())
+  weekStart  DateTime @db.Date
+  /// weekly-update | issue-solution | fault-report | other
+  kind       String   @default("other")
+  url        String
+  publicId   String
+  caption    String?
+  uploadedBy String?
+  uploadedAt DateTime @default(now())
+
+  @@index([weekStart])
+}

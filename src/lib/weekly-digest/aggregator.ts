@@ -17,6 +17,10 @@ import { db } from "@/lib/db"
 import { Venue, ReviewSentiment } from "@/generated/prisma/enums"
 import { lastCompletedTarteWeek } from "@/lib/dates"
 import { TG_PASTRY_REVENUE_SHARE } from "@/lib/labour/buckets"
+import {
+  buildCommitmentsSection,
+  type CommitmentsSection,
+} from "@/lib/commitments/digest"
 
 const SINGLE_VENUES: Venue[] = [
   Venue.BURLEIGH,
@@ -67,6 +71,10 @@ export interface WeeklyDigestSnapshot {
   /// left in the cap. Distinct from `cogs` (which is the just-closed
   /// week's xlsx-sourced actuals).
   spendPacing: SpendPacingSection
+  /// Said + Done tracker: overdue one-off promises plus standing
+  /// commitments missed 2+ weeks running (Mon-anchored weeks, unlike
+  /// the trading-week sections above).
+  commitments: CommitmentsSection
 }
 
 interface SpendPacingSection {
@@ -1064,7 +1072,7 @@ export async function buildWeeklyDigestSnapshot(
   now = new Date()
 ): Promise<WeeklyDigestSnapshot> {
   const week = lastCompletedTarteWeek(now)
-  const [reviews, priceSpikes, wastage, cogs, labour, topSellers, sales, operations, spendPacing] =
+  const [reviews, priceSpikes, wastage, cogs, labour, topSellers, sales, operations, spendPacing, commitments] =
     await Promise.all([
       buildReviewsSection(week),
       buildPriceSpikes(week),
@@ -1075,6 +1083,7 @@ export async function buildWeeklyDigestSnapshot(
       buildSales(week),
       buildOperations(week),
       buildSpendPacing(),
+      buildCommitmentsSection(),
     ])
 
   return {
@@ -1093,6 +1102,7 @@ export async function buildWeeklyDigestSnapshot(
     sales,
     operations,
     spendPacing,
+    commitments,
   }
 }
 
