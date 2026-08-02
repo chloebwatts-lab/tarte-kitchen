@@ -1,0 +1,11 @@
+{
+  "_comment": "Overlay for the printed allergen matrix, from the kitchen's handwritten review of the 24 Jun 2026 print (applied 15 Jul 2026). reviewCells render as '?' = under kitchen review, treat as PRESENT until confirmed; they are chef-flagged but not yet backed by a verified ingredient/label. extraOtherNotes are chef-stated intolerance notes the recipe data cannot derive yet. Remove entries once the underlying ingredient data is fixed.",
+  "reviewCells": {},
+  "extraOtherNotes": {
+    "Garden Tartine": ["barley (chef)"],
+    "Sausage Roll": ["barley (chef)"],
+    "Avo Toast": ["garlic (chef)"],
+    "Crab Linguine": ["onion (chef)"],
+    "OG Burrito": ["onion (chef)"]
+  }
+}

@@ -27,6 +27,14 @@
     {
       "path": "/api/cron/pull-louise-reports",
       "schedule": "0 21 * * 3"
+    },
+    {
+      "path": "/api/cron/compute-price-alerts",
+      "schedule": "30 19 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-spend-email",
+      "schedule": "0 7 * * 0"
     }
   ]
 }

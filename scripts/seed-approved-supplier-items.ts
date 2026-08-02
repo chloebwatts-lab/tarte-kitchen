@@ -2,8 +2,8 @@
  * Seed `ApprovedSupplierItem` rows from `scripts/order-forms.json`.
  *
  * Idempotent: uses `(supplierId, name)` unique constraint so re-running
- * updates existing rows rather than creating duplicates. Items in the JSON
- * marked inactive aren't supported yet — everything seeded is active.
+ * updates existing rows rather than creating duplicates. The per-item
+ * `active` flag from the JSON is carried through (missing = active).
  *
  * Usage (locally with prod DATABASE_URL set, or on the prod droplet):
  *   npx tsx scripts/seed-approved-supplier-items.ts
@@ -22,6 +22,7 @@ type FormItem = {
   unitPrice: number | null
   unit: string
   notes?: string
+  active?: boolean
 }
 type Form = { supplier: string; items: FormItem[] }
 type FormsFile = { forms: Form[] }
@@ -57,7 +58,7 @@ async function main() {
         unit: it.unit || null,
         category: it.category || null,
         notes: it.notes || null,
-        active: true,
+        active: it.active !== false,
         sortOrder: idx,
       }
       const existing = await db.approvedSupplierItem.findUnique({

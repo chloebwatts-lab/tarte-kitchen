@@ -1,0 +1,683 @@
+id,name,supplierId,purchaseUnit,purchaseQuantity,purchasePrice,baseUnitsPerPurchase
+cmn8ccc3w000i16qzeotft8dp,Agave Syrup Senor Maguey Organic,cmn8ccc0y000016qz9zc0gwqx,ml,750,72,750
+cmn8ccc4d000k16qzrpz9ktep,Alfalfa,cmn8ccc1m000116qzkqgy4t8r,g,500,5.85,500
+cmn8ccc5x000n16qz8ozpnj2a,Almond Milk - UHT Barista,cmn8ccc0y000016qz9zc0gwqx,l,1,3.05,1000
+cmn8ccc84000s16qz0hy810gv,American Burger cheese,cmn8ccc0y000016qz9zc0gwqx,kg,2.27,31.43,2270
+cmn8ccchi001g16qzwmxu3fge,Bagel Seasoning,cmn8ccc26000616qzbasks9f9,g,500,15,500
+cmn8cccto002h16qz4z16fm19,Bread - Crusty Gluten Free,cmn8ccc26000616qzbasks9f9,piece,1,11,1
+cmn8cccui002k16qzik8t060p,Bread improver,,g,500,4.07,500
+cmn8cccv0002n16qzbjn7r5q9,Brioche bun,,piece,1,1.25,1
+cmn8ccd0o003316qzrn89qbnr,"Butter Sheet, Tourage french",cmn8ccc2n000b16qz7h9bdkwv,g,1000,18,1000
+cmn8ccdgr004j16qziuprmu6p,Chocolate Dark Calypso Compound Nestle,cmn8ccc0y000016qz9zc0gwqx,g,5000,72.88,5000
+cmn8ccdhd004l16qz1wb6lr82,Chocolate Patissier Milk Choc 34.6%,cmn8ccc2h000916qzeaya7p0r,kg,10,219.25,10000
+cmn8ccdhn004m16qz2mf00twh,Chocolate Sorbet,,kg,5,44,5000
+cmn8ccdoi005o16qz5x9431ny,Creme Fraiche Provedores,cmn8ccc1z000416qz479l8oix,g,500,9.99,500
+cmn8ccdp1005u16qz9g3m3hje,Curry Powder,cmn8ccc0y000016qz9zc0gwqx,kg,1,12.01,1000
+cmn8ccdq1006016qzoj9vs8l7,Dijon Mustard Tarte,cmn8ccc1w000316qzfw8hu7vj,kg,1,9.95,1000
+cmn8ccdqo006316qz0cgx9r5u,Distilled vinegar,,l,20,16.5,20000
+cmn8ccdxg007i16qz2uy4hc3i,Glucose Syrup,cmn8ccc0y000016qz9zc0gwqx,l,0.5,4.74,500
+cmn8ccdxn007j16qznl36v0o4,Goat - marinated,cmn8ccc1z000416qz479l8oix,g,2000,60.65,2000
+cmn8ccdxw007l16qzrqlq9baa,Gochujang Paste,cmn8ccc0y000016qz9zc0gwqx,kg,3,28.46,3000
+cmn8cce8i00a716qzuulqx3a4,Milo,cmn8ccc0y000016qz9zc0gwqx,g,1900,32.59,1900
+cmn8cce38008w16qzq4e2wkmn,Ketjap Manis (sweet Soy),cmn8ccc0y000016qz9zc0gwqx,ml,620,5.46,620
+cmn8cce4b009616qzmwnpe09j,Lemon Compound,cmn8ccc2n000b16qz7h9bdkwv,kg,1,66,1000
+cmn8cce4l009816qziv1pk29j,Lemon juice - Bottled,cmn8ccc1q000216qz6riuv60h,ml,1000,9.7,1000
+cmn8cce9b00ad16qz17m1utx1,Mortadella,,kg,1,22,1000
+cmn8cce9t00ag16qzd8jk48sh,Muesli Tarte,cmn8ccc26000616qzbasks9f9,kg,1,9,1000
+cmn8cce9w00ah16qzs2wj2rvi,Muscatel grapes,,kg,4,124.8,4000
+cmn8ccead00an16qzgh0fpru4,Natural yogurt - coconut dairy free,cmn8ccc0y000016qz9zc0gwqx,kg,1,10.89,1000
+cmn8cceaq00as16qzmmkakdsb,Oat Milk - UHT Barista,cmn8ccc0y000016qz9zc0gwqx,l,12,36.6,12000
+cmn8cce7n009y16qz4xn3bnkv,Marjoram,,bunch,1,2.4,1
+cmn8ccegk00c216qzokzl86xk,Peppermint I/C,,kg,5,49.5,5000
+cmn8ccepf00dt16qzt1akg2l5,Rolled oats,cmn8ccc0y000016qz9zc0gwqx,kg,15,62.55,15000
+cmn8cceq200dy16qzwt88820y,Rye Bread,cmn8ccc26000616qzbasks9f9,piece,1,10,1
+cmn8cceyy00f916qzqazux2qq,Sourdough - Grain Sliced,cmn8ccc2y000f16qzb2p6ybyz,g,1200,10.9,1200
+cmn8ccf0800fj16qzufnf0mri,Spring mix,cmn8ccc30000g16qz0bc2yb81,kg,7.7,132.69,7700
+cmn8ccf0s00fm16qzrdsfv724,Sriracha sauce,cmn8ccc0y000016qz9zc0gwqx,g,740,9.8,740
+cmn8ccf3g00g916qz6gpnaagc,tapenade,cmn8ccc23000516qzea7eibtf,g,2250,27.3,2250
+cmn8ccf7000h116qzzkon5bb1,Vanilla bean paste,cmn8ccc0y000016qz9zc0gwqx,g,320,14.06,320
+cmn8ccf7300h216qzwcq7nfwn,Vanilla I/C,,kg,5,44,5000
+cmn8ccf7500h316qzcibsobqu,Vanilla paste,,g,320,27.8,320
+cmn8ccf7g00h716qzb94onjnt,Vegetable Stock - Real Campbells,cmn8ccc0y000016qz9zc0gwqx,l,1,4.11,1000
+cmn8ccf7i00h816qzqdkbxezg,Veilche Cocoa Powder,cmn8ccc2h000916qzeaya7p0r,kg,1,22.2,1000
+cmn8ccf7k00h916qz6nh38k3f,Veliche Belgian White Choc,cmn8ccc2h000916qzeaya7p0r,kg,50,92,50000
+cmimp0019d2eb389620005,Bread Crisps,,piece,1,0.5,1
+cmn8ccdgg004i16qzbw3l0604,Chocolate Buttons White Nestle,cmn8ccc0y000016qz9zc0gwqx,bag,1,61.13,1000
+cmn8ccf3000g516qz8bqxucoc,Tabasco,,btl,1,6.9,150
+cmn8cccd0001416qz2ubpok9k,Baby Carrot,,bunch,1,2.95,1
+cmn8ccceg001716qzrqkq6whw,Baby golden beetroot,,bunch,1,4.5,1
+cmn8ccceq001816qzyjvmq9wv,Baby purple carrot,,bunch,1,4.25,1
+cmn8cccfk001b16qzydfkdojz,Baby target beetroot,,bunch,1,4.5,1
+cmn8cccfw001c16qzvmdeo7ya,Baby yellow carrot,,bunch,1,4.25,1
+cmn8ccchy001h16qzd99l3yk2,Bakers Flour Euro Type 55,cmn8ccc26000616qzbasks9f9,bag,1,15,25000
+cmn8cccr0002616qz7wr4qy4j,Bicarbonate,,bag,1,4.2,500
+cmn8cccwy002s16qz3cnc5zjn,Bronze fennel,,punnet,1,8.95,1
+cmn8cccxa002t16qz2fj8z59j,Bronze fennel - Tarte,cmn8ccc1q000216qz6riuv60h,bunch,1,8.1,1
+cmn8ccd2f003916qz4i5ptjoi,Canola spray,,btl,1,3.85,1
+cmn8ccdh1004k16qzk2z4pxti,Chocolate Lindt Piccoli White 2.5kg,cmn8ccc0y000016qz9zc0gwqx,bag,1,89.9,1
+cmn8ccejm00cr16qzryosk1xi,Potato Diced Bag,cmn8ccc1m000116qzkqgy4t8r,bag,1,20.5,1
+cmn8ccf2n00g216qz8x570w6b,Sweet potato fries,,bag,1,6.3,1
+ing_flan_gel_01,Flan Gel Neutral Fruit Glaze,,kg,6,69.19,6000
+ing_ebt_tea_01,EBT Tea Bag,,g,375,18.25,375
+cmn8cce6h009k16qzyytgyu9g,Lime Leaf,cmn8ccc1m000116qzkqgy4t8r,bag,1,10.95,1
+ing_milk_capo_brown,Milk - Capo Brown,,l,2,3.57,2000
+cmn8cccmj001r16qzyyrzy9il,Bay leaves dry,,bag,1,4.5,1
+cmn8cccrj002816qz0ap6g252,Black pepper corn,cmn8ccc0y000016qz9zc0gwqx,bag,1,25.49,1
+cmn8cccrt002916qz50nmrlz0,Black pepper ground,cmn8ccc0y000016qz9zc0gwqx,bag,1,20.49,1
+cmn8cccs8002a16qzghwvjrwi,Black rice,,bag,1,58,1
+cmn8ccct1002e16qznfr3c3cv,Blueberry,cmn8ccc1m000116qzkqgy4t8r,punnet,1,5.5,125
+cmn8ccd17003516qzxrppm5v2,Button mushroom,,kg,1,34,1000
+cmn8ccdij004t16qzdmytg9vp,Cocoa nibs,,bag,1,28.31,1
+cmn8ccdsq006h16qzf0uc2n52,Eshallotts,cmn8ccc1m000116qzkqgy4t8r,bunch,1,2.4,1
+ing_milk_lactose_free,Milk - Lactose Free,,l,2,4.49,2000
+cmn8cce9z00ai16qz3t4t5iue,Mushroom - Enoki,cmn8ccc1m000116qzkqgy4t8r,punnet,1,2.7,1
+cmn8ccebm00b216qz8sp7y9ri,Onion - Red,cmn8ccc1m000116qzkqgy4t8r,kg,1,3.36,1000
+cmn8ccem300d516qzty7wi3ix,Radish,cmn8ccc1m000116qzkqgy4t8r,bag,1,2,1
+ing_stone_wood,Stone and Wood Pacific Ale,sup_burleigh_drinks_01,btl,1,3.45,330
+ing_great_northern,Great Northern SC,sup_burleigh_drinks_01,btl,1,2.09,330
+ing_corona,Corona,sup_burleigh_drinks_01,btl,1,3.18,355
+ing_chimi_bought_01,Chimichurri - Bought In,,piece,1,65,2200
+ing_garnish_marg_01,Garnish - Margarita (Salt Rim + Lime Wedge),,piece,1,0.4,1
+cmo3jnmrj000001qvwezmz9t2,Golden Syrup,cmn8ccc0y000016qz9zc0gwqx,kg,1,5.63,1000
+cmn8cce48009516qz3g94a1yo,Lemon,cmn8ccc1m000116qzkqgy4t8r,case,1,56.5,75
+cmn8ccea100aj16qz2u8q5m1r,Mushroom - King Brown,cmn8ccc1m000116qzkqgy4t8r,l,1,5.45,400
+cmn8ccea500ak16qz85w32ndx,Mushroom - Swiss Button,cmn8ccc1m000116qzkqgy4t8r,kg,1,41.65,3000
+cmimp43f06482c1dda4b9b77,Thai Basil,cmn8ccc1q000216qz6riuv60h,bunch,1,4.85,1
+cmo5kambf000101qrq4iimyed,Sourdough - Grain 850g,cmn8ccc2y000f16qzb2p6ybyz,piece,1,7.2,1
+cmo5kcqst000201qrdyspgksn,Sourdough - Fruit 1000g,cmn8ccc2y000f16qzb2p6ybyz,piece,1,8.6,1
+cmo5a8raz000001qtnoy0saz1,IRCA Chococream Pistachio 15%,cmn8ccc2h000916qzeaya7p0r,kg,1,127.5,5000
+cmimp0019d2eb389620002,Roti Canai Bread,,piece,1,20,30
+cmowhtsbf000116p04g59t3br,Kecap manis,cmn8ccc0y000016qz9zc0gwqx,kg,6,26.08,6000
+cmn8cce0b008216qzlo9exici,Ham Ezi Carve Bulb,cmn8ccc1z000416qz479l8oix,g,1000,15.2,1000
+ing_acai_amazonia_01,Acai Mix Scoopable - Amazonia,cmn8ccc0y000016qz9zc0gwqx,kg,10,105.5424,10000
+ing_choc_powder_01,Chocolate Powder,,kg,1,19.9,1000
+cmn8ccd57003h16qzyhvpriny,Cashew nuts raw,cmn8ccc0y000016qz9zc0gwqx,kg,1,20.16,1000
+cmn8ccdk5005216qz0ryvd28g,Condensed Milk Sweetened,cmn8ccc0y000016qz9zc0gwqx,g,395,3.4464,395
+cmn8ccdn8005h16qzs4klfqy9,Crab Meat - Spanner,cmn8ccc0y000016qz9zc0gwqx,g,500,51.4368,500
+cmn8cce78009t16qz827al938,Mango - Diced Chunks IQF,cmn8ccc0y000016qz9zc0gwqx,kg,1,6.9504,1000
+cmn8cce7b009u16qz0kpezq8y,Mango puree (frozen),cmn8ccc0y000016qz9zc0gwqx,g,1000,6.624,1000
+cmn8ccct8002f16qzq0uvxk5u,Bonsoy,cmn8ccc0y000016qz9zc0gwqx,l,1,3.54,1000
+cmn8cccir001j16qzey7j13m7,Baking powder,cmn8ccc0y000016qz9zc0gwqx,kg,2,14.2,2000
+cmn8ccclf001p16qz9t1vz8ns,Basil Pesto,cmn8ccc0y000016qz9zc0gwqx,g,2000,27.16,2000
+cmn8cccog001y16qztv2r68ab,Beef pattie,,kg,1,13.5,1000
+cmn8cccgz001f16qzu0k0bce2,Bagel (everything),cmn8ccc23000516qzea7eibtf,piece,1,0.12,1
+cmn8cccsg002b16qzik5gqzzq,Blackberry Tarte,cmn8ccc1q000216qz6riuv60h,kg,1,36.5,1000
+cmn8ccctg002g16qz3mns6yns,Bourbon Vanilla Paste,cmn8ccc2h000916qzeaya7p0r,g,1000,90.8,1000
+cmn8ccc3d000h16qz95x67oaz,Agar Agar,cmn8ccc0y000016qz9zc0gwqx,g,25,2.74,25
+cmn8ccc46000j16qz60l0s9jv,Aged cheddar red,cmn8ccc0y000016qz9zc0gwqx,g,2000,52,2000
+cmn8ccc4q000l16qz9ebrgiwf,Almond meal,cmn8ccc0y000016qz9zc0gwqx,kg,1,16.12,1000
+cmn8ccc52000m16qzs39gnysa,Almond milk,cmn8ccc0y000016qz9zc0gwqx,l,1,2.65,1000
+cmn8ccc6e000o16qztldgl0co,Almond silvered,,g,750,18.9,750
+cmn8ccc7e000q16qzxfpadat8,Almonds (blanched),cmn8ccc0y000016qz9zc0gwqx,g,1000,17.8,1000
+cmn8ccc7r000r16qzsi3wl5r7,Almonds Flaked,cmn8ccc0y000016qz9zc0gwqx,g,1000,17.93,1000
+cmn8ccc95000v16qz4ji0434g,Apple cider vinegar,cmn8ccc0y000016qz9zc0gwqx,l,2,10.79,2000
+cmn8ccc9n000w16qzudz3amp9,Apple cider vinegar 500ml,cmn8ccc0y000016qz9zc0gwqx,ml,500,5.28,500
+cmn8ccc9z000x16qzagm5io52,Apricot,,kg,1,13.35,1000
+cmn8cccb7001016qzfxi0v3t7,Avocado,cmn8ccc1m000116qzkqgy4t8r,piece,1,1.62,1
+cmn8cccbm001116qzsn6xqsq2,Avocado Hass WA,cmn8ccc1m000116qzkqgy4t8r,tray,1,30,18
+cmn8cccc5001216qzb3i701xb,Baby - Cucumbers (Qukes),cmn8ccc1q000216qz6riuv60h,kg,1,15.6,1000
+cmn8ccccg001316qze4vtqjyl,Baby Capers,cmn8ccc0y000016qz9zc0gwqx,g,2000,18.05,2000
+cmn8cccdu001616qzri0m6d5a,Baby fennel,,piece,1,2.75,1
+cmn8cccfd001a16qzjaja1npa,Baby spinash,,kg,1,12.55,1000
+cmn8cccg7001d16qzg286apay,Bacon Streaky,cmn8ccc1w000316qzfw8hu7vj,kg,5,80.5,5000
+cmn8cccgm001e16qzve6vs21e,Bacon Streaky English D/Smoked,cmn8ccc1z000416qz479l8oix,kg,1,15.5,1000
+cmn8cccia001i16qznwdkzwtn,Bakers Flour Superb,cmn8ccc0y000016qz9zc0gwqx,bag,1,17.82,25000
+cmn8cccj3001k16qzxt53lqvs,Balsamic vinegar,,l,5,14.6,5000
+cmn8cccjk001l16qzl0qqumec,Banana,,kg,1,4.25,1000
+cmn8ccckl001n16qz7qcqzbzj,Barramundi portion Skin on,cmn8ccc29000716qz749iyk4u,kg,1,40.43,1000
+cmn8ccclz001q16qz956pk73h,Bay Leaves,cmn8ccc0y000016qz9zc0gwqx,g,100,3.76,100
+cmn8cccmw001t16qz8syvvooc,Beef Brisket - Wagyu,cmn8ccc2d000816qzwz65vnwn,kg,1,26,1000
+cmn8ccco1001x16qz7hjf7hz7,Beef Mince - burger,cmn8ccc2d000816qzwz65vnwn,g,1000,19,1000
+cmn8cccn2001u16qzx7y6ba8j,Beef cube roll,,kg,1,33.9,1000
+cmn8cccno001w16qzoi6dnwah,Beef mince,cmn8ccc2d000816qzwz65vnwn,kg,1,12,1000
+cmn8cccqc002416qzat9n55ag,Beer,,l,1,3.5,1000
+cmn8cccqn002516qz14bnkc8e,Beetroot - Large,cmn8ccc1m000116qzkqgy4t8r,kg,1,2,1000
+cmn8cccr7002716qzqe5s19nv,Biscuits Arrowroot,cmn8ccc0y000016qz9zc0gwqx,g,250,2.38,250
+cmn8cccsm002c16qzdmavkcmt,Blue eye fillet,,kg,1,31.9,1000
+cmn8cccst002d16qzor3cadbm,Blueberries IQF Frozen,cmn8ccc0y000016qz9zc0gwqx,g,1000,8.93,1000
+cmn8cccl2001o16qzmqxzk1q0,Basil,cmn8ccc1m000116qzkqgy4t8r,bunch,1,4.15,1
+cmn8ccd25003816qzvonelm14,Canola oil cooking spray,cmn8ccc0y000016qz9zc0gwqx,g,400,4.96,400
+cmn8ccd49003e16qzg89g0j5m,Caramelised balsamic,cmn8ccc1w000316qzfw8hu7vj,ml,750,19,750
+cmn8ccd4m003f16qzxk69mql7,Cardamome pods,,bag,1,25,100
+cmn8ccd0e003216qzlwuwq7bo,Butter Puff Roll - Careme,cmn8ccc26000616qzbasks9f9,g,5000,69,5000
+cmn8ccdak003w16qz57bgmlum,Cheese - Slices Burger Hi Melt,cmn8ccc0y000016qz9zc0gwqx,g,2270,26.6784,2270
+cmn8ccdbc003z16qz16qtz4u0,Cheese Red Leighster Slice 1.5,cmn8ccc1z000416qz479l8oix,g,1000,28.9,1000
+cmn8ccdc2004116qzgvfizt1g,Cheese Slices Swiss,cmn8ccc0y000016qz9zc0gwqx,g,1000,23.82,1000
+cmn8cccz0002x16qz45zzq4lt,Buffalo ricotta,cmn8ccc2k000a16qzvko4fkbp,kg,1.5,20,1500
+cmn8ccdat003x16qzsoza7ull,Cheese mix (2 mix),cmn8ccc0y000016qz9zc0gwqx,g,2000,28.19,2000
+cmn8cccor001z16qzebvgtgas,Beef Prime Striploin Mb3+,cmn8ccc2d000816qzwz65vnwn,g,1000,33,1000
+cmn8cccp2002016qz62lo5jye,Beef rib eye on the bone,,kg,1,35,1000
+cmn8cccpg002116qz0n2n86tm,Beef rump,,kg,1,24.9,1000
+cmn8cccpv002216qz8jjosvte,Beef silverside,,kg,1,11.5,1000
+cmn8cccq2002316qz9ackse2y,Beef skirt steak,,kg,1,16.5,1000
+cmn8ccctz002i16qz5r61c9be,Bread - Hotdogs,cmn8ccc26000616qzbasks9f9,piece,1,1.2,1
+cmn8cccua002j16qzsyqlsd26,Bread - Large Bun,cmn8ccc26000616qzbasks9f9,piece,1,1.1,1
+cmn8cccuo002l16qzs35sj1v0,Breakfast radish,,bunch,1,4.65,1
+cmn8cccuu002m16qzl4jutwmv,Brie,,kg,1,30.95,1000
+cmn8cccvc002o16qz5irxldwk,Broad bean,,kg,1,12.65,1000
+cmn8cccvw002q16qzytshbb9v,Broccolini,,bunch,1,4.4,1
+cmn8cccxs002u16qzw5hx9l2f,Brown sugar,cmn8ccc0y000016qz9zc0gwqx,kg,15,40.27,15000
+cmn8cccys002w16qz0sylgbmc,Brussel Sprouts Purple,cmn8ccc1q000216qz6riuv60h,g,400,3.8,400
+cmn8cccy9002v16qzy4145erv,Brussel sprouts Green Bulk,cmn8ccc1m000116qzkqgy4t8r,kg,1,9.6,1000
+cmn8ccczb002y16qzs1qfnjvq,Burrata,cmn8ccc2k000a16qzvko4fkbp,kg,8,41,8
+cmn8ccd05003116qzmairua7c,Butter Milk,cmn8ccc0y000016qz9zc0gwqx,ml,600,3.792,600
+cmn8ccczj002z16qz26xz99ei,Butter bean,,kg,1,9.4,1000
+cmn8ccczy003016qzul0og9hz,Butter bulk Unsalted,cmn8ccc2n000b16qz7h9bdkwv,kg,25,280,25000
+cmn8ccd0x003416qz7qmlvg8o,Butternut pumpkin,,kg,1,1.75,1000
+cmn8ccd1i003616qze3qyn8v0,Cabbage White Drumhead,cmn8ccc1m000116qzkqgy4t8r,piece,1,5.95,1
+cmn8ccd1v003716qzru2955wj,Canola oil,,l,1,2.2,1000
+cmn8ccd2n003a16qzuypj2gwb,Caper juice,cmn8ccc2q000c16qztsbqo067,l,1,0,1000
+cmn8ccd4y003g16qzskcf306l,Carrot,cmn8ccc1m000116qzkqgy4t8r,kg,20,31.6,20000
+cmn8ccd5g003i16qzk6nj0wf8,Caster Sugar,cmn8ccc0y000016qz9zc0gwqx,kg,25,44.1,25000
+cmn8ccd7n003o16qzem7eucmy,Celery leaves,cmn8ccc2q000c16qztsbqo067,kg,1,0,1000
+cmn8ccd81003p16qzc64k6p1e,Chard,,kg,1,20.55,1000
+cmn8ccd8b003q16qzq11cto1i,Chat potato,,kg,1,1.9,1000
+cmn8ccd8n003r16qzy8tyi4c1,Cheddar,,kg,1,49.5,1000
+cmn8ccda4003v16qz2ezctoyr,Cheese - Mozarella Shredded,cmn8ccc0y000016qz9zc0gwqx,g,2000,27.72,2000
+cmn8ccd8z003s16qzdmczhsrp,Cheese - cows ricotta,cmn8ccc1w000316qzfw8hu7vj,g,1000,9.01,1000
+cmn8ccdb2003y16qzhulbkebc,Cheese Philadelphia Original Spreadable,cmn8ccc0y000016qz9zc0gwqx,g,1000,21.02,1000
+cmn8ccdbr004016qzwtkxcn8f,Cheese Ricotta basket,cmn8ccc0y000016qz9zc0gwqx,g,1000,10.87,1000
+cmn8ccdhu004n16qzr0knftob,Chocolate Veliche Belgian Dark Choc Emotion,cmn8ccc2h000916qzeaya7p0r,kg,10,305.63,10000
+cmn8ccdi0004o16qz120b0o8s,Chorizo sausage,cmn8ccc1z000416qz479l8oix,kg,1,18.15,1000
+cmn8ccdix004x16qzno43ipgx,Coconut I/C,,kg,5,60.5,5000
+cmn8ccdim004u16qz7zw2m3kp,"Cocoa powder, Veliche",cmn8ccc2h000916qzeaya7p0r,bag,1,27.35,1000
+cmn8ccdff004e16qzt2kv6hfx,Chilli Oil,cmn8ccc26000616qzbasks9f9,ml,1000,2,1000
+cmn8ccdfp004f16qzvbzp9fk2,Chips - 7mm Shoestring Stealth Skin on - Fries,cmn8ccc0y000016qz9zc0gwqx,g,16260,68.3076,16260
+cmn8ccd5x003k16qzt7ck4gbz,Cauliflower - purple,cmn8ccc1m000116qzkqgy4t8r,piece,1,5.94,1
+cmn8ccd5r003j16qzn0kldfg2,Cauliflower,cmn8ccc1m000116qzkqgy4t8r,piece,1,7.45,1
+cmn8ccd65003l16qz97tmehqi,Cavalo Nero,,bunch,1,3.5,1
+cmn8ccd6d003m16qzu4vpi45z,Celeriac,,piece,1,6.2,1
+cmn8ccd6u003n16qzz9ncqdlj,Celery bunch,cmn8ccc1m000116qzkqgy4t8r,piece,1,5,1
+cmn8ccdcg004216qzeb1mwilf,Cheese Tasty Shredded,cmn8ccc0y000016qz9zc0gwqx,g,2000,28.66,2000
+cmn8ccdcv004316qzbb8r0cb0,Chia Seeds,cmn8ccc0y000016qz9zc0gwqx,kg,1,11.6,1000
+cmn8ccdda004416qzxkanzh0e,Chick peas,cmn8ccc0y000016qz9zc0gwqx,kg,1,8.35,1000
+cmn8ccddo004516qzxiydaj8t,Chicken breast,cmn8ccc1z000416qz479l8oix,kg,1,11,1000
+cmn8ccde0004716qzguf4wugu,Chicken thigh,,kg,1,10.5,1000
+cmn8ccde5004816qzv6i2yds9,Chicken whole (1kg),,kg,1,6.5,1000
+cmn8ccded004916qzx7cjdlc6,Chili - Jalapeno,cmn8ccc1m000116qzkqgy4t8r,g,1000,10.5,1000
+cmn8ccdej004a16qz4t87gyiz,Chilli - Fingerlong green,cmn8ccc1m000116qzkqgy4t8r,g,1000,9,1000
+cmn8ccdf8004d16qz1kj5rrsn,Chilli Flakes,cmn8ccc0y000016qz9zc0gwqx,g,500,9.65,500
+cmn8ccdf1004c16qzuxtqmm05,Chilli bird eye,,kg,1,16.95,1000
+cmn8ccdfu004g16qzynxy0p7p,Chives,cmn8ccc1m000116qzkqgy4t8r,g,90,3.6,90
+cmn8ccdg5004h16qzf12k0poq,Chobani,cmn8ccc0y000016qz9zc0gwqx,g,2000,11.5,2000
+cmn8ccdib004q16qzqj6exp7f,Cinnamon Quill,cmn8ccc0y000016qz9zc0gwqx,g,200,19.42,200
+cmn8ccdi6004p16qzlnw5sher,Cinnamon ground,cmn8ccc0y000016qz9zc0gwqx,kg,1,21.48,1000
+cmn8ccdie004r16qzgwl5lx42,Clove whole,,g,500,14.9,500
+cmn8ccdis004w16qzfw28felc,Coconut Dessicated,cmn8ccc0y000016qz9zc0gwqx,kg,1,9.56,1000
+cmn8ccdj4004y16qzbmaepa51,Coconut Long shredded,cmn8ccc0y000016qz9zc0gwqx,g,1000,11.79,1000
+cmn8ccdjg004z16qz78mnbkfe,Coconut Milk,cmn8ccc0y000016qz9zc0gwqx,ml,1000,3.75,1000
+cmn8ccdiq004v16qzl8hjsn1c,Coconut cream,cmn8ccc0y000016qz9zc0gwqx,ml,1000,5.1,1000
+cmn8ccdjl005016qzpcffy01n,Coffee Beans,,kg,1,32,1000
+cmn8ccdjt005116qzr0shzjoq,Comté cheese,,kg,1,47.95,1000
+cmn8ccdke005316qzsdqw0ds8,Condensed milk Sweetened - 5kg,cmn8ccc0y000016qz9zc0gwqx,g,5000,60.13,5000
+cmn8ccdkl005416qzcdun0wna,Cooked tiger prawn,,kg,1,32,1000
+cmn8ccdkv005516qzva9uuzby,Cooking red wine,,l,15,54.34,15000
+cmn8ccdl1005616qz5hne29vl,Cooking white wine,,l,15,37.9,15000
+cmn8ccdm1005c16qzgh0ifr6z,Corn syrup,,l,3.8,42,3800
+cmn8ccdmq005g16qzgu88yaz9,Couscous,cmn8ccc29000716qz749iyk4u,g,500,3.29,500
+cmn8ccdnj005i16qzf1lsuu9c,Crab Soft Shell,cmn8ccc0y000016qz9zc0gwqx,g,1000,27.8,1000
+cmn8ccdnp005j16qznznlejcc,Cranberries Dried Sweetened,cmn8ccc0y000016qz9zc0gwqx,g,1000,13.77,1000
+cmn8ccdu0006r16qzfntut33d,Flan Gel Neutral Fruit Glaze,cmn8ccc0y000016qz9zc0gwqx,g,6000,48.44,6000
+cmn8ccduf006u16qzzzof5mv8,Flour - Gluten free,cmn8ccc0y000016qz9zc0gwqx,g,1000,14.94,1000
+cmn8ccduo006w16qztv7lvs3x,Fondant Soft White,cmn8ccc0y000016qz9zc0gwqx,kg,15,70.92,15000
+cmn8ccdus006x16qznc4bxdu3,Franks Hot Sauce,cmn8ccc0y000016qz9zc0gwqx,kg,3.78,34.06,3780
+cmn8ccdvc007116qz1h3yv70c,Fried Shallot,cmn8ccc0y000016qz9zc0gwqx,kg,1,8.8,1000
+cmn8ccdvm007316qzysssb09r,Frying oil (premium),,l,1,2.05,1000
+cmn8ccdlb005816qzpmozxk83,Coriander seeds,,piece,1,6.4,1
+cmn8ccdmc005e16qzvbhe41yc,Cos lettuce,,piece,1,2.1,1
+cmn8ccdnx005k16qz2c9ifcch,Cream - thickened,cmn8ccc0y000016qz9zc0gwqx,l,5,34.9,5000
+cmn8ccdo6005l16qz70qf22io,Cream cheese (spreadable),cmn8ccc0y000016qz9zc0gwqx,kg,1,20.13,1000
+cmn8ccdob005m16qzm6qrcmlu,Creme  Fraiche,cmn8ccc1z000416qz479l8oix,l,2,33,2000
+cmn8ccdon005p16qz1u3j937c,Croissant,cmn8ccc2h000916qzeaya7p0r,piece,60,65.92,60
+cmn8ccdof005n16qznwkipfat,Crème fraîche,cmn8ccc0y000016qz9zc0gwqx,g,500,10.464,500
+cmn8ccdos005r16qzxdnylhe6,Cumin powder,,g,350,7.3,350
+cmn8ccdou005s16qz3bn8wgoe,Cumin seeds,,kg,1,11.9,1000
+cmn8ccdoy005t16qzqamxshxg,Currants,cmn8ccc0y000016qz9zc0gwqx,kg,1,9.9,1000
+cmn8ccdp5005v16qz9yikufaz,Desiccated coconut,,kg,1,22.5,1000
+cmn8ccdpa005w16qzbt9i9213,Desire potato,,kg,1,2.7,1000
+cmn8ccdpe005x16qz4n9qidu9,Diamond clams,,kg,1,17.9,1000
+cmn8ccdq8006116qzvngx3xw3,Dill,cmn8ccc1m000116qzkqgy4t8r,bunch,1,3.4,1
+cmn8ccdqt006416qzm19khth4,Dried chilli flakes,cmn8ccc2t000d16qz6t1jhjl4,g,500,9.1,500
+cmn8ccdr0006516qzp4aahys5,Dry apricot,,kg,1,7.5,1000
+cmn8ccdr6006616qzrpdcjf0j,Dry figs,,kg,1,11.4,1000
+cmn8ccdre006716qzthuquaix,Edamame,cmn8ccc0y000016qz9zc0gwqx,g,454,2.77,454
+cmn8ccdrs006916qzilonqgrw,Egg White (from an egg),cmn8ccc26000616qzbasks9f9,piece,1,0.28,1
+cmn8ccdry006a16qzd812bt6x,Egg yolk (from an egg),,piece,1,0.2,1
+cmn8ccds3006b16qz0l9oiuct,Egg yolk sugared(frozen),cmn8ccc2v000e16qzbn0x74ya,kg,10,129,10000
+cmn8ccdpu005z16qz2up6s4h4,Dijon mustard,cmn8ccc0y000016qz9zc0gwqx,g,2200,16.15,2200
+cmn8ccdsc006e16qz2vlgc3ta,Elderflower,cmn8ccc1m000116qzkqgy4t8r,g,20,7.95,20
+cmn8ccdsf006f16qzg149fkb9,English Muffin,cmn8ccc23000516qzea7eibtf,piece,1,0.25,1
+cmn8ccdsy006j16qztdeue0xk,Farfalle pasta,,kg,1,3.29,1000
+cmn8ccdt5006l16qzgiqg64i7,Fennel seeds,,g,450,7.5,450
+cmn8ccdtc006m16qzmyiqlakx,Feta,,kg,1,21,1000
+cmn8ccdtt006q16qzcks7c3mw,Fish Sauce,cmn8ccc0y000016qz9zc0gwqx,ml,725,3.25,725
+cmn8ccduv006y16qzppg3pegs,Fresh As Raspberry - Freeze Dried,cmn8ccc2h000916qzeaya7p0r,g,150,36.4,150
+cmn8ccdv0006z16qzd4oa1in8,Fresh Jalapeno,cmn8ccc1q000216qz6riuv60h,kg,1,11.28,1000
+cmn8ccdvw007516qza6so3ovr,Garam Masala,cmn8ccc0y000016qz9zc0gwqx,kg,1,24,1000
+cmn8ccdwh007816qzjszfjjcs,Garlic powder,cmn8ccc0y000016qz9zc0gwqx,kg,1,9.99,1000
+cmn8ccdwp007a16qzcyhmzgzh,Gelatin Powder,cmn8ccc0y000016qz9zc0gwqx,kg,1,27.58,1000
+cmn8ccdws007b16qzpnravn8n,Gelatine sheet platinium,,kg,1,40.4,1000
+cmn8ccds6006c16qzfegnftpl,Eggplant,cmn8ccc1m000116qzkqgy4t8r,kg,1,4.4,1000
+cmn8ccdzi007x16qz3917g8jw,Guacamole,cmn8ccc26000616qzbasks9f9,g,1000,8,1000
+cmn8cce0g008316qz78j5f2et,Hangover Sauce,cmn8ccc23000516qzea7eibtf,l,1,13.1,1000
+cmn8cce0j008416qzu9hnwgig,Harissa Paste,cmn8ccc1w000316qzfw8hu7vj,g,190,6.75,190
+cmn8cce0m008516qzjbknrmgm,harrissa,cmn8ccc1w000316qzfw8hu7vj,g,190,6.9,190
+cmn8cce0o008616qzm6z6bas2,Hazelnut I/C,,kg,5,60.5,5000
+cmn8cce0q008716qz7qsuwj00,Hazelnut praline,,kg,1,60,1000
+cmn8cce11008a16qzbs68eyc5,Hellmans Mayonnaise,cmn8ccc0y000016qz9zc0gwqx,g,2350,12,2350
+cmn8cce18008c16qzj6atjgik,Hommus Dip (fresh),cmn8ccc0y000016qz9zc0gwqx,g,2000,20.54,2000
+cmn8cce1i008f16qzo79t9fwo,Hot English mustard,cmn8ccc1w000316qzfw8hu7vj,kg,1,16.5,1000
+cmn8cce1n008h16qzg0px23v3,Hot Salami,cmn8ccc1w000316qzfw8hu7vj,kg,1,21.95,1000
+cmn8cce1v008j16qzyiz4bguk,Ice Cream Vanilla Supreme,cmn8ccc0y000016qz9zc0gwqx,ml,5000,31.16,5000
+cmn8ccdt2006k16qzmvx2f08b,Fennel Bulb,cmn8ccc1m000116qzkqgy4t8r,bunch,1,2,1
+cmn8ccdth006n16qzvar5n73o,Field mushroom,,kg,4,42,4000
+cmn8ccdtn006o16qzclagum17,Fig,,piece,1,1.28,1
+cmn8ccdu7006s16qznmtbwssr,Flat Parsley,,bunch,1,3.2,1
+cmn8ccdvj007216qzfmh0c350,Frozen peas,,bag,1,5.8,1000
+cmn8ccdw7007616qzawph4ea6,Garlic (peeled),cmn8ccc1m000116qzkqgy4t8r,kg,1,5.99,1000
+cmn8ccdwb007716qzhcvp6bzc,Garlic flower,,punnet,1,0,1
+cmn8ccdwu007c16qzu6ltj7vf,Gelatine sheets,cmn8ccc0y000016qz9zc0gwqx,kg,1,80.94,1000
+cmn8ccdwy007d16qz6wgbu2x1,Ghee,cmn8ccc0y000016qz9zc0gwqx,kg,10,154.92,10000
+cmn8ccdx2007e16qz29wodpkt,Gin,,ml,750,32,750
+cmn8ccdx7007f16qzomqve5d5,Ginger,,kg,1,8.2,1000
+cmn8ccdxa007g16qz7isz21np,Ginger powder,,kg,1,9.3,1000
+cmn8ccdxs007k16qzzj28skv3,Goats curd,,kg,1,22.5,1000
+cmn8ccdxz007m16qzrp7dms3t,Gorgonzola,,kg,1,27.5,1000
+cmn8ccdy4007o16qzn3sdkfyl,Grapeseed oil,cmn8ccc0y000016qz9zc0gwqx,l,1,14.46,1000
+cmn8ccdyp007s16qzi464zhkn,Green Kale,cmn8ccc1q000216qz6riuv60h,kg,1,5.65,1000
+cmn8ccdz7007v16qzdmiidcs0,Green Pawpaw,cmn8ccc1m000116qzkqgy4t8r,kg,1,7.75,1000
+cmn8ccdye007q16qzl7v9stkr,Green beans,,kg,1,10.8,1000
+cmn8ccdyj007r16qzsxqm0p8w,Green grapes,,kg,1,10.55,1000
+cmn8ccdyw007t16qzxcakdw60,Green lentils,,kg,1,5.7,1000
+cmn8cce0u008816qzot8c0eyr,Hazelnut whole,cmn8ccc0y000016qz9zc0gwqx,kg,1,48.56,1000
+cmn8ccdzm007y16qzh6rhcxfn,Guanciale,,kg,1,31.95,1000
+cmn8ccdzr007z16qz9dp10y2x,Guindillas,,kg,3.3,52.5,3300
+cmn8ccdzx008016qz6urxiyz7,Gurnard Side skin off NZ,cmn8ccc29000716qz749iyk4u,g,1000,34.68,1000
+cmn8cce04008116qz3bmhvcgx,Halloumi,cmn8ccc1z000416qz479l8oix,kg,1,19.9,1000
+cmn8cce1k008g16qzgfh4taxw,Hot Paprika,,g,400,8.3,400
+cmn8cce20008l16qz5no08ewr,Icing sugar,cmn8ccc0y000016qz9zc0gwqx,kg,15,39.65,15000
+cmn8cce26008n16qz8clg7bd3,Isomalt,,kg,1,26,1000
+cmn8cce2i008p16qz8m7809lu,Jamon de Serano,,kg,1,29.95,1000
+cmn8cce2k008q16qz7ony6p8w,Japanese pumpkin,,kg,1,1.4,1000
+cmn8ccdvp007416qze8chw9o3,Milk - Norco Full Cream (Blue),,l,2,3.85,2000
+cmn8ccdz1007u16qzndk09rz6,green olives,cmn8ccc0y000016qz9zc0gwqx,g,2000,18,2000
+cmn8cce23008m16qzzgdw5zsa,icing sugar Tarte,cmn8ccc0y000016qz9zc0gwqx,kg,3,8.88,3000
+cmn8cce4w009a16qzmy8j5vg4,Lemon Sorbet,,kg,5,44,5000
+cmn8cce5b009d16qz4skqdxg5,Lemonade - Schweppes,cmn8ccc0y000016qz9zc0gwqx,l,1.1,2.73,1100
+cmn8cce6r009o16qz1phocthc,Macadamia I/C,,kg,5,49.5,5000
+cmn8cce6z009q16qzsj4m5nji,Malt milk powder,cmn8ccc0y000016qz9zc0gwqx,g,1500,25.6,1500
+cmn8cce74009s16qz8kj7ai0u,Mango,,kg,1,2.25,1000
+cmn8cce7e009v16qz7llgsntv,Mango Tarte,cmn8ccc1q000216qz6riuv60h,g,400,3.9,400
+cmn8cce8a00a516qzurdw3hht,Milk Bun (BreadTop),cmn8ccc26000616qzbasks9f9,piece,1,1.1,1
+cmn8cce8p00a916qz2g1jyrgk,Mirin,cmn8ccc0y000016qz9zc0gwqx,ml,250,4.4,250
+cmn8cce8u00aa16qzhicukthx,Mirin Cooking Wine Kikkoman,cmn8ccc0y000016qz9zc0gwqx,ml,600,7.584,600
+cmn8cce8z00ab16qzv0cloyz3,Miso Mayo,cmn8ccc23000516qzea7eibtf,kg,1,11.2,1000
+cmn8cce2b008o16qz4c70jb0w,Jalapeño chillies,,piece,1,6.9,1
+cmn8cce2n008r16qz3adqdhw3,Jerusalem artichoke,,kg,1,10.25,1000
+cmn8cce2q008s16qzcym4b3fg,John Dory whole,,kg,1,15.9,1000
+cmn8cce2t008t16qzi6o93xb6,Kalamata olives pitted,,kg,10,85,10000
+cmn8cce3b008x16qzb14uvxig,Kingfish fillet,,kg,1,34.5,1000
+cmn8cce3g008y16qzva7nrlc4,Kingfish whole,,kg,1,25.9,1000
+cmn8cce3l008z16qzbu924z8b,Kipfler potato,,kg,1,6.55,1000
+cmn8cce3n009016qz6dr3qe1v,Kohl rabi,,kg,1,3.5,1000
+cmn8cce3x009316qz1pw98485,Lamb Shoulder,,kg,1,17.5,1000
+cmn8cce3q009116qzyy6d3bzv,Lamb leg,,kg,1,12.5,1000
+cmn8cce3s009216qza7d5sa1m,Lamb shank,,kg,1,14.5,1000
+cmn8cce42009416qzlih9r7rx,Large fennel,,piece,1,1.8,1
+cmn8cce4r009916qz44vriunw,Lemon juice premium Only Juice,cmn8ccc0y000016qz9zc0gwqx,ml,2000,9.41,2000
+cmn8cce51009b16qz3ulk8s0h,Lemon thyme,cmn8ccc1m000116qzkqgy4t8r,bunch,1,3.5,1
+cmn8cce57009c16qz44cqmzcg,Lemon zest,cmn8ccc2q000c16qztsbqo067,kg,1,0,1000
+cmn8cce5e009e16qzm8ndj9g1,Lemongrass,cmn8ccc1m000116qzkqgy4t8r,bunch,1,2.95,1
+cmn8cce5u009g16qz6mj8cak4,Lettuce - iceberg head,cmn8ccc1m000116qzkqgy4t8r,piece,1,3.14,1
+cmn8cce60009h16qzmb90kuwm,Lime,cmn8ccc1q000216qz6riuv60h,kg,1,5.52,1000
+cmn8cce66009i16qz06jzmxrp,Lime - Tahitian,cmn8ccc1m000116qzkqgy4t8r,g,1000,6.49,1000
+cmn8cce6b009j16qzg2s1w0j3,Lime Juice,cmn8ccc0y000016qz9zc0gwqx,l,1,10.61,1000
+cmn8cce6j009l16qz9iwvifmi,Lime zest,cmn8ccc2q000c16qztsbqo067,kg,1,0,1000
+cmn8cce6o009n16qztqn2jnkr,Lipton Tea Bags,cmn8ccc26000616qzbasks9f9,piece,100,7,100
+cmn8cce6v009p16qz2d6aadii,Macadamia Nuts Raw pieces,cmn8ccc0y000016qz9zc0gwqx,kg,1,36.8,1000
+cmn8cce72009r16qzr9xn0nze,Manchego,,kg,1,28,1000
+cmn8cce7l009x16qz90yjvb3g,Maple Syrup Canadian Premium,cmn8ccc0y000016qz9zc0gwqx,l,1,24.6,1000
+cmn8cce7s009z16qzxvas9woe,Mayonnaise Kewpie,cmn8ccc0y000016qz9zc0gwqx,kg,1,11.52,1000
+cmn8cce7v00a016qzaxtm9pmb,Medjoul date,,kg,1,20.9,1000
+cmn8cce7y00a116qz24kjvs7a,Mesculin mix,cmn8ccc1m000116qzkqgy4t8r,kg,1.5,17.39,1500
+cmn8ccdlp005a16qz5ettqeq4,Corn flour,,bag,1,13.2,25000
+cmn8cce8800a416qzvym58q04,Micro Herbs Loose,cmn8ccc1m000116qzkqgy4t8r,g,75,11.6,75
+cmn8cce8e00a616qzzowi93tf,Milk full cream,cmn8ccc26000616qzbasks9f9,l,3,5.53,3000
+cmn8cce9400ac16qzt4tdxvph,Miso Paste Soya Bean White,cmn8ccc0y000016qz9zc0gwqx,g,1000,4.42,1000
+cmn8cceak00ap16qzi9i0f0a9,Nutella Chocolate Hazelnut Spread,cmn8ccc0y000016qz9zc0gwqx,kg,3,44.1599,3000
+cmn8cceaz00aw16qzy37t9d4e,Old Bay Seasoning,cmn8ccc26000616qzbasks9f9,g,170,15,170
+cmn8ccebc00b016qzfjhnozmw,Olives Black Sliced (Dehydrated),cmn8ccc0y000016qz9zc0gwqx,g,3000,16.98,3000
+cmn8ccedu00be16qz5je220qe,Pancake Mix Buttermilk,cmn8ccc0y000016qz9zc0gwqx,kg,10,49.5168,10000
+cmn8ccedx00bf16qz9i4yp5ef,Pancake Mix Dry - Bidfood,cmn8ccc0y000016qz9zc0gwqx,g,3000,15,3000
+cmn8cceeg00bk16qzsll434lj,Parmesan crust,cmn8ccc2q000c16qztsbqo067,kg,1,0,1000
+cmn8cceat00at16qzunih0pps,Oats traditional Uncle Tobys,cmn8ccc0y000016qz9zc0gwqx,g,1000,6900,1000
+cmn8cce9j00ae16qz1puaoep4,Morton Bay Bug,,kg,1,36.9,1000
+cmn8cce7g009w16qz5ifb7byg,Mango whole,cmn8ccc1q000216qz6riuv60h,piece,1,3.86,1
+cmn8ccecg00b416qz0r05fk2d,Onions Fried (Shallots),cmn8ccc0y000016qz9zc0gwqx,kg,1,9.16,1000
+cmn8cce9p00af16qzju33yaa9,Mud crab live,,kg,1,42,1000
+cmn8cceaa00am16qzinxab6qn,Mustard Seeds yellow,cmn8ccc0y000016qz9zc0gwqx,g,500,7.4112,500
+cmn8cceah00ao16qzr5en28yg,Noily prat,cmn8ccc26000616qzbasks9f9,l,1,17,1000
+cmn8cceam00aq16qzdujw8esu,Nutmeg whole,,kg,1,18.9,1000
+cmn8cceao00ar16qzt68k867i,Nutritional yeast,,kg,1,12,1000
+cmn8cceav00au16qz6efljyp7,Ocean trout fillet,,kg,1,32,1000
+cmn8cceaw00av16qzj80imkq4,Octopus,,kg,1,34,1000
+cmn8cceb200ax16qzyoeb56yv,Olive oil - FINO,cmn8ccc1w000316qzfw8hu7vj,l,20,142,20000
+cmn8cceb500ay16qzjl2lz5ko,Olive oil 2nd grade,cmn8ccc0y000016qz9zc0gwqx,l,4,45.5,4000
+cmn8cceb800az16qz36j5prxg,Olive oil extra virgin,cmn8ccc0y000016qz9zc0gwqx,l,4,49.28,4000
+cmn8ccebi00b116qzgsr52n6x,Onion - Brown Large Bag,cmn8ccc1m000116qzkqgy4t8r,kg,1,1.85,1000
+cmn8ccebq00b316qzna2yulkw,Onion powder,cmn8ccc0y000016qz9zc0gwqx,kg,1,8.84,1000
+cmn8ccecu00b516qzi4z1933p,Orange Cauliflower,cmn8ccc26000616qzbasks9f9,kg,1,6.3,1000
+cmn8cceda00b716qz0h7areay,Orange Valencia,cmn8ccc1m000116qzkqgy4t8r,kg,1,1.87,1000
+cmn8ccedg00b916qzqb330j0z,Oregano dry,,kg,1,15.5,1000
+cmn8ccedn00bb16qzk7s77o62,Oysters,,piece,1,15.5,12
+cmn8ccedp00bc16qz48g6uzwi,Paella rice,,kg,1,2,1000
+cmn8cce8l00a816qzkxgglmi8,Mint,cmn8ccc1m000116qzkqgy4t8r,bunch,1,2.6,1
+cmn8ccee400bh16qzphcptmy9,Paprika smokey,cmn8ccc0y000016qz9zc0gwqx,g,500,15.94,500
+cmn8ccee800bi16qzmj98xp22,Paprika sweet,cmn8ccc0y000016qz9zc0gwqx,kg,1,13.77,1000
+cmn8cceek00bl16qztl7zybk3,Parmesan Reggiano,cmn8ccc1w000316qzfw8hu7vj,kg,1,25.5,1000
+cmn8ccees00bn16qzv34nt4pg,Parsnip,,kg,1,3.95,1000
+cmn8cceew00bo16qz4bwh9ad6,Passata Tomato Puree Mutti,cmn8ccc0y000016qz9zc0gwqx,ml,700,4.22,700
+cmn8ccef000bp16qz35o2ckvo,Passionfruit Pulp,cmn8ccc0y000016qz9zc0gwqx,kg,1,7.8048,1000
+cmn8ccef400bq16qzjqlz8lan,Passionfruit Pulp - seedless,cmn8ccc0y000016qz9zc0gwqx,g,1000,13.92,1000
+cmn8ccefc00br16qzkqeucqbw,Pasta Linguini No 1,cmn8ccc0y000016qz9zc0gwqx,kg,10,27.4,10000
+cmn8ccefy00bu16qz999tqyx8,Peanut Butter smooth,cmn8ccc0y000016qz9zc0gwqx,g,2000,23.6544,2000
+cmn8cceg200bv16qzga1i69ac,Peanut Oil,cmn8ccc0y000016qz9zc0gwqx,l,2,22.16,2000
+cmn8cceg500bw16qz2m8w92g6,Pear,cmn8ccc1m000116qzkqgy4t8r,g,1000,4.06,1000
+cmn8ccee000bg16qz1i4qeih1,Panko Crumbs,cmn8ccc0y000016qz9zc0gwqx,kg,10,46.69,10000
+cmn8ccegm00c316qznar7pw0t,Pernod,cmn8ccc26000616qzbasks9f9,ml,750,35.74,750
+cmn8cceh600c816qz9jz7p8ct,Pineapple thinly sliced in syrup,cmn8ccc0y000016qz9zc0gwqx,g,3030,11.4,3030
+cmn8ccehz00cf16qzx8jjezqn,Plain Flour - gluten free,cmn8ccc0y000016qz9zc0gwqx,g,1000,14.94,1000
+cmn8ccefj00bs16qz8zblg4jz,Pate Jar - Duck or Mushroom (City Larder),cmn8ccc1w000316qzfw8hu7vj,piece,6,65,6
+cmn8ccej500cp16qz3w9wf4la,Pork Pattie,cmn8ccc23000516qzea7eibtf,kg,1,11.15,1000
+cmn8ccejf00cq16qz2mrrzwkr,Potato chips frozen,,kg,3.75,9.4,3750
+cmn8ccek500ct16qzhgozqp9c,Potato Peeled (Cryovac),cmn8ccc1m000116qzkqgy4t8r,kg,5,20.5,5000
+cmn8ccel900cw16qznsxhjbld,PRESERVED LEMON,cmn8ccc0y000016qz9zc0gwqx,kg,1,18.11,1000
+cmn8ccelm00cz16qz5xqfacx1,Puffed Grain,cmn8ccc23000516qzea7eibtf,kg,1,7.86,1000
+cmn8ccemx00db16qzva6ff2wz,Raspberry Tarte,cmn8ccc26000616qzbasks9f9,kg,1,32,1000
+cmn8cced700b616qz3yqyjgzc,Orange cherry tomato,,punnet,1,2.55,1
+cmn8ccedj00ba16qzcsssy1oh,Oyster mushroom,,kg,1,21,1000
+cmn8cceg900bx16qzyaouy7cq,Peas Frozen,cmn8ccc0y000016qz9zc0gwqx,g,2000,9.15,2000
+cmn8ccegc00by16qz93fcu4dg,Pecans,cmn8ccc0y000016qz9zc0gwqx,g,1000,38.16,1000
+cmn8ccege00bz16qzhtl9k3ng,Pecorino,,kg,1,23.55,1000
+cmn8ccegg00c016qzsoar7wat,Pepitas,cmn8ccc0y000016qz9zc0gwqx,g,1000,9.2,1000
+cmn8ccegi00c116qz958nheka,Pepper - Ground White,cmn8ccc0y000016qz9zc0gwqx,g,1000,37.8,1000
+cmn8ccegx00c616qzgj5yhedv,Pine Nuts Small,cmn8ccc0y000016qz9zc0gwqx,kg,1,47.37,1000
+cmn8cceh200c716qzt5ewkgwu,Pineapple,cmn8ccc1m000116qzkqgy4t8r,g,1100,4.1,1100
+cmn8cceh900c916qzjb2pj7kk,Pink grapefruit,,kg,1,4.25,1000
+cmn8ccehd00ca16qzp4czb93n,Pink lady apple,,kg,1,2.75,1000
+cmn8ccehh00cb16qz117veivv,Pink peppercorns,cmn8ccc0y000016qz9zc0gwqx,g,100,22.53,100
+cmn8cceht00cd16qzlfxe3emd,Pizza flour,,kg,25,48,25000
+cmn8ccei100cg16qzen7fnosh,Plain flour - wholemeal,cmn8ccc0y000016qz9zc0gwqx,g,12500,27.63,12500
+cmn8ccei400ch16qzubbsg8m2,Plum,,kg,1,8.4,1000
+cmn8ccei700ci16qz1obkju16,Polenta,,kg,1,3.29,1000
+cmn8cceia00cj16qz58dp6my2,Pomegranate,,piece,1,4.75,1
+cmn8cceid00ck16qzb8yk4p3x,Pomegranate Arils Seeds,cmn8ccc0y000016qz9zc0gwqx,g,1000,34.86,1000
+cmn8cceii00cl16qz11nwjjsw,Poppy seeds,cmn8ccc0y000016qz9zc0gwqx,kg,1,11.56,1000
+cmn8ccein00cm16qzwnsbrf38,Pork free range (whole),,kg,1,8.5,1000
+cmn8cceis00cn16qzoz23u47f,Pork hock,,kg,1,5.75,1000
+cmn8cceix00co16qz46n8lqt6,Pork mince,cmn8ccc2d000816qzwz65vnwn,kg,1,14.9,1000
+cmn8ccejv00cs16qzv603b9bb,Potato Idaho,cmn8ccc1m000116qzkqgy4t8r,kg,20,54.5,20000
+cmn8ccekh00cu16qzh951pv4l,Potato starch,cmn8ccc0y000016qz9zc0gwqx,g,1000,6.42,1000
+cmn8ccelk00cy16qz1y05jk1v,Prosciutto de Parma,,kg,1,33.5,1000
+cmn8ccelp00d016qza42zt2lc,Pumpkin seeds,,kg,1,12.9,1000
+cmn8ccels00d116qzhs3at78z,Purple Cauliflower,cmn8ccc26000616qzbasks9f9,kg,1,5,1000
+cmn8ccelu00d216qzo9ttymap,Quince,,kg,1,4.35,1000
+cmn8ccem100d416qz5jahep2j,Quinoa - white,cmn8ccc0y000016qz9zc0gwqx,kg,1,9.97,1000
+cmn8ccema00d716qzr2oojpwz,Rainbow Shard,cmn8ccc1m000116qzkqgy4t8r,kg,1,4,1000
+cmn8cceme00d816qzjclwuquh,Rainbow trout whole,,kg,1,16,1000
+cmn8ccemp00da16qzz7ndqmjq,Raspberry - frozen,cmn8ccc0y000016qz9zc0gwqx,g,1000,11.5,1000
+cmn8ccen600dd16qzybqxh7gh,Red Cabbage,,kg,1.5,3.2,1500
+cmn8ccen100dc16qz29l1ssiy,Red beetroot,,kg,1,2.65,1000
+cmn8ccelx00d316qzga3ud0gz,quinoa (tri color),cmn8ccc0y000016qz9zc0gwqx,g,1000,11.85,1000
+cmn8ccele00cx16qzgixdrrve,Prosciutto,cmn8ccc1z000416qz479l8oix,g,1000,49,1000
+cmn8ccepy00dx16qz67lavruu,Rum - Bacardi Superior White Rum,cmn8ccc0y000016qz9zc0gwqx,ml,700,49.68,700
+cmn8cceqv00e416qza6lle275,Salami,,kg,1,27.95,1000
+cmn8ccera00e816qztm0b6xwy,Salted Onion,cmn8ccc1q000216qz6riuv60h,kg,9,38.29,9000
+cmn8ccerd00e916qzwb2cl1o9,Sambal Oelek,cmn8ccc0y000016qz9zc0gwqx,g,200,6.15,200
+cmn8ccerh00ea16qzd6cmzgxf,Sauce Red Hot Original Buffalo Wings,cmn8ccc0y000016qz9zc0gwqx,ml,1000,38.08,1000
+cmn8cces600ec16qzkpcsc1ng,Sauce Sriracha Hot Chilli,cmn8ccc0y000016qz9zc0gwqx,ml,740,11.31,740
+cmn8ccet400ef16qzqbpqwkmu,Scotch Loaf - 1100g Whole,cmn8ccc2y000f16qzb2p6ybyz,g,1100,8.4,1100
+cmn8cceti00ej16qzkf4sww4y,Seeded Mustard,cmn8ccc1w000316qzfw8hu7vj,kg,1,16.5,1000
+cmn8ccevh00eu16qzf628txxo,Shrimp Paste,cmn8ccc0y000016qz9zc0gwqx,g,250,3.32,250
+cmn8ccewm00ez16qz6px2m3wk,Smoked ham,,kg,1,8.2,1000
+cmn8cceo300dj16qzvf9idiit,Red Wine Vinegar,cmn8ccc0y000016qz9zc0gwqx,l,5,17.55,5000
+cmn8cceqk00e216qz31hpan3x,Sage,cmn8ccc1m000116qzkqgy4t8r,bunch,1,4.75,1
+cmn8ccenu00dh16qz73y1i71c,Red grapes,,kg,1,8.85,1000
+cmn8cceoa00dl16qzjyclub4x,Rice Bran Oil,cmn8ccc0y000016qz9zc0gwqx,l,20,97.27,20000
+cmn8cceoc00dm16qzztj5ctzh,Rice White Medium Grain,cmn8ccc0y000016qz9zc0gwqx,kg,25,3.14,1000
+cmn8cceoj00do16qzd1hp5l4r,Rice wine vinegar,cmn8ccc0y000016qz9zc0gwqx,ml,1800,8.47,1800
+cmn8cceom00dp16qzx7vztk3y,Roasted peanuts,cmn8ccc0y000016qz9zc0gwqx,kg,1,5.64,1000
+cmn8cceop00dq16qze9gk4ryr,Rock melon,,piece,1,2.45,1
+cmn8cceor00dr16qzg8xsy0o8,Rock salt,,kg,25,6.5,25000
+cmn8ccep300ds16qzz6v1hdst,Rocket (Roquette),cmn8ccc1m000116qzkqgy4t8r,kg,1.5,23,1500
+cmn8ccepp00dv16qz7bjoj56a,Rosemary,cmn8ccc1m000116qzkqgy4t8r,bunch,1,4.2,1
+cmn8cceqb00dz16qzqrj0ngbp,Rye flour,,kg,5,14.99,5000
+cmn8cceqe00e016qzrv3hmcf0,Sabego potato,,kg,1,1.9,1000
+cmn8cceqg00e116qzml1ovcc3,Saffron,,g,10,35,10
+cmn8cceqo00e316qzxjgpwyw4,Sage - Dried,cmn8ccc0y000016qz9zc0gwqx,g,600,24.57,600
+cmn8ccer600e716qz7yv3o9fe,Salted Butter - bulk,cmn8ccc0y000016qz9zc0gwqx,g,5000,79.34,5000
+cmn8ccer200e616qzwbqhl3tt,Salted butter,cmn8ccc0y000016qz9zc0gwqx,g,500,6.69,500
+cmn8ccerq00eb16qzlllz9olb,Sauce soy Tamari gluten free,cmn8ccc0y000016qz9zc0gwqx,ml,1800,18.0749,1800
+cmn8ccesj00ed16qza418rms4,Scallop Meat,cmn8ccc29000716qz749iyk4u,g,1000,40.71,1000
+cmn8ccetb00eh16qzqxtgd887,Sea Salt Blossoms (flakes),cmn8ccc1w000316qzfw8hu7vj,kg,6,69.95,6000
+cmn8ccetf00ei16qzsocqx65i,Sea Salt Flakes natural,cmn8ccc0y000016qz9zc0gwqx,g,1000,28.07,1000
+cmn8ccetv00em16qzsbus40yh,Sesame seeds,,kg,1,7.99,1000
+cmn8cceua00eo16qzjx32sq2r,Shallot,,kg,1,19.5,1000
+cmn8cceue00ep16qz2hl01jid,Sherry vinegar,,ml,750,15.95,750
+cmn8ccev900et16qz7r4msnmv,Shredded Mozzarella,,kg,12,125,12000
+cmn8ccew500ex16qzri2wazpl,Slipper bug meat raw,cmn8ccc29000716qz749iyk4u,g,1000,61.34,1000
+cmn8ccex200f116qzlrivqktf,Smoked Salmon,cmn8ccc0y000016qz9zc0gwqx,kg,1,38.87,1000
+cmn8ccewi00ey16qzpzpjrtxc,Smoked bacon,,kg,1,9.9,1000
+cmn8ccewq00f016qz4a9ksvkv,Smoked paprika,,g,400,11.35,400
+cmn8ccenw00di16qzp5142h5v,red peppers,cmn8ccc1w000316qzfw8hu7vj,kg,1,13.4,1000
+cmn8cceqy00e516qzznzsrdcy,saltanas,cmn8ccc0y000016qz9zc0gwqx,g,1000,7.28,1000
+cmn8cceu500en16qz5h6jlvm1,sesame seeds black,cmn8ccc0y000016qz9zc0gwqx,kg,1,11.26,1000
+cmn8cceui00eq16qz6kbcbkbh,sherry vinegar 500ml,cmn8ccc0y000016qz9zc0gwqx,ml,500,6.64,500
+cmn8ccend00de16qzfb861942,Red capsicum,cmn8ccc1m000116qzkqgy4t8r,kg,1,5.88,1000
+cmn8ccf3c00g816qzwg66cnem,Tamarind Paste,cmn8ccc0y000016qz9zc0gwqx,g,227,3.14,227
+cmn8ccf4k00gf16qzkxlj1hs6,Togarashi,cmn8ccc2t000d16qz6t1jhjl4,g,300,9.29,300
+cmn8ccf4q00gg16qz14thutu8,Togorashi,cmn8ccc26000616qzbasks9f9,kg,1,16.72,1000
+cmn8ccf5b00gl16qz4t0jvh1f,Tomato Sauce - Big Red Heinz,cmn8ccc0y000016qz9zc0gwqx,l,4,10.75,4000
+cmn8ccf5k00go16qziv7wgf1o,"Tortilla  10""",cmn8ccc0y000016qz9zc0gwqx,piece,12,4.15,12
+cmn8ccf5z00gs16qztcga010g,truffle oil,cmn8ccc0y000016qz9zc0gwqx,ml,250,22.49,250
+cmn8ccf6100gt16qzwk163il8,Truffle Salami,cmn8ccc1w000316qzfw8hu7vj,kg,1,21.95,1000
+cmn8ccevp00ev16qz0mzp7r8s,Milk - Norco Lite (Red),,l,2,3.96,2000
+cmn8ccesw00ee16qzsjx4zwir,School Prawns,,kg,1,15.6,1000
+cmn8cceup00er16qzp4j23awp,Shitake Mushroom,cmn8ccc1m000116qzkqgy4t8r,kg,1,39,1000
+cmn8ccexn00f316qzj4sh0teh,Snapper fillet,,kg,1,31.5,1000
+cmn8ccexz00f416qzosol0uvj,Snapper whole,,piece,1,1.95,1
+cmn8cceyg00f616qzik6su879,Sour cream,,piece,1,49,1000
+cmn8cceym00f716qz8z19eb5g,Sourdough - Baguette,cmn8ccc2y000f16qzb2p6ybyz,piece,1,4,1
+cmn8cceze00fc16qzjkzlwmey,Soy Sauce,cmn8ccc0y000016qz9zc0gwqx,ml,1800,18.07,1800
+cmn8ccezb00fb16qznl280loo,Soy milk,,l,1,3.65,1000
+cmn8ccezi00fd16qzpodzgdvv,Soya milk  Bonsoy,cmn8ccc0y000016qz9zc0gwqx,l,1,3.74,1000
+cmn8ccezl00fe16qz4l45y7to,Spaghetti,,kg,1,3.6,1000
+cmn8ccezp00ff16qz0i4osa2z,Spanish anchovies,,kg,1,105,1000
+cmn8ccezx00fh16qzjkh4ajuy,Spanish onion,,kg,1,1.6,1000
+cmn8ccf0300fi16qzcimzluvc,Spinach - english,cmn8ccc1m000116qzkqgy4t8r,kg,1.5,27.05,1500
+cmn8ccf0g00fk16qznvs8a17l,Spring onion,cmn8ccc1q000216qz6riuv60h,bunch,1,2.35,10
+cmn8ccf0w00fn16qz3lfgsq22,Star anis,,g,200,10.39,200
+cmn8ccf1j00fr16qzglr5y1mj,Strawberry - Tarte,cmn8ccc1q000216qz6riuv60h,kg,1,11,1000
+cmn8ccf1200fo16qzm7t0lnmm,Strawberry - frozen,cmn8ccc0y000016qz9zc0gwqx,g,1000,8.21,1000
+cmn8ccf1q00fu16qz7r2i59cs,Sugar - Raw,cmn8ccc0y000016qz9zc0gwqx,kg,15,35.43,15000
+cmn8ccf1t00fv16qzsj3dpb5z,Sugar snaps,,kg,1,13.5,1000
+cmn8ccf1y00fw16qzs8a77mff,Sultana,,kg,1,8.9,1000
+cmn8ccf2000fx16qzr3c07whz,Sumac,,g,500,9.23,500
+cmn8ccf2800fz16qz4ku22ob3,Sunflower seeds,cmn8ccc0y000016qz9zc0gwqx,kg,1,6.15,1000
+cmn8ccf2i00g116qz3gjw5mkr,Sweet potato,,kg,1,1.8,1000
+cmn8ccf2r00g316qz9ljnl4tk,Swiss cheese,,kg,1,10.3,1000
+cmn8ccf2v00g416qzvaefgkq2,Swordfish,,kg,1,22,1000
+cmn8ccf3400g616qzc5i2k5g2,Table salt,cmn8ccc0y000016qz9zc0gwqx,kg,14,12.96,14000
+cmn8ccf3k00ga16qzbmohprjs,Tapioca pearls,,kg,1,4.2,1000
+cmn8ccf4d00ge16qzpw1lcefb,Tin tomato,,kg,2.75,4,2750
+cmn8ccf5n00gp16qz5u0xwjw8,Treacle,cmn8ccc0y000016qz9zc0gwqx,g,850,6.4,850
+cmn8ccf5v00gr16qz6bbukhsf,Trout roe,,g,100,28,100
+cmn8ccf6500gu16qzoeoxjzp1,Tumeric,cmn8ccc0y000016qz9zc0gwqx,kg,1,9.73,1000
+cmn8ccf6900gv16qzl4bmx3ma,Tuna,,kg,1,36,1000
+cmn8ccf6h00gw16qzniwc3kwu,Turmeric,,kg,1,14.95,1000
+cmn8ccf6l00gx16qzf8ar86zv,Turmeric powder,,kg,1,9.25,1000
+cmn8ccf6p00gy16qzm9quc2yg,Turnip,,kg,1,3.8,1000
+cmn8ccf7p00ha16qz018cobrn,Veliche Chocolate Batons,cmn8ccc2h000916qzeaya7p0r,kg,1.65,35.75,1650
+cmn8ccf5800gk16qzxmve1bkr,Tomato sauce,cmn8ccc0y000016qz9zc0gwqx,btl,1,10.6,2200
+cmn8ccf5r00gq16qz2mm3ul2h,Triple Sec - Vok,cmn8ccc0y000016qz9zc0gwqx,ml,500,21.41,500
+cmn8ccf7z00hc16qzyr8dkvn6,Vincotto,cmn8ccc1w000316qzfw8hu7vj,ml,750,18,750
+cmn8ccfb600hx16qz8ueeakld,Wholegrain mustard,cmn8ccc1w000316qzfw8hu7vj,kg,1,9.95,1000
+cmn8ccfbi00i216qzxwuojbsy,Worcestershire sauce,cmn8ccc0y000016qz9zc0gwqx,l,3,11.73,3000
+cmimp0019d2eb389620004,Hot Honey,,ml,330,12,330
+cmn8ccf5500gj16qzpi1cp5rl,Tomato Roma,cmn8ccc1m000116qzkqgy4t8r,kg,1,6.45,1000
+cmn8ccf9m00hi16qzar452735,Watermelon Radish,cmn8ccc1q000216qz6riuv60h,kg,300,11.85,1000
+cmn8ccfan00ho16qzfo96iptu,White Miso,cmn8ccc0y000016qz9zc0gwqx,kg,1,4.48,1000
+cmn8ccf1o00ft16qz1xvh1phd,Suckling pig whole,,piece,1,220,1
+cmn8ccf2d00g016qzsv9i446l,Sweet corn,,piece,1,1.1,1
+cmn8ccf3800g716qz79b934oj,Tahini,,piece,1,23,500
+cmn8ccf3v00gc16qzns3fhwij,Tequila - El Jimador Blanco,cmn8ccc0y000016qz9zc0gwqx,ml,700,50.39,700
+cmn8ccf3y00gd16qz8efaje47,Thyme,cmn8ccc1m000116qzkqgy4t8r,bunch,1,3.4,1
+cmimp0019d2eb389620001,Toasted Rice Powder,,g,100,4,100
+cmn8ccf4x00gh16qzumiabf40,Tomato - truss,cmn8ccc1m000116qzkqgy4t8r,g,5000,140000,5000
+cmn8ccf5e00gm16qzxinaxdvg,Tomatoes - Heirloom Mixed Large,cmn8ccc1q000216qz6riuv60h,g,1000,4.9,350
+cmn8ccf6w00h016qz8qfgiufq,Unsalted Butter NZ 25kg,cmn8ccc2n000b16qz7h9bdkwv,kg,25,295,25000
+cmn8ccf6s00gz16qzm0dlc3ed,Unsalted butter,,kg,1,16,1000
+cmn8ccf7b00h516qzvctnj6cb,Veal bones,,kg,1,4,1000
+cmn8ccf7e00h616qz4wm5lixj,Veal cube roll,,kg,1,30,1000
+cmn8ccf7u00hb16qzuy8c98y5,Vietnamese Mint,cmn8ccc1m000116qzkqgy4t8r,bunch,1,3,1
+cmn8ccf8400hd16qz35rais6r,Vodka,,l,1,30,1000
+cmn8ccf8900he16qzoyk2t5rf,Walnut pieces,cmn8ccc0y000016qz9zc0gwqx,kg,1,16.06,1000
+cmn8ccf8h00hf16qzp111hwwi,Water (tap),cmn8ccc26000616qzbasks9f9,l,1,0,1000
+cmn8ccf9a00hh16qzmcg8ocdg,Watermelon - Seedless,cmn8ccc1m000116qzkqgy4t8r,kg,1,2,1000
+cmn8ccfas00hq16qza546j0xj,White Pepper corn,cmn8ccc0y000016qz9zc0gwqx,kg,1,18.6,1000
+cmn8ccfaw00hs16qzcs2p4o5l,White Wine Vinegar,cmn8ccc0y000016qz9zc0gwqx,l,5,17.55,5000
+cmn8ccf9w00hj16qz48b2riej,White asparagus,,kg,1,15.7,1000
+cmn8ccfa200hk16qzy9t9t6nh,White bait,,kg,1,13.5,1000
+cmn8ccfa800hl16qzbt263hud,White balsamic vinegar,,l,5,17.8,5000
+cmn8ccfav00hr16qznb8sg45c,White vinegar,cmn8ccc0y000016qz9zc0gwqx,l,20,26.71,20000
+cmn8ccfb400hw16qzk9lnls4e,Whole squid,,kg,1,11.2,1000
+cmn8ccfb800hy16qz7zr5wdkb,Wild Roquette,,kg,1,18.5,1000
+cmn8ccfbb00hz16qzdlo753lz,Witlof,,kg,1,12.45,1000
+cmn8ccfbm00i316qzalz0e87i,Xantana,,kg,1,15,1000
+cmn8ccfbo00i416qz9vh7ebds,Yeast - dry instant,cmn8ccc0y000016qz9zc0gwqx,g,500,3.53,500
+cmn8ccfbr00i516qzu7bdwqo8,Yellow mustard seeds,cmn8ccc0y000016qz9zc0gwqx,g,500,8.51,500
+cmn8ccfbt00i616qzr4xdth72,Yellow peach,cmn8ccc1m000116qzkqgy4t8r,kg,5,28.4,5000
+cmn8ccfby00i816qzmk1jbdro,Yoghurt greek style plain,cmn8ccc0y000016qz9zc0gwqx,kg,2,10.38,2000
+cmn8ccfaz00ht16qzkjruiviu,Whole egg mayonnaise,,btl,1,110,4000
+cmn8ccfb100hu16qzsrrfyji8,Whole grain mustard,,piece,1,13.5,370
+cmn8cccae000y16qz7agkstxb,Artichoke heart,,piece,1,14.55,1
+cmn8ccfbe00i016qz968i927v,Wombok cabbage,cmn8ccc1m000116qzkqgy4t8r,piece,1,3,1
+cmn8ccd2x003b16qzk4ockw8p,Caper large,cmn8ccc0y000016qz9zc0gwqx,piece,1,26.21,1
+cmn8ccd3k003c16qzg2grxhw6,Caperberry,cmn8ccc0y000016qz9zc0gwqx,piece,1,19.92,1
+cmn8ccduk006v16qzlwig3yns,Flour Tortilla,cmn8ccc0y000016qz9zc0gwqx,piece,1,3.82,25000
+cmn8ccdwm007916qzosd7ljjv,GC Eggs - Individual,cmn8ccc26000616qzbasks9f9,piece,1,0.48,1
+cmn8ccdy7007p16qzs8tn5151,Green asparagus,cmn8ccc1m000116qzkqgy4t8r,bunch,1,3.99,1
+cmn8cce1c008d16qzipr2g3db,Honey - pure,cmn8ccc0y000016qz9zc0gwqx,piece,1,25.12,3000
+cmn8cce32008v16qzqz80hdf9,Kale - purple,cmn8ccc1m000116qzkqgy4t8r,bunch,1,3.99,1
+cmn8cce8100a216qzcep426ir,Micro Basil,cmn8ccc1q000216qz6riuv60h,punnet,1,3.3,1
+cmn8cce8400a316qz3i2393ss,Micro Green Pot,cmn8ccc26000616qzbasks9f9,punnet,1,2.45,1
+cmn8ccedd00b816qzgadp0cni,Oregano,,bunch,1,1.95,1
+cmn8ccefq00bt16qzibv5fjzn,Pea tendrils,,punnet,1,2.35,1
+cmn8ccehw00ce16qzyq9c03w1,Plain flour,cmn8ccc0y000016qz9zc0gwqx,bag,1,17.82,25000
+cmn8ccem500d616qzt9dwi9el,Radish Watermelon,cmn8ccc1q000216qz6riuv60h,bunch,1,4.95,1
+cmn8ccenr00dg16qzwdtw2tk3,Red cherry tomato,,punnet,1,1.8,1
+cmn8cceo700dk16qz3ok5yvd9,Rhubarb,cmn8ccc1m000116qzkqgy4t8r,bunch,1,5.99,1
+cmn8cceoe00dn16qz1i5tk0qs,Rice flour,,piece,1,5.2,1000
+cmimp0019d2eb389620003,Slipper Bug Meat (Bay Lobster),,g,1000,61.34,1000
+cmn8ccf1900fp16qzbjs1b4fo,Strawberry - Large,cmn8ccc1m000116qzkqgy4t8r,punnet,1,3.4,1
+cmn8ccf1d00fq16qzut2b10c3,Strawberry - Medium,cmn8ccc1m000116qzkqgy4t8r,punnet,1,2.2,1
+cmn8ccf1m00fs16qzcw6luhvl,Strawberry - XL,cmn8ccc1m000116qzkqgy4t8r,punnet,1,4.99,1
+cmn8ccf5100gi16qznfqr3pit,Tomato Paste,cmn8ccc0y000016qz9zc0gwqx,piece,440,4.36,3000
+cmn8ccf8s00hg16qzh8n7pnm9,Watercress,cmn8ccc1q000216qz6riuv60h,bunch,1,2.1,1
+cmn8ccfal00hn16qzcaaxk2gp,White cabbage,,piece,1,2.35,1
+cmn8ccfaq00hp16qzmkp44cuu,White onion,,kg,1,5.45,1000
+cmn8ccfbf00i116qzb8pj4j16,Woodland sorrel,,punnet,1,8.95,1
+cmn8ccfbw00i716qzdxgpm5fg,Yellow zucchini,,kg,1,7.8,1000
+cmn8ccfc100i916qzqr6itw70,Zucchini,cmn8ccc1q000216qz6riuv60h,kg,1,4.8,1000
+cmn8ccfc500ia16qzo0344nht,Zucchini flower,,piece,1,1.35,1
+cmn8cccf1001916qz3em3wtv6,Baby red beetroot,,bunch,1,4.85,1
+cmn8ccdm7005d16qzsf999sx4,Cornichon,,piece,1,18.9,1
+cmn8ccdqh006216qzcwlqv2tn,Dill pickles sliced,,piece,1,8,1
+cmn8cce1r008i16qzfisfkfdv,HP sauce,,btl,1,3.3,1
+cmn8cce1f008e16qzhjpdv189,Horse radish,,piece,1,12.32,1
+cmn8ccegt00c516qzd5ceto3n,Pickle onion,,piece,1,11.9,1
+cmn8cccmq001s16qz917ou9p5,BBQ sauce,,btl,1,8.93,1
+cmn8ccdli005916qzkin7ocfa,Corn chips,,piece,1,32,1
+ing_papa_salt_gin,Papa Salt Gin,sup_burleigh_drinks_01,btl,1,80,1000
+ing_aperol,Aperol,sup_burleigh_drinks_01,btl,1,26.87,700
+ing_fever_tree_tonic,Fever-Tree Tonic,sup_burleigh_drinks_01,btl,1,1.67,200
+cmn8ccepk00du16qzsxgchmwa,Roquette,cmn8ccc1m000116qzkqgy4t8r,case,1,21.33,1
+cmn8ccc8v000u16qzkxz5sbeg,Apple - Green Juicing,cmn8ccc1m000116qzkqgy4t8r,case,1,32.6,1
+cmn8ccd3z003d16qz9vi0a858,Capers in Brine,cmn8ccc0y000016qz9zc0gwqx,piece,1,18.46,1
+cmn8ccdig004s16qz2fbwsssh,Cocoa butter,,piece,1,125,1
+cmn8ccdlv005b16qzyp756c4u,Corn kernel,,piece,1,5,1
+cmn8ccdv7007016qzgbe1bxvm,Fresh peas,,piece,1,62.5,1
+cmn8ccdxd007h16qzdsax37t5,Globe artichoke,,piece,1,39.5,1
+cmn8cce5l009f16qz971mbew2,Lettuce - Baby Gem,cmn8ccc1m000116qzkqgy4t8r,piece,1,3.1,1
+ing_peroni,Peroni,sup_burleigh_drinks_01,btl,1,2.27,330
+cmn8ccegq00c416qzzh7ets9l,Persimmon,,piece,1,47,1
+cmn8ccemj00d916qzzupvmnnz,Raspberry,cmn8ccc1m000116qzkqgy4t8r,punnet,1,3.6,125
+cmn8ccetr00el16qzlq3q7mc7,Semolina,,bag,1,24,1
+cmn8ccey700f516qzkvwk59sz,Snow Peas,cmn8ccc1q000216qz6riuv60h,kg,1,15.5,1000
+cmn8ccf0k00fl16qz4beyzef5,Squid ink,,piece,1,26.25,1
+cmn8ccf2300fy16qzxues5p2q,Sun-dried tomato,,piece,1,15.5,1
+cmn8ccf5g00gn16qze7mgbuo1,Tomatoes - medley,cmn8ccc1m000116qzkqgy4t8r,g,200,4.95,200
+cmn8ccfag00hm16qzkk6p9mjx,White beans,,bag,1,5.2,1
+cmn8ccfc700ib16qzj07wh3xz,Zucchini Med/Lg,cmn8ccc1m000116qzkqgy4t8r,kg,1,2.88,1000
+cmp8weluk00000uo413u37k4j,Croissant - Mini (Bridor),cmn8ccc2h000916qzeaya7p0r,piece,195,90,195
+ing_cocowater_cocobella_01,Coconut water - Cocobella,sup_made_brands_01,l,60,204.96,60000
+ing_apple_puree_riviana_01,Apple Puree - Riviana,cmn8ccc0y000016qz9zc0gwqx,kg,3,17.66,3000
+ing_brioche_loaf_ft_01,Brioche Loaf - French Toast,,piece,1,12.6,4
+cmqablcvh000076q0p1ypy1ma,Demi Glaze Basic Brown GF (Maggi),cmn8ccc0y000016qz9zc0gwqx,kg,2,39.9,2000
+cmqablcwl000176q0vnvji377,Beef Stock - Real Campbells,cmn8ccc0y000016qz9zc0gwqx,l,1,4.11,1000
+cmqablcxk000276q0290yqmkw,Hennessy VS Cognac,cmn8ccc0y000016qz9zc0gwqx,btl,1,87.25,700
+cmn8ccc6u000p16qzmhih4oee,Almond whole raw kernels,cmn8ccc0y000016qz9zc0gwqx,kg,1,19.8528,1000
+cmn8ccc8f000t16qzrrvsisl6,Anchovies tin,cmn8ccc0y000016qz9zc0gwqx,piece,1,18.68,1
+cmn8ccck7001m16qzy7iuswgj,Banana Chunks - Frozen,cmn8ccc0y000016qz9zc0gwqx,kg,10,29.4912,10000
+cmn8cccna001v16qzmqwkmj18,Beef Jacks Creek Black Angus Strip Loin,cmn8ccc2d000816qzwz65vnwn,g,1000,36,1000
+cmn8cccvm002p16qzvyrwgznl,Broccoli,cmn8ccc1m000116qzkqgy4t8r,g,1000,4,1000
+cmn8ccd9f003t16qzf7wuirc7,Cheese - Grana Padano,cmn8ccc0y000016qz9zc0gwqx,g,1000,32.832,1000
+cmn8ccd9r003u16qzk65lm79x,Cheese - Moz Fior Di bucket,cmn8ccc1z000416qz479l8oix,g,1000,19.7,1000
+cmn8ccddt004616qzm9spi10w,Chicken Skin,cmn8ccc1z000416qz479l8oix,kg,1,3.75,1000
+cmn8ccder004b16qz876pxlev,Chilli - Fingerlong Red,cmn8ccc1m000116qzkqgy4t8r,kg,1,10.5,1000
+ing_coffee_beans_espresso_01,Coffee Beans - Espresso (House),,kg,1,26,1000
+cmn8ccdmk005f16qz2ni3qj62,Cottonseed Oil,cmn8ccc0y000016qz9zc0gwqx,l,20,67.48,20000
+cmn8ccdop005q16qzs734ytmm,Cucumber - Continental Lg,cmn8ccc1m000116qzkqgy4t8r,bag,1,37.2,15
+ing_prosecco_debortoli,De Bortoli Prosecco,sup_burleigh_drinks_01,btl,1,13.14,750
+cmn8ccdpn005y16qzq11v1l6r,Diced Onion,cmn8ccc26000616qzbasks9f9,kg,1,8.95,1000
+cmn8ccdtq006p16qzbptaveyw,Fior Di Latte,cmn8ccc2k000a16qzvko4fkbp,kg,1,19,1000
+cmn8ccdy1007n16qz4kqzexcm,Granny smith apple,,kg,1,4.25,1000
+cmn8cce0x008916qz3wuehovb,Heirloom tomato mix,,kg,1,12.25,1000
+cmn8cce14008b16qzrzqoxbj3,Herradura Agave Nectar,cmn8ccc0y000016qz9zc0gwqx,ml,478,11.93,478
+cmn8cce2x008u16qz1y2fopir,Kale,cmn8ccc1m000116qzkqgy4t8r,bunch,1,2.9,1
+cmn8cceec00bj16qzai0g0899,Parmesan cheese,cmn8ccc0y000016qz9zc0gwqx,kg,1,29.56,1000
+cmn8ccehl00cc16qzm46h6b28,Pistachio Nuts - Kernels no shell,cmn8ccc0y000016qz9zc0gwqx,kg,13.61,575,10000
+cmn8ccdl6005716qzqbvemxxu,Coriander,cmn8ccc1m000116qzkqgy4t8r,bunch,1,2.6,1
+cmo5k8peq000001qr0fzrydh0,Sourdough - White 850g,cmn8ccc2y000f16qzb2p6ybyz,piece,1,6.3,1
+cmn8ccez300fa16qz1mdo57w2,Sourdough - White,cmn8ccc2y000f16qzb2p6ybyz,g,1200,9.4,1200
+cmn8cce1y008k16qzy39uyio2,Iceberg lettuce,,piece,1,2.65,1
+cmn8cce6m009m16qz4hmgg0tp,Linguine,cmn8ccc26000616qzbasks9f9,g,500,3.5,500
+cmn8ccea700al16qz2edwxl29,Mussels,,kg,4,29,4000
+cmn8ccedr00bd16qzpxzgt7cn,Palm Sugar (Dark),cmn8ccc0y000016qz9zc0gwqx,g,500,2.86,500
+cmn8cceeo00bm16qz6zp04mr8,Parsley,cmn8ccc1m000116qzkqgy4t8r,bunch,1,3.4,1
+cmn8ccekv00cv16qzb9oq89to,Prawn Vannameli Raw Cutlet,cmn8ccc29000716qz749iyk4u,g,1000,27.6,1000
+cmn8cceno00df16qz7xpq0rto,Red Cheddar slices,cmn8ccc1z000416qz479l8oix,kg,1.5,28.9,1500
+cmn8ccepu00dw16qz8i1ptm4b,Rosemary leaves - dried,cmn8ccc0y000016qz9zc0gwqx,g,300,8.44,300
+cmn8ccetm00ek16qz3hnlsj6p,Self raising flour,cmn8ccc0y000016qz9zc0gwqx,bag,1,18.36,25000
+cmn8ccevw00ew16qz95irbef5,Sliced Onion,cmn8ccc1q000216qz6riuv60h,kg,1,9.8,1000
+cmn8ccexd00f216qzlr01hvnx,Smoked Salmon - Sliced Atlantic,cmn8ccc0y000016qz9zc0gwqx,g,1000,34.1184,1000
+cmn8ccezt00fg16qzqupn2b18,Spanish mackerel whole,,kg,1,16.9,1000
+cmn8ccf3o00gb16qzvjvgb3vh,Tarragon,cmn8ccc1m000116qzkqgy4t8r,bunch,1,4.1,1
+cmowhts9u000016p006gy4242,Tomato polpa,cmn8ccc0y000016qz9zc0gwqx,kg,4.05,17.31,4050
+cmn8ccfb300hv16qzgvi23psk,Whole meal flour,,kg,12.5,13.5,12500
+cmn8ccdzd007w16qz3iycttam,Gruyere Swiss Lustenberger,cmn8ccc0y000016qz9zc0gwqx,kg,1,43.88,1000
+cmn8ccdsk006g16qzwin225ba,Eshallot - golden,cmn8ccc1m000116qzkqgy4t8r,g,1000,5.6,1000
+cmqadmy40000063q0jgb6yrrl,Leek,cmn8ccc1m000116qzkqgy4t8r,bunch,1,5.2,1
+cmqadmydi000263q0ijv3g3b0,Red Vein Sorrel,cmn8ccc1q000216qz6riuv60h,punnet,1,11.55,1
+cmn8cceyt00f816qz42o4svbo,Sourdough - Chefs White XL,cmn8ccc2y000f16qzb2p6ybyz,g,1200,9.4,1200
+cmqadmy8r000163q0c7fdnmcg,Frisee (Gourmet Endive),cmn8ccc1q000216qz6riuv60h,piece,1,46.5,1
+cmqafvs8q0001ujq0lhvwknbz,Basil Oil (house-made),,l,1,13.5,1000
+cmqafvsam0002ujq0seoo7iwk,Cheese Provolone Dolce Sliced,cmn8ccc1z000416qz479l8oix,kg,1,34.25,1000
+cmqafvsci0003ujq0red2mek9,Bread - Dried (repurposed),,kg,1,0,1000
+cmqafvs6v0000ujq0w33hafd4,Liquid Smoke (Wrights),cmn8ccc0y000016qz9zc0gwqx,l,1,123.69,1000
+ing_acai_blend_wastage_01,Acai Blend - Wastage allowance,,l,1,5.76,1000
+cmqaid2070000l5q0px85u8r4,Tomatoes San Marzano DOP,cmnb7gwor000101nn33sjhu51,kg,2.5,21.49,2500
+cmqaid22v0001l5q0lanu2psk,Italian Herb Mix,cmn8ccc2n000b16qz7h9bdkwv,kg,1,22.5,1000
+cmqaid27a0002l5q071zmabuw,Buffalo Mozzarella (Byron Bay),cmn8ccc2k000a16qzvko4fkbp,kg,1,45,1000
+cmqajosoh0000zjq0uu7xqa15,Sesame Oil,cmn8ccc0y000016qz9zc0gwqx,ml,150,3.9,150
+cmqajoss20001zjq08elvz997,Orange Juice - Fresh (house),,l,1,3.74,1000

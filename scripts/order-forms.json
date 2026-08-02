@@ -1,4 +1,20 @@
 {
+  "_schema": {
+    "version": 2,
+    "description": "Tarte supplier order forms \u2014 single source of truth. Consumers (TK ApprovedSupplierItem, printable forms, Cowork cheatsheet & per-supplier forms) all read from here. Per-item \"active\": true means we currently order this from this supplier; \"active\": false means it is on their book but we have chosen another source. Bidfood line items show GROSS price \u2014 apply supplier.rebatePct/100 to get our effective cost.",
+    "fields": {
+      "supplier": "Supplier display name (matches TK Supplier.name)",
+      "rebatePct": "Volume rebate (Bidfood = 4). 0 if none.",
+      "deliveryDays": "Days of week supplier delivers",
+      "cutoff": "Order cutoff time relative to delivery",
+      "item.active": "true = ordering active. false = on book but not chosen.",
+      "item.packPrice": "Per-pack price ex GST (gross \u2014 apply rebate at comparison time)",
+      "item.unitPrice": "Per-base-unit price (per kg / L / each). Gross.",
+      "item.notes": "Reason / spec call / drift note"
+    }
+  },
+  "_updated": "2026-06-11",
+  "_notes": "Verified line-by-line against invoices to 11 Jun 2026 (this pass). See cowork-update-instructions-2026-06-08.md for the sourcing-decision history. This file is the authoritative source from this point forward.",
   "forms": [
     {
       "supplier": "Bidfood",
@@ -9,24 +25,18 @@
           "packSize": "5 kg",
           "packPrice": 83.48,
           "unitPrice": 16.696,
-          "unit": "kg"
-        },
-        {
-          "category": "Dairy",
-          "name": "Butter Salted (Yardefarm)",
-          "packSize": "0.5 kg",
-          "packPrice": 7.76,
-          "unitPrice": 15.52,
-          "unit": "kg"
-        },
-        {
-          "category": "Dairy",
-          "name": "Butter Salted Catchoice (Yardefarm)",
-          "packSize": "0.500 kg",
-          "packPrice": 6.69,
-          "unitPrice": 13.38,
           "unit": "kg",
-          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+          "active": true
+        },
+        {
+          "category": "Dairy",
+          "name": "Butter Salted Yardefarm 500g",
+          "packSize": "500 g",
+          "packPrice": 8.25,
+          "unitPrice": 16.5,
+          "unit": "kg",
+          "notes": "Verified current invoice price (stepped $7.76\u2192$8.25 on 6 Jun 2026, +6.3%)",
+          "active": true
         },
         {
           "category": "Dairy",
@@ -34,15 +44,17 @@
           "packSize": "25 kg",
           "packPrice": 335.0,
           "unitPrice": 13.4,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Dairy",
           "name": "Cheese Grana Padano D.O.P (App 4.5Kg) (Alfinasovr)",
-          "packSize": "Kg",
+          "packSize": "~4.5 kg piece (variable, billed per kg)",
           "packPrice": 34.2,
           "unitPrice": 34.2,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Dairy",
@@ -50,7 +62,8 @@
           "packSize": "1 kg",
           "packPrice": 21.88,
           "unitPrice": 21.88,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Dairy",
@@ -58,15 +71,18 @@
           "packSize": "1 kg",
           "packPrice": 11.15,
           "unitPrice": 11.15,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Dairy",
           "name": "Cheese Shredded Tasty (Mainland)",
           "packSize": "2 kg",
-          "packPrice": 28.5,
-          "unitPrice": 14.25,
-          "unit": "kg"
+          "packPrice": 30.26,
+          "unitPrice": 15.13,
+          "unit": "kg",
+          "active": false,
+          "notes": "STILL BEING ORDERED (6 pkt on 11 Jun 2026) despite inactive \u2014 chosen source is Provedores Holy Cow @ $13.05/kg. Price rose to $30.26 (+6.2%)"
         },
         {
           "category": "Dairy",
@@ -74,7 +90,8 @@
           "packSize": "2.27 kg",
           "packPrice": 27.79,
           "unitPrice": 12.2423,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Dairy",
@@ -82,7 +99,9 @@
           "packSize": "1 kg",
           "packPrice": 32.0,
           "unitPrice": 32.0,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true,
+          "notes": "Never invoiced in last 120 days \u2014 price unverified"
         },
         {
           "category": "Dairy",
@@ -90,7 +109,8 @@
           "packSize": "8 L",
           "packPrice": 31.6,
           "unitPrice": 3.95,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Dairy",
@@ -98,7 +118,8 @@
           "packSize": "5 L",
           "packPrice": 37.5,
           "unitPrice": 7.5,
-          "unit": "L"
+          "unit": "L",
+          "active": false
         },
         {
           "category": "Dairy",
@@ -106,7 +127,9 @@
           "packSize": "10 kg",
           "packPrice": 138.48,
           "unitPrice": 13.848,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true,
+          "notes": "Verified unchanged $138.48/10kg (5x2kg) through 7 Jun 2026"
         },
         {
           "category": "Dairy",
@@ -114,7 +137,8 @@
           "packSize": "10 L",
           "packPrice": 154.92,
           "unitPrice": 15.492,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Dairy",
@@ -122,7 +146,8 @@
           "packSize": "4 L",
           "packPrice": 13.52,
           "unitPrice": 3.38,
-          "unit": "L"
+          "unit": "L",
+          "active": false
         },
         {
           "category": "Dairy",
@@ -130,7 +155,8 @@
           "packSize": "5 L",
           "packPrice": 29.0,
           "unitPrice": 5.8,
-          "unit": "L"
+          "unit": "L",
+          "active": false
         },
         {
           "category": "Dairy",
@@ -138,7 +164,8 @@
           "packSize": "5 L",
           "packPrice": 15.0,
           "unitPrice": 3.0,
-          "unit": "L"
+          "unit": "L",
+          "active": false
         },
         {
           "category": "Dairy",
@@ -146,7 +173,8 @@
           "packSize": "0.6 L",
           "packPrice": 3.95,
           "unitPrice": 6.5833,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Dairy",
@@ -154,23 +182,28 @@
           "packSize": "0.395 kg",
           "packPrice": 3.59,
           "unitPrice": 9.0886,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Dairy",
           "name": "Milk Soya Bon (Bonsoy)",
           "packSize": "6 L",
-          "packPrice": 21.0,
-          "unitPrice": 3.5,
-          "unit": "L"
+          "packPrice": 19.8,
+          "unitPrice": 3.3,
+          "unit": "L",
+          "active": false,
+          "notes": "Invoiced $19.80 on 22 May 2026 (was $21.00)"
         },
         {
           "category": "Dairy",
           "name": "Milk Uht Almond Barista (Adc)",
           "packSize": "12 L",
-          "packPrice": 36.84,
-          "unitPrice": 3.07,
-          "unit": "L"
+          "packPrice": 38.04,
+          "unitPrice": 3.17,
+          "unit": "L",
+          "active": false,
+          "notes": "Invoiced $38.04 to 22 May 2026 (+3.3% vs $36.84)"
         },
         {
           "category": "Dairy",
@@ -178,7 +211,8 @@
           "packSize": "12 L",
           "packPrice": 33.36,
           "unitPrice": 2.78,
-          "unit": "L"
+          "unit": "L",
+          "active": false
         },
         {
           "category": "Dairy",
@@ -186,7 +220,8 @@
           "packSize": "10 kg",
           "packPrice": 51.58,
           "unitPrice": 5.158,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Dairy",
@@ -194,7 +229,8 @@
           "packSize": "2 kg",
           "packPrice": 24.64,
           "unitPrice": 12.32,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Dairy",
@@ -202,7 +238,8 @@
           "packSize": "2 kg",
           "packPrice": 13.3,
           "unitPrice": 6.65,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Pastry/Baking",
@@ -211,7 +248,8 @@
           "packPrice": 25.05,
           "unitPrice": null,
           "unit": "",
-          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+          "notes": "No invoices in 120 days \u2014 not actively ordered. Flag for review.",
+          "active": false
         },
         {
           "category": "Pastry/Baking",
@@ -219,7 +257,8 @@
           "packSize": "2.5 kg",
           "packPrice": 82.93,
           "unitPrice": 33.172,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
@@ -227,7 +266,8 @@
           "packSize": "12.5 kg",
           "packPrice": 17.8,
           "unitPrice": 1.424,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Pastry/Baking",
@@ -235,15 +275,18 @@
           "packSize": "12.5 kg",
           "packPrice": 19.32,
           "unitPrice": 1.5456,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Pastry/Baking",
           "name": "Flour Plain (Gemofthewest)",
           "packSize": "12.5 kg",
-          "packPrice": 15.6,
-          "unitPrice": 1.248,
-          "unit": "kg"
+          "packPrice": 16.17,
+          "unitPrice": 1.2936,
+          "unit": "kg",
+          "active": true,
+          "notes": "Invoiced $16.17 on 8 May 2026 (+3.7% vs $15.60)"
         },
         {
           "category": "Pastry/Baking",
@@ -251,15 +294,18 @@
           "packSize": "12.5 kg",
           "packPrice": 17.47,
           "unitPrice": 1.3976,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
           "name": "Fondant Soft White (Allied)",
           "packSize": "15 kg",
-          "packPrice": 83.18,
-          "unitPrice": 5.5453,
-          "unit": "kg"
+          "packPrice": 80.0,
+          "unitPrice": 5.3333,
+          "unit": "kg",
+          "active": false,
+          "notes": "Dropped to $80.00 (7\u201311 Jun 2026, was $84.76 in Apr)"
         },
         {
           "category": "Pastry/Baking",
@@ -267,7 +313,8 @@
           "packSize": "15 kg",
           "packPrice": 31.5,
           "unitPrice": 2.1,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
@@ -275,7 +322,8 @@
           "packSize": "0.32 kg",
           "packPrice": 30.18,
           "unitPrice": 94.3125,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Pastry/Baking",
@@ -283,15 +331,18 @@
           "packSize": "3 kg",
           "packPrice": 46.0,
           "unitPrice": 15.3333,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
           "name": "Sugar Caster (Bundaberg) \u2014 15 kg",
           "packSize": "15 kg",
-          "packPrice": 27.9,
-          "unitPrice": 1.86,
-          "unit": "kg"
+          "packPrice": 29.6,
+          "unitPrice": 1.9733,
+          "unit": "kg",
+          "active": true,
+          "notes": "Invoiced $29.60 2x (10 Apr & 10 May 2026), +6.1% vs $27.90"
         },
         {
           "category": "Pastry/Baking",
@@ -299,7 +350,9 @@
           "packSize": "25 kg",
           "packPrice": 40.9,
           "unitPrice": 1.636,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true,
+          "notes": "25kg pack not invoiced since Mar 2026 \u2014 only 15kg bought. Confirm 25kg still available at $40.90"
         },
         {
           "category": "Pastry/Baking",
@@ -308,7 +361,7 @@
           "packPrice": 3.04,
           "unitPrice": 6.08,
           "unit": "kg",
-          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+          "active": true
         },
         {
           "category": "Nuts",
@@ -316,7 +369,8 @@
           "packSize": "1 kg",
           "packPrice": 22.15,
           "unitPrice": 22.15,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Nuts",
@@ -324,7 +378,8 @@
           "packSize": "1 kg",
           "packPrice": 20.68,
           "unitPrice": 20.68,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Nuts",
@@ -332,15 +387,18 @@
           "packSize": "1 kg",
           "packPrice": 21.0,
           "unitPrice": 21.0,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Nuts",
           "name": "Coconut Shredded (Longthread) (Catchoice)",
           "packSize": "1 kg",
-          "packPrice": 14.3,
-          "unitPrice": 14.3,
-          "unit": "kg"
+          "packPrice": 14.53,
+          "unitPrice": 14.53,
+          "unit": "kg",
+          "active": false,
+          "notes": "Invoiced $14.53 on 13 Apr 2026 (+1.6% vs $14.30)"
         },
         {
           "category": "Nuts",
@@ -348,7 +406,8 @@
           "packSize": "1 kg",
           "packPrice": 65.0,
           "unitPrice": 65.0,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Pantry",
@@ -356,7 +415,8 @@
           "packSize": "10 kg",
           "packPrice": 109.94,
           "unitPrice": 10.994,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -364,7 +424,8 @@
           "packSize": "10 kg",
           "packPrice": 169.0,
           "unitPrice": 16.9,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Pantry",
@@ -373,7 +434,7 @@
           "packPrice": 15.48,
           "unitPrice": 5.16,
           "unit": "kg",
-          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+          "active": true
         },
         {
           "category": "Pantry",
@@ -381,7 +442,8 @@
           "packSize": "1.64 kg",
           "packPrice": 2.43,
           "unitPrice": 1.4817,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -389,16 +451,18 @@
           "packSize": "A12",
           "packPrice": 42.53,
           "unitPrice": 42.53,
-          "unit": "can"
+          "unit": "can",
+          "active": true
         },
         {
           "category": "Pantry",
           "name": "Cinnamon Quills (Kriokrush)",
           "packSize": "0.200 kg",
-          "packPrice": 18.14,
-          "unitPrice": 90.7,
+          "packPrice": 18.9,
+          "unitPrice": 94.5,
           "unit": "kg",
-          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+          "notes": "Still being ordered (7 Jun 2026 @ $18.90, +4.2%) despite move to Fermex Cinnamon Stick @ $19/kg",
+          "active": false
         },
         {
           "category": "Pantry",
@@ -406,15 +470,18 @@
           "packSize": "1 kg",
           "packPrice": 13.0,
           "unitPrice": 13.0,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Pantry",
           "name": "Creme Fraiche (Tatua)",
           "packSize": "0.5 kg",
-          "packPrice": 11.27,
-          "unitPrice": 22.54,
-          "unit": "kg"
+          "packPrice": 10.9,
+          "unitPrice": 21.8,
+          "unit": "kg",
+          "active": true,
+          "notes": "Dropped to $10.90 on 7 Jun 2026 (was $11.27)"
         },
         {
           "category": "Pantry",
@@ -422,15 +489,18 @@
           "packSize": "1 kg",
           "packPrice": 14.9,
           "unitPrice": 14.9,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Pantry",
           "name": "Honey Pure (Allowrie)",
           "packSize": "3 kg",
-          "packPrice": 23.5,
-          "unitPrice": 7.8333,
-          "unit": "kg"
+          "packPrice": 24.42,
+          "unitPrice": 8.14,
+          "unit": "kg",
+          "active": true,
+          "notes": "Invoiced $24.42 3x (1\u201320 May 2026), +3.9% vs $23.50"
         },
         {
           "category": "Pantry",
@@ -439,7 +509,7 @@
           "packPrice": 6.9,
           "unitPrice": 6.9,
           "unit": "kg",
-          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+          "active": true
         },
         {
           "category": "Pantry",
@@ -447,15 +517,18 @@
           "packSize": "1 L",
           "packPrice": 30.5,
           "unitPrice": 30.5,
-          "unit": "L"
+          "unit": "L",
+          "active": false
         },
         {
           "category": "Pantry",
           "name": "Mayonnaise (Kewpie)",
           "packSize": "1 kg",
-          "packPrice": 11.82,
-          "unitPrice": 11.82,
-          "unit": "kg"
+          "packPrice": 12.0,
+          "unitPrice": 12.0,
+          "unit": "kg",
+          "active": true,
+          "notes": "Invoiced $12.00 on 23 Apr 2026, +1.5% vs $11.82"
         },
         {
           "category": "Pantry",
@@ -463,7 +536,8 @@
           "packSize": "0.6 L",
           "packPrice": 7.9,
           "unitPrice": 13.1667,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -472,7 +546,8 @@
           "packPrice": 17.69,
           "unitPrice": 8.04,
           "unit": "kg",
-          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+          "active": true,
+          "notes": "Bidfood still shipping Masterfoods 2.5kg sub @ $22.62 ($9.05/kg) instead of Frenchmaid \u2014 3 invoices 29 Apr \u2013 11 Jun 2026. Frenchmaid last billed correctly $17.69 on 23 Apr"
         },
         {
           "category": "Pantry",
@@ -481,7 +556,7 @@
           "packPrice": 12.73,
           "unitPrice": 1.27,
           "unit": "kg",
-          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+          "active": true
         },
         {
           "category": "Pantry",
@@ -489,7 +564,8 @@
           "packSize": "0.75 kg",
           "packPrice": 20.0,
           "unitPrice": 26.6667,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Pantry",
@@ -497,15 +573,18 @@
           "packSize": "2 kg",
           "packPrice": 30.59,
           "unitPrice": 15.295,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pantry",
           "name": "Pulp Passionfruit (Catchoice)",
           "packSize": "1.00 kg",
-          "packPrice": 8.34,
-          "unitPrice": 8.34,
-          "unit": "kg"
+          "packPrice": 8.13,
+          "unitPrice": 8.13,
+          "unit": "kg",
+          "active": true,
+          "notes": "Dropped to $8.13 from 25 May 2026 (was $8.34). NB duplicate row 'Passionfruit Pulp (Catchoice)' \u2014 consider deduping"
         },
         {
           "category": "Pantry",
@@ -513,7 +592,8 @@
           "packSize": "1 kg",
           "packPrice": 14.5,
           "unitPrice": 14.5,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -522,7 +602,7 @@
           "packPrice": 42.25,
           "unitPrice": 281.67,
           "unit": "kg",
-          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+          "active": true
         },
         {
           "category": "Pantry",
@@ -530,7 +610,9 @@
           "packSize": "1 kg",
           "packPrice": 27.0,
           "unitPrice": 27.0,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false,
+          "notes": "Moved to Fermex Maldon Flakes 1.4kg @ $23.64/kg \u2014 9% cheaper, chef-approved spec equivalent."
         },
         {
           "category": "Pantry",
@@ -539,7 +621,7 @@
           "packPrice": 18.83,
           "unitPrice": 10.46,
           "unit": "L",
-          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+          "active": true
         },
         {
           "category": "Pantry",
@@ -548,7 +630,7 @@
           "packPrice": 7.72,
           "unitPrice": 15.44,
           "unit": "kg",
-          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+          "active": true
         },
         {
           "category": "Pantry",
@@ -557,7 +639,7 @@
           "packPrice": 8.86,
           "unitPrice": 8.86,
           "unit": "kg",
-          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+          "active": true
         },
         {
           "category": "Pantry",
@@ -566,16 +648,17 @@
           "packPrice": 6.49,
           "unitPrice": 6.49,
           "unit": "kg",
-          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+          "active": true
         },
         {
           "category": "Pantry",
           "name": "Stock Real Vegetable (Campbells)",
           "packSize": "1.00 L",
-          "packPrice": 3.85,
-          "unitPrice": 3.85,
+          "packPrice": 4.01,
+          "unitPrice": 4.01,
           "unit": "L",
-          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+          "active": true,
+          "notes": "Invoiced $4.01 10x (10 May \u2013 8 Jun 2026), +4.2% vs $3.85"
         },
         {
           "category": "Pantry",
@@ -584,16 +667,17 @@
           "packPrice": 11.4,
           "unitPrice": 5.7,
           "unit": "L",
-          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+          "active": true
         },
         {
           "category": "Pantry",
           "name": "Vinegar Rice (Marukan)",
           "packSize": "1.80 L",
-          "packPrice": 7.94,
-          "unitPrice": 4.41,
+          "packPrice": 8.39,
+          "unitPrice": 4.6599,
           "unit": "L",
-          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+          "active": true,
+          "notes": "Invoiced $8.39 sustained 4 May \u2013 7 Jun 2026, +5.7% vs $7.94"
         },
         {
           "category": "Pantry",
@@ -601,7 +685,8 @@
           "packSize": "4 L",
           "packPrice": 4.98,
           "unitPrice": 1.245,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -609,7 +694,8 @@
           "packSize": "20 L",
           "packPrice": 24.62,
           "unitPrice": 1.231,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Oils",
@@ -617,7 +703,8 @@
           "packSize": "1 L",
           "packPrice": 11.5,
           "unitPrice": 11.5,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Oils",
@@ -625,15 +712,19 @@
           "packSize": "10 L",
           "packPrice": 146.08,
           "unitPrice": 14.608,
-          "unit": "L"
+          "unit": "L",
+          "active": true,
+          "notes": "10L BIB $146.08 = $14.61/L unchanged, but 4L cans @ $49.29 = $12.32/L also being bought \u2014 standardising on 4L cans saves 16%/L"
         },
         {
           "category": "Frozen",
           "name": "Banana Chunks Iqf (Entyce)",
-          "packSize": "10 kg",
-          "packPrice": 7.68,
-          "unitPrice": 0.768,
-          "unit": "kg"
+          "packSize": "4 x 2.5 kg",
+          "packPrice": 30.72,
+          "unitPrice": 3.072,
+          "unit": "kg",
+          "notes": "4 x 2.5kg case at $7.68/2.5kg pkt \u2014 real per-kg is $3.07",
+          "active": true
         },
         {
           "category": "Frozen",
@@ -641,7 +732,8 @@
           "packSize": "1 kg",
           "packPrice": 5.8,
           "unitPrice": 5.8,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Frozen",
@@ -649,24 +741,18 @@
           "packSize": "1 kg",
           "packPrice": 10.03,
           "unitPrice": 10.03,
-          "unit": "kg"
-        },
-        {
-          "category": "Frozen",
-          "name": "Chips 7 mm Shoestring Stealth Skin On (Lamb Weston)",
-          "packSize": "16.26 kg",
-          "packPrice": 68.23,
-          "unitPrice": 4.19,
           "unit": "kg",
-          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+          "active": false
         },
         {
           "category": "Frozen",
-          "name": "Chips 7Mm Shoestring Stealth Skin On X7280 (Lambweston)",
-          "packSize": "16.26 kg",
+          "name": "Chips 7mm Shoestring Stealth Skin On X7280 (Lamb Weston)",
+          "packSize": "6 x 2.71 kg ctn",
           "packPrice": 71.15,
-          "unitPrice": 4.3758,
-          "unit": "kg"
+          "unitPrice": 4.376,
+          "unit": "kg",
+          "notes": "Verified current invoice price",
+          "active": true
         },
         {
           "category": "Frozen",
@@ -674,15 +760,18 @@
           "packSize": "0.5 kg",
           "packPrice": 53.58,
           "unitPrice": 107.16,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Frozen",
           "name": "Mango Chunks Iqf (Entyce)",
-          "packSize": "10 kg",
-          "packPrice": 12.39,
-          "unitPrice": 1.239,
-          "unit": "kg"
+          "packSize": "4 x 2.5 kg",
+          "packPrice": 49.56,
+          "unitPrice": 4.956,
+          "unit": "kg",
+          "notes": "4 x 2.5kg case at $12.39/2.5kg pkt \u2014 real per-kg is $4.96",
+          "active": true
         },
         {
           "category": "Frozen",
@@ -690,16 +779,18 @@
           "packSize": "1 kg",
           "packPrice": 7.24,
           "unitPrice": 7.24,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Frozen",
           "name": "Passionfruit Pulp (Catchoice)",
           "packSize": "1.00 kg",
-          "packPrice": 8.34,
-          "unitPrice": 8.34,
+          "packPrice": 8.13,
+          "unitPrice": 8.13,
           "unit": "kg",
-          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+          "active": true,
+          "notes": "Dropped to $8.13 from 25 May 2026 (was $8.34). Duplicate of 'Pulp Passionfruit (Catchoice)'"
         },
         {
           "category": "Frozen",
@@ -707,7 +798,8 @@
           "packSize": "2 kg",
           "packPrice": 8.89,
           "unitPrice": 4.445,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Frozen",
@@ -715,7 +807,8 @@
           "packSize": "1 kg",
           "packPrice": 17.68,
           "unitPrice": 17.68,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Frozen",
@@ -723,23 +816,28 @@
           "packSize": "1 kg",
           "packPrice": 35.54,
           "unitPrice": 35.54,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Frozen",
           "name": "Strawberries Iqf (Catchoice)",
           "packSize": "1 kg",
-          "packPrice": 8.01,
-          "unitPrice": 8.01,
-          "unit": "kg"
+          "packPrice": 8.31,
+          "unitPrice": 8.31,
+          "unit": "kg",
+          "active": false,
+          "notes": "Invoiced $8.31 from 1 May 2026 (+3.7% vs $8.01)"
         },
         {
           "category": "Beverages",
           "name": "Aperol Aperitif 11% (Aperol)",
           "packSize": "0.7 L",
-          "packPrice": 29.87,
-          "unitPrice": 42.6714,
-          "unit": "L"
+          "packPrice": 29.57,
+          "unitPrice": 42.2428,
+          "unit": "L",
+          "active": true,
+          "notes": "Invoiced $29.57 on 2 Apr 2026 (was $29.87)"
         },
         {
           "category": "Beverages",
@@ -747,15 +845,18 @@
           "packSize": "0.75 L",
           "packPrice": 11.21,
           "unitPrice": 14.9467,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Beverages",
           "name": "El Jimador Blanco Tequila 38% (Eljimador)",
           "packSize": "0.7 L",
-          "packPrice": 57.91,
-          "unitPrice": 82.7286,
-          "unit": "L"
+          "packPrice": 53.33,
+          "unitPrice": 76.1857,
+          "unit": "L",
+          "active": true,
+          "notes": "Invoiced $53.33 on 2 Apr 2026 (was $57.91)"
         },
         {
           "category": "Beverages",
@@ -763,15 +864,18 @@
           "packSize": "2 L",
           "packPrice": 9.37,
           "unitPrice": 4.685,
-          "unit": "L"
+          "unit": "L",
+          "active": false
         },
         {
           "category": "Beverages",
           "name": "Juice Lime (Grove)",
           "packSize": "1 L",
-          "packPrice": 10.3,
-          "unitPrice": 10.3,
-          "unit": "L"
+          "packPrice": 10.5,
+          "unitPrice": 10.5,
+          "unit": "L",
+          "active": false,
+          "notes": "Invoiced $10.50 to 22 May 2026 (+1.9% vs $10.30)"
         },
         {
           "category": "Beverages",
@@ -779,15 +883,18 @@
           "packSize": "12 L",
           "packPrice": 40.28,
           "unitPrice": 3.3567,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Beverages",
           "name": "Sauce Red Hot Original Buffalo Wings (Franks)",
           "packSize": "3.78 L",
-          "packPrice": 40.0,
-          "unitPrice": 10.582,
-          "unit": "L"
+          "packPrice": 41.51,
+          "unitPrice": 10.9815,
+          "unit": "L",
+          "active": true,
+          "notes": "Invoiced $41.51 2x (7\u201311 May 2026), +3.8% vs $40.00 \u2014 pack size not printed on those lines, same SKU assumed"
         },
         {
           "category": "Beverages",
@@ -795,7 +902,8 @@
           "packSize": "14.4 L",
           "packPrice": 13.89,
           "unitPrice": 0.9646,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Beverages",
@@ -803,7 +911,8 @@
           "packSize": "0.7 L",
           "packPrice": 47.49,
           "unitPrice": 67.8429,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Cleaning",
@@ -811,7 +920,8 @@
           "packSize": "5 L",
           "packPrice": 12.5,
           "unitPrice": 2.5,
-          "unit": "L"
+          "unit": "L",
+          "active": false
         },
         {
           "category": "Cleaning",
@@ -819,7 +929,8 @@
           "packSize": "5 L",
           "packPrice": 19.5,
           "unitPrice": 3.9,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Cleaning",
@@ -827,7 +938,8 @@
           "packSize": "5 L",
           "packPrice": 24.93,
           "unitPrice": 4.986,
-          "unit": "L"
+          "unit": "L",
+          "active": false
         },
         {
           "category": "Cleaning",
@@ -836,7 +948,7 @@
           "packPrice": 12.87,
           "unitPrice": 0.13,
           "unit": "unit",
-          "notes": "Needs re-quote (Bidfood didn't cover in May 17 quote)"
+          "active": true
         },
         {
           "category": "Cleaning",
@@ -844,7 +956,8 @@
           "packSize": "5 L",
           "packPrice": 22.9,
           "unitPrice": 4.58,
-          "unit": "L"
+          "unit": "L",
+          "active": false
         },
         {
           "category": "Cleaning",
@@ -852,7 +965,8 @@
           "packSize": "100 units",
           "packPrice": 3.4,
           "unitPrice": 0.034,
-          "unit": "unit"
+          "unit": "unit",
+          "active": true
         },
         {
           "category": "Cleaning",
@@ -860,7 +974,8 @@
           "packSize": "90 units",
           "packPrice": 14.9,
           "unitPrice": 0.1656,
-          "unit": "unit"
+          "unit": "unit",
+          "active": true
         },
         {
           "category": "Packaging",
@@ -868,7 +983,8 @@
           "packSize": "25 units",
           "packPrice": 6.11,
           "unitPrice": 0.2444,
-          "unit": "unit"
+          "unit": "unit",
+          "active": true
         },
         {
           "category": "Packaging",
@@ -876,7 +992,8 @@
           "packSize": "25 units",
           "packPrice": 6.3,
           "unitPrice": 0.252,
-          "unit": "unit"
+          "unit": "unit",
+          "active": false
         },
         {
           "category": "Packaging",
@@ -884,7 +1001,8 @@
           "packSize": "600M X 45Cm",
           "packPrice": 26.41,
           "unitPrice": 26.41,
-          "unit": "roll"
+          "unit": "roll",
+          "active": false
         },
         {
           "category": "Packaging",
@@ -892,7 +1010,8 @@
           "packSize": "50 units",
           "packPrice": 8.99,
           "unitPrice": 0.1798,
-          "unit": "unit"
+          "unit": "unit",
+          "active": false
         },
         {
           "category": "Packaging",
@@ -900,7 +1019,8 @@
           "packSize": "50 units",
           "packPrice": 10.59,
           "unitPrice": 0.2118,
-          "unit": "unit"
+          "unit": "unit",
+          "active": false
         },
         {
           "category": "Packaging",
@@ -908,7 +1028,8 @@
           "packSize": "50 units",
           "packPrice": 4.49,
           "unitPrice": 0.0898,
-          "unit": "unit"
+          "unit": "unit",
+          "active": false
         },
         {
           "category": "Packaging",
@@ -916,7 +1037,8 @@
           "packSize": "25 units",
           "packPrice": 2.89,
           "unitPrice": 0.1156,
-          "unit": "unit"
+          "unit": "unit",
+          "active": true
         },
         {
           "category": "Packaging",
@@ -924,7 +1046,8 @@
           "packSize": "50 units",
           "packPrice": 4.9,
           "unitPrice": 0.098,
-          "unit": "unit"
+          "unit": "unit",
+          "active": false
         },
         {
           "category": "Packaging",
@@ -932,7 +1055,8 @@
           "packSize": "100 units",
           "packPrice": 8.95,
           "unitPrice": 0.0895,
-          "unit": "unit"
+          "unit": "unit",
+          "active": true
         },
         {
           "category": "Packaging",
@@ -940,7 +1064,8 @@
           "packSize": "100 units",
           "packPrice": 6.33,
           "unitPrice": 0.0633,
-          "unit": "unit"
+          "unit": "unit",
+          "active": true
         },
         {
           "category": "Packaging",
@@ -948,7 +1073,8 @@
           "packSize": "100 units",
           "packPrice": 5.29,
           "unitPrice": 0.0529,
-          "unit": "unit"
+          "unit": "unit",
+          "active": false
         },
         {
           "category": "Packaging",
@@ -956,7 +1082,8 @@
           "packSize": "2400 units",
           "packPrice": 48.84,
           "unitPrice": 0.0204,
-          "unit": "unit"
+          "unit": "unit",
+          "active": true
         },
         {
           "category": "Packaging",
@@ -964,7 +1091,8 @@
           "packSize": "3000 units",
           "packPrice": 60.84,
           "unitPrice": 0.0203,
-          "unit": "unit"
+          "unit": "unit",
+          "active": true
         },
         {
           "category": "Packaging",
@@ -972,9 +1100,29 @@
           "packSize": "12 units",
           "packPrice": 4.08,
           "unitPrice": 0.34,
-          "unit": "unit"
+          "unit": "unit",
+          "active": true
+        },
+        {
+          "category": "Pantry",
+          "name": "Tomato Puree Passata Mutti 700ml",
+          "packSize": "700 ml",
+          "packPrice": 4.35,
+          "unitPrice": 6.21,
+          "unit": "kg",
+          "active": true,
+          "notes": "Standing buy \u2014 chefs ordering ~5-6 bottles/week"
         }
-      ]
+      ],
+      "rebatePct": 4,
+      "deliveryDays": [
+        "Tue",
+        "Thu",
+        "Sat"
+      ],
+      "cutoff": "2pm previous day",
+      "email": null,
+      "phone": null
     },
     {
       "supplier": "Fermex",
@@ -983,10 +1131,12 @@
           "category": "Dairy",
           "name": "Butter Salted 25kg (Fermex)",
           "packSize": "25 kg",
-          "packPrice": 344.0,
-          "unitPrice": 13.76,
+          "packPrice": 354.0,
+          "unitPrice": 14.16,
           "unit": "kg",
-          "code": "BUTTSALT"
+          "code": "BUTTSALT",
+          "active": false,
+          "notes": "Invoiced $354 on 6 May 2026 (+2.9% vs $344)"
         },
         {
           "category": "Dairy",
@@ -996,7 +1146,8 @@
           "unitPrice": 18.25,
           "unit": "kg",
           "notes": "Chef-friendly 1kg pack option",
-          "code": "BUTTSALT1KG"
+          "code": "BUTTSALT1KG",
+          "active": false
         },
         {
           "category": "Dairy",
@@ -1006,7 +1157,8 @@
           "unitPrice": 11.2,
           "unit": "kg",
           "notes": "Origin changed from NZ \u2192 USA on this quote",
-          "code": "BUTTERUSA"
+          "code": "BUTTERUSA",
+          "active": true
         },
         {
           "category": "Dairy",
@@ -1015,7 +1167,8 @@
           "packPrice": 25.9,
           "unitPrice": 12.95,
           "unit": "kg",
-          "code": "MOZZ"
+          "code": "MOZZ",
+          "active": true
         },
         {
           "category": "Dairy",
@@ -1024,7 +1177,8 @@
           "packPrice": 30.0,
           "unitPrice": 30.0,
           "unit": "kg",
-          "code": "PROVOLONE1"
+          "code": "PROVOLONE1",
+          "active": true
         },
         {
           "category": "Dairy",
@@ -1033,7 +1187,8 @@
           "packPrice": 20.65,
           "unitPrice": 10.325,
           "unit": "kg",
-          "code": "RICOTTA2KG"
+          "code": "RICOTTA2KG",
+          "active": true
         },
         {
           "category": "Dairy",
@@ -1043,7 +1198,8 @@
           "unitPrice": 11.5,
           "unit": "kg",
           "notes": "Brand sub from Tasty",
-          "code": "CHEESEFRED"
+          "code": "CHEESEFRED",
+          "active": true
         },
         {
           "category": "Dairy",
@@ -1052,7 +1208,8 @@
           "packPrice": 21.0,
           "unitPrice": 21.0,
           "unit": "kg",
-          "code": "SWISSSLMAS"
+          "code": "SWISSSLMAS",
+          "active": true
         },
         {
           "category": "Dairy",
@@ -1061,7 +1218,9 @@
           "packPrice": 42.4,
           "unitPrice": 8.48,
           "unit": "L",
-          "code": "CREAMBUL"
+          "code": "CREAMBUL",
+          "active": false,
+          "notes": "Inactive: Provedores wins ($7.27/L vs $8.48/L)"
         },
         {
           "category": "Dairy",
@@ -1071,7 +1230,8 @@
           "unitPrice": 4.7,
           "unit": "kg",
           "notes": "Pack changed from 2kg \u2192 5kg",
-          "code": "YOGNAT5KG"
+          "code": "YOGNAT5KG",
+          "active": true
         },
         {
           "category": "Dairy",
@@ -1080,7 +1240,8 @@
           "packPrice": 34.5,
           "unitPrice": 17.25,
           "unit": "kg",
-          "code": "PEANBUSM"
+          "code": "PEANBUSM",
+          "active": false
         },
         {
           "category": "Dairy",
@@ -1090,7 +1251,8 @@
           "unitPrice": 15.0,
           "unit": "kg",
           "notes": "+11% since May 8 patch; still beats Bidfood",
-          "code": "PHILLY"
+          "code": "PHILLY",
+          "active": true
         },
         {
           "category": "Dairy",
@@ -1098,7 +1260,8 @@
           "packSize": "10 x 1 kg",
           "packPrice": 180.0,
           "unitPrice": 18.0,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
@@ -1107,8 +1270,9 @@
           "packPrice": 36.0,
           "unitPrice": 36.0,
           "unit": "kg",
-          "notes": "\u221228% vs form",
-          "code": "BAKELLEM"
+          "notes": "Quoted $36 (S29927) but last invoice 5 May 2026 still $50 \u2014 verify next invoice bills $36",
+          "code": "BAKELLEM",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
@@ -1116,7 +1280,8 @@
           "packSize": "12.5 kg",
           "packPrice": 15.1,
           "unitPrice": 1.21,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
@@ -1125,7 +1290,8 @@
           "packPrice": 13.9,
           "unitPrice": 6.95,
           "unit": "kg",
-          "code": "BP2KG"
+          "code": "BP2KG",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
@@ -1133,7 +1299,9 @@
           "packSize": "25kg",
           "packPrice": 45.0,
           "unitPrice": 1.8,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false,
+          "notes": "Marked inactive but is the workhorse caster: 9 invoices 29 Apr \u2013 10 Jun 2026 @ $45 ($1.80/kg), cheaper than active Bidfood 15kg @ $1.97/kg \u2014 review which should be active"
         },
         {
           "category": "Pastry/Baking",
@@ -1141,7 +1309,8 @@
           "packSize": "15 kg",
           "packPrice": 30.0,
           "unitPrice": 2.0,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Pastry/Baking",
@@ -1150,15 +1319,18 @@
           "packPrice": 46.5,
           "unitPrice": 29.063,
           "unit": "kg",
-          "code": "CBDC1.6"
+          "code": "CBDC1.6",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
           "name": "Flour Euro Type 55 (Laucke)",
           "packSize": "12.5 kg",
-          "packPrice": 19.9,
-          "unitPrice": 1.59,
-          "unit": "kg"
+          "packPrice": 20.3,
+          "unitPrice": 1.624,
+          "unit": "kg",
+          "notes": "Invoice price stepped from $19.90 \u2192 $20.30 as of 3 Jun 2026 (+2.1%) \u2014 verified vs recent invoices",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
@@ -1167,7 +1339,8 @@
           "packPrice": 75.0,
           "unitPrice": 5.0,
           "unit": "kg",
-          "code": "GLUFRPLAIN"
+          "code": "GLUFRPLAIN",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
@@ -1176,7 +1349,8 @@
           "packPrice": 18.2,
           "unitPrice": 1.456,
           "unit": "kg",
-          "code": "SR12.5"
+          "code": "SR12.5",
+          "active": false
         },
         {
           "category": "Pastry/Baking",
@@ -1186,7 +1360,8 @@
           "unitPrice": 4.417,
           "unit": "kg",
           "notes": "Move-target from Bidfood \u2014 Bakels = chef preference",
-          "code": "BSF15KG"
+          "code": "BSF15KG",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
@@ -1196,7 +1371,8 @@
           "unitPrice": 4.79,
           "unit": "kg",
           "notes": "Move-target from Provedores",
-          "code": "GLUCOSE5"
+          "code": "GLUCOSE5",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
@@ -1205,16 +1381,19 @@
           "packPrice": 31.5,
           "unitPrice": 2.1,
           "unit": "kg",
-          "notes": "\u22128.7% vs May 8 patch",
-          "code": "ISPB15"
+          "notes": "Quoted $31.50 but last invoice 28 Apr 2026 was $34.50 \u2014 verify next invoice bills $31.50",
+          "code": "ISPB15",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
           "name": "IRCA Chococream Pistachio 15%",
           "packSize": "5 kg",
-          "packPrice": 127.5,
-          "unitPrice": 25.5,
-          "unit": "kg"
+          "packPrice": 114.5,
+          "unitPrice": 22.9,
+          "unit": "kg",
+          "active": true,
+          "notes": "S30989: \u221210.2% vs prior"
         },
         {
           "category": "Pastry/Baking",
@@ -1223,7 +1402,8 @@
           "packPrice": 148.0,
           "unitPrice": 11.385,
           "unit": "kg",
-          "code": "IRCANOCCIOLATA"
+          "code": "IRCANOCCIOLATA",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
@@ -1232,8 +1412,9 @@
           "packPrice": 27.0,
           "unitPrice": 27.0,
           "unit": "L",
-          "notes": "Provedores 4L pack still cheaper",
-          "code": "MAPLE1LT"
+          "notes": "Provedores 4L pack still cheaper \u2014 Inactive: Provedores 4L pack cheaper ($22.50/L vs $27/L)",
+          "code": "MAPLE1LT",
+          "active": false
         },
         {
           "category": "Pastry/Baking",
@@ -1243,7 +1424,8 @@
           "unitPrice": 16.5,
           "unit": "kg",
           "notes": "Bidfood wins this SKU post-rebate",
-          "code": "NUTELLA"
+          "code": "NUTELLA",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
@@ -1251,7 +1433,8 @@
           "packSize": "12.5 kg",
           "packPrice": 14.75,
           "unitPrice": 1.18,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
@@ -1260,8 +1443,9 @@
           "packPrice": 32.55,
           "unitPrice": 2.17,
           "unit": "kg",
-          "notes": "Move-target from Provedores",
-          "code": "SUGB15"
+          "notes": "Not yet purchased from Fermex as of 11 Jun 2026 \u2014 still buying Provedores @ $2.39/kg; verify price on first invoice",
+          "code": "SUGB15",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
@@ -1270,8 +1454,9 @@
           "packPrice": 48.5,
           "unitPrice": 1.94,
           "unit": "kg",
-          "notes": "Move-target from Provedores",
-          "code": "SUGRAW"
+          "notes": "Not yet purchased from Fermex as of 11 Jun 2026 \u2014 verify price on first invoice",
+          "code": "SUGRAW",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
@@ -1281,7 +1466,8 @@
           "unitPrice": 51.8,
           "unit": "kg",
           "notes": "Pack changed from 320g \u2192 1kg",
-          "code": "VANBEANPNAT"
+          "code": "VANBEANPNAT",
+          "active": true
         },
         {
           "category": "Nuts",
@@ -1291,7 +1477,8 @@
           "unitPrice": 17.222,
           "unit": "kg",
           "notes": "Pack changed from 8kg \u2192 9kg",
-          "code": "ALF9KG"
+          "code": "ALF9KG",
+          "active": true
         },
         {
           "category": "Nuts",
@@ -1299,7 +1486,8 @@
           "packSize": "10.00 kg",
           "packPrice": 145.0,
           "unitPrice": 14.5,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Nuts",
@@ -1308,8 +1496,9 @@
           "packPrice": 62.5,
           "unitPrice": 20.833,
           "unit": "kg",
-          "notes": "Provedores 1kg ($17.50) still cheaper per kg",
-          "code": "ALN3KG"
+          "notes": "Provedores 1kg ($17.50) still cheaper per kg \u2014 Inactive: Provedores 1kg cheaper ($17.50/kg vs $20.83/kg)",
+          "code": "ALN3KG",
+          "active": false
         },
         {
           "category": "Nuts",
@@ -1319,7 +1508,8 @@
           "unitPrice": 23.167,
           "unit": "kg",
           "notes": "Bidfood / Provedores still cheaper",
-          "code": "CASH3KG"
+          "code": "CASH3KG",
+          "active": false
         },
         {
           "category": "Nuts",
@@ -1329,57 +1519,63 @@
           "unitPrice": 9.039,
           "unit": "kg",
           "notes": "Move-target from Bidfood \u2014 saves 34%",
-          "code": "CNUTSHR"
+          "code": "CNUTSHR",
+          "active": true
         },
         {
           "category": "Nuts",
           "name": "Pecan Nut Halves 13.6kg",
           "packSize": "13.6 kg",
-          "packPrice": 420.0,
-          "unitPrice": 30.882,
+          "packPrice": 398.0,
+          "unitPrice": 29.265,
           "unit": "kg",
-          "notes": "+20% vs form \u26a0 push back",
-          "code": "PECANCTN"
+          "notes": "S30989 (12 Jun 2026): \u22125.2% vs S29927 spike; supplier-confirmed standing",
+          "code": "PECANCTN",
+          "active": true
         },
         {
           "category": "Nuts",
           "name": "Pecan Pieces 14kg (10-13mm)",
           "packSize": "14 kg",
-          "packPrice": 375.0,
-          "unitPrice": 26.786,
+          "packPrice": 356.0,
+          "unitPrice": 25.429,
           "unit": "kg",
-          "notes": "Different SKU vs form (pieces vs large pieces)",
-          "code": "PECANPIEC14"
+          "notes": "S30989: SKU confirmed as Pieces 10-13mm (was queried)",
+          "code": "PECANPIEC14",
+          "active": true
         },
         {
           "category": "Nuts",
           "name": "Pistachio Kernels 3kg",
           "packSize": "3 kg",
-          "packPrice": 170.0,
-          "unitPrice": 56.667,
+          "packPrice": 150.0,
+          "unitPrice": 50.0,
           "unit": "kg",
-          "notes": "Small-pack option, 11% premium vs 13.61kg",
-          "code": "PISTRAW"
+          "notes": "S30989: \u221211.8% vs prior",
+          "code": "PISTRAW",
+          "active": true
         },
         {
           "category": "Nuts",
           "name": "Pistachio Kernels Raw 13.61kg",
           "packSize": "13.61 kg",
-          "packPrice": 695.0,
-          "unitPrice": 51.066,
+          "packPrice": 645.0,
+          "unitPrice": 47.392,
           "unit": "kg",
-          "notes": "Recovery from $60.41 invoiced \u2014 still wins",
-          "code": "PISTRAW13.6"
+          "notes": "S30989: \u22127.2% vs $695 prior; wins vs Bidfood post-rebate",
+          "code": "PISTRAW13.6",
+          "active": true
         },
         {
           "category": "Nuts",
           "name": "Walnut Halves & Pieces 11.34kg",
           "packSize": "11.34 kg",
-          "packPrice": 149.5,
-          "unitPrice": 13.183,
+          "packPrice": 139.5,
+          "unitPrice": 12.302,
           "unit": "kg",
-          "notes": "+28% vs form \u26a0 push back",
-          "code": "WALCTN"
+          "notes": "S30989: \u22126.7% vs prior; supplier-confirmed",
+          "code": "WALCTN",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -1389,7 +1585,8 @@
           "unitPrice": 3.5,
           "unit": "kg",
           "notes": "\u26a0 chef declined \u2014 Bidfood Riviana 3kg stays",
-          "code": "APPLEPUREE20"
+          "code": "APPLEPUREE20",
+          "active": false
         },
         {
           "category": "Pantry",
@@ -1399,7 +1596,8 @@
           "unitPrice": 19.0,
           "unit": "kg",
           "notes": "Move-target from Bidfood Kriokrush \u2014 saves 79%",
-          "code": "CINQUILLHD"
+          "code": "CINQUILLHD",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -1409,7 +1607,8 @@
           "unitPrice": 16.5,
           "unit": "kg",
           "notes": "Bidfood now cheaper post-rebate",
-          "code": "CRANBERRY1KG"
+          "code": "CRANBERRY1KG",
+          "active": false
         },
         {
           "category": "Pantry",
@@ -1419,7 +1618,8 @@
           "unitPrice": 9.347,
           "unit": "kg",
           "code": "CRANBERRY",
-          "notes": "S30280 bulk option \u2014 chef call on 11.34kg pack. Saves 25% vs Bidfood 1kg."
+          "notes": "S30280 bulk option \u2014 chef call on 11.34kg pack. Saves 25% vs Bidfood 1kg.",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -1428,7 +1628,8 @@
           "packPrice": 18.5,
           "unitPrice": 18.5,
           "unit": "kg",
-          "code": "FENNEL"
+          "code": "FENNEL",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -1438,7 +1639,8 @@
           "unitPrice": 13.5,
           "unit": "kg",
           "notes": "S30280 (\u22126.9% from S29927) \u2014 wins vs Bidfood post-rebate",
-          "code": "GARGRAN1"
+          "code": "GARGRAN1",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -1448,7 +1650,8 @@
           "unitPrice": 8.167,
           "unit": "kg",
           "notes": "Provedores/Bidfood both cheaper",
-          "code": "HON"
+          "code": "HON",
+          "active": false
         },
         {
           "category": "Pantry",
@@ -1457,8 +1660,9 @@
           "packPrice": 320.0,
           "unitPrice": 28.219,
           "unit": "kg",
-          "notes": "Provedores form $25.13 cheaper",
-          "code": "MACA6"
+          "notes": "Provedores form $25.13 cheaper \u2014 Inactive: Provedores 11.34kg cheaper ($25.13/kg vs $28.22/kg)",
+          "code": "MACA6",
+          "active": false
         },
         {
           "category": "Pantry",
@@ -1468,7 +1672,8 @@
           "unitPrice": 22.5,
           "unit": "kg",
           "notes": "Premium puree",
-          "code": "RAVIPURMANG"
+          "code": "RAVIPURMANG",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -1477,7 +1682,8 @@
           "packPrice": 23.9,
           "unitPrice": 9.56,
           "unit": "kg",
-          "code": "DIJONMUST2.5"
+          "code": "DIJONMUST2.5",
+          "active": false
         },
         {
           "category": "Pantry",
@@ -1487,7 +1693,8 @@
           "unitPrice": 4.929,
           "unit": "kg",
           "notes": "Different brand (ETA not Kewpie) \u2014 spec call",
-          "code": "MAYO"
+          "code": "MAYO",
+          "active": false
         },
         {
           "category": "Pantry",
@@ -1497,7 +1704,8 @@
           "unitPrice": 2.31,
           "unit": "kg",
           "notes": "Move-target from Provedores \u2014 saves 35%",
-          "code": "OATS25"
+          "code": "OATS25",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -1506,7 +1714,8 @@
           "packPrice": 17.8,
           "unitPrice": 5.933,
           "unit": "kg",
-          "code": "OLIVES"
+          "code": "OLIVES",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -1516,7 +1725,8 @@
           "unitPrice": 11.5,
           "unit": "kg",
           "notes": "Provedores cheaper at $9.00",
-          "code": "OFMT1KG"
+          "code": "OFMT1KG",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -1525,7 +1735,8 @@
           "packPrice": 13.4,
           "unitPrice": 13.4,
           "unit": "kg",
-          "code": "FRPASS1KG"
+          "code": "FRPASS1KG",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -1535,7 +1746,8 @@
           "unitPrice": 23.9,
           "unit": "kg",
           "notes": "Premium puree",
-          "code": "RAVIPURPAS"
+          "code": "RAVIPURPAS",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -1545,7 +1757,8 @@
           "unitPrice": 25.0,
           "unit": "kg",
           "notes": "S30280 (\u221213% from S29927) \u2014 wins vs Bidfood post-rebate",
-          "code": "PEPCB1KG"
+          "code": "PEPCB1KG",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -1555,7 +1768,8 @@
           "unitPrice": 3.7,
           "unit": "kg",
           "notes": "Provedores marginally cheaper",
-          "code": "POTSTAR"
+          "code": "POTSTAR",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -1564,7 +1778,8 @@
           "packPrice": 33.5,
           "unitPrice": 335.0,
           "unit": "kg",
-          "code": "FDRASP100"
+          "code": "FDRASP100",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -1573,7 +1788,8 @@
           "packPrice": 15.0,
           "unitPrice": 5.0,
           "unit": "L",
-          "code": "SCESOYKIK"
+          "code": "SCESOYKIK",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -1583,7 +1799,8 @@
           "unitPrice": 8.4,
           "unit": "kg",
           "notes": "Pack changed from 15kg \u2192 5kg",
-          "code": "SES5KG"
+          "code": "SES5KG",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -1592,7 +1809,8 @@
           "packPrice": 38.5,
           "unitPrice": 9.059,
           "unit": "kg",
-          "code": "CHERSOU4"
+          "code": "CHERSOU4",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -1601,17 +1819,19 @@
           "packPrice": 19.5,
           "unitPrice": 6.5,
           "unit": "kg",
-          "code": "SUNFL3KG"
+          "code": "SUNFL3KG",
+          "active": true
         },
         {
           "category": "Pantry",
           "name": "Tomato Passata Mutti 3x3kg",
           "packSize": "3x3 kg",
-          "packPrice": 55.75,
-          "unitPrice": 6.194,
+          "packPrice": 54.0,
+          "unitPrice": 6.0,
           "unit": "kg",
-          "notes": "+12.5% vs form",
-          "code": "PASSATA3X3"
+          "notes": "S30989: \u22123.1% vs prior; now $6.00/kg vs Bidfood 700ml @ $5.96/kg post-rebate \u2014 Bidfood preferred for format (chefs want bottles)",
+          "code": "PASSATA3X3",
+          "active": false
         },
         {
           "category": "Pantry",
@@ -1621,7 +1841,8 @@
           "unitPrice": 19.7,
           "unit": "kg",
           "notes": "Provedores cheaper",
-          "code": "VEGEMITE"
+          "code": "VEGEMITE",
+          "active": false
         },
         {
           "category": "Pantry",
@@ -1631,7 +1852,8 @@
           "unitPrice": 2.875,
           "unit": "L",
           "notes": "Bidfood much cheaper",
-          "code": "VINEGAR"
+          "code": "VINEGAR",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1639,7 +1861,8 @@
           "packSize": "1kg",
           "packPrice": 26.5,
           "unitPrice": 26.5,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1647,7 +1870,8 @@
           "packSize": "1kg",
           "packPrice": 15.5,
           "unitPrice": 15.5,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1655,7 +1879,8 @@
           "packSize": "1kg",
           "packPrice": 31.5,
           "unitPrice": 31.5,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1663,7 +1888,8 @@
           "packSize": "1kg",
           "packPrice": 31.5,
           "unitPrice": 31.5,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1671,7 +1897,8 @@
           "packSize": "1kg",
           "packPrice": 46.5,
           "unitPrice": 46.5,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1679,7 +1906,8 @@
           "packSize": "1kg",
           "packPrice": 14.9,
           "unitPrice": 14.9,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1687,7 +1915,8 @@
           "packSize": "1kg",
           "packPrice": 14.5,
           "unitPrice": 14.5,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1695,7 +1924,8 @@
           "packSize": "1kg",
           "packPrice": 48.0,
           "unitPrice": 48.0,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1703,7 +1933,8 @@
           "packSize": "1 kg",
           "packPrice": 19.5,
           "unitPrice": 19.5,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1711,7 +1942,8 @@
           "packSize": "1 kg",
           "packPrice": 15.0,
           "unitPrice": 15.0,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1719,7 +1951,8 @@
           "packSize": "1 kg",
           "packPrice": 15.5,
           "unitPrice": 15.5,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1727,7 +1960,8 @@
           "packSize": "500g",
           "packPrice": 12.5,
           "unitPrice": 25.0,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1735,7 +1969,8 @@
           "packSize": "1 kg",
           "packPrice": 12.5,
           "unitPrice": 12.5,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1743,7 +1978,8 @@
           "packSize": "1 kg",
           "packPrice": 19.5,
           "unitPrice": 19.5,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1751,7 +1987,8 @@
           "packSize": "1 kg",
           "packPrice": 30.5,
           "unitPrice": 30.5,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1759,7 +1996,8 @@
           "packSize": "1 kg",
           "packPrice": 34.5,
           "unitPrice": 34.5,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1767,7 +2005,8 @@
           "packSize": "15 kg",
           "packPrice": 156.5,
           "unitPrice": 10.43,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1775,7 +2014,8 @@
           "packSize": "1 kg",
           "packPrice": 18.5,
           "unitPrice": 18.5,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1783,7 +2023,8 @@
           "packSize": "1 kg",
           "packPrice": 22.5,
           "unitPrice": 22.5,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1791,7 +2032,8 @@
           "packSize": "1 kg",
           "packPrice": 23.5,
           "unitPrice": 23.5,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Spices",
@@ -1799,7 +2041,8 @@
           "packSize": "1kg",
           "packPrice": 14.9,
           "unitPrice": 14.9,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Oils",
@@ -1807,7 +2050,8 @@
           "packSize": "12 x 450 g",
           "packPrice": 44.75,
           "unitPrice": 8.29,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Oils",
@@ -1815,7 +2059,8 @@
           "packSize": "400g",
           "packPrice": 2.08,
           "unitPrice": 5.2,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Oils",
@@ -1823,7 +2068,8 @@
           "packSize": "4 L",
           "packPrice": 55.0,
           "unitPrice": 13.75,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Oils",
@@ -1831,7 +2077,8 @@
           "packSize": "20L",
           "packPrice": 80.0,
           "unitPrice": 4.0,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Oils",
@@ -1840,7 +2087,8 @@
           "packPrice": 67.5,
           "unitPrice": 3.375,
           "unit": "L",
-          "code": "VEGOIL20"
+          "code": "VEGOIL20",
+          "active": true
         },
         {
           "category": "Frozen",
@@ -1849,7 +2097,8 @@
           "packPrice": 41.0,
           "unitPrice": 4.1,
           "unit": "kg",
-          "code": "FRBANCHUNK"
+          "code": "FRBANCHUNK",
+          "active": true
         },
         {
           "category": "Frozen",
@@ -1859,7 +2108,8 @@
           "unitPrice": 9.918,
           "unit": "kg",
           "code": "FRBLUE13.6",
-          "notes": "S30280 bulk option \u2014 chef call on 13.61kg pack vs 1kg ($12.95). Bidfood marginally cheaper at 1kg."
+          "notes": "S30280 bulk option \u2014 chef call on 13.61kg pack vs 1kg ($12.95). Bidfood marginally cheaper at 1kg.",
+          "active": true
         },
         {
           "category": "Frozen",
@@ -1869,7 +2119,8 @@
           "unitPrice": 12.95,
           "unit": "kg",
           "notes": "Bidfood now cheaper post-rebate",
-          "code": "FRBLUE1KG"
+          "code": "FRBLUE1KG",
+          "active": false
         },
         {
           "category": "Frozen",
@@ -1879,7 +2130,8 @@
           "unitPrice": 8.65,
           "unit": "kg",
           "notes": "Bidfood cheaper",
-          "code": "FRMANGO1KG"
+          "code": "FRMANGO1KG",
+          "active": false
         },
         {
           "category": "Frozen",
@@ -1889,17 +2141,19 @@
           "unitPrice": 4.8,
           "unit": "kg",
           "notes": "Provedores cheaper",
-          "code": "FROZPEAS"
+          "code": "FROZPEAS",
+          "active": true
         },
         {
           "category": "Frozen",
           "name": "Raspberry Frozen IQF 1kg",
           "packSize": "1 kg",
-          "packPrice": 14.15,
-          "unitPrice": 14.15,
+          "packPrice": 13.6,
+          "unitPrice": 13.6,
           "unit": "kg",
-          "notes": "+23% vs form \u26a0 push back",
-          "code": "FRRASP1KGFRU"
+          "notes": "S30989: \u22123.9% vs prior",
+          "code": "FRRASP1KGFRU",
+          "active": true
         },
         {
           "category": "Frozen",
@@ -1909,7 +2163,8 @@
           "unitPrice": 39.0,
           "unit": "kg",
           "notes": "Bidfood Seacrest cheaper post-rebate",
-          "code": "SSOCEAN"
+          "code": "SSOCEAN",
+          "active": false
         },
         {
           "category": "Frozen",
@@ -1919,9 +2174,39 @@
           "unitPrice": 7.4,
           "unit": "kg",
           "notes": "S30280 (\u221210% from S29927) \u2014 back to winning vs Bidfood",
-          "code": "FRSTRAW"
+          "code": "FRSTRAW",
+          "active": true
+        },
+        {
+          "category": "Spices",
+          "name": "Maldon Sea Salt Flakes 1.4kg",
+          "packSize": "1.4 kg",
+          "packPrice": 33.1,
+          "unitPrice": 23.643,
+          "unit": "kg",
+          "active": true,
+          "notes": "Replaces Bidfood Cornish Flakes \u2014 chef-approved spec, saves 9% vs Cornish effective."
+        },
+        {
+          "category": "Spices",
+          "name": "Olsson's Sea Salt Table 14kg",
+          "packSize": "14 kg",
+          "packPrice": 13.0,
+          "unitPrice": 0.929,
+          "unit": "kg",
+          "active": true,
+          "notes": "Bulk cooking salt \u2014 for brining, cooking water, general kitchen seasoning. NOT for finishing."
         }
-      ]
+      ],
+      "rebatePct": 0,
+      "deliveryDays": [
+        "Tue",
+        "Fri"
+      ],
+      "cutoff": "3pm previous day",
+      "email": "mail@fermexdistributors.com.au",
+      "phone": "07 3892 3455",
+      "contact": "Patrick Hansen"
     },
     {
       "supplier": "The Provedores",
@@ -1930,9 +2215,11 @@
           "category": "Dairy",
           "name": "Cheese Holy Cow Mozarella Shredded",
           "packSize": "2kg",
-          "packPrice": 24.6,
-          "unitPrice": 12.3,
-          "unit": "kg"
+          "packPrice": 26.1,
+          "unitPrice": 13.05,
+          "unit": "kg",
+          "notes": "Verified via Jun 1 invoice \u2014 +6.1% since May 8",
+          "active": true
         },
         {
           "category": "Dairy",
@@ -1940,15 +2227,18 @@
           "packSize": "500g",
           "packPrice": 20.88,
           "unitPrice": 20.88,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Dairy",
           "name": "Cheese marinated Goat Feta",
           "packSize": "2kg",
-          "packPrice": 50.0,
-          "unitPrice": 25.0,
-          "unit": "kg"
+          "packPrice": 53.25,
+          "unitPrice": 26.625,
+          "unit": "kg",
+          "active": true,
+          "notes": "Invoiced $53.25 on 9 Jun 2026 (+6.5% vs $50)"
         },
         {
           "category": "Dairy",
@@ -1956,15 +2246,18 @@
           "packSize": "2.2kg (4)",
           "packPrice": 21.4,
           "unitPrice": 9.73,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Dairy",
           "name": "Cream Thickened",
           "packSize": "5L",
-          "packPrice": 34.9,
-          "unitPrice": 6.98,
-          "unit": "kg"
+          "packPrice": 37.8,
+          "unitPrice": 7.56,
+          "unit": "L",
+          "notes": "Stepped to $37.80 on 6 Jun 2026 (+4.0%), both venues",
+          "active": true
         },
         {
           "category": "Dairy",
@@ -1972,15 +2265,19 @@
           "packSize": "500gm",
           "packPrice": 11.2,
           "unitPrice": 22.4,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false,
+          "notes": "Inactive: Bidfood Tatua cheaper effective ($21.64 vs $22.40/kg)"
         },
         {
           "category": "Pastry/Baking",
           "name": "Baking powder trumps",
           "packSize": "2kg",
-          "packPrice": 13.4,
-          "unitPrice": 6.7,
-          "unit": "kg"
+          "packPrice": 13.65,
+          "unitPrice": 6.825,
+          "unit": "kg",
+          "active": true,
+          "notes": "Stepped to $13.65 on 9 Jun 2026 (+1.9%)"
         },
         {
           "category": "Pastry/Baking",
@@ -1988,7 +2285,8 @@
           "packSize": "2.5kg",
           "packPrice": 89.8,
           "unitPrice": 35.92,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
@@ -1996,7 +2294,8 @@
           "packSize": "5kg (2)",
           "packPrice": 39.0,
           "unitPrice": 7.8,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Pastry/Baking",
@@ -2004,7 +2303,8 @@
           "packSize": "1.5 kg (6)",
           "packPrice": 25.6,
           "unitPrice": 17.06,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pastry/Baking",
@@ -2012,15 +2312,8 @@
           "packSize": "15kg",
           "packPrice": 35.9,
           "unitPrice": 2.39,
-          "unit": "kg"
-        },
-        {
-          "category": "Pastry/Baking",
-          "name": "SUGAR Raw",
-          "packSize": "15kg",
-          "packPrice": 32.2,
-          "unitPrice": 2.15,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Pastry/Baking",
@@ -2028,7 +2321,9 @@
           "packSize": "4L (4)",
           "packPrice": 90.0,
           "unitPrice": 22.5,
-          "unit": "L"
+          "unit": "L",
+          "active": true,
+          "notes": "Not yet invoiced as of 11 Jun 2026 \u2014 verify $90 on first order. (1L pack dropped $24.75\u2192$23.50 in May, already on form)"
         },
         {
           "category": "Pantry",
@@ -2036,15 +2331,18 @@
           "packSize": "1L (6)",
           "packPrice": 13.5,
           "unitPrice": 13.5,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Pantry",
           "name": "CAPERS",
           "packSize": "2kg (6)",
-          "packPrice": 16.4,
-          "unitPrice": 8.2,
-          "unit": "kg"
+          "packPrice": 16.9,
+          "unitPrice": 8.45,
+          "unit": "kg",
+          "active": true,
+          "notes": "Invoiced $16.90 5x since 5 May 2026 (+3.0% vs $16.40)"
         },
         {
           "category": "Pantry",
@@ -2052,15 +2350,18 @@
           "packSize": "1kg (6)",
           "packPrice": 8.12,
           "unitPrice": 8.12,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pantry",
           "name": "Fried Shallots",
           "packSize": "1 kg",
-          "packPrice": 9.0,
-          "unitPrice": 9.0,
-          "unit": "kg"
+          "packPrice": 9.25,
+          "unitPrice": 9.25,
+          "unit": "kg",
+          "active": true,
+          "notes": "Invoiced $9.25 2x (1\u201311 May 2026), +2.8% vs $9.00"
         },
         {
           "category": "Pantry",
@@ -2068,7 +2369,8 @@
           "packSize": "1kg (6)",
           "packPrice": 5.5,
           "unitPrice": 5.5,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -2076,7 +2378,8 @@
           "packSize": "450g (6)",
           "packPrice": 8.9,
           "unitPrice": 19.78,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -2084,7 +2387,8 @@
           "packSize": "3kg (4)",
           "packPrice": 22.5,
           "unitPrice": 7.5,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -2092,7 +2396,8 @@
           "packSize": "11.34kg",
           "packPrice": 285.0,
           "unitPrice": 25.13,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -2100,7 +2405,9 @@
           "packSize": "1kg (10)",
           "packPrice": 18.8,
           "unitPrice": 18.8,
-          "unit": "kg"
+          "unit": "kg",
+          "notes": "Verified via May 27 invoice \u2014 +7.4% since form",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -2108,7 +2415,8 @@
           "packSize": "1kg (10)",
           "packPrice": 20.0,
           "unitPrice": 20.0,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -2116,7 +2424,8 @@
           "packSize": "25kg",
           "packPrice": 88.88,
           "unitPrice": 3.55,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Pantry",
@@ -2124,7 +2433,8 @@
           "packSize": "400g",
           "packPrice": 6.8,
           "unitPrice": 14.17,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -2132,7 +2442,8 @@
           "packSize": "1kg",
           "packPrice": 19.0,
           "unitPrice": 19.0,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -2140,7 +2451,8 @@
           "packSize": "2 kg (4)",
           "packPrice": 24.45,
           "unitPrice": 12.22,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Pantry",
@@ -2148,7 +2460,8 @@
           "packSize": "25kg",
           "packPrice": 88.8,
           "unitPrice": 3.55,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -2156,31 +2469,18 @@
           "packSize": "725 ml (12)",
           "packPrice": 3.25,
           "unitPrice": 4.48,
-          "unit": "unit"
+          "unit": "unit",
+          "active": true
         },
         {
           "category": "Pantry",
           "name": "Sauce Sriracha Hot chilli sauce",
           "packSize": "740ml (12)",
-          "packPrice": 9.0,
-          "unitPrice": 12.16,
-          "unit": "L"
-        },
-        {
-          "category": "Pantry",
-          "name": "SEA SALT Flakes (1kg #1)",
-          "packSize": "1kg",
-          "packPrice": 14.0,
-          "unitPrice": 14.0,
-          "unit": "kg"
-        },
-        {
-          "category": "Pantry",
-          "name": "SEA SALT Flakes (1kg #2)",
-          "packSize": "1kg",
-          "packPrice": 12.7,
-          "unitPrice": 12.7,
-          "unit": "kg"
+          "packPrice": 10.0,
+          "unitPrice": 13.5111,
+          "unit": "L",
+          "active": true,
+          "notes": "Invoiced $10.00 consistently 13 Apr \u2013 9 Jun 2026 (+11.1% vs $9.00)"
         },
         {
           "category": "Pantry",
@@ -2188,7 +2488,8 @@
           "packSize": "400g (6)",
           "packPrice": 17.5,
           "unitPrice": 43.75,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -2196,7 +2497,9 @@
           "packSize": "1L (6)",
           "packPrice": 23.5,
           "unitPrice": 23.5,
-          "unit": "L"
+          "unit": "L",
+          "active": false,
+          "notes": "Inactive: Provedores 4L pack cheaper ($22.50/L vs $23.50/L)"
         },
         {
           "category": "Pantry",
@@ -2204,7 +2507,8 @@
           "packSize": "2.5 kg (4)",
           "packPrice": 42.5,
           "unitPrice": 17.0,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Pantry",
@@ -2212,7 +2516,8 @@
           "packSize": "5L",
           "packPrice": 15.6,
           "unitPrice": 3.12,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Oils",
@@ -2220,7 +2525,8 @@
           "packSize": "20L",
           "packPrice": 58.9,
           "unitPrice": 2.94,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Oils",
@@ -2228,7 +2534,8 @@
           "packSize": "1L (12)",
           "packPrice": 12.6,
           "unitPrice": 12.6,
-          "unit": "L"
+          "unit": "L",
+          "active": false
         },
         {
           "category": "Oils",
@@ -2236,7 +2543,8 @@
           "packSize": "4L (4)",
           "packPrice": 46.0,
           "unitPrice": 11.5,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Oils",
@@ -2244,15 +2552,18 @@
           "packSize": "2L",
           "packPrice": 10.9,
           "unitPrice": 5.45,
-          "unit": "L"
+          "unit": "L",
+          "active": false
         },
         {
           "category": "Frozen",
           "name": "ICE CREAM Vanilla Swan Confectionary Tub",
           "packSize": "10L",
-          "packPrice": 19.85,
-          "unitPrice": 1.99,
-          "unit": "L"
+          "packPrice": 20.65,
+          "unitPrice": 2.0702,
+          "unit": "L",
+          "active": true,
+          "notes": "Stepped to $20.65 on 6 Jun 2026 (+4.0%), both venues"
         },
         {
           "category": "Frozen",
@@ -2260,7 +2571,8 @@
           "packSize": "1.5kg",
           "packPrice": 8.8,
           "unitPrice": 5.86,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Frozen",
@@ -2268,7 +2580,8 @@
           "packSize": "2kg (6)",
           "packPrice": 8.0,
           "unitPrice": 4.0,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Frozen",
@@ -2276,7 +2589,8 @@
           "packSize": "1kg",
           "packPrice": 19.0,
           "unitPrice": 19.0,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Frozen",
@@ -2284,7 +2598,8 @@
           "packSize": "1kg (10)",
           "packPrice": 18.0,
           "unitPrice": 18.0,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Frozen",
@@ -2292,7 +2607,8 @@
           "packSize": "1kg (12)",
           "packPrice": 35.0,
           "unitPrice": 35.0,
-          "unit": "kg"
+          "unit": "kg",
+          "active": false
         },
         {
           "category": "Beverages",
@@ -2300,7 +2616,8 @@
           "packSize": "1L x 12",
           "packPrice": 33.2,
           "unitPrice": 2.76,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Beverages",
@@ -2308,7 +2625,8 @@
           "packSize": "1L x 12",
           "packPrice": 33.2,
           "unitPrice": 2.76,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Beverages",
@@ -2316,7 +2634,8 @@
           "packSize": "2L (6)",
           "packPrice": 6.8,
           "unitPrice": 3.4,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Beverages",
@@ -2324,7 +2643,8 @@
           "packSize": "2L (6)",
           "packPrice": 14.0,
           "unitPrice": 7.0,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Beverages",
@@ -2332,7 +2652,8 @@
           "packSize": "500gm (10)",
           "packPrice": 50.0,
           "unitPrice": 100.0,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Beverages",
@@ -2340,7 +2661,8 @@
           "packSize": "1L x 6",
           "packPrice": 19.8,
           "unitPrice": 3.3,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Beverages",
@@ -2348,7 +2670,8 @@
           "packSize": "1.9kg",
           "packPrice": 31.4,
           "unitPrice": 16.52,
-          "unit": "kg"
+          "unit": "kg",
+          "active": true
         },
         {
           "category": "Cleaning",
@@ -2356,7 +2679,8 @@
           "packSize": "120L x 25 (4)",
           "packPrice": 6.0,
           "unitPrice": 0.24,
-          "unit": "unit"
+          "unit": "unit",
+          "active": true
         },
         {
           "category": "Cleaning",
@@ -2364,7 +2688,8 @@
           "packSize": "73L x 25 (10)",
           "packPrice": 4.0,
           "unitPrice": 0.16,
-          "unit": "unit"
+          "unit": "unit",
+          "active": true
         },
         {
           "category": "Cleaning",
@@ -2372,7 +2697,9 @@
           "packSize": "5 L",
           "packPrice": 9.5,
           "unitPrice": 1.9,
-          "unit": "L"
+          "unit": "L",
+          "active": true,
+          "notes": "Agreed $9.50 applied to Beach House account only \u2014 Burleigh still billed $10.75 incl. 9 Jun 2026. Dispute with Provedores"
         },
         {
           "category": "Cleaning",
@@ -2380,7 +2707,8 @@
           "packSize": "20 L",
           "packPrice": 41.4,
           "unitPrice": 2.07,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Cleaning",
@@ -2388,7 +2716,8 @@
           "packSize": "20 L",
           "packPrice": 83.9,
           "unitPrice": 4.19,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Cleaning",
@@ -2396,7 +2725,9 @@
           "packSize": "5L (4)",
           "packPrice": 29.0,
           "unitPrice": 5.8,
-          "unit": "L"
+          "unit": "L",
+          "active": true,
+          "notes": "Agreed $29.00 applied to Beach House only (21 May) \u2014 Burleigh billed $31.20 incl. 5 Jun 2026. Dispute"
         },
         {
           "category": "Cleaning",
@@ -2404,7 +2735,9 @@
           "packSize": "5 L",
           "packPrice": 13.0,
           "unitPrice": 2.6,
-          "unit": "L"
+          "unit": "L",
+          "active": true,
+          "notes": "Agreed $13.00 applied to Beach House only \u2014 Burleigh still billed $15.10 incl. 9 Jun 2026. Dispute"
         },
         {
           "category": "Cleaning",
@@ -2412,7 +2745,8 @@
           "packSize": "5L (4)",
           "packPrice": 16.5,
           "unitPrice": 3.3,
-          "unit": "L"
+          "unit": "L",
+          "active": true
         },
         {
           "category": "Cleaning",
@@ -2420,7 +2754,8 @@
           "packSize": "48 x 2 ply",
           "packPrice": 36.5,
           "unitPrice": 36.5,
-          "unit": "pack"
+          "unit": "pack",
+          "active": true
         },
         {
           "category": "Cleaning",
@@ -2428,15 +2763,8 @@
           "packSize": "30 x 50cm",
           "packPrice": 10.0,
           "unitPrice": 10.0,
-          "unit": "unit"
-        },
-        {
-          "category": "Packaging",
-          "name": "CLING Wrap (with cutter box)",
-          "packSize": "45cm x 600m (6)",
-          "packPrice": 25.5,
-          "unitPrice": 25.5,
-          "unit": "roll"
+          "unit": "unit",
+          "active": true
         },
         {
           "category": "Packaging",
@@ -2444,7 +2772,8 @@
           "packSize": "x 1000",
           "packPrice": 97.0,
           "unitPrice": 0.097,
-          "unit": "unit"
+          "unit": "unit",
+          "active": true
         },
         {
           "category": "Packaging",
@@ -2452,7 +2781,8 @@
           "packSize": "100's (10)",
           "packPrice": 3.0,
           "unitPrice": 0.03,
-          "unit": "unit"
+          "unit": "unit",
+          "active": true
         },
         {
           "category": "Packaging",
@@ -2460,7 +2790,8 @@
           "packSize": "x 500",
           "packPrice": 42.0,
           "unitPrice": 0.084,
-          "unit": "unit"
+          "unit": "unit",
+          "active": true
         },
         {
           "category": "Packaging",
@@ -2468,9 +2799,48 @@
           "packSize": "x 240",
           "packPrice": 27.0,
           "unitPrice": 0.1125,
-          "unit": "unit"
+          "unit": "unit",
+          "active": true
+        },
+        {
+          "category": "Dairy",
+          "name": "Milk Sweetened Condensed 1.2kg (5 pack)",
+          "packSize": "1.2 kg \u00d7 5 case",
+          "packPrice": 10.6,
+          "unitPrice": 8.833,
+          "unit": "kg",
+          "active": true,
+          "notes": "Cheapest per-kg condensed milk option \u2014 verified via 21 May invoice"
+        },
+        {
+          "category": "Dairy",
+          "name": "Milk Sweetened Condensed 5kg (2 pack)",
+          "packSize": "5 kg \u00d7 2 case",
+          "packPrice": 94.55,
+          "unitPrice": 9.455,
+          "unit": "kg",
+          "active": true,
+          "notes": "Bulk option \u2014 verified via 11 Jun invoice"
+        },
+        {
+          "category": "Dairy",
+          "name": "Milk Sweetened Condensed 395g (12 pack)",
+          "packSize": "395 g \u00d7 12 case",
+          "packPrice": 3.6,
+          "unitPrice": 9.114,
+          "unit": "kg",
+          "active": true,
+          "notes": "Small-pack option (per can price) \u2014 verified via 9 Jun invoice"
         }
-      ]
+      ],
+      "rebatePct": 0,
+      "deliveryDays": [
+        "Wed",
+        "Fri"
+      ],
+      "cutoff": "3pm previous day",
+      "email": null,
+      "phone": null
     },
     {
       "supplier": "Gold Coast Premium Foods",
@@ -2482,7 +2852,8 @@
           "packPrice": 19.95,
           "unitPrice": 9.975,
           "unit": "kg",
-          "notes": "\u26a0 NOT Philadelphia brand \u2014 confirm spec before ordering"
+          "notes": "\u26a0 NOT Philadelphia brand \u2014 confirm spec before ordering",
+          "active": false
         },
         {
           "category": "Dairy",
@@ -2491,7 +2862,8 @@
           "packPrice": 32.95,
           "unitPrice": 16.475,
           "unit": "kg",
-          "notes": "New category \u2014 chef spec check"
+          "notes": "New category \u2014 chef spec check",
+          "active": false
         },
         {
           "category": "Dairy",
@@ -2500,7 +2872,8 @@
           "packPrice": 20.0,
           "unitPrice": 20.0,
           "unit": "kg",
-          "notes": "Confirm pack size with Rob"
+          "notes": "Confirm pack size with Rob",
+          "active": false
         },
         {
           "category": "Dairy",
@@ -2509,7 +2882,8 @@
           "packPrice": 42.5,
           "unitPrice": 42.5,
           "unit": "kg",
-          "notes": "More expensive than Cheese Time ($41) \u2014 skip unless spec wins"
+          "notes": "More expensive than Cheese Time ($41) \u2014 skip unless spec wins",
+          "active": false
         },
         {
           "category": "Dairy",
@@ -2518,7 +2892,8 @@
           "packPrice": 16.95,
           "unitPrice": 16.95,
           "unit": "kg",
-          "notes": "New category"
+          "notes": "New category",
+          "active": false
         },
         {
           "category": "Dairy",
@@ -2527,7 +2902,8 @@
           "packPrice": 11.95,
           "unitPrice": 11.95,
           "unit": "kg",
-          "notes": "Marginal win vs Fermex $12.95/kg \u2014 spec check"
+          "notes": "Marginal win vs Fermex $12.95/kg \u2014 spec check",
+          "active": false
         },
         {
           "category": "Dairy",
@@ -2536,7 +2912,8 @@
           "packPrice": 20.95,
           "unitPrice": 10.475,
           "unit": "kg",
-          "notes": "Confirm what CPM is (cheese type)"
+          "notes": "Confirm what CPM is (cheese type)",
+          "active": false
         },
         {
           "category": "Dairy",
@@ -2545,7 +2922,8 @@
           "packPrice": 23.95,
           "unitPrice": 23.95,
           "unit": "kg",
-          "notes": "\u26a0 Confirm DOP authenticity vs Alfinasovr \u2014 could save 27%"
+          "notes": "\u26a0 Confirm DOP authenticity vs Alfinasovr \u2014 could save 27%",
+          "active": false
         },
         {
           "category": "Dairy",
@@ -2554,7 +2932,8 @@
           "packPrice": 21.95,
           "unitPrice": 10.975,
           "unit": "kg",
-          "notes": "Brand/spec check \u2014 saves 25% vs Casademare"
+          "notes": "Brand/spec check \u2014 saves 25% vs Casademare",
+          "active": false
         },
         {
           "category": "Meat",
@@ -2563,7 +2942,8 @@
           "packPrice": 42.5,
           "unitPrice": 42.5,
           "unit": "kg",
-          "notes": "More expensive than Fino ($31.46/kg) \u2014 skip"
+          "notes": "More expensive than Fino ($31.46/kg) \u2014 skip",
+          "active": false
         },
         {
           "category": "Meat",
@@ -2572,7 +2952,8 @@
           "packPrice": 15.25,
           "unitPrice": 15.25,
           "unit": "kg",
-          "notes": "New \u2014 verify vs current bacon supplier (Marrow Meats?)"
+          "notes": "New \u2014 verify vs current bacon supplier (Marrow Meats?)",
+          "active": false
         },
         {
           "category": "Meat",
@@ -2581,7 +2962,8 @@
           "packPrice": 10.95,
           "unitPrice": 10.95,
           "unit": "kg",
-          "notes": "New \u2014 verify vs current chicken supplier"
+          "notes": "New \u2014 verify vs current chicken supplier",
+          "active": false
         },
         {
           "category": "Pantry",
@@ -2590,11 +2972,89 @@
           "packPrice": 31.95,
           "unitPrice": 31.95,
           "unit": "unit",
-          "notes": "\u26a0 Confirm pack count with Rob (currently buying Catchoice 12s at $4.08/pack from Bidfood)"
+          "notes": "\u26a0 Confirm pack count with Rob (currently buying Catchoice 12s at $4.08/pack from Bidfood)",
+          "active": false
         }
-      ]
+      ],
+      "rebatePct": 0,
+      "deliveryDays": [],
+      "cutoff": null,
+      "email": null,
+      "phone": "07 5539 2423",
+      "contact": "Rob",
+      "status": "PENDING \u2014 awaiting spec confirmations"
+    },
+    {
+      "supplier": "Cheese Time",
+      "items": [
+        {
+          "category": "Dairy",
+          "name": "Burrata 1kg (8 \u00d7 125g pieces)",
+          "packSize": "1 kg (8 pieces \u00d7 125g)",
+          "packPrice": 41.0,
+          "unitPrice": 41.0,
+          "unit": "kg",
+          "notes": "Source for restaurant burrata. Effectively tied with Provedores per-kg; staying for service relationship.",
+          "active": true
+        }
+      ],
+      "rebatePct": 0,
+      "deliveryDays": [],
+      "cutoff": null
+    },
+    {
+      "supplier": "Fino",
+      "items": [
+        {
+          "category": "Meat",
+          "name": "Hot Salami 1kg",
+          "packSize": "1 kg",
+          "packPrice": 21.95,
+          "unitPrice": 21.95,
+          "unit": "kg",
+          "active": true
+        },
+        {
+          "category": "Meat",
+          "name": "Truffle Salami 1kg",
+          "packSize": "1 kg",
+          "packPrice": 21.95,
+          "unitPrice": 21.95,
+          "unit": "kg",
+          "active": true
+        },
+        {
+          "category": "Meat",
+          "name": "Salami (mild) 1kg",
+          "packSize": "1 kg",
+          "packPrice": 27.95,
+          "unitPrice": 27.95,
+          "unit": "kg",
+          "active": true
+        },
+        {
+          "category": "Meat",
+          "name": "Prosciutto 1kg",
+          "packSize": "1 kg",
+          "packPrice": 31.46,
+          "unitPrice": 31.46,
+          "unit": "kg",
+          "active": true
+        },
+        {
+          "category": "Meat",
+          "name": "Prosciutto de Parma 1kg",
+          "packSize": "1 kg",
+          "packPrice": 33.5,
+          "unitPrice": 33.5,
+          "unit": "kg",
+          "active": true
+        }
+      ],
+      "rebatePct": 0,
+      "deliveryDays": [],
+      "cutoff": null,
+      "notes": "Cured-meat specialist. Email/phone ordering only."
     }
-  ],
-  "_updated": "2026-05-29",
-  "_notes": "Source of truth for ApprovedSupplierItem in /suppliers. Each item has category, name, packSize, packPrice (per-pack inc), unitPrice (per-base \u2014 kg/L/unit), unit. notes are free-text."
+  ]
 }

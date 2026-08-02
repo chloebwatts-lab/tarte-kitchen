@@ -13,15 +13,15 @@ these move until chefs sign off.
   Fermex Ocean King at $39.00 is the most expensive of the three. Stay
   Bidfood — no chef action needed.
 
-### 1. Sea salt — find a cheaper brand/spec
-- **Currently buying**: Bidfood Cornish Sea Salt Flakes 1kg @ **$27.00/kg**
-- **Provedores alternatives ruled out**: their "Sea Salt Flakes 1kg" lines
-  at $14.00/kg and $12.70/kg — quality not up to spec.
-- **Fermex**: doesn't quote salt at all (only Pepper White in their spices).
-- **Ask**: chefs to name a sea salt brand/grade that meets kitchen standards
-  and is cheaper than $27/kg, so we can request a quote from Fermex (or a
-  new supplier). Maldon? a different Cornish grade? Murray River? Olsson's?
-  Whatever the equivalent-quality benchmark is.
+### 1. Sea salt — ✅ RESOLVED 2026-06-08
+- **Was**: Bidfood Cornish Sea Salt Flakes 1kg @ $27.00/kg ($25.92 effective post-rebate)
+- **Now**: Fermex came back with two SKUs, both moved to active:
+  - **Maldon Sea Salt Flakes 1.4kg @ $33.10 = $23.64/kg** — replaces Bidfood
+    Cornish for finishing/service use. Maldon was on the chef-approved spec
+    list. Saves 9% vs Cornish effective price.
+  - **Olsson's Sea Salt Table 14kg @ $13.00 = $0.93/kg** — new bulk cooking-
+    salt option for brining and cooking water. Not for finishing.
+- Bidfood Cornish Flakes flipped to `active: false` in JSON.
 
 ### 2. Salted butter — RESOLVED
 - **Stay Bidfood Anchor 5kg @ $16.70/kg (post-rebate ~$16.03)**.
@@ -59,9 +59,9 @@ After my push-back on the increases in S29927, Patrick came back with:
 - **Pepper Black Cracked 1kg**: $28.75 → **$25.00/kg** (−13%) — beats Bidfood post-rebate $25.60/kg (750g pack). **Source: Fermex.**
 - **Garlic Granules 1kg**: $14.50 → **$13.50/kg** (−6.9%) — beats Bidfood post-rebate $14.30/kg. **Source: Fermex.**
 
-Also new bulk SKUs from S30280 — chef call needed:
-- **Blueberries Bulk Frozen 13.61kg @ $9.92/kg** — vs Bidfood 1kg post-rebate $9.63/kg. Roughly tied per-kg but very different pack size. Stay Bidfood unless chef wants the bulk.
-- **Cranberries Dried 11.34kg @ $9.35/kg** — vs Bidfood 1kg post-rebate $12.48/kg. **Fermex saves 25% if 11.34kg pack workable.** Worth chef sign-off.
+Also new bulk SKUs from S30280 — both **CONFIRMED 2026-06-01** to move to Fermex bulk:
+- **Blueberries Bulk Frozen 13.61kg @ $9.92/kg** — moves from Bidfood Catchoice 1kg ($9.63 post-rebate). Per-kg roughly tied, chef has accepted the 13.61kg pack for bulk.
+- **Cranberries Dried 11.34kg @ $9.35/kg** — moves from Bidfood Catchoice 1kg ($12.48 post-rebate). **Saves 25%.**
 
 Still uncovered by S30280: Pecan +20%, Walnut +28%, Raspberry IQF +23% from S29927 — chase Patrick again.
 

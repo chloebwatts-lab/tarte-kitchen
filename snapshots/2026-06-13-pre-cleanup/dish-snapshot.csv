@@ -1,0 +1,109 @@
+id,name,venue,menuCategory,sellingPrice,totalCost,foodCostPercentage,isActive,popularity
+cmn9xrcoq000w01pi34sdiesh,Tarte - Rhubarb,BOTH,PASTRY,8.9,1.54,19,t,0
+cmn8ccfos00mz16qz9d9rj0y7,B & E Roll,BOTH,BREAKFAST,18.9,4.54,26.4,t,0
+cmn8ccfrn00nq16qz34o0ek6b,Smoked Salmon Bagel,BURLEIGH,BREAKFAST,24.5,5.8,26,t,0
+cmn8ccfqx00nd16qzcy8cpj37,Hot Honey Sourdough,BEACH_HOUSE,BREAKFAST,15.5,2.68,19.1,t,0
+cmn8ccfqv00nc16qzv0pg830i,Health Bowl,BURLEIGH,BREAKFAST,24.9,5.98,26.4,t,0
+cmn8ddn0e000501pib2gc92o5,Maple Bacon Bagel,BEACH_HOUSE,BREAKFAST,21.9,6.03,30.3,t,0
+cmn8ccfoq00my16qz3udnjgb9,Avo Toast,BOTH,LUNCH,20.9,4.24,22.3,t,0
+side_avo_01,Avocado Side,BOTH,SIDES,6.5,1.31,22.1,t,0
+dish_bacon_crumpet_01,Crumpet Benny Bacon,BEACH_HOUSE,BREAKFAST,25.9,4.83,20.5,t,0
+cmn9xr9sq000s01pihm24wjyo,Ricotta Cheesecake - Whole,BOTH,PASTRY,85,15.28,19.8,t,0
+cmn9uknx8000m01piat2lkmqz,Lemon Butter Cake - Whole,BOTH,PASTRY,85,9.97,12.9,t,0
+cmn9ukqzv000q01pizpttm7wx,Pecan Pie - Whole,BOTH,PASTRY,85,22.75,29.4,t,0
+side_salmon_01,Salmon Side,BOTH,OTHER,9.5,2.39,27.6,t,0
+dish_chilli_benny_01,Chilli Benny,BEACH_HOUSE,BREAKFAST,24.9,5.64,24.9,t,0
+cmn8ccfp200n216qzukowvpje,Bullseye Benny,BURLEIGH,LUNCH,23.5,3.42,16,t,0
+cmn8ccfrt00nu16qzpv10phzc,Summer Yoghurt,BOTH,LUNCH,23.9,4.23,19.5,t,0
+dish_chilli_benny_salmon_01,Chilli Benny Salmon,BEACH_HOUSE,BREAKFAST,26.9,6.48,26.5,t,0
+cmn8ccfp400n316qzpqglquiw,Bullseye Benny - Salmon,BURLEIGH,LUNCH,27.5,5.93,23.7,t,0
+side_bacon_01,Bacon Side,BOTH,SIDES,7,0,0,t,0
+cmn8ccfp600n416qz1vaumjh1,Chicken Miso Sandwich,BOTH,LUNCH,23.9,5.44,25,t,0
+cmn8ccfrw00nv16qzf0qczrvs,Toasty - 5 cheese and truffle,BURLEIGH,BREAKFAST,21.9,5.36,26.9,t,0
+cmn8ccfr000nf16qz5fut1sq8,Lemonade - old fashioned,BOTH,OTHER,9.9,1.36,15.2,t,0
+cmn8ccfoz00n116qz6k48afez,Bullseye Bang,BURLEIGH,LUNCH,24.9,3.23,14.3,t,0
+cmn9ukrrp000r01piztz2pey8,Ricotta Cheesecake - Slice,BOTH,PASTRY,9.9,1.91,21.2,t,0
+side_hash_01,Hash,BOTH,SIDES,7.5,0,0,t,0
+cmn9ukllf000j01pibe4pfmlf,Kouign Amann,BOTH,PASTRY,7.5,0.63,9.2,t,0
+cmn8ccfro00nr16qzpq9ddlyl,Spiced Mushroom Salad,BOTH,LUNCH,17,5.91,38.2,t,0
+cmn9ukasl000h01piyfq8zlnq,Crueller - Vanilla Bean,BOTH,PASTRY,7.5,0.95,14,t,0
+cmn9xre86000y01piyopdyhp1,Tarte - Strawberry,BOTH,PASTRY,8.9,1.82,22.5,t,0
+cmn9xru75001401pi4o40xkaq,Guzzy Burrito,BEACH_HOUSE,LUNCH,22.5,3.65,17.8,t,0
+dish_bec_bagel_01,BEC Bagel,BOTH,BREAKFAST,20.9,5.18,27.3,t,0
+cmn8ccfqr00na16qzdmvri2p5,Cucumber Sandwich  - Full,BOTH,LUNCH,19.9,4.55,25.2,t,0
+side_scramble_f_01,Scramble Full Serve,BOTH,OTHER,9,2.83,34.6,t,0
+side_scramble_h_01,Scramble Half Serve,BOTH,OTHER,5.5,1.7,33.9,t,0
+side_chicken_01,Poached Chicken Side,BOTH,OTHER,8,1.16,15.9,t,0
+cmn8ccfr700nj16qzw0ntm2jv,OG Burrito,BOTH,LUNCH,25.9,5.62,23.9,t,0
+cmn8ccfr200ng16qzg4dke6qw,Margarita,BOTH,OTHER,20,5.56,30.6,t,0
+cmn8ccfr500ni16qz3bsrkuza,Morning After,BOTH,LUNCH,17.9,3.93,24.1,t,0
+cmn9xrdgi000x01piwtmbad47,Tarte - Raspberry,BOTH,PASTRY,12.9,3.53,30.1,t,0
+cmn8ccfov00n016qzhbbon2k3,Beef Burger,BOTH,LUNCH,24.9,6.15,27.2,t,0
+dish_brisket_side_01,Brisket Side,BURLEIGH,SIDES,12.9,4.14,35.3,t,0
+dish_brisket_bagel_01,Brisket Bagel,BURLEIGH,BREAKFAST,24.9,7.77,34.3,t,0
+cmn8ccfrj00no16qz4777wafv,Roti Canai,BEACH_HOUSE,BREAKFAST,23.9,4.04,18.6,t,0
+cmn8ddmsn000101pi5lomtn5m,Pea & Halloumi Fritters Plated,BEACH_HOUSE,LUNCH,25.9,3.44,14.6,t,0
+cmn8ccfry00nw16qzgkaz0cy9,Tomato Bagel,BURLEIGH,BREAKFAST,21.5,3.91,20,t,0
+side_mush_01,Mushroom Side,BOTH,OTHER,7.5,1.85,27.1,t,0
+side_fries_01,Side Fries,BOTH,OTHER,5,0.66,14.4,t,0
+side_fries_full_01,Full Fries,BOTH,SIDES,10,1.31,14.4,t,0
+cmn9ukoof000n01pio8f3ygt9,Muffin Top - Strawberry,BOTH,PASTRY,6.9,1.92,30.6,t,0
+cmn9uk7pp000d01pi62yut294,Croissant - Almond,BOTH,PASTRY,10.9,3.93,39.7,t,0
+cmn8ccfqm00n816qzsrgenv3k,Crispy Chilli Burrata,BEACH_HOUSE,BREAKFAST,29.9,10.31,37.9,t,0
+dish_spritz_01,Aperol Spritz,BOTH,DRINKS,18,5.03,30.7,t,0
+dish_gt_01,Papa Salt G&T,BOTH,DRINKS,18,4.07,24.9,t,0
+cmn9ukpg9000o01piwv3aktbk,Muffin Top - Blueberry,BOTH,PASTRY,7,1.84,28.9,t,0
+cmn9uk6xw000c01pir181k1i4,Cookie - Brownie,BOTH,PASTRY,6.9,1.26,20,t,0
+cmn9uk4md000901pixun2kcoe,Brioche Bun - Dulce De Leche,BOTH,PASTRY,7,1.33,20.9,t,0
+cmn9uk995000f01pic8jmix4r,Crueller - Cinnamon,BOTH,PASTRY,7,0.52,8.2,t,0
+cmn9uka0t000g01pixdsoksrr,Crueller - Dulce De Leche,BOTH,PASTRY,7.5,1.14,16.7,t,0
+cmn9uk8hd000e01pirbt1mcu0,Croissant - Plain,BOTH,PASTRY,5.5,1.1,22,t,0
+cmo3q72r6000001rxd71r10co,Anzac Cookie,BOTH,PASTRY,6,0.36,6.5,t,0
+cmo5aywne000e01qtxlc8uwjy,Pistachio Cookie,BOTH,PASTRY,8.5,3.15,40.8,t,0
+cmo5bszd8000r01qt5vdyycg6,Anzac Sandwich,BOTH,PASTRY,12.5,1.41,12.4,t,0
+cmo5kffgh000301qrkqo9bj0t,White Sourdough Loaf 850g,BOTH,OTHER,10,6.3,69.3,t,0
+cmo5khx1k000501qra1bclxk4,Grain Sourdough Loaf 850g,BOTH,OTHER,10,7.2,79.2,t,0
+cmo5kobny000001qg94eajie0,Baguette,BOTH,OTHER,6.5,5,84.6,t,0
+cmn8ccfr300nh16qzhdgtt4c3,Miso Scramble,BOTH,BREAKFAST,22.9,4.33,20.8,t,0
+cmn9xrezy000z01pilk1jv9tg,Cherry Pie - Whole,BOTH,PASTRY,85,5.04,6.5,t,0
+cmn8ccfqt00nb16qzfpb2fjxz,Fried Eggs on Toast,BOTH,BREAKFAST,15.9,2.41,16.7,t,0
+cmn9xrfrp001001pitoozts5a,Cherry Pie - Mini,BOTH,PASTRY,12,1.46,13.4,t,0
+cmn8ccfqj00n716qz32yn2emh,Creme Brulee Pancakes,BEACH_HOUSE,BREAKFAST,25.9,3.47,14.7,t,0
+cmn8ccfrb00nk16qzxfm7qp4j,Parisian Hot Choc single,BOTH,DRINKS,9,1.91,23.3,t,0
+cmn8czr2w000001pi0eainhs6,Lobster Roll,BEACH_HOUSE,LUNCH,39.9,10.61,29.3,t,0
+cmn8ccfrs00nt16qz1xzjiyoy,Steak and Frites,BEACH_HOUSE,LUNCH,39.9,10.58,29.2,t,0
+cmn8ddmyf000401piym26gkbt,Thai Wagyu Beef Salad,BEACH_HOUSE,LUNCH,32.9,10.11,33.8,t,0
+cmn8ccfq300n616qzxv0y7jky,Crab Linguine,BEACH_HOUSE,LUNCH,39,12.32,34.8,t,0
+cmn9xrad8000t01pin66z2hrw,Tarte - Baked Custard,BOTH,PASTRY,9,1.19,14.6,t,0
+cmn9xrbwx000v01pi3y7y2kfm,Tarte - Passionfruit,BOTH,PASTRY,9.9,1.52,16.9,t,0
+cmn9xrb53000u01pizzc88ky6,Tarte - Blueberry,BOTH,PASTRY,11.9,4.17,38.5,t,0
+side_egg_01,Poached Egg,BOTH,OTHER,4,0.48,13.2,t,0
+cmna3l5ag001016o3a7b88q2n,Cookie - Choc Chip,BOTH,PASTRY,7.5,1.82,26.8,t,0
+cmn8ccfqy00ne16qzrw6wic0k,Iced Tea,BOTH,OTHER,9.9,0.25,2.8,t,0
+cmn9ukq8r000p01pidw64btxs,Pecan Pie - Slice,BOTH,PASTRY,10.5,2.84,29.8,t,0
+cmn9uk3nu000801pijlqole60,Brioche Bun - Jam,BOTH,PASTRY,7,1.15,18,t,0
+side_halloumi_01,Halloumi Side,BOTH,SIDES,8,2.21,30.4,t,0
+cmn9uk5e9000a01pinscith5o,Croissant - Chocolate,BOTH,PASTRY,8.5,2.47,32,t,0
+cmn9ukn55000l01pi7iy59jqx,Lemon Butter Cake - Slice,BOTH,PASTRY,8.9,1.25,15.4,t,0
+cmn8ccfrg00nm16qzio5g8ev1,Poached Eggs on Toast,BOTH,BREAKFAST,15.9,2.41,16.7,t,0
+cmn8ddn2f000601pido7cmqb6,BLT,BOTH,LUNCH,23.9,6.62,30.5,t,0
+cmn8ccfrl00np16qzmyjzrknc,Sausage Roll,BOTH,LUNCH,13.9,4.58,36.3,t,0
+cmn8ddmuo000201pilc1welxf,Mediterranean Grilled Barramundi,BEACH_HOUSE,LUNCH,36.9,11.31,33.7,t,0
+cmn8ccfqp00n916qz7a4290bp,Crumpet Benny Salmon,BEACH_HOUSE,BREAKFAST,27.9,5.67,22.3,t,0
+cmn8ccfrf00nl16qzfzwazi7y,Pate and House Pickles,BEACH_HOUSE,BREAKFAST,32.9,13,43.5,t,0
+cmn8ddmwn000301piyejj8eqn,Steak Baguette,BEACH_HOUSE,LUNCH,33.9,10.25,33.3,t,0
+cmn9ukl2d000i01pia47c8xqz,Financier (Friand),BOTH,PASTRY,7.9,1.5,20.9,t,0
+cmn9uk661000b01pi20zeudxw,Cinnamon Scroll,BOTH,PASTRY,7.5,0.81,11.9,t,0
+cmqage0tg0000b4q07mdadveh,Tomato Soup Burrata,BEACH_HOUSE,LUNCH,29.9,9.44,34.7,t,0
+cmqbj6xk200000vq044y126y2,Cheese Bagel & Tomato Soup,BEACH_HOUSE,LUNCH,22.9,4.5,21.6,t,0
+cmq4p1yod000k0vq0nyy47at6,Cookie - Dark Triple Chocolate,BOTH,PASTRY,8,2,27.5,t,0
+cmowhtsju000h16p0gkb4flly,Ketchup,BOTH,SIDES,3.5,0.52,16.2,t,0
+cmn8ccfrq00ns16qzkyqm9chb,Garden Tartine,BOTH,BREAKFAST,24.9,3.7,16.4,t,0
+dish_acai_bowl_01,Acai Bowl,BOTH,BREAKFAST,18.9,6.23,36.3,t,0
+dish_french_toast_01,French Toast,BOTH,BREAKFAST,21.9,4.99,25,t,0
+cmq4rxob30000ztq0ey3opr3s,Croissant - Twice Baked Pistachio,BOTH,PASTRY,12.9,4.66,39.7,t,0
+cmqafvujv000qujq0mzx3238e,Tomato Soup,BURLEIGH,LUNCH,27.9,6.36,25.1,t,0
+cmqaid2qx000el5q05ytoxmjo,Chicken Parmigiana,BEACH_HOUSE,LUNCH,34.9,9.56,30.1,t,0
+cmqadmyor000963q0k7yn42ql,Winter Salad (Roast Vegetable),BEACH_HOUSE,LUNCH,26.9,5.98,24.5,t,0
+cmqabldua000i76q0i9ft9edk,French Onion Soup,BOTH,LUNCH,24.9,4.29,19,t,0
+cmqaj56cr000749q0x772jxqj,Wombok Miso Chicken Salad,BEACH_HOUSE,LUNCH,22.9,4.84,23.2,t,0

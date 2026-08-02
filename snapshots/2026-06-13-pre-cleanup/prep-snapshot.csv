@@ -1,0 +1,208 @@
+id,name,category,yieldQuantity,yieldUnit,batchCost,costPerGram,costPerServe
+cmn8ccfer00j916qzh1x1420z,Chocolate Croissant Dough Laminated,PASTRY,2,kg,27.1,0.0136,13.55
+cmn8ccfcz00ik16qzjn3spbr0,Bagel Sponge,PASTRY,90,ea,2.46,0.0003,0.03
+cmn8ccffv00jn16qzwrf8rdzj,Croissant Dough Laminated,PASTRY,2000,g,13.18,0.0066,0.01
+cmn8ccfeh00j416qzpyx4ce6f,Chimichurri,SAUCE,2200,g,65,0.0295,0.03
+cmn8ccfee00j216qzar8ym1dj,Chilli Benny,COMPONENT,1,ea,4.36,0.0436,4.36
+cmn8ccffq00jk16qzgmoi7eg1,Crispy Chickpea,COMPONENT,31,serve,12.86,0.0028,0.41
+cmn8ccfg000jp16qzdf9401zk,Crueller,PASTRY,1875,g,7.59,0.004,0
+cmn8ccff400jd16qz06ibgy2f,Citrus Dressing,DRESSING,2750,g,21,0.0076,0.01
+cmn8ccfd400im16qz8dzqcws1,Bechamel,SAUCE,7830,ml,38.16,0.0049,0
+cmn8ccfg400jr16qzy3ti2slo,Crueller - Cinnamon - MINI - Each,PASTRY,1,ea,0.17,0.0017,0.17
+cmn8ccfe700iz16qzm3g3mqsl,Cheesecake Base,PASTRY,2200,g,31.52,0.0143,0.01
+cmn8ccffh00jg16qz4j6fuwav,Cream Cheese Frosting,PASTRY,7,kg,72.89,0.0104,10.41
+cmn8ccfdj00is16qzu3qpt5b0,Bread Crisps,COMPONENT,1000,g,70.71,0.0707,0.07
+cmn8ccfej00j516qzlol5uyc0,Choc Chip Cookie,PASTRY,70,ea,104.7,0.015,1.5
+cmn8ccfgn00jz16qz3o92s5kq,Dulce,COMPONENT,395,g,3.48,0.0088,0.01
+cmn8ccfg600js16qz8dhl074n,Crueller - Dulce De Leche - Each,PASTRY,1,ea,1.14,0.0114,1.14
+cmn8ccfgp00k016qzaajgqptm,Dulce Glaze,PASTRY,10200,g,67.53,0.0066,0.01
+cmn8ccfe900j016qznoqfg7ux,Cherry Pie - Large - each,PASTRY,1,ea,5.04,0.0504,5.04
+cmn8ccfg900ju16qzrh8n9cyt,Crueller - Vanilla Bean - Each,PASTRY,1,ea,0.95,0.0095,0.95
+cmn8ccfdw00iv16qz839imeem,Brioche Jam - each,PASTRY,1,ea,1.15,0.0115,1.15
+prep_spritz_01,Aperol Spritz,OTHER,1,serve,5.03,0.0252,5.03
+cmn8ccfcu00ii16qz5rgjmnej,Bacon Jam,PRESERVED,180,serve,132.09,0.0049,0.73
+cmn8ccffm00ji16qzp3hg1xu1,Creme Brulee Cream,PASTRY,6000,g,54.54,0.0091,0.01
+cmn8ccfet00ja16qzhj1ninmf,Cinnamon Paste,PASTRY,6.5,kg,40.63,0.0063,6.25
+cmn8ccfdb00io16qzz78e5pel,Bisque Butter,COMPONENT,1600,g,17.45,0.0109,0.01
+cmn8ccfgb00jv16qz8a10y7g3,Crumble,PASTRY,11280,g,59.14,0.0052,0.01
+cmn8ccffk00jh16qz0dwaxpxx,Creamy Jalapeno dressing,DRESSING,1,l,20.57,0.0206,20.57
+cmn8ccffa00je16qz2smsyfbr,Citrus Sugar,SAUCE,3200,g,7.31,0.0023,0
+cmn8ccfeg00j316qz3a6jn11t,Chilli Sauce,SAUCE,500,serve,84.89,0.0011,0.17
+cmn8ccff100jc16qz3t3nkzt7,Cinnamon Scroll - each,PASTRY,1,ea,0.81,0.0081,0.81
+cmn8ccffx00jo16qzokdosyri,Croissant Plain - Each,PASTRY,1,ea,1.1,0.011,1.1
+cmn8ccfen00j716qz49oyxe26,Chocolate Croissant - each,PASTRY,1,ea,2.47,0.0247,2.47
+cmp7gffby00000upk9qzed0nu,Mini Bagel - each,PASTRY,1,ea,0.04,0.0004,0.04
+cmp7gffdv00020upkqxpnm565,Mini Chicken Sandwich - each,PASTRY,1,ea,1.36,0.0136,1.36
+cmp7gffhk000a0upkf5lvmkai,Mini Cucumber Sandwich - each,PASTRY,1,ea,1.14,0.0114,1.14
+cmn8ccffo00jj16qzbo5aiv72,Creme Brulee Custard Base,PASTRY,3000,g,33.6,0.0112,0.01
+cmn8ccfe300ix16qz9sjzcttm,Brownie Cookie - Each,PASTRY,1,ea,1.26,0.0126,1.26
+cmn8ccfdf00iq16qzc2xpbzfs,Braised Chuck,COMPONENT,16,kg,341.04,0.0213,21.32
+cmn8ccfeb00j116qz4tdx4iif,Cherry Pie Filling Mixture,PASTRY,12800,g,5.23,0.0004,0
+cmn8ccfe000iw16qzgv7ml8w4,Brownie Cookie,PASTRY,24,ea,30.15,0.0126,1.26
+cmn8ccfg800jt16qzb8abc1x1,Crueller - Dulce De Leche MINI - each,PASTRY,1,ea,0.38,0.0038,0.38
+cmn8ccfgd00jw16qzeavb0tqt,Cucumber Dressing,DRESSING,1500,ml,8.24,0.0055,0.01
+cmn8ccfey00jb16qziw6fotad,Cinnamon Scroll,PASTRY,3040,g,19.7,0.0065,0.01
+cmn8ccfep00j816qz0ovz8ahc,Chocolate Croissant Dough,PASTRY,2,kg,11.1,0.0056,5.55
+cmn8ccfcw00ij16qzz66rmr6x,Bagel Dough,PASTRY,90,ea,3.59,0.0004,0.04
+cmn8ccfds00iu16qzdjyiyelo,Brioche Dulce De Leche - each,PASTRY,1,ea,1.33,0.0133,1.33
+cmn8ccfdd00ip16qze0cjgz4o,BLT,COMPONENT,1,ea,28.73,0.2873,28.73
+cmn8ccffs00jl16qzp7ordld9,Crispy Chilli,SAUCE,22000,g,303.42,0.0138,0.01
+cmn8ccfel00j616qzfigqedxr,Choc Chip Cookie - MINI - Each,PASTRY,1,ea,0.6,0.006,0.6
+prep_gt_01,Papa Salt G&T,OTHER,1,serve,4.07,0.0177,4.07
+cmn8ccfd200il16qzn5x0bm3e,BBQ Sauce Recipe - Tarte,SAUCE,6300,g,50.65,0.008,0.01
+cmn8ccfdh00ir16qz9nm0bbzc,Braising Liquid,COMPONENT,4800,g,44.01,0.0092,0.01
+cmn8ccfe500iy16qzzagcoxu8,Caramelized Onion,COMPONENT,450,serve,105.44,0.0016,0.23
+cmn8ccfjk00ks16qzb53yw876,Lobster Mayo,SAUCE,1650,g,13.63,0.0083,0.01
+cmn8ccfjf00kq16qzldg6xe79,Lemon Dressing Recipe - Tarte,DRESSING,1000,ml,7.52,0.0075,0.01
+cmn8ccfhm00kb16qzzz8wxwhf,Hazelnut Sauce,SAUCE,11000,g,266.94,0.0243,0.02
+cmn8ccfkv00la16qzw58kp21n,Parisian Hot Choc,PASTRY,2200,g,35.71,0.0162,0.02
+cmn8ccfgv00k316qzfxpevaoo,French Toast Mix Recipe,SAUCE,2600,ml,15.57,0.006,0.01
+cmn8ccfja00ko16qzngc8t5co,Lemon Butter Cake Topping,PASTRY,4,serve,28.92,0.0482,7.23
+cmn8ccfhi00ka16qzivmkl8j0,Hangover Sauce Recipe,SAUCE,2000,g,20.07,0.01,0.01
+cmn8ccfkn00l716qzcmd80krl,New York Sub,COMPONENT,1,ea,4.02,0.0244,4.02
+cmn8ccfh400k716qz9x39lptb,Gochujang Mayo Recipe,SAUCE,1200,g,13.37,0.0111,0.01
+cmn8ccfl700li16qze6ijvoax,Pickled Cucumber,COMPONENT,30,kg,364.08,0.0121,12.14
+cmn8ccfld00ll16qzuvc4q19e,Pico de Gallo,SAUCE,665,g,7.58,0.0114,0.01
+cmn8ccfig00kj16qzauax8p61,House Pickles Recipe,COMPONENT,20,kg,161.2,0.0081,8.06
+cmn8ccfi100ke16qz295vk30s,Herbed Cream Cheese,DRESSING,350,serve,270.53,0.0052,0.77
+cmn8ccfgt00k216qzddcrirt9,Flaky Pastry,PASTRY,192,ea,71.97,0.0068,0.37
+cmn8ccfi400kf16qzeuqcov62,Hollandaise Sauce Recipe,SAUCE,750,g,11.12,0.0148,0.01
+cmn8ccfhy00kd16qzbtn5rxja,Herb Dressing,DRESSING,1,l,4.99,0.005,4.99
+cmn8ccfid00ki16qzlv0j5i9z,Hot Honey,SAUCE,4000,g,32.82,0.0082,0.01
+cmn8ccflc00lk16qzt2kyevl3,Pickled Red Onion,COMPONENT,6.9,kg,25.53,0.0037,3.7
+cmn8ccfke00l316qzt2zsdid8,Muffin Top - Strawberry - Each,PASTRY,1,ea,1.92,0.0192,1.92
+cmn8ccfl900lj16qz8kpvd20u,Pickled Red Cabbage,COMPONENT,840,g,1.84,0.0022,0
+cmn8ccfk900l116qza7ltat70,Muffin Top - Blueberry - Each,PASTRY,1,ea,1.84,0.0184,1.84
+cmn8ccfj600kn16qzoik02wm6,Lemon Butter Cake - each,PASTRY,1,ea,9.97,0.0997,9.97
+cmn8ccfgx00k416qz7dtjmbe0,Friand,PASTRY,3150,g,29.19,0.0093,0.01
+cmn8ccfk500kz16qzyptwys2d,Miso Scramble Mix,COMPONENT,37,serve,107.48,0.0096,2.9
+cmn8ccfht00kc16qz0h8gno8t,Healthy Bowl Mix Salad,COMPONENT,65,serves,135.39,0.0159,2.08
+cmn8ccfjy00kw16qz0h7u4ea8,Marshmallow,PASTRY,22,ea,6.29,0.0029,0.29
+cmn8ccfi700kg16qzw44ns2xf,Honey Mustard Dressing,DRESSING,1218,g,21.91,0.018,0.02
+cmn8ccfk300ky16qz096z3am4,Miso Mayo,SAUCE,10,kg,103.48,0.0103,10.35
+cmn8ccfkb00l216qzzw9ubpkv,Muffin Top - Strawberry,PASTRY,12,ea,23,0.0192,1.92
+cmn8ccfk700l016qzgzxu14va,Muffin Top - Blueberry,PASTRY,12,ea,22.06,0.0184,1.84
+cmn8ccfia00kh16qzausx1d5v,Horseradish Cream,SAUCE,3250,g,29.34,0.009,0.01
+cmp8welxf00010uo4qcltuho2,Mini Croissant - each,PASTRY,1,ea,0.46,0.0154,0.46
+cmn8ccfl600lh16qzqeaxlgoa,Pickled Cauliflower,COMPONENT,10,serve,12.38,0.0083,1.24
+cmn8ccfit00kl16qzvjriw6iz,Jalapeno Salsa,SAUCE,30000,g,54.59,0.0018,0
+cmn8ccfh100k616qzgmb92n40,Galette Pastry,PASTRY,13,kg,85.08,0.0065,6.54
+cmn8ccfjh00kr16qz07dwv2ut,Lobster Butter,SAUCE,5330,g,70.81,0.0133,0.01
+cmn8ccfj000km16qzyd5slr2i,Kouign Amann,PASTRY,1,ea,0.63,0.0063,0.63
+cmn8ccfl400lg16qzlmxz0vik,Pecan Pie Filling,PASTRY,1,serve,10.48,0.014,10.48
+cmn8ccfk100kx16qzhd30scvq,Miso Hollandaise,SAUCE,1000,ml,13.58,0.0136,0.01
+cmn8ccfh700k816qzntj9ely1,Green Curry,COMPONENT,830,serve,143.35,0.0012,0.17
+cmn8ccfju00ku16qz2ntbmcap,Maple Bacon Bagel,COMPONENT,1,ea,38,0.38,38
+prep_spritz_sm_01,Aperol Spritz Small,OTHER,1,serve,2.59,0.0216,2.59
+cmn8ccfkl00l616qzzp5eelxq,Mustard mayo Recipe,SAUCE,1200,g,13.76,0.0115,0.01
+cmn8ccfjd00kp16qzkp5uc5nl,Lemon Curd,PASTRY,6500,g,70.9,0.0109,0.01
+cmn8ccfhc00k916qzrnc8mzlq,Guzzy Burrito,COMPONENT,1,ea,6.52,0.0652,6.52
+cmn8ccfgz00k516qz6hjximgr,Friand - Each,PASTRY,1,ea,1.5,0.015,1.5
+cmn8ccfky00lc16qzlt4jf9l7,Passionfruit Curd,COMPONENT,6.5,kg,96.04,0.0148,14.78
+cmn8ccfkr00l816qz9a7p37wp,Orange Juice,COMPONENT,2,l,12.16,0.0061,6.08
+cmn8ccfl300lf16qzb00syh89,Pecan Pie - Large Each,PASTRY,8,ea,22.75,0.2275,2.84
+cmn8ccfg200jq16qzhkbx3j83,Crueller - Cinnamon - Each,PASTRY,1,ea,0.52,0.0052,0.52
+cmn8ccfik00kk16qzhoajtewa,Jalapeno Bacon Onion Jam - Tarte,SAUCE,4700,g,52.8,0.0112,0.01
+cmn8ccfkt00l916qzwfqr8uv4,Pancake Mix Prepared,PASTRY,6360,g,25.93,0.0041,0
+cmn8ccfly00lt16qzjj3q4k80,Raspberry Jam - 20ml serve,PRESERVED,20,ml,0.14,0.0069,0.01
+cmn8ccfnq00mi16qztbs5b6ue,Tarte - Raspberry - Each,PASTRY,1,ea,3.53,0.0353,3.53
+cmn8ccfm100lu16qzq88wxq17,Rendang Curry,COMPONENT,30,kg,433.88,0.0145,14.46
+cmn8ccfml00m216qzbykbfit9,Scone - MINI - each,PASTRY,1,ea,0.06,0.0006,0.06
+cmn8ccflv00ls16qzlmcq0zp0,Raspberry Jam - 1 Batch,PASTRY,1900,g,13.09,0.0069,0.01
+cmn8ccfoc00ms16qznok1sw5z,Tumeric Cauliflower,COMPONENT,1,serve,3.67,0.0198,3.67
+cmn8ccfnf00md16qz5a5ugnx1,Tartare Sauce,SAUCE,2000,g,32.65,0.0163,0.02
+cmn8ccfnj00mf16qzpgo76teh,Tarte - Custard  - Each,PASTRY,1,ea,1.19,0.0119,1.19
+cmn8ccfmz00m616qzvbzoetl0,Spiced Caram. Peanuts,COMPONENT,90,serve,53.35,0.004,0.59
+cmn8ccfmh00m016qzmgo4251i,Salted Onion,COMPONENT,4.5,kg,45.31,0.0101,10.07
+new_choc_cookie_each_01,Choc Chip Cookie - Each,PASTRY,1,ea,1.82,0.0182,1.82
+cmn8ccfnx00ml16qztj8fin98,Tarte - Strawberry MINI - each,PASTRY,1,ea,0.6,0.006,0.6
+cmn8ccfno00mh16qzoq4uqwfz,Tarte - Passionfruit MINI - each,PASTRY,1,ea,0.5,0.005,0.5
+cmn8ccfnt00mj16qz1rw2lki2,Tarte - Rhubarb - Each,PASTRY,1,ea,1.54,0.0154,1.54
+prep_corona_01,Corona,OTHER,1,serve,3.18,0.009,3.18
+cmn8ccfn800ma16qztoug5mzm,summer Yoghurt Bowl,COMPONENT,1,serve,2.13,0.0142,2.13
+cmn8ccflh00ln16qzf0wz57u7,Pistachio Dukkah,COMPONENT,150,serve,72.29,0.0032,0.48
+cmn8ccflr00lr16qzsh8vckiz,Potato Hash,COMPONENT,192,serve,99.88,0.0035,0.52
+cmn8ccfnh00me16qz0k2xdea9,Tarte - Blueberry - Each,PASTRY,1,ea,4.17,0.0417,4.17
+cmn8ccfof00mt16qzwc0rkvpz,Vanilla Glaze,PASTRY,8850,g,71.66,0.0081,0.01
+cmn8ccfmc00ly16qzprqhxwjc,Salmon Bagel - MINI each,PASTRY,1,ea,1.93,0.0193,1.93
+cmn8ccffe00jf16qz1y3rxw9j,Confit Tomato,SAUCE,6700,g,118.87,0.0177,0.02
+cmn8ccfm300lv16qzpnt66tin,Ricotta Cheesecake - Large - Each,PASTRY,1,ea,15.28,0.1528,15.28
+new_pea_halloumi_01,Pea Halloumi Fritters,COMPONENT,50,serve,105.78,0.0088,2.12
+cmn8ccfnz00mm16qzzv2z8yza,Tarte Sambal Recipe,COMPONENT,5500,g,131.58,0.0239,0.02
+cmn8ccfn600m916qzkgz5n4vq,Summer Bowl Salad,COMPONENT,1,serve,4.81,0.0321,4.81
+cmo5arcmb000101qtxbzn9l3l,Pistachio Cookie,PASTRY,64,serves,147.83,0.0192,2.31
+cmn8ccfo800mr16qzpm1tdgg0,Truffle Bechamel Recipe,SAUCE,7000,g,41.4,0.0059,0.01
+cmn8ccfn300m816qz4c1faszv,Sugar Syrup,COMPONENT,1,l,3.14,0.0031,3.14
+prep_fruit_glaze_01,Fruit Glaze,COMPONENT,8200,g,69.19,0.0084,0.01
+cmn8ccfo500mp16qzyrghzlcv,Thai Satay dressing,DRESSING,1,l,6.59,0.0066,6.59
+prep_prosecco_01,Prosecco Glass,OTHER,1,serve,2.1,0.0175,2.1
+cmn8ccfok00mw16qzj4uc18d0,Zaatar,SAUCE,5000,g,48.02,0.0096,0.01
+cmn8ccfnb00mb16qz0797wkqq,Sweet Chilli Sauce,SAUCE,5917,g,55.94,0.0095,0.01
+cmn8ccfo700mq16qzviutbd69,Tomato Bagel - MINI each,PASTRY,1,ea,1.31,0.0131,1.31
+cmn8ccfmf00lz16qzjjo5wp2h,Salmon Curing Mix,COMPONENT,2400,g,2.98,0.0012,0
+cmn8ccfog00mu16qz06rtezrz,Vanilla Yoghurt,COMPONENT,2040,g,13.86,0.0068,0.01
+cmn8ccfm800lw16qz2yi8pvzq,Ricotta Cheesecake Mix,PASTRY,10,kg,86.61,0.0087,8.66
+prep_peroni_01,Peroni,OTHER,1,serve,2.27,0.0069,2.27
+cmn8ccfli00lo16qzygimca22,Poached Rhubarb,COMPONENT,15,serve,14.07,0.0063,0.94
+prep_sw_01,Stone and Wood Pacific Ale,OTHER,1,serve,3.45,0.0105,3.45
+cmn8ccfmw00m516qzakt6kieh,Smoked Hummus,SAUCE,5400,g,30.94,0.0057,0.01
+cmn8ccfll00lp16qz54igr8ot,Pork Patties - Morning after Recipe,COMPONENT,5000,g,78.71,0.0157,0.02
+cmn8ccflo00lq16qzrfd9f5m7,Porridge Mix,SAUCE,1000,ml,3.61,0.0036,0
+cmn8ccfmj00m116qzsi9hmdko,Scone - each,PASTRY,1,ea,0.19,0.0019,0.19
+cmn8ccfn100m716qz6yalaknp,Spiced Mushroom Mix,OTHER,31,serve,80.7,0.0174,2.6
+cmn8ccfmp00m316qz5hoc2omb,Scones - Batch of 20,PASTRY,20,ea,3.7,0.0018,0.18
+cmn8ccflf00lm16qz2bmnib4n,Pineapple Caramel,COMPONENT,3360,g,19.39,0.0058,0.01
+prep_gn_01,Great Northern SC,OTHER,1,serve,2.09,0.0063,2.09
+cmn8ccfmt00m416qz6k2vj5gt,Scrambled egg mix Recipe,COMPONENT,63,serves,107.48,0.0113,1.71
+cmqajosyg0003zjq0drxx01cm,Sesame-Miso Citrus Dressing,DRESSING,809,ml,7.8,0.0096,0.01
+new_phc_single_01,Parisian Hot Choc single,OTHER,1,serve,1.91,0.0095,1.91
+cmn8ccfma00lx16qzsk3w9ujv,rosemary Syrup,COMPONENT,1,l,5.25,0.0053,5.25
+cmn8ccfl100le16qz0sgfh7ct,Peach Compote,SAUCE,2000,g,12.67,0.0063,0.01
+cmn8ccfgr00k116qzcde38a3o,Entrecote Sauce BH,SAUCE,14000,ml,143.32,0.0102,0.01
+cmn8ccfci00ie16qzxy1vv03b,Almond Croissant - Each,PASTRY,1,ea,3.93,0.0393,3.93
+cmn8ccfcc00ic16qzk80fi2di,Almond Cream Pastry,PASTRY,8,kg,131.18,0.0164,16.4
+cmowhtsi6000216p0hem8p68q,Ketchup,SAUCE,7500,g,77.51,0.0103,0.01
+cmn8ccfoi00mv16qzho6yi489,Wholemeal Crumpets,COMPONENT,76,serve,4.11,0.0004,0.05
+cmn8ccfo000mn16qz9s091ymj,Tempura Mix,SAUCE,8000,g,17.2,0.0022,0
+cmn8ccfcg00id16qztd8o8clr,Almond cream Tarte Recipe,COMPONENT,550,g,26.25,0.0477,0.05
+cmn8ccfjw00kv16qz3ljepi75,Maple Butter,SAUCE,8200,g,134.4,0.0164,0.02
+cmo5bnmjv000k01qte0m3k4wv,Salted Caramel,SAUCE,7500,g,34.57,0.0046,0
+cmn8ccfcr00ih16qzhfxo2es6,Avocado Prepped,COMPONENT,10962,g,143.16,0.0131,0.01
+cmo3kgr7p000101qvbzpu36lv,Anzac Cookie,PASTRY,65,serves,23.12,0.0044,0.36
+cmn8ccfd600in16qzcb79y5vv,Bisque,SAUCE,4500,ml,14.7,0.0033,0
+cmn8ccfcp00ig16qzxrey6h7n,Asian Salad,COMPONENT,1,serve,4.13,0.0079,4.13
+cmn8ccfcm00if16qz55z7enao,Amazu,DRESSING,5.5,kg,30.03,0.0055,5.46
+cmn8ccfkh00l416qz8ujk8rfo,Mushroom Mix,COMPONENT,80,serves,75.66,0.0095,0.95
+prep_iced_tea_01,Iced Tea Batch,COMPONENT,41,serves,12.73,0.0012,0.31
+cmqaftpye0000raq07zs36v7m,Brown Butter & Sage Vinaigrette,DRESSING,315,ml,5.11,0.0162,0.02
+cmimp0019d2eb389620008,Thai Dressing (Nahm Jim),DRESSING,2490,ml,13.34,0.0054,0.01
+cmo3psal7000a01qvnuajtnlx,Anzac Swiss Buttercream 2026,COMPONENT,2100,g,16.17,0.0077,0.01
+cmqafvt7o000fujq0u9zjefn2,Tomato Soup,SAUCE,35,serve,93.44,0.0075,2.67
+new_pork_sausroll_01,Pork and Pineapple Sausage Roll,COMPONENT,46,ea,134.56,0.0117,2.93
+prep_house_granola_01,House Granola,COMPONENT,11873,g,131.43,0.0111,0.01
+cmn8ccfjq00kt16qzgsskyc4p,Maple Bacon,COMPONENT,70,serve,308.97,0.0294,4.41
+prep_toasted_rice_01,Toasted Rice Powder,MIX,1000,g,3.14,0.0031,0
+cmn8ccfkj00l516qzk8s75qd3,Mustard Compound Butter,SAUCE,1350,g,14.58,0.0108,0.01
+cmn8ccfkw00lb16qz2kphq12z,Parsley Oil,SAUCE,2000,g,20.78,0.0104,0.01
+cmqafvske0004ujq04b67v4vi,Tomato Soup Seasoning (Pre-Mix),MIX,440,g,5.85,0.0133,0.01
+cmqafvsts000aujq0jvjxdydb,Pangrattato,COMPONENT,1000,g,1.14,0.0011,0
+cmncm1e76000201nniwng4txm,Brisket (Cooked),COMPONENT,29,serves,370.09,0.1274,12.76
+cmn8ccfdo00it16qzv8u178ec,Brioche Dough,PASTRY,3300,g,10.82,0.0033,0
+cmn8ccffu00jm16qz3u6f2nny,Croissant Dough,COMPONENT,3,kg,4.15,0.0014,1.38
+cmq4p1yc900000vq0amcxottq,Pistachio Cream / Frangipane,MIX,8300,g,168.5,0.0203,0.02
+cmq4p1yia00060vq0zblmf5od,Dark Triple Chocolate Cookie,PASTRY,60,ea,101.43,0.0135,1.69
+cmn8ccfgk00jy16qzrdudubaq,Doughnut Dough,PASTRY,30,ea,12.44,0.0041,0.41
+cmn8ccfo300mo16qzweiout7g,Thai base Curry Paste,COMPONENT,1,serve,3.69,0.0246,3.69
+prep_lemonade_01,Lemonade - Old Fashioned,OTHER,29,serve,39.58,0.0054,1.36
+cmqaid2ik0005l5q04fwyeno3,Napolitana Sauce,SAUCE,8750,g,72.95,0.0083,0.01
+cmn8ccfgf00jx16qz11yjlu6a,Custard,COMPONENT,6000,ml,28.3,0.0047,0
+new_margarita_01,Margarita,OTHER,1,serve,5.56,0.0556,5.56
+cmimp0019d2eb389620007,Caramelised Peanuts,OTHER,542,g,3.82,0.007,0.01
+cmn8ccfnd00mc16qzhgd46eik,tapenade,COMPONENT,2250,g,23.43,0.0104,0.01
+new_steak_frites_01,Steak Frites,COMPONENT,1,serve,10.58,0.0167,10.58
+cmimp0019d2eb389620006,Mediterranean Mix,OTHER,5780,g,102.91,0.0178,0.02
+cmn8ccfnl00mg16qzfqwn6wh1,Tarte - Passionfruit - Each,PASTRY,1,ea,1.52,0.0152,1.52
+cmqaj563r000049q0pb68uhfs,Wombok Side Salad,COMPONENT,1,serve,1.04,0.0067,1.04
+cmn8ccfnv00mk16qzwa5goujx,Tarte - Strawberry - Each,PASTRY,1,ea,1.82,0.0182,1.82
+cmqabldbs000676q0sr6wyw5h,Basic Demi Glace,BASE,20,l,39.9,0.002,2
+cmqabldju000876q007pjrh0e,Onion Soup,COMPONENT,50,serve,120.78,0.0081,2.42

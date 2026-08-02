@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supplier price verification — 11 Jun 2026</title>
+<style>
+  :root { --up:#c0392b; --down:#1e8449; --warn:#b9770e; --mut:#7f8c8d; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         margin: 2rem auto; max-width: 1100px; padding: 0 1rem; color:#222; line-height:1.45; }
+  h1 { font-size: 1.5rem; } h2 { font-size: 1.2rem; margin-top: 2.2rem; border-bottom: 2px solid #eee; padding-bottom:.3rem; }
+  h3 { font-size: 1rem; margin-top: 1.4rem; }
+  table { border-collapse: collapse; width: 100%; margin: .6rem 0 1rem; font-size: .88rem; }
+  th, td { border: 1px solid #e3e3e3; padding: .38rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f7f7f7; font-weight: 600; }
+  td.r, th.r { text-align: right; white-space: nowrap; }
+  .up { color: var(--up); font-weight: 600; } .down { color: var(--down); font-weight: 600; }
+  .warn { color: var(--warn); font-weight: 600; }
+  .mut { color: var(--mut); }
+  .pill { display:inline-block; padding:.05rem .5rem; border-radius:9px; font-size:.75rem; font-weight:600; }
+  .pill.dispute { background:#fdecea; color:var(--up); } .pill.watch { background:#fef5e7; color:var(--warn); }
+  .pill.ok { background:#eafaf1; color:var(--down); }
+  .box { background:#f8f9fa; border-left: 4px solid #ccc; padding: .7rem 1rem; margin: 1rem 0; font-size:.9rem; }
+  .box.red { border-color: var(--up); background:#fdf3f2; }
+  .box.green { border-color: var(--down); background:#f4faf6; }
+  caption { caption-side: top; text-align: left; font-weight: 600; padding: .2rem 0; }
+  code { background:#f1f1f1; padding:0 .25rem; border-radius:3px; font-size:.85em; }
+</style>
+</head>
+<body>
+<h1>Supplier price verification — Bidfood / Fermex / Provedores</h1>
+<p class="mut">Every flagged movement hand-checked against raw invoice lines, 25 Mar – 11 Jun 2026 (6,104 lines).
+Both sides normalised to $/kg, $/L or $/each before comparing. Fuzzy-match phantoms have been removed —
+everything in the "confirmed" tables below traces to specific invoice lines and dates.
+Updated prices are already written into <code>scripts/order-forms.json</code> (not yet pushed to the app — your call).</p>
+
+<div class="box red">
+<strong>⚠ Headline 1 — The Provedores is split-pricing our two accounts.</strong><br>
+The cleaning prices agreed in their 18 May reply were applied to the <em>Beach House</em> account only.
+<strong>Burleigh is still being billed the old prices, including on 9 Jun:</strong>
+Bleach 5L $10.75 vs agreed $9.50 · Grill &amp; Oven Cleaner $15.10 vs $13.00 · Floor &amp; Tile $31.20 vs $29.00.
+Worth a polite dispute + credit request, and a check that <em>all</em> agreed prices are loaded on both accounts.
+</div>
+
+<div class="box red">
+<strong>⚠ Headline 2 — Fermex hasn't applied two quoted prices.</strong><br>
+① Butter Unsalted: quoted <strong>USA $280/25kg</strong>, still shipping/billing <strong>NZ $304</strong> as of 10 Jun (+8.6% over quote — and NZ itself stepped $302→$304 on 2 Jun). This is our single biggest line.
+② Bakels Apito Lemon Paste: quoted <strong>$36</strong> (S29927), last invoice (5 May) still <strong>$50</strong>.
+③ Icing Sugar Pure: quoted $31.50, last invoice (28 Apr) $34.50. Chase Patrick on all three.
+</div>
+
+<div class="box green">
+<strong>✓ The big scary numbers were phantoms.</strong>
+Flour Plain "+376%" (matched a gluten-free flour), Banana/Mango Chunks "+300%" (pack regex read 4×2.5kg as 2.5kg),
+Olive Oil "+143%" (matched a 250ml truffle-oil bottle), Egg Yolk "+100%" (5x2kg parsed as 5kg),
+Sugar Caster 25kg "+21%" (matched the 15kg bag), Oat Milk "+14%" (matched the almond line).
+All verified unchanged — none of these go anywhere near a supplier email.
+</div>
+
+<h2>Bidfood — confirmed movements</h2>
+<table>
+<tr><th>Item</th><th class="r">Form was</th><th class="r">Now invoiced</th><th class="r">Δ</th><th>Evidence</th></tr>
+<tr><td>Sugar Caster Bundaberg 15kg</td><td class="r">$27.90</td><td class="r">$29.60</td><td class="r up">+6.1%</td><td>2 invoices, 10 Apr &amp; 10 May</td></tr>
+<tr><td>Vinegar Rice Marukan 1.8L</td><td class="r">$7.94</td><td class="r">$8.39</td><td class="r up">+5.7%</td><td>sustained 4 May → 7 Jun</td></tr>
+<tr><td>Stock Real Vegetable Campbells 1L</td><td class="r">$3.85</td><td class="r">$4.01</td><td class="r up">+4.2%</td><td>10 invoices, 10 May → 8 Jun</td></tr>
+<tr><td>Honey Pure Allowrie 3kg</td><td class="r">$23.50</td><td class="r">$24.42</td><td class="r up">+3.9%</td><td>3 invoices, 1–20 May</td></tr>
+<tr><td>Sauce Red Hot (Franks) 3.78L</td><td class="r">$40.00</td><td class="r">$41.51</td><td class="r up">+3.8%</td><td>2 invoices 7–11 May <span class="mut">(pack size not printed on line — same SKU assumed)</span></td></tr>
+<tr><td>Flour Plain Gem of the West 12.5kg</td><td class="r">$15.60</td><td class="r">$16.17</td><td class="r up">+3.7%</td><td>1 invoice, 8 May</td></tr>
+<tr><td>Mayonnaise Kewpie 1kg</td><td class="r">$11.82</td><td class="r">$12.00</td><td class="r up">+1.5%</td><td>1 invoice, 23 Apr</td></tr>
+<tr><td>Creme Fraiche Tatua 500g</td><td class="r">$11.27</td><td class="r">$10.90</td><td class="r down">−3.3%</td><td>7 Jun</td></tr>
+<tr><td>Pulp Passionfruit Caterers 1kg <span class="mut">(2 duplicate form rows — both updated)</span></td><td class="r">$8.34</td><td class="r">$8.13</td><td class="r down">−2.5%</td><td>6 invoices, 25 May → 8 Jun</td></tr>
+<tr><td>Fondant Soft White Allied 15kg <span class="mut">(inactive)</span></td><td class="r">$83.18</td><td class="r">$80.00</td><td class="r down">−3.8%</td><td>7 &amp; 11 Jun</td></tr>
+<tr><td>Milk Soya Bonsoy 6×1L <span class="mut">(inactive)</span></td><td class="r">$21.00</td><td class="r">$19.80</td><td class="r down">−5.7%</td><td>22 May</td></tr>
+<tr><td>El Jimador Tequila 700ml</td><td class="r">$57.91</td><td class="r">$53.33</td><td class="r down">−7.9%</td><td>2 Apr</td></tr>
+<tr><td>Aperol 700ml</td><td class="r">$29.87</td><td class="r">$29.57</td><td class="r down">−1.0%</td><td>2 Apr</td></tr>
+</table>
+
+<h3>Bidfood — behaviour flags</h3>
+<table>
+<tr><th></th><th>Flag</th></tr>
+<tr><td><span class="pill dispute">brand sub</span></td><td><strong>Dijon mustard:</strong> still shipping Masterfoods 2.5kg @ $22.62 ($9.05/kg) instead of quoted Frenchmaid 2.2kg @ $17.69 ($8.04/kg) — 3 invoices, 29 Apr → 11 Jun. Frenchmaid was last billed correctly 23 Apr.</td></tr>
+<tr><td><span class="pill ok">saving</span></td><td><strong>Olive oil EV Sandhurst:</strong> we buy both the 10L bag-in-box ($146.08 = $14.61/L) and 4L cans ($49.29 = $12.32/L). Standardising on 4L cans saves <strong>16% per litre</strong>.</td></tr>
+<tr><td><span class="pill watch">off-plan</span></td><td><strong>Cheese Shredded Tasty Mainland</strong> is marked inactive (chosen source: Provedores Holy Cow @ $13.05/kg) but 6 pkts were ordered on <strong>11 Jun</strong> at the new higher $30.26 ($15.13/kg). Kitchen may not have got the memo.</td></tr>
+<tr><td><span class="pill watch">off-plan</span></td><td><strong>Cinnamon Quills Kriokrush</strong> still ordered 7 Jun @ $18.90 (+4.2%) despite the move to Fermex Cinnamon Stick @ $19/kg (79% cheaper per kg).</td></tr>
+<tr><td><span class="pill watch">stale</span></td><td><strong>Sugar Caster 25kg</strong> ($40.90) hasn't been invoiced since March — only the 15kg bag is bought. Confirm the 25kg is still available; it's the cheaper $/kg if so.</td></tr>
+<tr><td><span class="pill watch">unverified</span></td><td><strong>Provolone Dolce (Delre)</strong> — on the form at $32/kg but never invoiced in 120 days.</td></tr>
+</table>
+
+<h2>Fermex — confirmed movements &amp; watch list</h2>
+<table>
+<tr><th></th><th>Item</th><th>Status</th></tr>
+<tr><td><span class="pill dispute">chase</span></td><td>Butter Unsalted USA 25kg</td><td>Quoted $280; invoiced as <strong>NZ $304</strong> through 10 Jun (12 cartons since the quote). Biggest $ line — ~$24/carton above quote.</td></tr>
+<tr><td><span class="pill dispute">chase</span></td><td>Bakels Apito Lemon Paste 1kg</td><td>Quoted $36; last invoice 5 May still <strong>$50</strong> (+39%).</td></tr>
+<tr><td><span class="pill watch">verify next</span></td><td>Icing Sugar Pure 15kg</td><td>Quoted $31.50; last invoice 28 Apr was $34.50. Confirm next delivery bills the quote.</td></tr>
+<tr><td><span class="pill watch">verify next</span></td><td>Sugar Brown 15kg / Sugar Raw 25kg</td><td>Move-targets from Provedores, <strong>not yet purchased from Fermex</strong> — brown still coming from Provedores @ $2.39/kg. The "+6%/−7%" the matcher showed were phantoms (matched caster/icing lines).</td></tr>
+<tr><td><span class="pill up" style="background:#fdecea;color:var(--up)">+2.9%</span></td><td>Butter Salted 25kg <span class="mut">(inactive)</span></td><td>$344 → $354 (6 May, single invoice).</td></tr>
+<tr><td><span class="pill watch">flag</span></td><td>Caster Sugar 25kg @ $1.80/kg</td><td>Marked <strong>inactive</strong> yet it's the workhorse — 9 invoices 29 Apr → 10 Jun @ $45. The <em>active</em> caster is Bidfood 15kg, now $1.97/kg after its +6% rise. Fermex 25kg is 9% cheaper — suggest flipping the active flags.</td></tr>
+<tr><td><span class="pill ok">verified</span></td><td>Everything else</td><td>Plain/Bakers flour, Type 55, Tourage, Pistachio 13.61kg ($51.07 ✓), Chococream, Nutella, Almond meal/flakes, Raspberry IQF — all billing exactly at form price.</td></tr>
+</table>
+
+<h2>The Provedores — confirmed movements</h2>
+<p class="mut">Provedores put through a general rise on <strong>6 Jun</strong> (dairy/freezer) and another touch on <strong>9 Jun</strong> (grocery). All confirmed on both venue accounts unless noted.</p>
+<table>
+<tr><th>Item</th><th class="r">Form was</th><th class="r">Now invoiced</th><th class="r">Δ</th><th>Evidence</th></tr>
+<tr><td>Sauce Sriracha 740ml</td><td class="r">$9.00</td><td class="r">$10.00</td><td class="r up">+11.1%</td><td>every invoice 13 Apr → 9 Jun</td></tr>
+<tr><td>Cheese Marinated Goat Feta 2kg</td><td class="r">$50.00</td><td class="r">$53.25</td><td class="r up">+6.5%</td><td>9 Jun</td></tr>
+<tr><td>Cream Thickened 5L</td><td class="r">$36.35</td><td class="r">$37.80</td><td class="r up">+4.0%</td><td>stepped 6 Jun, both venues (30+ invoices before, 5 after)</td></tr>
+<tr><td>Ice Cream Vanilla Swan 10L</td><td class="r">$19.85</td><td class="r">$20.65</td><td class="r up">+4.0%</td><td>stepped 6 Jun, both venues</td></tr>
+<tr><td>Capers 2kg</td><td class="r">$16.40</td><td class="r">$16.90</td><td class="r up">+3.0%</td><td>5 invoices since 5 May</td></tr>
+<tr><td>Fried Shallots 1kg</td><td class="r">$9.00</td><td class="r">$9.25</td><td class="r up">+2.8%</td><td>1 &amp; 11 May</td></tr>
+<tr><td>Baking Powder Trumps 2kg</td><td class="r">$13.40</td><td class="r">$13.65</td><td class="r up">+1.9%</td><td>stepped 9 Jun</td></tr>
+</table>
+
+<h3>The Provedores — venue-split billing (dispute)</h3>
+<p class="mut">Around 21 May – 1 Jun the new prices were loaded on the <em>Beach House</em> account only. Ten items
+confirmed still on old pricing for Burleigh — <strong>$144.85 overcharged since 21 May</strong> (~$2.5k/yr run-rate).</p>
+<table>
+<tr><th>Item</th><th class="r">Beach House pays</th><th class="r">Burleigh billed</th><th class="r">Overcharge since 21 May</th><th>Last seen</th></tr>
+<tr><td>Wipes Blue Heavy Duty 45m</td><td class="r down">$10.00</td><td class="r up">$11.50</td><td class="r">$45.00 (30 units)</td><td>5 Jun — venues have <em>never</em> matched on this one</td></tr>
+<tr><td>Tray #3 BetaBoard Kraft ×240</td><td class="r down">$27.00</td><td class="r up">$30.00</td><td class="r">$33.00 (11)</td><td><strong>11 Jun</strong></td></tr>
+<tr><td>Grill &amp; Oven Cleaner 5L</td><td class="r down">$13.00</td><td class="r up">$15.10</td><td class="r">$23.10 (11)</td><td>CH448548, 9 Jun</td></tr>
+<tr><td>Bleach 5L</td><td class="r down">$9.50</td><td class="r up">$10.75</td><td class="r">$12.50 (10)</td><td>CH448548, 9 Jun</td></tr>
+<tr><td>Cling Wrap 45cm×600m <span class="mut">(moving to Fermex anyway)</span></td><td class="r down">$25.50</td><td class="r up">$27.30</td><td class="r">$10.80 (6)</td><td>25 May</td></tr>
+<tr><td>Garbage Bags 120L ×25</td><td class="r down">$6.00</td><td class="r up">$6.20</td><td class="r">$5.60 (28)</td><td>5 Jun</td></tr>
+<tr><td>Maple Syrup 1L</td><td class="r down">$23.50</td><td class="r up">$24.75</td><td class="r">$5.00 (4)</td><td>9 Jun</td></tr>
+<tr><td>Floor &amp; Tile Cleaner 5L</td><td class="r down">$29.00</td><td class="r up">$31.20</td><td class="r">$4.40 (2)</td><td>CH447881, 5 Jun</td></tr>
+<tr><td>Cheese Cream 2kg <span class="mut">(moving to Fermex Philadelphia)</span></td><td class="r down">$21.50</td><td class="r up">$22.00</td><td class="r">$3.00 (6)</td><td>1 Jun (same-day split)</td></tr>
+<tr><td>Banana Slices 1kg <span class="mut">(off-form)</span></td><td class="r down">$6.55</td><td class="r up">$6.90</td><td class="r">$2.45 (7)</td><td>30 May</td></tr>
+</table>
+<p class="mut">Also probable: Tray #1 ($42.00 vs $43.90) — Burleigh hasn't bought since 15 May, check next invoice.
+Not disputes: Baking Powder ($13.65 on Burleigh 9 Jun is the general June rise, Beach House just hasn't bought since 3 Jun)
+and Napkins (two SKUs alternating $2.80/$3.10 on both accounts; Burleigh averages <em>cheaper</em>).
+Ask Provedores to credit the difference and confirm every agreed price is loaded on <strong>both</strong> accounts.</p>
+<p class="mut">Also: Maple Syrup 4L ($90) added to the form 8 Jun has not been invoiced yet — verify on first order. The 1L pack
+actually <em>dropped</em> $24.75 → $23.50 in May (form already correct). The "Dishwashing Auto Machine 20L −38%" flag was a
+phantom (matched the 5L dish liquid — different product).</p>
+
+<h2>Bought regularly but on no form (requote candidates)</h2>
+<table>
+<tr><th>Item</th><th>Supplier</th><th class="r">Spend since 12 Apr</th><th>Note</th></tr>
+<tr><td>Milk Sweetened Condensed 1.2kg ×5</td><td>Provedores</td><td class="r">$918 / 9 inv</td><td class="warn">$15.76/kg vs Bidfood Nestlé form option $9.09/kg — worth a decision, big gap</td></tr>
+<tr><td>Onion Flakes Trumps 750g</td><td>Bidfood</td><td class="r">$241 / 3 inv</td><td>last 27 May @ $12.23</td></tr>
+<tr><td>Cheese Mascarpone Tatua 1kg</td><td>Bidfood</td><td class="r">$161 / 3 inv</td><td>last 11 Jun @ $16.06</td></tr>
+<tr><td>Hazelnut Kernels Caterers 1kg</td><td>Bidfood</td><td class="r">$146 / 3 inv</td><td>last 8 Jun @ $48.56</td></tr>
+<tr><td>Yeast Dry Instant Bakels 500g</td><td>Bidfood</td><td class="r">$141 / 2 inv</td><td>@ $3.53</td></tr>
+<tr><td>Flan Gel Neutral Glaze Hadeja 6kg</td><td>Bidfood</td><td class="r">$120 / 2 inv</td><td>@ $51.18</td></tr>
+<tr><td>Gelatine Powder Caterers 1kg</td><td>Bidfood</td><td class="r">$112 / 2 inv</td><td>@ $37.24</td></tr>
+<tr><td>Chilli Flakes Trumps 500g</td><td>Bidfood</td><td class="r">$90 / 5 inv</td><td>@ $9.36</td></tr>
+<tr><td>Liquid Smoke</td><td>Bidfood</td><td class="r">$89 / 2 inv</td><td>@ $12.74</td></tr>
+<tr><td>Milo Nestlé 1.9kg</td><td>Bidfood</td><td class="r">$124 / 3 inv</td><td class="mut">on the Provedores form @ $16.52/kg — Bidfood costs $17.81/kg, order from Provedores</td></tr>
+</table>
+<p class="mut">Drinks (Coke, Schweppes), beer/spirits and packaging also appear off-form — left out per the standing exclusions.</p>
+
+<p class="mut" style="margin-top:2rem">Generated 11 Jun 2026 · sources: <code>order-forms.json</code> (v2) + 6,104 prod invoice lines ·
+verification evidence in <code>/tmp/evidence-*.txt</code> · JSON backup at <code>/tmp/order-forms.backup-2026-06-11.json</code></p>
+</body>
+</html>

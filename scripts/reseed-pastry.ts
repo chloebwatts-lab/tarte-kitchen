@@ -30,8 +30,13 @@ const pool = new Pool({
   connectionTimeoutMillis: 30000,
 })
 
-// The OLD (wrong) staff pool my first pastry seed used — identifies my rows.
+// The OLD (wrong) staff pool my v1 pastry seed used — identifies v1 rows.
+// NOTE: "SP" also appears on 2 real Sunday rows — the base-read and delete
+// guards below must never widen this pool to cover entryDate 2026-07-12.
 const OLD_POOL = ["TM", "VS", "OW", "Ray", "DUW", "Yamill", "Fran", "S", "U", "CW", "SP", "JR", "CC", "LC", "AU", "CJ", "CT", "Janeth"]
+// The v2 seed's (correct) pastry staff — identifies v2 rows, but ONLY within
+// the seed window (≤ 2026-07-11); real team entries use these initials too.
+const V2_POOL = ["JP", "BM", "BB", "DE", "TZ"]
 
 // Correct pastry-rotation staff (per Chris, 2026-07-12).
 const PASTRY_STAFF: Record<string, string[]> = {
@@ -92,17 +97,21 @@ async function main() {
     }
 
     // ── 3. delete my old seeded pastry rows ──────────────────────────────
+    // v1 rows: old pool, any date. v2 rows: pastry pool, seed window ONLY —
+    // real team entries share the v2 initials but live on 2026-07-12 onward.
+    const seedRowsWhere = `
+      "createdAt" >= '2026-07-12T00:00:00Z' AND "updatedAt" = "createdAt"
+      AND ("staffName" = ANY($1)
+           OR ("staffName" = ANY($2) AND "entryDate" BETWEEN $3::date AND $4::date))`
     const oldRows = await c.query(
-      `SELECT COUNT(*)::int n FROM "PastryRotationEntry"
-       WHERE "createdAt" >= '2026-07-12T00:00:00Z' AND "updatedAt" = "createdAt" AND "staffName" = ANY($1)`,
-      [OLD_POOL]
+      `SELECT COUNT(*)::int n FROM "PastryRotationEntry" WHERE ${seedRowsWhere}`,
+      [OLD_POOL, V2_POOL, WINDOW_FROM, WINDOW_TO]
     )
     console.log(`\nOld seeded pastry entries matching my signature: ${oldRows.rows[0].n} (to delete)`)
     if (WRITE) {
       const del = await c.query(
-        `DELETE FROM "PastryRotationEntry"
-         WHERE "createdAt" >= '2026-07-12T00:00:00Z' AND "updatedAt" = "createdAt" AND "staffName" = ANY($1)`,
-        [OLD_POOL]
+        `DELETE FROM "PastryRotationEntry" WHERE ${seedRowsWhere}`,
+        [OLD_POOL, V2_POOL, WINDOW_FROM, WINDOW_TO]
       )
       console.log(`  deleted ${del.rowCount} ✓`)
     }
@@ -143,14 +152,16 @@ async function main() {
           let discarded: number
           let notes: string | null = null
           if (b.bakeTime === "SIX_AM") {
-            discarded = 0 // 6 AM bake always sells out
+            discarded = 0 // 6 AM bake always sells out (per Chris: 100% zero)
           } else if (b.bakeTime === "TWELVE_PM") {
+            // EOD discards come strictly from the wastage sheet: matched
+            // product = that count; no entry = nothing thrown that day.
             const w = wastageFor(venue, date, b.name)
-            if (w !== null) { discarded = Math.min(w, Math.floor(prepared * 0.5)); notes = "EOD count per wastage sheet"; wastageDriven++ }
-            else discarded = r() < 0.5 ? 0 : 1 + Math.floor(r() * 2)
+            if (w !== null && w > 0) { discarded = Math.min(w, Math.floor(prepared * 0.5)); notes = "EOD count per wastage sheet"; wastageDriven++ }
+            else discarded = 0
           } else {
-            // NINE_AM: ~2% overall discard
-            discarded = r() < 0.7 ? 0 : 1 + Math.floor(r() * 2)
+            // NINE_AM: 95% of items zero discard (per Chris)
+            discarded = r() < 0.95 ? 0 : 1 + Math.floor(r() * 2)
           }
           const sold = Math.max(0, prepared - discarded)
           const staffMember = pick(r, PASTRY_STAFF[venue])
