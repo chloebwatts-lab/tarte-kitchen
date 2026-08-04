@@ -14,6 +14,10 @@
 	# serve without basic-auth so the public pages can load their
 	# bundles.  All other routes (dashboard, API, etc.) stay protected.
 	@protected {
+		# Bare domain redirects to /kitchen (staff tools are the main
+		# landing) — exempt the exact root so the redirect happens without
+		# a password prompt. Everything else under / stays protected.
+		not path /
 		not path /log /log/*
 		not path /kitchen /kitchen/*
 		not path /staffaccess /staffaccess/*

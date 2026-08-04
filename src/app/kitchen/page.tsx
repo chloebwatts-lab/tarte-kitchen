@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
-import { ArrowRight, ClipboardCheck, ClipboardList, Croissant, GraduationCap, PackageOpen, Scale, ShieldCheck, Snowflake, SprayCan, Thermometer, Wrench } from "lucide-react"
+import { ArrowRight, ClipboardCheck, ClipboardList, Croissant, GraduationCap, PackageOpen, Scale, ShieldCheck, ShoppingBasket, Snowflake, SprayCan, Thermometer, Wrench } from "lucide-react"
 import { listChecklistTemplates, type ChecklistTemplateSummary } from "@/lib/actions/checklists"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { KitchenStepper } from "@/components/kitchen/KitchenStepper"
@@ -366,6 +366,12 @@ function CategoryPicker({
           subtitle="Scan the machine's QR or find it here — quick fixes, who to call, warranty."
           icon={<Wrench className="h-6 w-6" strokeWidth={1.8} />}
           href={`/kitchen/fix?venue=${venue}`}
+        />
+        <SecondaryTile
+          title="Ordering & supplies"
+          subtitle="Where we buy what, who to call, bread facts."
+          icon={<ShoppingBasket className="h-6 w-6" strokeWidth={1.8} />}
+          href="/kitchen/ordering"
         />
       </div>
     </div>
