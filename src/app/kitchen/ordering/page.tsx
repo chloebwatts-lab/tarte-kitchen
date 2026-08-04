@@ -151,7 +151,7 @@ export default function OrderingPage() {
           <Link href="/kitchen/fix" className="font-semibold underline">
             Something broken?
           </Link>{" "}
-          instead — it knows warranties and the right tech per machine.
+          instead, it knows warranties and the right tech per machine.
         </p>
       </div>
 
