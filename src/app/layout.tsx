@@ -21,12 +21,24 @@ const lora = Lora({
 export const metadata: Metadata = {
   title: "Tarte Kitchen",
   description: "Recipe costing for Tarte Bakery & Cafe",
+  // Home-screen install support (PWA). The manifest (src/app/manifest.ts)
+  // scopes the installed app to /kitchen; linking it app-wide is harmless
+  // since install is opt-in.
+  appleWebApp: {
+    capable: true,
+    title: "Tarte",
+    statusBarStyle: "default",
+  },
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export const viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  themeColor: "#f6f5f2",
 };
 
 export default function RootLayout({

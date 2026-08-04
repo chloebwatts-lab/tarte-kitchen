@@ -23,6 +23,11 @@
 		not path /api/auth/*
 		not path /_next/static/*
 		not path /favicon.ico
+		# PWA install assets — the staff home-screen app installs from the
+		# public /kitchen area, so the manifest + icons must load without a
+		# password prompt. Branding only, no data behind these paths.
+		not path /manifest.webmanifest
+		not path /icons/*
 		# /inbox-playbooks has its own basic_auth below — separate password
 		# so Shawna can access without seeing P&L / COGS / etc.
 		not path /inbox-playbooks /inbox-playbooks/*
