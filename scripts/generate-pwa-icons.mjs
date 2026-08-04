@@ -1,7 +1,7 @@
 // Generate the PWA home-screen icons for the staff app (/kitchen).
 //
-// Renders a simple "T." wordmark (matching the KitchenLogo "Tarte." brand
-// mark) on the kitchen charcoal, using sharp (already present as Next's
+// Renders a simple "Ta." wordmark in white on a duck egg background
+// (Chloe's pick, 2026-08-05), using sharp (already present as Next's
 // image-optimisation dependency) to rasterise an SVG at each size.
 //
 // Run from the repo root:  node scripts/generate-pwa-icons.mjs
@@ -23,23 +23,21 @@ const outDir = path.join(
   "icons"
 )
 
-// Kitchen brand tokens (src/app/kitchen/kitchen.css)
-const CHARCOAL = "#3c3e3f"
-const CREAM = "#f6f5f2"
-const SAGE = "#b0c6c1"
+const DUCK_EGG = "#a9cdc9"
+const WHITE = "#ffffff"
 
 // scale < 1 shrinks the mark into the maskable safe zone (inner ~80%).
 function markSvg(size, scale = 1) {
-  const fontSize = Math.round(size * 0.62 * scale)
-  // Nudge down slightly so the cap-height T sits optically centred.
+  const fontSize = Math.round(size * 0.5 * scale)
+  // Nudge down slightly so the cap-height sits optically centred.
   const baselineY = Math.round(size * 0.5 + fontSize * 0.34)
   const centerX = Math.round(size * 0.5)
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-  <rect width="${size}" height="${size}" fill="${CHARCOAL}"/>
+  <rect width="${size}" height="${size}" fill="${DUCK_EGG}"/>
   <text x="${centerX}" y="${baselineY}" text-anchor="middle"
         font-family="Georgia, 'Times New Roman', serif" font-weight="600"
         font-size="${fontSize}" letter-spacing="${-fontSize * 0.03}"
-        fill="${CREAM}">T<tspan fill="${SAGE}">.</tspan></text>
+        fill="${WHITE}">Ta.</text>
 </svg>`
 }
 
