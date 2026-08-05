@@ -1,8 +1,8 @@
 // Wastage reports group by `WasteEntry.itemName`, which is a free-text copy of
 // whatever Dish/Preparation the staffer picked when logging. Because the same
-// physical item exists in three places — Dish ("Croissant - Almond"),
+// physical item exists in three places: Dish ("Croissant - Almond"),
 // per-piece Preparation ("Almond Croissant - Each"), and batch Preparation
-// ("Almond Croissant") — and staff pick any of them, the same waste shows up
+// ("Almond Croissant"), and staff pick any of them, the same waste shows up
 // under multiple names and reports look fragmented.
 //
 // This helper builds a soft-key → canonical-name map so the report code can

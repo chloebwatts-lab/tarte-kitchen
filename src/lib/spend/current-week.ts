@@ -6,14 +6,14 @@
  * groups by venue + supplier + day, and returns the shape the live
  * `/spend` page and the Friday digest both render off.
  *
- * Venue split: per Chris 2026-05-17 there are NO shared orders between
- * Burleigh and Currumbin — every supplier delivery is for one venue.
- * Invoices with a null `venue` field are surfaced as "unassigned" so
- * they can be split manually, not silently lumped into a "Shared"
- * bucket.
+ * Venue split: most supplier deliveries are for one venue. Genuinely
+ * shared invoices (per Chris 2026-07-14, e.g. Breadtop) carry venue
+ * BOTH and are split 50/50 between the two buckets. Invoices with a
+ * null `venue` field are surfaced as "unassigned" so they can be
+ * assigned manually, not silently lumped into a "Shared" bucket.
  *
  * BEACH_HOUSE here represents Currumbin's COGS, which per the Mge PDF
- * combines Beach House + Tea Garden — so we sum TEA_GARDEN spend and
+ * combines Beach House + Tea Garden, so we sum TEA_GARDEN spend and
  * forecast into BEACH_HOUSE for the budget read.
  */
 
@@ -61,6 +61,24 @@ function aestDayName(d: Date): string {
   return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][shifted.getUTCDay()]
 }
 
+/**
+ * Ex-GST amount for an invoice. Prefers the parsed subtotal; when the
+ * parser found no subtotal line, strip GST from the inc-GST total (÷1.1)
+ * unless the invoice explicitly carries zero GST (GST-free suppliers),
+ * in which case the total already IS ex GST. Counting a raw inc-GST
+ * total as ex-GST inflated spend by 10% on those invoices.
+ */
+function exGstInvoiceAmount(inv: {
+  subtotal: { toString(): string } | null
+  total: { toString(): string } | null
+  gst: { toString(): string } | null
+}): number {
+  if (inv.subtotal != null) return Number(inv.subtotal)
+  const total = Number(inv.total ?? 0)
+  if (inv.gst != null && Number(inv.gst) === 0) return total
+  return total / 1.1
+}
+
 /** Build the 7-day skeleton (Wed → Tue) for a given Wed-midnight UTC. */
 function buildDailySkeleton(weekStart: Date): DailySpendCell[] {
   const cells: DailySpendCell[] = []
@@ -101,7 +119,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
   const dayOfWeek = Math.min(7, Math.max(1, daysSinceStart + 1))
   // For pacing we only count fully-elapsed days; the current day is
   // partial. So if we're 2 days in (Thu), we treat 2 days as the
-  // pacing window — pacing reads as low until that day completes,
+  // pacing window, pacing reads as low until that day completes,
   // which is intentional (don't extrapolate from half a day).
   const daysElapsedFull = Math.max(1, Math.min(7, daysSinceStart))
 
@@ -133,6 +151,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
         venue: true,
         total: true,
         subtotal: true,
+        gst: true,
       },
     }),
     db.managerSalesForecast.findMany({
@@ -175,19 +194,19 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       where: { date: { gte: start, lt: end } },
       select: { date: true, venue: true, totalRevenueExGst: true },
     }),
-    // 8 weeks of revenue history — weekday-share weights for projections
+    // 8 weeks of revenue history, weekday-share weights for projections
     db.dailySalesSummary.findMany({
       where: { date: { gte: earliest8wkStart, lt: start } },
       select: { date: true, venue: true, totalRevenueExGst: true },
     }),
-    // 8 weeks of invoice history — weekday-share weights for spend pace
+    // 8 weeks of invoice history, weekday-share weights for spend pace
     db.invoice.findMany({
       where: {
         invoiceDate: { gte: earliest8wkStart, lt: start },
         status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION"] },
         venue: { not: null },
       },
-      select: { invoiceDate: true, venue: true, total: true, subtotal: true },
+      select: { invoiceDate: true, venue: true, total: true, subtotal: true, gst: true },
     }),
   ])
 
@@ -233,12 +252,13 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
   }
 
   for (const inv of invoices) {
-    if (!inv.invoiceDate || inv.total == null) continue
-    // ex-GST to match the budget basis (subtotal falls back to total for
-    // the odd invoice whose parser found no subtotal line)
-    const amt = Number(inv.subtotal ?? inv.total)
+    // Only skip when we truly have no amount at all, an invoice with a
+    // subtotal but no parsed total is still real spend.
+    if (!inv.invoiceDate || (inv.subtotal == null && inv.total == null)) continue
+    // ex-GST to match the budget basis
+    const amt = exGstInvoiceAmount(inv)
     // Venue BOTH = genuinely shared spend (per Chris 2026-07-14 Breadtop
-    // is a 50/50 split) — half the total lands in each bucket.
+    // is a 50/50 split), half the total lands in each bucket.
     const targets: Array<{ bucket: SpendBucket; amount: number }> =
       inv.venue === "BOTH"
         ? [
@@ -247,7 +267,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
           ]
         : (() => {
             const bucket = venueToBucket(inv.venue)
-            return bucket ? [{ bucket, amount: amt }] : [] // unassigned — handled separately below
+            return bucket ? [{ bucket, amount: amt }] : [] // unassigned, handled separately below
           })()
     const dateKey = aestDateKey(inv.invoiceDate)
     for (const t of targets) {
@@ -339,7 +359,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       const bucket = venueToBucket(row.venue)
       if (!bucket) continue
       revRows[bucket].push({
-        // @db.Date at UTC midnight — weekday is directly readable.
+        // @db.Date at UTC midnight, weekday is directly readable.
         idx: tradingDayIndex(row.date, false),
         amount: Number(row.totalRevenueExGst),
       })
@@ -349,9 +369,9 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       Array<{ idx: number; amount: number }>
     > = { BURLEIGH: [], CURRUMBIN: [] }
     for (const row of invoiceHistory) {
-      if (!row.invoiceDate || row.total == null) continue
+      if (!row.invoiceDate || (row.subtotal == null && row.total == null)) continue
       const idx = tradingDayIndex(row.invoiceDate, true)
-      const exGst = Number(row.subtotal ?? row.total)
+      const exGst = exGstInvoiceAmount(row)
       if (row.venue === "BOTH") {
         const half = exGst / 2
         spendRows.BURLEIGH.push({ idx, amount: half })
@@ -397,9 +417,8 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     cogsAvgPerBucket.get(bucket)!.set(supplier, Math.round(avg * 100) / 100)
   }
 
-  // ------- Coverage audit (cross-venue — invoice latest-seen is what
+  // ------- Coverage audit (cross-venue, invoice latest-seen is what
   //         tells us whether accounts@ is on the supplier's mailing list).
-  const todayMs = Date.now()
   const latestByAlias = new Map<string, Date | null>()
   for (const r of latestInvoiceByAlias) {
     latestByAlias.set(r.supplierName, r._max.invoiceDate ?? null)
@@ -414,8 +433,17 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
         if (candidate && (!latest || candidate > latest)) latest = candidate
       }
       const lastInvoiceDate = latest ? aestDateKey(latest) : null
+      // Compare AEST calendar-date keys, not raw instants: invoiceDate is
+      // stored as UTC midnight of the AEST date (the 10:00 AEST instant),
+      // so before 10am a today invoice read as -1 days ago. Clamp at 0.
       const daysSinceLast = latest
-        ? Math.floor((todayMs - latest.getTime()) / msInDay)
+        ? Math.max(
+            0,
+            Math.round(
+              (Date.parse(todayAest) - Date.parse(aestDateKey(latest))) /
+                msInDay
+            )
+          )
         : null
       let status: CoverageRow["status"]
       if (daysSinceLast === null) status = "missing"
@@ -461,7 +489,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
   })
 
   // ------- Estimated missing spend per bucket
-  // Only count suppliers that are overdue/missing AND have a 4-wk avg —
+  // Only count suppliers that are overdue/missing AND have a 4-wk avg,
   // we don't fabricate numbers for suppliers we have no signal on.
   const estimatedMissingPerBucket: Record<SpendBucket, number> = {
     BURLEIGH: 0,

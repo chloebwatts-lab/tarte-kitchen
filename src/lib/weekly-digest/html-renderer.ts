@@ -1,7 +1,7 @@
 /**
  * HTML email renderer for the Friday weekly digest.
  *
- * Pure rendering — no Anthropic calls in here. Takes the aggregator
+ * Pure rendering, no Anthropic calls in here. Takes the aggregator
  * snapshot plus Claude's narrative bits and produces a self-contained
  * HTML string + matching plain-text fallback.
  *
@@ -10,7 +10,7 @@
  *   - Tables for layout (Outlook + Gmail-mobile still struggle with flex)
  *   - 600px max content width
  *   - System fonts, no web fonts
- *   - No emoji — colour + typography express status
+ *   - No emoji, colour + typography express status
  */
 
 import type { WeeklyDigestSnapshot } from "./aggregator"
@@ -66,7 +66,7 @@ function fmtMoneyFine(n: number | null | undefined) {
 }
 
 // Per-unit alert prices are per base unit (per g / ml / piece), so they are
-// often fractions of a cent — 2dp would render "$0.01 → $0.01 +25.7%".
+// often fractions of a cent: 2dp would render "$0.01 → $0.01 +25.7%".
 function fmtUnitPrice(n: number | null | undefined, unit: string) {
   if (n == null || Number.isNaN(n)) return "—"
   const dp = Math.abs(n) < 0.1 ? 4 : 2
@@ -384,7 +384,7 @@ function spendPacingSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
 
   return `
     ${sectionHeader(
-      `Live spend — week in progress (day ${sp.dayOfWeek} of 7)`,
+      `Live spend, week in progress (day ${sp.dayOfWeek} of 7)`,
       narrative.sectionNotes.cogs ? undefined : "Pacing on this week's invoice spend vs forecasted revenue × COGS target."
     )}
     <div style="padding:14px 18px 4px;">
@@ -436,7 +436,7 @@ function wastageSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrati
       ? `<div style="margin:12px 18px 0;padding:12px 14px;background:${C.amberSoft};border-radius:6px;border:1px solid ${C.amber}33;">
           <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.amber};font-weight:600;">Recurring offenders</div>
           <div style="margin-top:6px;font-size:13px;color:${C.ink};line-height:1.5;">
-            ${snapshot.wastage.recurringOffenders.map((o) => `<strong>${escapeHtml(o.name)}</strong> — ${o.daysSeen} days · ${o.venues.map(escapeHtml).join(", ")}`).join("<br/>")}
+            ${snapshot.wastage.recurringOffenders.map((o) => `<strong>${escapeHtml(o.name)}</strong>: ${o.daysSeen} days · ${o.venues.map(escapeHtml).join(", ")}`).join("<br/>")}
           </div>
         </div>`
       : ""
@@ -490,7 +490,7 @@ function operationsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarr
               .slice(0, 8)
               .map(
                 (b) =>
-                  `<strong>${escapeHtml(b.venue)}</strong> — ${escapeHtml(b.label)} (${escapeHtml(b.template)}): <strong>${b.tempCelsius.toFixed(1)}°C</strong> · ${b.hotCheck ? "hot ≥60°C required" : "cold ≤5°C required"} · ${escapeHtml(b.runDate)}`
+                  `<strong>${escapeHtml(b.venue)}</strong>: ${escapeHtml(b.label)} (${escapeHtml(b.template)}): <strong>${b.tempCelsius.toFixed(1)}°C</strong> · ${b.hotCheck ? "hot ≥60°C required" : "cold ≤5°C required"} · ${escapeHtml(b.runDate)}`
               )
               .join("<br/>")}
             ${allTempBreaches.length > 8 ? `<br/><span style="color:${C.inkMute};">+ ${allTempBreaches.length - 8} more</span>` : ""}
@@ -507,7 +507,7 @@ function operationsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarr
               .slice(0, 6)
               .map(
                 (c) =>
-                  `<strong>${escapeHtml(c.venue)}</strong> — ${escapeHtml(c.itemName)}: ${escapeHtml(c.reason)}`
+                  `<strong>${escapeHtml(c.venue)}</strong>: ${escapeHtml(c.itemName)}: ${escapeHtml(c.reason)}`
               )
               .join("<br/>")}
           </div>
@@ -554,7 +554,7 @@ function priceAlertTable(
     total > items.length ? `top ${items.length} of ${total} · ${subtitle}` : subtitle
   const rows = items
     .map((p) => {
-      // Drops are savings — show them green. Increases keep the old
+      // Drops are savings, show them green. Increases keep the old
       // severity ramp on |%|.
       const tone =
         p.changePct < 0
@@ -743,7 +743,7 @@ function commitmentsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
         <tr>
           <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.ink};">
             ${escapeHtml(o.promise)}
-            ${o.missedReason ? `<div style="margin-top:2px;font-size:11px;color:${C.inkMute};">Moved once — ${escapeHtml(o.missedReason)}</div>` : ""}
+            ${o.missedReason ? `<div style="margin-top:2px;font-size:11px;color:${C.inkMute};">Moved once: ${escapeHtml(o.missedReason)}</div>` : ""}
           </td>
           <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.inkSoft};white-space:nowrap;">${escapeHtml(o.saidBy.charAt(0) + o.saidBy.slice(1).toLowerCase())}</td>
           <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};white-space:nowrap;text-align:right;">
@@ -808,7 +808,7 @@ function commitmentsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
       ${c.standingConcerns
         .map(
           (s) => `
-          <div style="margin-top:6px;font-size:13px;color:${C.ink};">${escapeHtml(s.title)} — <span style="color:${C.red};font-weight:600;">${s.consecutiveMissedWeeks} weeks running</span>${s.lastNote ? ` · ${escapeHtml(s.lastNote)}` : ""}</div>`
+          <div style="margin-top:6px;font-size:13px;color:${C.ink};">${escapeHtml(s.title)}, <span style="color:${C.red};font-weight:600;">${s.consecutiveMissedWeeks} weeks running</span>${s.lastNote ? ` · ${escapeHtml(s.lastNote)}` : ""}</div>`
         )
         .join("")}
     </div>`
@@ -841,7 +841,7 @@ function footer(snapshot: WeeklyDigestSnapshot) {
     <tr>
       <td style="padding:24px 28px 28px;border-top:1px solid ${C.border};">
         <div style="font-size:11px;color:${C.inkMute};line-height:1.6;">
-          Generated for Chloe — Tarte Kitchen owner inbox only.<br/>
+          Generated for Chloe: Tarte Kitchen owner inbox only.<br/>
           Sales · wastage · reviews cover ${escapeHtml(formatDateRange(snapshot.weekStart, snapshot.weekEnd))}. ${escapeHtml(labourRange)}<br/>
           <a href="https://kitchen.tarte.com.au/dashboard" style="color:${C.accent};text-decoration:none;">Open dashboard</a>
         </div>
@@ -891,7 +891,7 @@ export function renderDigestText(
   narrative: DigestNarrative
 ): string {
   const lines: string[] = []
-  lines.push(`TARTE KITCHEN — WEEKLY DIGEST`)
+  lines.push(`TARTE KITCHEN: WEEKLY DIGEST`)
   lines.push(formatDateRange(snapshot.weekStart, snapshot.weekEnd))
   lines.push(``)
   lines.push(narrative.headline)
@@ -906,7 +906,7 @@ export function renderDigestText(
   lines.push(`WAGES vs TARGET`)
   for (const v of snapshot.labour.perVenue) {
     if (!v.departmentGroups.length) continue
-    lines.push(`  ${v.venue} — overall ${v.overallPct != null ? fmtPct(v.overallPct) : "—"}`)
+    lines.push(`  ${v.venue}, overall ${v.overallPct != null ? fmtPct(v.overallPct) : "—"}`)
     for (const g of v.departmentGroups) {
       const target = g.target ? `${g.target.min}-${g.target.max}%` : "no target"
       lines.push(
@@ -926,7 +926,7 @@ export function renderDigestText(
     `WASTAGE  ${fmtMoney(snapshot.wastage.totalDollarsThisWeek)} this week (${snapshot.wastage.wowChangePct != null ? fmtPct(snapshot.wastage.wowChangePct, { signed: true }) : "no comparison"})`
   )
   for (const w of snapshot.wastage.topItems.slice(0, 6)) {
-    lines.push(`  ${w.name} — ${fmtMoneyFine(w.totalDollars)} (${w.occurrences}× · ${w.venue})`)
+    lines.push(`  ${w.name}: ${fmtMoneyFine(w.totalDollars)} (${w.occurrences}× · ${w.venue})`)
   }
   lines.push(``)
   lines.push(`FOOD SAFETY & OPS`)
@@ -940,7 +940,7 @@ export function renderDigestText(
   )
   for (const b of allBreaches.slice(0, 6)) {
     lines.push(
-      `  ! ${b.venue} — ${b.label}: ${b.tempCelsius.toFixed(1)}°C (${b.hotCheck ? "≥60°C reqd" : "≤5°C reqd"}) ${b.runDate}`
+      `  ! ${b.venue}: ${b.label}: ${b.tempCelsius.toFixed(1)}°C (${b.hotCheck ? "≥60°C reqd" : "≤5°C reqd"}) ${b.runDate}`
     )
   }
   if (snapshot.operations.cooling.breaches.length > 0) {
@@ -956,17 +956,17 @@ export function renderDigestText(
     lines.push(`COMMITMENTS (SAID + DONE)`)
     for (const o of commitments.overdueOneOffs) {
       lines.push(
-        `  ! ${o.promise} (${o.saidBy}) — due ${o.effectiveDueOn}, ${o.daysOverdue}d overdue${o.wasRescheduled ? " (already moved once)" : ""}`
+        `  ! ${o.promise} (${o.saidBy}), due ${o.effectiveDueOn}, ${o.daysOverdue}d overdue${o.wasRescheduled ? " (already moved once)" : ""}`
       )
     }
     for (const a of commitments.overdueMeetingActions) {
       lines.push(
-        `  ! ${a.action} (${a.owner}, ${a.sourceTag}) — due ${a.dueOn}, ${a.daysOverdue}d overdue`
+        `  ! ${a.action} (${a.owner}, ${a.sourceTag}), due ${a.dueOn}, ${a.daysOverdue}d overdue`
       )
     }
     for (const s of commitments.standingConcerns) {
       lines.push(
-        `  ! ${s.title} — missed ${s.consecutiveMissedWeeks} weeks running${s.lastNote ? ` (${s.lastNote})` : ""}`
+        `  ! ${s.title}, missed ${s.consecutiveMissedWeeks} weeks running${s.lastNote ? ` (${s.lastNote})` : ""}`
       )
     }
   }
@@ -1040,7 +1040,7 @@ function avgLabourPct(snapshot: WeeklyDigestSnapshot): number | null {
 }
 
 function avgCogsPct(snapshot: WeeklyDigestSnapshot): number | null {
-  // Average across operational venues only — Burleigh + the combined
+  // Average across operational venues only: Burleigh + the combined
   // BH+TG row. The "(BH only, as-reported)" reference row is excluded
   // so it doesn't double-count Beach House.
   const vals = snapshot.cogs.perVenue

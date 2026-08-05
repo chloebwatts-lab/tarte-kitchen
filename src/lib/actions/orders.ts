@@ -90,7 +90,7 @@ function todayAest(): Date {
 
 // `baseUnitsPerOne` = base units (g/ml/ea) contained in ONE `unit`
 // (Ingredient.baseUnitsPerPurchase ÷ purchaseQuantity). Required for
-// pack-named units ("bag", "punnet", "btl") — treating those as 1 base
+// pack-named units ("bag", "punnet", "btl"), treating those as 1 base
 // unit inflated order suggestions by the pack size (a 25 kg flour bag
 // suggested ~282,000 bags / a $5M draft PO).
 function toBaseUnits(
@@ -136,7 +136,7 @@ function fromBaseUnits(
 
 /**
  * Round an order quantity up to the supplier's minimum pack size. We treat
- * the ingredient's own `purchaseQuantity` as the atomic pack — if they buy
+ * the ingredient's own `purchaseQuantity` as the atomic pack, if they buy
  * "2 × 5 kg flour" that's `purchaseQuantity = 2`, `purchaseUnit = kg`, and
  * the smallest sensible order is 2. This keeps suggestions practical
  * (nobody orders 1.3 kg of flour from the distributor).
@@ -186,7 +186,7 @@ export async function suggestOrders(params: {
   )
   if (orderable.length === 0) return []
 
-  // Latest submitted stocktake per (venue, ingredient) — we only trust a
+  // Latest submitted stocktake per (venue, ingredient), we only trust a
   // submitted stocktake for "on hand". Draft counts are ignored.
   // Approach: fetch all submitted stocktakes for each venue in date desc
   // and build a per-venue map of ingredientId → baseQty.
@@ -267,7 +267,7 @@ export async function suggestOrders(params: {
         : null
     // Build a per-venue par map. Per-venue IngredientPar wins; if none for
     // a given venue, fall back to legacy Ingredient.parLevel (applied as
-    // BURLEIGH only — that's how we backfilled).
+    // BURLEIGH only, that's how we backfilled).
     const parByVenue = new Map<Venue, number>()
     for (const p of ing.pars) {
       const base = toBaseUnits(Number(p.parLevel), p.parUnit, baseType, perOne)
@@ -300,7 +300,7 @@ export async function suggestOrders(params: {
         reason = `Par ${parBase} + forecast ${Math.round(forwardForecast)} − projected on-hand ${Math.round(projected)}`
       } else {
         needBase = parBase + forwardForecast
-        reason = `No prior stocktake — par + ${windowDays}d forecast`
+        reason = `No prior stocktake, par + ${windowDays}d forecast`
       }
       if (needBase <= 0) continue
 
@@ -363,7 +363,7 @@ export async function createDraftOrder(params: {
   expectedDate?: string
   notes?: string
   lines: {
-    /** Set when the line maps to a known TK ingredient. Optional — when null
+    /** Set when the line maps to a known TK ingredient. Optional, when null
      * the line is identified by `description` only (e.g. supplier-form item
      * not yet linked to an ingredient). */
     ingredientId?: string | null
@@ -578,9 +578,9 @@ export async function submitOrder(params: {
   if (order.status !== "DRAFT") throw new Error("Order is not a draft")
 
   // Build a deterministic plain-text email body. We save this snapshot on
-  // the order so the copy the supplier received lives alongside the PO —
+  // the order so the copy the supplier received lives alongside the PO,
   // handy when they query "I got 12 kg of flour, not 10" next week.
-  const subject = `Order — ${order.supplier.name} — ${order.orderDate
+  const subject = `Order: ${order.supplier.name}: ${order.orderDate
     .toISOString()
     .split("T")[0]}`
   const bodyLines = [
@@ -637,13 +637,13 @@ export async function cancelOrder(orderId: string) {
  *
  * Separated from `submitOrder` deliberately. Submit marks the order
  * SUBMITTED and freezes a snapshot of the body so it survives later
- * line edits — that part can fire whether or not Gmail is reachable.
+ * line edits, that part can fire whether or not Gmail is reachable.
  * Actually delivering the email is an explicit second click in the UI
  * so a half-finished tap doesn't accidentally fire off to a real
  * supplier, and so re-sends are possible after a Gmail outage.
  *
  * Idempotency: re-running this on an already-sent order just resends
- * — `emailSentAt` is overwritten with the latest timestamp. If the
+ *, `emailSentAt` is overwritten with the latest timestamp. If the
  * caller doesn't want that, gate on `emailSentAt` in the UI before
  * showing the button.
  */
@@ -662,9 +662,9 @@ export async function sendOrderEmail(params: { orderId: string }) {
   if (order.status !== "SUBMITTED")
     throw new Error("Only submitted orders can be emailed")
   if (!order.emailTo)
-    throw new Error("No supplier email on file — set one in Suppliers first")
+    throw new Error("No supplier email on file, set one in Suppliers first")
   if (!order.emailSubject || !order.emailBody)
-    throw new Error("No email snapshot on file — re-submit the order to rebuild it")
+    throw new Error("No email snapshot on file, re-submit the order to rebuild it")
 
   await sendEmail({
     to: order.emailTo,

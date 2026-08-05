@@ -17,7 +17,7 @@ import { stationsForVenue } from "@/lib/stations"
 //   2. Next morning the prep chef opens ONE consolidated run across all
 //      submitted stations, makes/delivers the items, logs supplied
 //      quantities (→ RESTOCKED).
-//   3. The daily prep stock report reads straight off the same rows —
+//   3. The daily prep stock report reads straight off the same rows,
 //      counted vs requested vs supplied, with shortfalls highlighted.
 // ------------------------------------------------------------------
 
@@ -72,7 +72,7 @@ export interface RunStationLine {
   lineId: string
   sheetId: string
   station: KitchenStation
-  /// The count sheet's date — lines can come from up to 3 nights back, so
+  /// The count sheet's date, lines can come from up to 3 nights back, so
   /// the board must show WHICH night asked for this.
   sheetDate: string
   available: number | null
@@ -103,7 +103,7 @@ export interface RestockRun {
     sheetDate: string
     countedBy: string | null
     submittedAt: string | null
-    /// False when the closing chef never tapped "Send" — the count is
+    /// False when the closing chef never tapped "Send", the count is
     /// auto-included so a forgotten tap can't lose a night's work.
     sent: boolean
     lineCount: number
@@ -265,7 +265,7 @@ export async function getCountSheet(params: {
   // Jose's one-kitchen model: surface the sibling kitchen's items (the ones
   // only THEY prep) with their latest coolroom count, so this kitchen can
   // check house stock and request more. Requests are lines on OUR sheet
-  // pointing at THEIR item — the run attributes them to us via the sheet.
+  // pointing at THEIR item, the run attributes them to us via the sheet.
   const siblingStation =
     stationsForVenue(venue).find((s) => s !== station) ?? null
   let siblingItems: SiblingItem[] = []
@@ -372,7 +372,7 @@ export async function saveCountLine(params: {
   if (params.priority !== undefined) patch.priority = params.priority
   if ("priorityRank" in params) {
     patch.priorityRank = params.priorityRank
-    // Rank is the source of truth — keep the flag in sync so older
+    // Rank is the source of truth, keep the flag in sync so older
     // consumers (report chips etc.) stay correct.
     patch.priority = params.priorityRank != null
   }
@@ -434,7 +434,7 @@ export async function reopenCountSheet(
   })
   if (!sheet) return { ok: false, error: "Sheet not found" }
   if (sheet.status === "RESTOCKED")
-    return { ok: false, error: "Already restocked — start tonight's count instead" }
+    return { ok: false, error: "Already restocked, start tonight's count instead" }
 
   await db.restockSheet.update({
     where: { id: sheetId },
@@ -445,7 +445,7 @@ export async function reopenCountSheet(
 }
 
 /**
- * Kiosk equivalent of the blank rows at the bottom of the paper sheet —
+ * Kiosk equivalent of the blank rows at the bottom of the paper sheet,
  * a chef can add a missing item without waiting for a manager.
  */
 export async function addCatalogItem(params: {
@@ -501,7 +501,7 @@ export async function addCatalogItem(params: {
  * Every count waiting for the venue, consolidated by item name so the prep
  * chef makes each thing ONCE and splits it across stations. Includes both
  * SUBMITTED sheets and unsent IN_PROGRESS sheets that contain real entries
- * — a closing chef forgetting to tap "Send" must never lose the count.
+ *, a closing chef forgetting to tap "Send" must never lose the count.
  * Sheets older than 3 days are ignored as stale.
  */
 export async function getRestockRun(venue: Venue): Promise<RestockRun> {
@@ -611,7 +611,7 @@ export async function supplyRunLine(params: {
 }
 
 /**
- * Drop ONE old count out of the run without logging any deliveries — for
+ * Drop ONE old count out of the run without logging any deliveries, for
  * when a night's requests were handled off-app (or superseded by a newer
  * count) and would otherwise stack on top of tonight's. Only sheets from
  * before today can be cleared; unsupplied lines show as shortfalls on that
@@ -633,7 +633,7 @@ export async function clearStaleRunSheet(params: {
   if (ymd(sheet.sheetDate) >= ymd(todayAest()))
     return {
       ok: false,
-      error: "That's today's count — finish the run instead of clearing it",
+      error: "That's today's count, finish the run instead of clearing it",
     }
 
   await db.restockSheet.update({
@@ -650,9 +650,9 @@ export async function clearStaleRunSheet(params: {
 
 /**
  * Close out the morning run: every sheet that was part of it flips to
- * RESTOCKED — including unsent IN_PROGRESS counts that carried entries,
+ * RESTOCKED, including unsent IN_PROGRESS counts that carried entries,
  * mirroring what getRestockRun showed. Requested lines left without a
- * supplied quantity stay null — they surface as shortfalls on the daily
+ * supplied quantity stay null, they surface as shortfalls on the daily
  * report rather than being silently marked as done.
  */
 export async function completeRestockRun(params: {
@@ -686,7 +686,7 @@ export async function completeRestockRun(params: {
     },
   })
   if (updated.count === 0)
-    return { ok: false, error: "Nothing to complete — no counts waiting" }
+    return { ok: false, error: "Nothing to complete, no counts waiting" }
   revalidatePath("/kitchen/restock")
   return { ok: true }
 }

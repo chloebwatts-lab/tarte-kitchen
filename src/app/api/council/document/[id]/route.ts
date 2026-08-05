@@ -9,7 +9,7 @@ export async function GET(
 ) {
   // Viewing is passwordless (per Chloe 2026-08-05) so the folder opens
   // instantly in front of an EHO. Upload/delete stay behind the council
-  // password — see council-documents.ts.
+  // password, see council-documents.ts.
   const { id } = await params
   const doc = await db.councilDocument.findUnique({ where: { id } })
   if (!doc) return new NextResponse("Not found", { status: 404 })

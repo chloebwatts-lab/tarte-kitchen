@@ -69,7 +69,7 @@ export function SupplierVariancePanel() {
         {!hasForms ? (
           <div className="rounded-lg border border-amber-text/20 bg-amber-light p-3 text-sm text-amber-text">
             <div className="flex items-center gap-2 font-medium">
-              <AlertTriangle className="h-4 w-4" /> Variance not yet active — no
+              <AlertTriangle className="h-4 w-4" /> Variance not yet active, no
               approved order forms
             </div>
             <p className="mt-1 text-xs">
@@ -111,7 +111,7 @@ export function SupplierVariancePanel() {
             {data.suppliersWithoutForms.length > 0 && (
               <div className="rounded-lg border border-amber-text/20 bg-amber-light p-3 text-xs text-amber-text">
                 <strong>Missing forms:</strong>{" "}
-                {data.suppliersWithoutForms.join(", ")} — invoices from these
+                {data.suppliersWithoutForms.join(", ")}, invoices from these
                 suppliers aren&apos;t checked.
               </div>
             )}

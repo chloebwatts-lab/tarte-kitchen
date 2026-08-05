@@ -59,7 +59,7 @@ export function XeroConnection({ status }: Props) {
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Connect your Xero account to pull weekly payroll data — gross wages, super, and headcount —
+            Connect your Xero account to pull weekly payroll data, gross wages, super, and headcount,
             for your cost overview and P&amp;L reports.
           </p>
         )}

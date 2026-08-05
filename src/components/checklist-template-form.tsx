@@ -207,7 +207,7 @@ export function ChecklistTemplateForm() {
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Opening checklist — front of house"
+              placeholder="Opening checklist, front of house"
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
             />
           </div>
@@ -331,7 +331,7 @@ export function ChecklistTemplateForm() {
             <p className="text-[10px] text-muted-foreground">
               Leave both blank to disable alerts. When the hour passes and
               the checklist is still incomplete, an email goes to every
-              listed address (one per template per day — no spam).
+              listed address (one per template per day, no spam).
             </p>
           </div>
 

@@ -25,7 +25,74 @@ export interface CreateWasteEntryInput {
   recordedBy?: string | null
 }
 
+/**
+ * Recompute the entry's cost server-side from the linked record. The waste
+ * form runs on the auth-exempt staff area, so the client-supplied dollar
+ * figure is untrusted; where we can derive the cost ourselves, we do.
+ * Falls back to the client's estimate (clamped to >= 0) for name-only rows.
+ */
+async function serverWasteCost(input: CreateWasteEntryInput): Promise<number | null> {
+  const qty = Number(input.quantity)
+  if (!Number.isFinite(qty) || qty <= 0) return null
+  const unit = input.unit.toLowerCase()
+  const round2 = (n: number) => Math.round(n * 100) / 100
+
+  if (input.dishId) {
+    const d = await db.dish.findUnique({
+      where: { id: input.dishId },
+      select: { totalCost: true },
+    })
+    if (d) return round2(qty * Number(d.totalCost))
+    return null
+  }
+
+  if (input.ingredientId) {
+    const i = await db.ingredient.findUnique({
+      where: { id: input.ingredientId },
+      select: {
+        purchasePrice: true,
+        baseUnitsPerPurchase: true,
+        wastePercentage: true,
+        baseUnitType: true,
+        gramsPerUnit: true,
+      },
+    })
+    if (!i) return null
+    const usable =
+      Number(i.baseUnitsPerPurchase) * (1 - Number(i.wastePercentage) / 100)
+    if (usable <= 0) return null
+    const costPerBase = Number(i.purchasePrice) / usable
+    const mult: Record<string, number> = { g: 1, kg: 1000, ml: 1, l: 1000 }
+    if (unit in mult) {
+      const baseQty = qty * mult[unit]
+      if (i.baseUnitType === "COUNT") {
+        const gpu = i.gramsPerUnit != null ? Number(i.gramsPerUnit) : 0
+        return gpu > 0 ? round2((baseQty / gpu) * costPerBase) : null
+      }
+      return round2(baseQty * costPerBase)
+    }
+    // Count-style unit (ea/serve/etc.) against the ingredient's base
+    return round2(qty * costPerBase)
+  }
+
+  // Prep rows arrive name-only (no FK column yet); cost via exact name.
+  const prep = await db.preparation.findFirst({
+    where: { name: input.itemName },
+    select: { costPerGram: true, costPerServe: true },
+  })
+  if (prep) {
+    const mult: Record<string, number> = { g: 1, kg: 1000, ml: 1, l: 1000 }
+    if (unit in mult) return round2(qty * mult[unit] * Number(prep.costPerGram))
+    return round2(qty * Number(prep.costPerServe))
+  }
+  return null
+}
+
 export async function createWasteEntry(input: CreateWasteEntryInput) {
+  const recomputed = await serverWasteCost(input)
+  const estimatedCost =
+    recomputed ?? Math.max(0, Number(input.estimatedCost) || 0)
+
   await db.wasteEntry.create({
     data: {
       date: new Date(input.date),
@@ -36,7 +103,7 @@ export async function createWasteEntry(input: CreateWasteEntryInput) {
       quantity: input.quantity,
       unit: input.unit,
       reason: input.reason ?? "OTHER",
-      estimatedCost: input.estimatedCost,
+      estimatedCost,
       notes: input.notes ?? null,
       recordedBy: input.recordedBy ?? null,
     },
@@ -146,12 +213,10 @@ export async function getWasteStats(
   venue?: Venue
 ): Promise<WasteStats> {
   const now = new Date()
-  const thisWeekStart = new Date(now)
-  thisWeekStart.setDate(now.getDate() - now.getDay()) // Sunday
-  thisWeekStart.setHours(0, 0, 0, 0)
+  const thisWeekStart = startOfAestMondayWeekUtc(now)
 
   const lastWeekStart = new Date(thisWeekStart)
-  lastWeekStart.setDate(lastWeekStart.getDate() - 7)
+  lastWeekStart.setUTCDate(lastWeekStart.getUTCDate() - 7)
 
   const thirtyDaysAgo = new Date(now)
   thirtyDaysAgo.setDate(now.getDate() - 30)
@@ -233,7 +298,7 @@ export async function getWasteStats(
       ? (totalWasteCost / revenueThisWeekTotal) * 100
       : 0
 
-  // By venue (simple legacy — kept for existing KPI card)
+  // By venue (simple legacy, kept for existing KPI card)
   const byVenueMap = new Map<string, number>()
   for (const e of thisWeekEntries) {
     byVenueMap.set(e.venue, (byVenueMap.get(e.venue) ?? 0) + Number(e.estimatedCost))
@@ -317,7 +382,7 @@ export async function getWasteStats(
     }
   })
 
-  // Top wasted items (ranked list) — group by canonical name so the same
+  // Top wasted items (ranked list), group by canonical name so the same
   // physical item under different aliases (e.g. "Croissant - Almond" and
   // "Almond Croissant - Each") rolls up into one row.
   const itemStats = new Map<string, { cost: number; count: number }>()
@@ -371,7 +436,7 @@ export async function getWasteStats(
     cost: Math.round((dayWasteMap.get(d) ?? 0) * 100) / 100,
   }))
 
-  // Daily by venue (last 30 days) — 3-venue stacked bar
+  // Daily by venue (last 30 days): 3-venue stacked bar
   const emptyVenueRow = () =>
     SINGLE_VENUES.reduce(
       (acc, v) => ({ ...acc, [v]: 0 }),
@@ -418,7 +483,7 @@ export async function getWasteStats(
     })
     .sort((a, b) => a.week.localeCompare(b.week))
 
-  // COGS impact — align wastage with the most recent WeeklyCogs Wed-week
+  // COGS impact, align wastage with the most recent WeeklyCogs Wed-week
   let cogsImpact: CogsImpact | null = null
   const latestCogsWeek = await db.weeklyCogs.findFirst({
     where: venueFilter,
@@ -489,10 +554,22 @@ export async function getWasteStats(
   }
 }
 
+/**
+ * AEST Monday-anchored week start. Mirrors the +10h shift pattern of
+ * `startOfTarteWeekUtc` in src/lib/dates.ts, but anchored to Monday (the
+ * checklist-cycle convention) for wastage reporting. Returns a UTC-midnight
+ * Date whose yyyy-mm-dd is the AEST Monday of the week containing `d`.
+ */
+function startOfAestMondayWeekUtc(d: Date): Date {
+  const shifted = new Date(d.getTime() + 10 * 60 * 60 * 1000)
+  shifted.setUTCHours(0, 0, 0, 0)
+  const offsetFromMon = (shifted.getUTCDay() + 6) % 7
+  shifted.setUTCDate(shifted.getUTCDate() - offsetFromMon)
+  return shifted
+}
+
 function getWeekStart(date: Date): string {
-  const d = new Date(date)
-  d.setDate(d.getDate() - d.getDay())
-  return d.toISOString().split("T")[0]
+  return startOfAestMondayWeekUtc(date).toISOString().split("T")[0]
 }
 
 // ============================================================
@@ -555,7 +632,7 @@ export async function getWasteInsights(): Promise<WasteInsight[]> {
           icon: "circle-alert",
           message:
             `${venueLabel}: cut ${itemName} prep by ~${cutPct}%. ` +
-            `Wasting ${wastePct.toFixed(1)}% of what it sells ($${data.waste.toFixed(0)} over 4 weeks) — ` +
+            `Wasting ${wastePct.toFixed(1)}% of what it sells ($${data.waste.toFixed(0)} over 4 weeks), ` +
             `drop the daily prep target and retrain the next 7 days.`,
           estimatedImpact: data.waste,
         })
@@ -584,7 +661,7 @@ export async function getWasteInsights(): Promise<WasteInsight[]> {
         icon: "triangle-alert",
         message:
           `${venueLabel}: ${top.item} is ${Math.round((top.cost / tot) * 100)}% of waste this month ($${top.cost.toFixed(0)}). ` +
-          `Fixing this one item cuts your waste bill by a quarter — start here.`,
+          `Fixing this one item cuts your waste bill by a quarter, start here.`,
         estimatedImpact: top.cost,
       })
     }
@@ -593,27 +670,31 @@ export async function getWasteInsights(): Promise<WasteInsight[]> {
   // --- Rule 3: repeating day-of-week spike -------------------------------
   // If the same weekday is >50% above average, suggest shifting prep to
   // the next day or reducing Monday bake-off.
-  const dayCost = new Map<number, { total: number; count: number }>()
+  // "$/day" must divide by the number of distinct AEST dates that weekday
+  // occurred on, not by the entry count: 6 entries on one Monday is one
+  // Monday, not six. Entry dates are stored as UTC midnight of the AEST
+  // date, so the UTC day/date of the stored value IS the AEST one.
+  const dayCost = new Map<number, { total: number; dates: Set<string> }>()
   for (const e of wasteEntries) {
-    const day = e.date.getDay()
-    const existing = dayCost.get(day) ?? { total: 0, count: 0 }
+    const day = e.date.getUTCDay()
+    const existing = dayCost.get(day) ?? { total: 0, dates: new Set<string>() }
     existing.total += Number(e.estimatedCost)
-    existing.count += 1
+    existing.dates.add(e.date.toISOString().split("T")[0])
     dayCost.set(day, existing)
   }
-  const totalDays = Array.from(dayCost.values()).reduce((s, d) => s + d.count, 0)
+  const totalDays = Array.from(dayCost.values()).reduce((s, d) => s + d.dates.size, 0)
   const grandTotal = Array.from(dayCost.values()).reduce((s, d) => s + d.total, 0)
   const avgPerDay = totalDays > 0 ? grandTotal / totalDays : 0
-  for (const [day, { total, count }] of dayCost) {
-    if (count === 0) continue
-    const avgForDay = total / count
+  for (const [day, { total, dates }] of dayCost) {
+    if (dates.size === 0) continue
+    const avgForDay = total / dates.size
     if (avgPerDay > 0 && avgForDay > avgPerDay * 1.5) {
       const prev = dayNames[(day + 6) % 7]
-      const monthly = (avgForDay - avgPerDay) * Math.max(1, count)
+      const monthly = (avgForDay - avgPerDay) * Math.max(1, dates.size)
       insights.push({
         icon: "calendar",
         message:
-          `${dayNames[day]}s waste ~$${avgForDay.toFixed(0)}/day — ${Math.round((avgForDay / avgPerDay - 1) * 100)}% above the weekly avg. ` +
+          `${dayNames[day]}s waste ~$${avgForDay.toFixed(0)}/day: ${Math.round((avgForDay / avgPerDay - 1) * 100)}% above the weekly avg. ` +
           `Reduce ${prev} prep of the top 2 items so less carries into ${dayNames[day]}.`,
         estimatedImpact: monthly,
       })
@@ -640,7 +721,7 @@ export async function getWasteInsights(): Promise<WasteInsight[]> {
       insights.push({
         icon: "trending-up",
         message:
-          `Waste trending up ${consecutiveUp + 1} weeks running — $${firstVal.toFixed(0)} → $${lastVal.toFixed(0)}. ` +
+          `Waste trending up ${consecutiveUp + 1} weeks running: $${firstVal.toFixed(0)} → $${lastVal.toFixed(0)}. ` +
           `Pull this week's top 3 wasted items into the next pre-service briefing and set a daily count.`,
         estimatedImpact: delta,
       })
@@ -657,7 +738,7 @@ export async function getWasteInsights(): Promise<WasteInsight[]> {
       icon: "sandwich",
       message:
         `Overproduction = ${((overproductionWaste / totalWaste) * 100).toFixed(0)}% of waste ($${overproductionWaste.toFixed(0)}/4wk). ` +
-        `Drop every par level by 10% for one week and review — if we still run out nothing, keep the new par.`,
+        `Drop every par level by 10% for one week and review, if we still run out nothing, keep the new par.`,
       estimatedImpact: overproductionWaste,
     })
   }
@@ -727,11 +808,12 @@ export async function exportWasteCsv(filters: WasteFilters = {}): Promise<string
     "Date,Venue,Item,Quantity,Unit,Cost,Revenue (ex GST),Waste % of Revenue,Reason,Notes,Recorded By"
   const rows = entries.map((e) => {
     const date = e.date.toISOString().split("T")[0]
+    const itemName = e.itemName.replace(/"/g, '""')
     const notes = (e.notes ?? "").replace(/"/g, '""')
     const rev = revenueLookup.get(`${date}|${e.venue}`) ?? 0
     const cost = Number(e.estimatedCost)
     const pct = rev > 0 ? ((cost / rev) * 100).toFixed(2) : ""
-    return `${date},${e.venue},"${e.itemName}",${Number(e.quantity)},${e.unit},${cost},${rev},${pct},${e.reason},"${notes}","${e.recordedBy ?? ""}"`
+    return `${date},${e.venue},"${itemName}",${Number(e.quantity)},${e.unit},${cost},${rev},${pct},${e.reason},"${notes}","${e.recordedBy ?? ""}"`
   })
 
   return [header, ...rows].join("\n")
@@ -789,7 +871,7 @@ export async function getWasteFormItems() {
     }),
   ])
 
-  // Frequency boost spans every alias of an item — "Croissant - Almond" and
+  // Frequency boost spans every alias of an item, "Croissant - Almond" and
   // "Almond Croissant - Each" both bump the same dish/prep up the search list.
   const canon = buildCanonicalizer(
     dishes.map((d) => ({ name: d.name })),

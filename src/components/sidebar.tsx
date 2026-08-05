@@ -118,14 +118,14 @@ export function Sidebar({
   setCollapsed,
 }: {
   /** null = full access (the `tarte` operator). Any string = limited
-   * user (e.g. "shawna") — sidebar collapses to the allow-list. */
+   * user (e.g. "shawna"), sidebar collapses to the allow-list. */
   restrictedUser?: string | null
   collapsed: boolean
   setCollapsed: (collapsed: boolean) => void
 }) {
   const pathname = usePathname();
 
-  // On phones the sidebar is an overlay — never leave it open across a
+  // On phones the sidebar is an overlay, never leave it open across a
   // page load / navigation (it used to cover every page on mobile).
   useEffect(() => {
     if (window.matchMedia("(max-width: 767px)").matches) {

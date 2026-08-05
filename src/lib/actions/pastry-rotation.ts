@@ -93,7 +93,7 @@ export async function getPastryRotationDay(params: {
 }
 
 /**
- * Upsert a single cell (product × bake). Zero counts allowed — we write a
+ * Upsert a single cell (product × bake). Zero counts allowed, we write a
  * row so the UI shows a "logged but zero" distinct from "not logged".
  */
 export async function savePastryRotationEntry(params: {
@@ -142,7 +142,7 @@ export async function savePastryRotationEntry(params: {
 
 /**
  * Zero-fill every cell (product × bake) that has no entry yet for the day.
- * Existing entries are never touched — skipDuplicates on the unique key —
+ * Existing entries are never touched, skipDuplicates on the unique key,
  * so staff can log real counts first (or after) and bulk-zero the rest.
  */
 export async function zeroFillPastryRotation(params: {
@@ -215,7 +215,10 @@ export async function listPastryRotationForInspection(params: {
   toDate?: Date
 }): Promise<InspectionPastryRow[]> {
   const from = params.fromDate ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-  const to = params.toDate ?? new Date()
+  // entryDate is stored as UTC midnight of the AEST date, so a plain
+  // `new Date()` upper bound excludes today's rows until 10:00 AEST.
+  // Compare against today's AEST date at UTC midnight instead.
+  const to = params.toDate ?? parseAestDate(aestDateString(new Date()))
   const where: Record<string, unknown> = {
     entryDate: { gte: from, lte: to },
   }

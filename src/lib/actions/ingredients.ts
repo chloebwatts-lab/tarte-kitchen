@@ -40,7 +40,7 @@ export async function getIngredients(filters?: {
     baseUnitsPerPurchase: Number(i.baseUnitsPerPurchase),
     gramsPerUnit: i.gramsPerUnit ? Number(i.gramsPerUnit) : null,
     wastePercentage: Number(i.wastePercentage),
-    parLevel: i.parLevel ? Number(i.parLevel) : null,
+    parLevel: i.parLevel != null ? Number(i.parLevel) : null,
   }))
 }
 
@@ -62,7 +62,7 @@ export async function getIngredient(id: string) {
     baseUnitsPerPurchase: Number(i.baseUnitsPerPurchase),
     gramsPerUnit: i.gramsPerUnit ? Number(i.gramsPerUnit) : null,
     wastePercentage: Number(i.wastePercentage),
-    parLevel: i.parLevel ? Number(i.parLevel) : null,
+    parLevel: i.parLevel != null ? Number(i.parLevel) : null,
     priceHistory: i.priceHistory.map((ph: PriceHistory) => ({
       ...ph,
       oldPrice: Number(ph.oldPrice),
@@ -246,8 +246,51 @@ export async function updateIngredientQuick(
 }
 
 export async function deleteIngredient(id: string) {
+  // Capture the recipe lines that reference this ingredient BEFORE the
+  // delete: Prisma SetNull leaves them as orphan rows whose cached
+  // lineCost would stay baked into batch/dish totals forever.
+  const prepItems = await db.preparationItem.findMany({
+    where: { ingredientId: id },
+    select: { id: true, preparationId: true },
+  })
+  const dishComps = await db.dishComponent.findMany({
+    where: { ingredientId: id },
+    select: { id: true, dishId: true },
+  })
+
   await db.ingredient.delete({ where: { id } })
+
+  if (prepItems.length > 0) {
+    await db.preparationItem.deleteMany({
+      where: { id: { in: prepItems.map((pi) => pi.id) } },
+    })
+  }
+  if (dishComps.length > 0) {
+    await db.dishComponent.deleteMany({
+      where: { id: { in: dishComps.map((dc) => dc.id) } },
+    })
+  }
+
+  const directPrepIds = [...new Set(prepItems.map((pi) => pi.preparationId))]
+  if (directPrepIds.length > 0) {
+    const prepIds = await ancestorPrepsChildrenFirst(directPrepIds)
+    for (const prepId of prepIds) {
+      await recalculatePreparationCost(prepId)
+    }
+    const compsFromPreps = await db.dishComponent.findMany({
+      where: { preparationId: { in: prepIds } },
+      select: { dishId: true },
+    }) as Pick<DishComponent, "dishId">[]
+    for (const dc of compsFromPreps) dishComps.push({ id: "", dishId: dc.dishId })
+  }
+  const dishIds = [...new Set(dishComps.map((dc) => dc.dishId))]
+  for (const dishId of dishIds) {
+    await recalculateDishCost(dishId)
+  }
+
   revalidatePath("/ingredients")
+  revalidatePath("/preparations")
+  revalidatePath("/dishes")
   revalidatePath("/dashboard")
   return true
 }
@@ -288,32 +331,121 @@ export async function bulkUpdatePrices(
   revalidatePath("/dashboard")
 }
 
+/**
+ * Expand a set of changed preparation ids to the full ancestor closure
+ * (preps that use them as sub-preps, recursively) and return the closure
+ * in children-before-parents order, so every prep is recosted after the
+ * sub-preps its lines reference. Without this, prep-inside-prep chains
+ * (ingredient -> prep A -> prep B -> dish) left B and its dishes stale.
+ */
+async function ancestorPrepsChildrenFirst(seedIds: string[]): Promise<string[]> {
+  const all = new Set<string>(seedIds)
+  let frontier = [...seedIds]
+  while (frontier.length > 0) {
+    const parents = await db.preparationItem.findMany({
+      where: { subPreparationId: { in: frontier } },
+      select: { preparationId: true },
+    }) as Pick<PreparationItem, "preparationId">[]
+    frontier = []
+    for (const p of parents) {
+      if (!all.has(p.preparationId)) {
+        all.add(p.preparationId)
+        frontier.push(p.preparationId)
+      }
+    }
+  }
+
+  const ids = [...all]
+  if (ids.length <= 1) return ids
+  const edges = await db.preparationItem.findMany({
+    where: { preparationId: { in: ids }, subPreparationId: { in: ids } },
+    select: { preparationId: true, subPreparationId: true },
+  }) as Pick<PreparationItem, "preparationId" | "subPreparationId">[]
+  return topoSortChildrenFirst(ids, edges)
+}
+
+function topoSortChildrenFirst(
+  ids: string[],
+  edges: { preparationId: string; subPreparationId: string | null }[]
+): string[] {
+  const pendingChildren = new Map<string, number>(ids.map((id) => [id, 0]))
+  const parentsOf = new Map<string, string[]>()
+  for (const e of edges) {
+    if (!e.subPreparationId) continue
+    if (!pendingChildren.has(e.preparationId) || !pendingChildren.has(e.subPreparationId)) continue
+    pendingChildren.set(e.preparationId, (pendingChildren.get(e.preparationId) ?? 0) + 1)
+    const arr = parentsOf.get(e.subPreparationId) ?? []
+    arr.push(e.preparationId)
+    parentsOf.set(e.subPreparationId, arr)
+  }
+
+  const order: string[] = []
+  const ready = ids.filter((id) => (pendingChildren.get(id) ?? 0) === 0)
+  while (ready.length > 0) {
+    const id = ready.shift()!
+    order.push(id)
+    for (const parent of parentsOf.get(id) ?? []) {
+      const left = (pendingChildren.get(parent) ?? 1) - 1
+      pendingChildren.set(parent, left)
+      if (left === 0) ready.push(parent)
+    }
+  }
+  // A cycle would strand ids; append them so nothing is skipped.
+  if (order.length < ids.length) {
+    const seen = new Set(order)
+    for (const id of ids) if (!seen.has(id)) order.push(id)
+  }
+  return order
+}
+
+/**
+ * Recost a changed preparation, every prep that (transitively) contains it,
+ * and every dish that references any of them. Shared by recipe edits and
+ * yield-field quick edits in preparations.ts.
+ */
+/** Recost a specific set of dishes (used after deletes sever references). */
+export async function recalculateDishesById(dishIds: string[]) {
+  for (const dishId of [...new Set(dishIds)]) {
+    await recalculateDishCost(dishId)
+  }
+}
+
+export async function recalculateFromPreparation(prepId: string) {
+  const prepIds = await ancestorPrepsChildrenFirst([prepId])
+  for (const id of prepIds) {
+    await recalculatePreparationCost(id)
+  }
+  const dishComps = await db.dishComponent.findMany({
+    where: { preparationId: { in: prepIds } },
+    select: { dishId: true },
+  }) as Pick<DishComponent, "dishId">[]
+  const dishIds = [...new Set(dishComps.map((dc) => dc.dishId))]
+  for (const dishId of dishIds) {
+    await recalculateDishCost(dishId)
+  }
+}
+
 async function recalculateCascade(ingredientId: string) {
   const prepItems = await db.preparationItem.findMany({
     where: { ingredientId },
     select: { preparationId: true },
   }) as Pick<PreparationItem, "preparationId">[]
 
-  const prepIds = [...new Set(prepItems.map((pi) => pi.preparationId))]
+  const directPrepIds = [...new Set(prepItems.map((pi) => pi.preparationId))]
+  const prepIds = await ancestorPrepsChildrenFirst(directPrepIds)
 
   for (const prepId of prepIds) {
     await recalculatePreparationCost(prepId)
   }
 
   const dishComps = await db.dishComponent.findMany({
-    where: { ingredientId },
+    where: {
+      OR: [{ ingredientId }, { preparationId: { in: prepIds } }],
+    },
     select: { dishId: true },
   }) as Pick<DishComponent, "dishId">[]
 
-  const dishCompsFromPreps = await db.dishComponent.findMany({
-    where: { preparationId: { in: prepIds } },
-    select: { dishId: true },
-  }) as Pick<DishComponent, "dishId">[]
-
-  const dishIds = [...new Set([
-    ...dishComps.map((dc) => dc.dishId),
-    ...dishCompsFromPreps.map((dc) => dc.dishId),
-  ])]
+  const dishIds = [...new Set(dishComps.map((dc) => dc.dishId))]
 
   for (const dishId of dishIds) {
     await recalculateDishCost(dishId)
@@ -358,7 +490,7 @@ async function recalculatePreparationCost(prepId: string) {
         lineCost = baseQty.mul(cpbu)
       }
     } else if (item.subPreparationId && item.subPreparation) {
-      // Same function the save path uses (units.ts) — the old hand-rolled
+      // Same function the save path uses (units.ts), the old hand-rolled
       // version only special-cased unit === "serve", so "ea"/"dozen" lines
       // against count-yield preps fell into the weight path and recalc
       // rewrote correct lineCosts ~100x low (the hollandaise bug family).
@@ -431,7 +563,7 @@ async function recalculateDishCost(dishId: string) {
         lineCost = baseQty.mul(cpbu)
       }
     } else if (comp.preparationId && comp.preparation) {
-      // Canonical units.ts costing — see the matching comment in
+      // Canonical units.ts costing, see the matching comment in
       // recalculatePreparationCost above.
       const prep = comp.preparation
       lineCost = calcPrepLineCost(
@@ -474,8 +606,15 @@ async function recalculateDishCost(dishId: string) {
  */
 export async function recalculateAll() {
   const preps = await db.preparation.findMany({ select: { id: true } })
-  for (const prep of preps) {
-    await recalculatePreparationCost(prep.id)
+  const edges = await db.preparationItem.findMany({
+    where: { subPreparationId: { not: null } },
+    select: { preparationId: true, subPreparationId: true },
+  }) as Pick<PreparationItem, "preparationId" | "subPreparationId">[]
+  // Children first: a parent prep recosted before its sub-prep would bake
+  // the sub's stale batchCost into its own.
+  const ordered = topoSortChildrenFirst(preps.map((p) => p.id), edges)
+  for (const prepId of ordered) {
+    await recalculatePreparationCost(prepId)
   }
 
   const dishes = await db.dish.findMany({ select: { id: true } })

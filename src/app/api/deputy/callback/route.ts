@@ -23,13 +23,17 @@ export async function GET(request: NextRequest) {
   const deputyError = request.nextUrl.searchParams.get("error")
   const deputyErrorDesc = request.nextUrl.searchParams.get("error_description")
 
-  // Log everything we got — this is invaluable when Deputy redirects us
-  // back with a non-standard error format.
+  // Log everything we got, this is invaluable when Deputy redirects us
+  // back with a non-standard error format. The OAuth code itself is
+  // redacted (truncated form above is enough) so docker logs never carry
+  // a usable authorization code.
+  const allParams = Object.fromEntries(request.nextUrl.searchParams.entries())
+  if ("code" in allParams) allParams.code = "[redacted]"
   console.log("[deputy/callback] incoming", {
     code: code ? `${code.slice(0, 8)}…` : null,
     error: deputyError,
     error_description: deputyErrorDesc,
-    allParams: Object.fromEntries(request.nextUrl.searchParams.entries()),
+    allParams,
   })
 
   if (deputyError) {
@@ -109,7 +113,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Only one connection row — overwrite if it exists.
+  // Only one connection row, overwrite if it exists.
   const existing = await db.deputyConnection.findFirst()
   const data = {
     install,

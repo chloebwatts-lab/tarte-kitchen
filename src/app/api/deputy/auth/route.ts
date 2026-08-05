@@ -15,7 +15,7 @@ import { NextResponse } from "next/server"
  * Env:
  *   DEPUTY_CLIENT_ID       (required)
  *   DEPUTY_CLIENT_SECRET   (used in callback)
- *   DEPUTY_INSTALL         (required — hostname of your Deputy install)
+ *   DEPUTY_INSTALL         (required, hostname of your Deputy install)
  *   DEPUTY_REDIRECT_URI    (defaults to https://kitchen.tarte.com.au/api/deputy/callback)
  */
 export async function GET() {
@@ -34,13 +34,13 @@ export async function GET() {
     return NextResponse.json(
       {
         error:
-          "DEPUTY_INSTALL not configured — set it to the hostname of your Deputy install, e.g. '6a528b02100903.au.deputy.com'",
+          "DEPUTY_INSTALL not configured, set it to the hostname of your Deputy install, e.g. '6a528b02100903.au.deputy.com'",
       },
       { status: 500 }
     )
   }
 
-  // Install-local authorise endpoint — /my/oauth/login on the install's
+  // Install-local authorise endpoint, /my/oauth/login on the install's
   // own hostname. Hitting this while logged-in to the install serves the
   // consent screen directly. Hitting the equivalent once.deputy.com URL
   // leaves Deputy unable to resolve which install the client belongs to

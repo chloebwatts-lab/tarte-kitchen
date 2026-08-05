@@ -6,7 +6,7 @@ import type { MetadataRoute } from "next"
 // Admin pages stay behind basic auth either way. id stays "/kitchen" so
 // existing installs keep their identity and pick up the new start URL.
 //
-// Served at /manifest.webmanifest — kept outside Caddy basic auth (with
+// Served at /manifest.webmanifest, kept outside Caddy basic auth (with
 // /icons/*) so install works from the public staff area without a login
 // prompt. It contains branding only, no data.
 export default function manifest(): MetadataRoute.Manifest {

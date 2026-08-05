@@ -28,7 +28,7 @@ function cogsBandVariant(pct: number | null): "green" | "amber" | "red" | "outli
 
 // Per-venue dept-group wage % targets (source: Chris 2026-04-21).
 // Burleigh groups Chef+KP and FOH+Barista. Beach House folds Barista into
-// FOH. Tea Garden targets are TBD — dept rows render without variance.
+// FOH. Tea Garden targets are TBD, dept rows render without variance.
 type DeptGroup = {
   label: string
   // Which raw dept wage fields to sum together for this group.
@@ -95,24 +95,26 @@ export function LabourDashboard({ initial }: { initial: LabourDashboardData }) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                <th className="py-2 w-8"></th>
-                <th className="py-2">Week</th>
-                {["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN"].map((v) => (
-                  <th key={v} className="py-2 text-right">
-                    {VENUE_SHORT_LABEL[v as keyof typeof VENUE_SHORT_LABEL] ?? v}
-                  </th>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                  <th className="py-2 w-8"></th>
+                  <th className="py-2">Week</th>
+                  {["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN"].map((v) => (
+                    <th key={v} className="py-2 text-right">
+                      {VENUE_SHORT_LABEL[v as keyof typeof VENUE_SHORT_LABEL] ?? v}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {initial.pastWeeks.map((wk) => (
+                  <PastWeekRow key={wk.weekStartWed} wk={wk} />
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {initial.pastWeeks.map((wk) => (
-                <PastWeekRow key={wk.weekStartWed} wk={wk} />
-              ))}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
           {initial.pastWeeks.every((w) =>
             w.perVenue.every((v) => !v.hasActuals)
           ) && (
@@ -207,7 +209,7 @@ function PastWeekRow({ wk }: { wk: LabourWeekCard }) {
                 </div>
               ) : (
                 <span className="text-xs text-muted-foreground">
-                  — not uploaded —
+                  not uploaded
                 </span>
               )}
             </td>
@@ -243,7 +245,7 @@ function VenueDetailCard({
       ? row.actualCogs - row.theoreticalCogs
       : null
   // Percentage-point delta (actual COGS% − theoretical COGS%). Tells you
-  // how much of revenue the gap represents — the number that actually
+  // how much of revenue the gap represents, the number that actually
   // maps to weekly margin impact.
   const cogsVariancePct =
     row.actualCogsPct !== null && row.theoreticalCogsPct !== null
@@ -370,7 +372,7 @@ function VenueDetailCard({
           </div>
           {row.venue === "BEACH_HOUSE" && (
             <p className="mb-1 text-[10px] text-muted-foreground/80 italic">
-              Includes Tea Garden — stock is purchased jointly for both
+              Includes Tea Garden: stock is purchased jointly for both
               venues, so these totals cover BH + TG combined.
             </p>
           )}

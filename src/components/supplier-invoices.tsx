@@ -40,12 +40,12 @@ interface IngredientOption {
   name: string
 }
 
-// Shape comes from the server action, not a hand-maintained mirror — the two
+// Shape comes from the server action, not a hand-maintained mirror, the two
 // had drifted (Decimal vs number, missing nullability) and the mismatch hid
 // real bugs behind ignoreBuildErrors.
 type InvoiceDetail = NonNullable<Awaited<ReturnType<typeof getInvoice>>>
 
-// Keys are the ACTUAL InvoiceStatus enum values — the previous set
+// Keys are the ACTUAL InvoiceStatus enum values, the previous set
 // (PROCESSED/NEEDS_REVIEW/FAILED) matched nothing, so every invoice badge
 // fell through to "Pending".
 const statusConfig: Record<string, { label: string; variant: "green" | "amber" | "red" | "secondary" }> = {
@@ -202,7 +202,7 @@ function LineItemsTable({
           {lineItems.map((item) => {
             // "was" price: the stored per-unit price captured at evaluation
             // time (currentPrice) vs the invoice's normalised per-unit price
-            // — both in the ingredient's purchase-unit basis, so the pct is
+            //, both in the ingredient's purchase-unit basis, so the pct is
             // apples-to-apples even for converted pack sizes.
             const wasPrice = item.currentPrice
             const nowPrice = item.normalisedUnitPrice

@@ -10,7 +10,7 @@ export type Crumb = {
 
 /**
  * Breadcrumb header for the iPad kitchen flow. Each segment is a real link
- * back to that level — staff don't have to tap "back" several times to get
+ * back to that level, staff don't have to tap "back" several times to get
  * out of a deep route. The last crumb is rendered as the current page label
  * (no link).
  *

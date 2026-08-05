@@ -53,7 +53,7 @@ export interface LabourWeekCard {
     cogsConsumables: number | null
     cogsDrinks: number | null
     cogsPackaging: number | null
-    // Total from the xlsx — may differ from actualCogs (Mge PDF) due to
+    // Total from the xlsx, may differ from actualCogs (Mge PDF) due to
     // timing / inclusion differences; we surface both so Chris can spot
     // the gap.
     cogsXlsxTotal: number | null
@@ -89,13 +89,13 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
   const connection = await db.deputyConnection.findFirst()
   const hasDeputyConnection = !!connection
   // Apply wage settings at display time so tweaks in Settings are
-  // instant — no Deputy re-sync required. See syncDeputyRoster: raw
+  // instant, no Deputy re-sync required. See syncDeputyRoster: raw
   // Deputy cost is stored on LabourShift.cost (0 for open shifts);
   // super + open-shift $/hr are layered on here.
   const superMultiplier = 1 + Number(connection?.superRate ?? 0.12)
   const openShiftRate = Number(connection?.defaultOpenShiftRate ?? 0)
   // Workers' comp + payroll tax uplift. Deputy's Insights page includes
-  // these but the Roster API's Cost/OnCost fields don't — so we stack
+  // these but the Roster API's Cost/OnCost fields don't, so we stack
   // this on top of the super multiplier at display time.
   const upliftMultiplier = 1 + Number(connection?.onCostUpliftRate ?? 0)
 
@@ -208,7 +208,7 @@ export async function getLabourDashboardData(): Promise<LabourDashboardData> {
       // what Deputy's Insights roster shows (salary admin excluded).
       const actualRevenueExGst =
         actual?.revenueExGst != null ? Number(actual.revenueExGst) : null
-      // Beach House pastry also bakes for Tea Garden — credit half of TG's
+      // Beach House pastry also bakes for Tea Garden, credit half of TG's
       // ex-GST revenue into the pastry-% denominator. Other venues just use
       // their own revenue. See TG_PASTRY_REVENUE_SHARE.
       const pastryRevenueExGst = (() => {
@@ -340,7 +340,7 @@ export interface LiveWeekLabourVenue {
 }
 
 /**
- * Minimal query for the dashboard ops widget — only fetches this week's
+ * Minimal query for the dashboard ops widget, only fetches this week's
  * roster shifts + forecasts + actuals (if uploaded). Much lighter than
  * getLabourDashboardData which also loads 8 past weeks.
  */
@@ -520,7 +520,7 @@ export interface ParsedCsvRow {
  * Parse a bookkeeper CSV. Expected columns (case-insensitive, flexible order):
  *   venue, week_start (yyyy-mm-dd, Wednesday), gross_wages, super, hours, m_forecast
  *
- * Returns an array of parsed rows plus errors. Does NOT write to DB —
+ * Returns an array of parsed rows plus errors. Does NOT write to DB,
  * preview first, then the user confirms.
  */
 export async function parseLabourCsv(raw: string): Promise<{
@@ -596,7 +596,7 @@ export async function parseLabourCsv(raw: string): Promise<{
 function matchVenue(raw: string): Venue | null {
   const s = raw.toUpperCase().trim()
   if (s.includes("BURLEIGH") || s.includes("BAKERY")) return "BURLEIGH"
-  // Tea Garden's PDF title is "BEACH HOUSE TEA GARDEN" — check TEA first
+  // Tea Garden's PDF title is "BEACH HOUSE TEA GARDEN", check TEA first
   // so it doesn't get mis-routed to the Beach House venue.
   if (s.includes("TEA")) return "TEA_GARDEN"
   if (s.includes("BEACH")) return "BEACH_HOUSE"
@@ -710,7 +710,7 @@ export async function parseLabourPdfRich(params: {
 Rules:
 - All dollar figures are numbers (strip $ and commas). Percentages are numbers too (e.g. 36.17 for 36.17%).
 - venue: "Burleigh" for any report titled "Tarte Bakery Burleigh" / "Burleigh" / "Bakery"; "Tea Garden" for any title containing "Tea Garden" (including "Beach House Tea Garden"); "Beach House" for a Beach House-only report that does NOT say Tea Garden.
-- week_ending_tuesday: the Tuesday the report week ends on (look for "Week ending Tuesday …" or similar). If the PDF has a "This Week" column but no explicit date, use the most recent Tuesday date referenced (often shown in a "w/e <date>" header for the previous week — this week is the Tuesday one week later).
+- week_ending_tuesday: the Tuesday the report week ends on (look for "Week ending Tuesday …" or similar). If the PDF has a "This Week" column but no explicit date, use the most recent Tuesday date referenced (often shown in a "w/e <date>" header for the previous week, this week is the Tuesday one week later).
 - Only the CURRENT week column/row (not last week, not YTD, not monthly). If the PDF shows multiple weeks, emit one entry per week.
 - Two report formats exist:
   A) Detailed Burleigh-style table with a "Current Week" column, Department rows (Barista/Chef/FOH/KP/Pastry/Admin), Total + "Total less leave/toil/backpay" + "Total less Admin" + "Less Admin, leave, backpay" rows, Revenue (gst exc), and a COGS box with "This Week" $ and %.
@@ -727,7 +727,7 @@ Rules:
     - "gross_wages" = the "Wages & Super" value for This Week (note: super IS included; we have no way to split it)
     - "revenue_ex_gst" = the "Revenue" value for This Week (assume ex-GST unless the report explicitly says otherwise)
     - "total_hours" = the "# Hours" value for This Week
-    - "cogs_actual" / "cogs_pct" = the COGS row if populated (often blank — return null)
+    - "cogs_actual" / "cogs_pct" = the COGS row if populated (often blank, return null)
     - All department and ex-admin / ex-leave fields: null (not reported)
 - "m_forecast" only if a manager sales forecast is shown explicitly; otherwise null.
 - Use null (not 0) for fields you can't find.`
@@ -793,7 +793,7 @@ Rules:
     const venueRaw = w.venue ?? ""
     const venue = matchVenue(venueRaw)
     // Convert "week ending Tuesday Y-M-D" to the Wednesday that starts
-    // the Tarte week — 6 days earlier.
+    // the Tarte week: 6 days earlier.
     let weekStartWed = ""
     if (w.week_ending_tuesday) {
       const tue = new Date(w.week_ending_tuesday)
@@ -838,7 +838,7 @@ function numOrNull(v: unknown): number | null {
 
 /**
  * Commit rich Mge extractions into LabourWeekActual. Upserts per
- * (venue, week) — uploading the same PDF twice overwrites rather than
+ * (venue, week), uploading the same PDF twice overwrites rather than
  * duplicating.
  */
 export async function commitLabourMgePdf(params: {

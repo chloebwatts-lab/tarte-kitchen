@@ -48,7 +48,7 @@ function LoginForm() {
             </span>
           </h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            Sign in to manage your recipes
+            Sign in to Tarte Kitchen
           </p>
         </div>
 
@@ -66,6 +66,7 @@ function LoginForm() {
             <input
               id="email"
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -82,6 +83,7 @@ function LoginForm() {
             <input
               id="password"
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required

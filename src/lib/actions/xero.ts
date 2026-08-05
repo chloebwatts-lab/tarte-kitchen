@@ -8,20 +8,47 @@ export interface XeroStatus {
   organisationName: string | null
   lastSyncedAt: Date | null
   tenantId: string | null
+  /** When the stored access token expires. A long-expired token with no
+   *  recent sync means the connection is dead and /reports data is stale. */
+  tokenExpiresAt: Date | null
+  /** True when the token has been expired for days with no sync bumping
+   *  it. Access tokens normally lapse between syncs and refresh on
+   *  demand, so a freshly-expired token alone is not a dead connection;
+   *  days of staleness is what a broken refresh token looks like. */
+  tokenExpired: boolean
+}
+
+const DISCONNECTED: XeroStatus = {
+  connected: false,
+  organisationName: null,
+  lastSyncedAt: null,
+  tenantId: null,
+  tokenExpiresAt: null,
+  tokenExpired: false,
 }
 
 export async function getXeroStatus(): Promise<XeroStatus> {
   try {
     const conn = await (db as any).xeroConnection.findFirst()
-    if (!conn) return { connected: false, organisationName: null, lastSyncedAt: null, tenantId: null }
+    if (!conn) return DISCONNECTED
+    const tokenExpiresAt: Date | null = conn.tokenExpiresAt ?? null
+    const lastSyncedAt: Date | null = conn.lastSyncedAt ?? null
+    const STALE_MS = 3 * 24 * 60 * 60 * 1000
+    const staleBefore = Date.now() - STALE_MS
+    const tokenExpired =
+      tokenExpiresAt != null &&
+      tokenExpiresAt.getTime() < staleBefore &&
+      (lastSyncedAt == null || lastSyncedAt.getTime() < staleBefore)
     return {
       connected: true,
       organisationName: conn.organisationName,
-      lastSyncedAt: conn.lastSyncedAt,
+      lastSyncedAt,
       tenantId: conn.tenantId,
+      tokenExpiresAt,
+      tokenExpired,
     }
   } catch {
-    return { connected: false, organisationName: null, lastSyncedAt: null, tenantId: null }
+    return DISCONNECTED
   }
 }
 

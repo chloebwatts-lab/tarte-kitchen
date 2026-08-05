@@ -5,7 +5,7 @@ import { getWasteFormItems } from "@/lib/actions/wastage"
 import { StaffWasteForm } from "@/components/staff-waste-form"
 
 export const metadata: Metadata = {
-  title: "Log Waste — Tarte Kitchen",
+  title: "Log Waste · Tarte Kitchen",
 }
 
 export default async function LogWastePage() {

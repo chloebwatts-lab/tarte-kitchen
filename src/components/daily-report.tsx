@@ -37,7 +37,7 @@ export function DailyReportSection({ data }: { data: DailyReport }) {
     <div className="space-y-4">
       <div>
         <h2 className="font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          Daily POS Report — {dateLabel}
+          Daily POS Report: {dateLabel}
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
           Sourced from the Lightspeed end-of-day email. Updated daily at 08:00 AEST.
@@ -50,6 +50,7 @@ export function DailyReportSection({ data }: { data: DailyReport }) {
           <CardTitle className="text-sm font-medium">Revenue</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -93,6 +94,7 @@ export function DailyReportSection({ data }: { data: DailyReport }) {
               </tr>
             </tbody>
           </table>
+          </div>
         </CardContent>
       </Card>
 
@@ -136,7 +138,7 @@ export function DailyReportSection({ data }: { data: DailyReport }) {
                   className="inline-block h-2 w-2 rounded-full"
                   style={{ backgroundColor: VENUE_CHART_COLOR[s.venue] }}
                 />
-                {VENUE_LABEL[s.venue]} — Reporting Group Breakdown
+                {VENUE_LABEL[s.venue]}: Reporting Group Breakdown
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -153,21 +155,23 @@ export function DailyReportSection({ data }: { data: DailyReport }) {
                     {cat.topProducts.length === 0 ? (
                       <p className="text-xs text-muted-foreground">—</p>
                     ) : (
-                      <table className="w-full text-sm">
-                        <tbody>
-                          {cat.topProducts.map((p) => (
-                            <tr key={`${cat.categoryName}-${p.rank}-${p.name}`} className="border-b border-border/30 last:border-0">
-                              <td className="py-1 pr-2 text-xs text-muted-foreground w-5 tabular-nums">
-                                {p.rank}
-                              </td>
-                              <td className="py-1 pr-2">{p.name}</td>
-                              <td className="py-1 text-right tabular-nums text-muted-foreground">
-                                {p.quantity}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <tbody>
+                            {cat.topProducts.map((p) => (
+                              <tr key={`${cat.categoryName}-${p.rank}-${p.name}`} className="border-b border-border/30 last:border-0">
+                                <td className="py-1 pr-2 text-xs text-muted-foreground w-5 tabular-nums">
+                                  {p.rank}
+                                </td>
+                                <td className="py-1 pr-2">{p.name}</td>
+                                <td className="py-1 text-right tabular-nums text-muted-foreground">
+                                  {p.quantity}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
                   </div>
                 ))

@@ -311,7 +311,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                 {currentStats.cogsImpact && (
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     ~{currentStats.cogsImpact.wasteAsPctOfCogs.toFixed(1)}% of COGS{" "}
-                    <span className="text-[10px]">({currentStats.cogsImpact.weekLabel}, logged waste only — likely understated)</span>
+                    <span className="text-[10px]">({currentStats.cogsImpact.weekLabel}, logged waste only, likely understated)</span>
                   </p>
                 )}
               </div>
@@ -423,7 +423,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
 
       {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-3">
-        {/* Stacked Bar — Daily waste by venue */}
+        {/* Stacked Bar: Daily waste by venue */}
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium">Daily Waste by Venue</CardTitle>
@@ -440,7 +440,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                   />
                   <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `$${v}`} />
                   <Tooltip
-                    formatter={(value: number) => `$${value.toFixed(2)}`}
+                    formatter={(value) => `$${Number(value).toFixed(2)}`}
                     labelFormatter={(d) => new Date(d).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })}
                   />
                   {SINGLE_VENUES.map((v) => (
@@ -458,7 +458,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
           </CardContent>
         </Card>
 
-        {/* Bar — Waste by day of week */}
+        {/* Bar: Waste by day of week */}
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium">Waste by Day of Week (30 days)</CardTitle>
@@ -470,7 +470,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="day" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `$${v}`} />
-                  <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
+                  <Tooltip formatter={(value) => `$${Number(value).toFixed(2)}`} />
                   <Bar dataKey="cost" fill="#f97316" radius={[4, 4, 0, 0]} name="Waste" />
                 </BarChart>
               </ResponsiveContainer>
@@ -478,7 +478,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
           </CardContent>
         </Card>
 
-        {/* Line — Waste % trend */}
+        {/* Line: Waste % trend */}
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium">Waste % of Revenue (Weekly)</CardTitle>
@@ -498,7 +498,7 @@ export function WastageDashboard({ stats, insights, initialEntries }: Props) {
                     tickFormatter={(v) => `${v}%`}
                     domain={[0, "auto"]}
                   />
-                  <Tooltip formatter={(value: number) => `${value.toFixed(2)}%`} />
+                  <Tooltip formatter={(value) => `${Number(value).toFixed(2)}%`} />
                   <ReferenceLine y={2} stroke="#ef4444" strokeDasharray="5 5" label="Target 2%" />
                   <Line
                     type="monotone"

@@ -17,12 +17,12 @@ import Decimal from "decimal.js"
  *
  * Spec: https://www.deputy.com/api-doc
  * The endpoints we care about:
- *   GET /api/v1/resource/Roster      — rostered shifts
- *   GET /api/v1/resource/Timesheet   — actual worked + approved timesheets
- *   GET /api/v1/resource/Employee    — names, payrates
- *   GET /api/v1/resource/Company     — operational-unit / location list
+ *   GET /api/v1/resource/Roster     , rostered shifts
+ *   GET /api/v1/resource/Timesheet  , actual worked + approved timesheets
+ *   GET /api/v1/resource/Employee   , names, payrates
+ *   GET /api/v1/resource/Company    , operational-unit / location list
  *
- * NOTE: Deputy's search API uses a POST body with `search` filters — not
+ * NOTE: Deputy's search API uses a POST body with `search` filters, not
  * query-strings. That's why `deputyFetch` defaults to JSON POST.
  */
 
@@ -32,10 +32,10 @@ export interface DeputyRosterShift {
   OperationalUnit: number
   StartTime: number // unix seconds
   EndTime: number
-  TotalTime?: number // hours — sometimes on Roster, sometimes computed
+  TotalTime?: number // hours, sometimes on Roster, sometimes computed
   Cost?: number // base unloaded cost (no super / on-costs). Stored as-is.
   /// Deputy's fully-loaded shift cost (base + super + workers' comp +
-  /// payroll tax + leave loading). Intentionally ignored — we store raw
+  /// payroll tax + leave loading). Intentionally ignored, we store raw
   /// Cost only and apply on-costs at display time via DeputyConnection's
   /// superRate / onCostUpliftRate so settings changes are instant. Reading
   /// OnCost here would double-count super.
@@ -81,7 +81,67 @@ function apiBase(install: string, region: string) {
   return `https://${install}.${region}.deputy.com`
 }
 
+/**
+ * Single-flight guard for the token refresh. Deputy ROTATES refresh
+ * tokens: concurrent deputyFetch calls that each ran their own refresh
+ * would race, and whichever landed last could persist a refresh token
+ * the server had already invalidated, bricking the connection. All
+ * concurrent callers share one in-flight refresh; the refreshed tokens
+ * are stored in the DB before the promise resolves.
+ */
+let refreshInFlight: Promise<{
+  token: string
+  install: string
+  region: string
+}> | null = null
+
+async function refreshAccessToken(
+  c: Awaited<ReturnType<typeof getConnection>>
+): Promise<{ token: string; install: string; region: string }> {
+  const refreshToken = decrypt(c.refreshToken!)
+  const params = new URLSearchParams({
+    client_id: process.env.DEPUTY_CLIENT_ID ?? "",
+    client_secret: process.env.DEPUTY_CLIENT_SECRET ?? "",
+    refresh_token: refreshToken,
+    grant_type: "refresh_token",
+    scope: "longlife_refresh_token",
+  })
+  // Install-local refresh endpoint, same host the OAuth authorize
+  // flow used. We rebuild from the stored install/region.
+  const res = await fetch(
+    `https://${c.install}.${c.region}.deputy.com/oauth/access_token`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+    }
+  )
+  if (!res.ok) throw new Error(`Deputy token refresh failed: ${await res.text()}`)
+  const data = (await res.json()) as {
+    access_token: string
+    refresh_token?: string
+    expires_in: number
+  }
+  // Persist BEFORE resolving so no waiter proceeds until the rotated
+  // refresh token is safely stored.
+  await db.deputyConnection.update({
+    where: { id: c.id },
+    data: {
+      accessToken: encrypt(data.access_token),
+      refreshToken: data.refresh_token
+        ? encrypt(data.refresh_token)
+        : c.refreshToken,
+      tokenExpiresAt: new Date(Date.now() + data.expires_in * 1000),
+    },
+  })
+  return { token: data.access_token, install: c.install, region: c.region }
+}
+
 async function getValidAccessToken(): Promise<{ token: string; install: string; region: string }> {
+  // If a refresh is already running, ride along with it instead of
+  // starting a competing one.
+  if (refreshInFlight) return refreshInFlight
+
   const c = await getConnection()
   // If we have a refresh token and current is expired → refresh
   if (
@@ -89,41 +149,12 @@ async function getValidAccessToken(): Promise<{ token: string; install: string; 
     c.tokenExpiresAt &&
     c.tokenExpiresAt.getTime() <= Date.now() + 60_000
   ) {
-    const refreshToken = decrypt(c.refreshToken)
-    const params = new URLSearchParams({
-      client_id: process.env.DEPUTY_CLIENT_ID ?? "",
-      client_secret: process.env.DEPUTY_CLIENT_SECRET ?? "",
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-      scope: "longlife_refresh_token",
-    })
-    // Install-local refresh endpoint — same host the OAuth authorize
-    // flow used. We rebuild from the stored install/region.
-    const res = await fetch(
-      `https://${c.install}.${c.region}.deputy.com/oauth/access_token`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: params.toString(),
-      }
-    )
-    if (!res.ok) throw new Error(`Deputy token refresh failed: ${await res.text()}`)
-    const data = (await res.json()) as {
-      access_token: string
-      refresh_token?: string
-      expires_in: number
+    if (!refreshInFlight) {
+      refreshInFlight = refreshAccessToken(c).finally(() => {
+        refreshInFlight = null
+      })
     }
-    await db.deputyConnection.update({
-      where: { id: c.id },
-      data: {
-        accessToken: encrypt(data.access_token),
-        refreshToken: data.refresh_token
-          ? encrypt(data.refresh_token)
-          : c.refreshToken,
-        tokenExpiresAt: new Date(Date.now() + data.expires_in * 1000),
-      },
-    })
-    return { token: data.access_token, install: c.install, region: c.region }
+    return refreshInFlight
   }
   return {
     token: decrypt(c.accessToken),
@@ -161,7 +192,7 @@ export async function listOpUnits(): Promise<DeputyOpUnit[]> {
 
 /**
  * Paginate through every Employee row. Deputy's default page size is 500.
- * Tarte has well over that — without paging we'd be missing salaried staff
+ * Tarte has well over that, without paging we'd be missing salaried staff
  * whose names then degrade to "Employee #NNN" placeholders and whose
  * lump-sum Roster cost can't be attributed correctly.
  */
@@ -169,7 +200,7 @@ export async function listEmployees(): Promise<DeputyEmployee[]> {
   const PAGE = 500
   const out: DeputyEmployee[] = []
   // Deputy IGNORES ?start= on plain resource GETs and returns the same
-  // first 500 rows for every page — pagination only works via the QUERY
+  // first 500 rows for every page, pagination only works via the QUERY
   // endpoint's POST body.
   for (let start = 0; start < 20000; start += PAGE) {
     const page = await deputyFetch<DeputyEmployee[]>(
@@ -224,7 +255,7 @@ export async function listPlanSalesBetween(
 
 /**
  * Rostered/scheduled shifts between two unix timestamps. This is what
- * Deputy's own Insights Summary pulls from — forecast hours and forecast
+ * Deputy's own Insights Summary pulls from, forecast hours and forecast
  * wages for the current and upcoming week.
  */
 export async function listRosterBetween(
@@ -283,7 +314,7 @@ export async function listTimesheetsSince(
  * forward-looking labour % on /labour.
  *
  * Past weeks' actuals come from LabourWeekActual (payroll upload / Xero).
- * This function intentionally does NOT backfill history — syncing every
+ * This function intentionally does NOT backfill history, syncing every
  * shift forever creates noise without signal.
  */
 /**
@@ -309,7 +340,7 @@ export async function syncDeputyRoster() {
   const locMap = loadLocationMap(connection.locations)
   if (locMap.size === 0) {
     throw new Error(
-      "No Deputy location mappings configured — visit Settings → Integrations → Deputy"
+      "No Deputy location mappings configured, visit Settings → Integrations → Deputy"
     )
   }
 
@@ -372,11 +403,11 @@ export async function syncDeputyRoster() {
       typeof emp?.PayRate === "number" && emp.PayRate > 0 ? emp.PayRate : null
     // Only treat Deputy's own Open flag as unfilled. An employee being
     // missing from our empMap usually just means Deputy paginated the
-    // Employee resource — the shift itself is really assigned and has
+    // Employee resource, the shift itself is really assigned and has
     // a valid Cost we should still use. (Previously these were silently
     // zeroed, which is why live Bakery wages came in ~50% under.)
     const isOpen = r.Open === true
-    // Store raw Deputy cost only — super + on-cost uplift are applied
+    // Store raw Deputy cost only, super + on-cost uplift are applied
     // at display time in /labour so Settings tweaks are instant. Do NOT
     // read Roster.OnCost here: it already includes super + workers' comp
     // + payroll tax + leave loading, which the display-time multiplier
@@ -430,7 +461,7 @@ export async function syncDeputyRoster() {
   for (const [key, amount] of forecastByKey.entries()) {
     const [venue, wedIso] = key.split("|")
     const wedDate = new Date(wedIso)
-    // Only overwrite rows that came from DEPUTY (or don't exist yet) —
+    // Only overwrite rows that came from DEPUTY (or don't exist yet),
     // a MANUAL override should not be clobbered by a sync.
     const existing = await db.managerSalesForecast.findUnique({
       where: {
@@ -481,7 +512,7 @@ export async function syncDeputyRoster() {
 /**
  * Pull actual Timesheet rows from Deputy for the current Tarte trading
  * week (Wed → Tue). Unlike the Roster sync, these capture *live* clock-in
- * / clock-out activity — they materialise the second a barista scans in,
+ * / clock-out activity, they materialise the second a barista scans in,
  * regardless of approval status. That's what the live FOH tracker needs.
  *
  * Approved timesheets settle into payroll on Wednesday; the data we read
@@ -490,14 +521,14 @@ export async function syncDeputyRoster() {
  * Cost handling matches Deputy's own convention: salaried staff have
  * `Cost = 0` on their timesheet rows (their weekly salary lives on a
  * separate "Salary X" placeholder employee). Open shifts have no
- * timesheet row at all — they only exist on Roster.
+ * timesheet row at all, they only exist on Roster.
  */
 export async function syncDeputyTimesheets() {
   const connection = await getConnection()
   const locMap = loadLocationMap(connection.locations)
   if (locMap.size === 0) {
     throw new Error(
-      "No Deputy location mappings configured — visit Settings → Integrations → Deputy"
+      "No Deputy location mappings configured, visit Settings → Integrations → Deputy"
     )
   }
 
@@ -542,7 +573,7 @@ export async function syncDeputyTimesheets() {
   // 13–19 May 2026, $5.7k high vs Xero gross-wages).
   //
   // Salaried staff have Roster Cost = lump-sum on a 1h placeholder shift,
-  // which would yield an absurd $/hr ($500+/hr) — exclude by rate-cap.
+  // which would yield an absurd $/hr ($500+/hr), exclude by rate-cap.
   const rosterRows = await db.labourShift.findMany({
     where: {
       source: "ROSTER",
@@ -641,7 +672,7 @@ export async function syncDeputyTimesheets() {
     // Pay-rate cascade for unapproved timesheets:
     //   1. Approved Cost (gospel from Deputy, post-payroll)
     //   2. Matching Roster shift's $/hr × hours (per-shift, captures
-    //      Sat/Sun penalty loading correctly — see lookupRosterRate)
+    //      Sat/Sun penalty loading correctly, see lookupRosterRate)
     //   3. Employee.PayRate × hours (fallback, often missing)
     //   4. Raw Deputy Cost field (usually 0 pre-approval)
     // Salaried staff fall through to 4 → 0, which is correct (their cost

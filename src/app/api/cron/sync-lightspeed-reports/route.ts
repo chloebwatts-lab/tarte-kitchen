@@ -17,7 +17,7 @@ import {
   calculateTheoreticalUsage,
 } from "@/lib/sales/enrich"
 
-// Allowlist of Lightspeed sender domains — anything else is ignored so a
+// Allowlist of Lightspeed sender domains, anything else is ignored so a
 // spoofed email can't poison the numbers. Lightspeed AU was originally
 // Kounta, and the Looker reports still come from that domain.
 const LIGHTSPEED_SENDERS = [
@@ -98,7 +98,7 @@ function reportDateFromEmail(
     const d = new Date(reportDate)
     if (!isNaN(d.getTime())) return new Date(reportDate)
   }
-  // Fall back: email arrives the morning after — subtract 1 day in AEST.
+  // Fall back: email arrives the morning after, subtract 1 day in AEST.
   const base = emailDateHeader ? new Date(emailDateHeader) : new Date()
   const aestOffset = 10 * 60 * 60 * 1000
   const aestNow = new Date(base.getTime() + aestOffset)
@@ -108,7 +108,7 @@ function reportDateFromEmail(
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 })
   }
 
@@ -133,7 +133,7 @@ export async function GET(request: Request) {
     if (connection.lastScanAt) {
       // 24h slack: GmailConnection.lastScanAt is SHARED with check-invoices
       // (runs every 2h), so by the time this daily scan fires the watermark
-      // is hours past any EOD email that arrived between runs — and unlike
+      // is hours past any EOD email that arrived between runs, and unlike
       // check-invoices this route had no sweep to recover skips. Re-reads
       // are free: LightspeedReportImport dedupes by gmailMessageId.
       const epochSec = Math.floor(
@@ -148,7 +148,7 @@ export async function GET(request: Request) {
     }
 
     const query = `${fromQuery} has:attachment filename:pdf${afterQuery}`
-    // 500 cap — backfills can run over 6+ weeks of daily EOD emails.
+    // 500 cap, backfills can run over 6+ weeks of daily EOD emails.
     // searchMessages paginates internally so this is safe.
     const messageRefs = await searchMessages(accessToken, query, 500)
 
@@ -156,7 +156,7 @@ export async function GET(request: Request) {
     const errors: string[] = []
     const processedVenueDates = new Set<string>()
     // Diagnostic: every (messageId, siteName, resolvedVenue) seen this run.
-    // Burleigh debugging — when a PDF doesn't yield a Burleigh row, we want
+    // Burleigh debugging, when a PDF doesn't yield a Burleigh row, we want
     // to know whether (a) the AI parser dropped the site or (b)
     // normalizeVenueSlug failed to map it.
     const siteDebug: Array<{
@@ -189,7 +189,12 @@ export async function GET(request: Request) {
         const parsed: LightspeedPdfReport = await parseLightspeedPdf(pdfBuffer)
         const reportDate = reportDateFromEmail(parsed.reportDate, emailDateHeader)
         const dateKey = reportDate.toISOString().split("T")[0]
-        let messageRecorded = false
+        // Track per-venue failures: the import row must only be written once
+        // EVERY venue in the PDF processed cleanly. Recording after the first
+        // venue meant a later venue's failure in the same message was
+        // permanently skipped (dedupe saw the message as done).
+        let anyVenueFailed = false
+        let firstVenue: Venue | null = null
 
         for (const site of parsed.sites) {
           const venue = resolveVenue(site.siteName, locationMap)
@@ -204,8 +209,10 @@ export async function GET(request: Request) {
             errors.push(
               `Message ${ref.id}: unresolved venue for site "${site.siteName}"`
             )
+            anyVenueFailed = true
             continue
           }
+          if (!firstVenue) firstVenue = venue
 
           const revenue = site.totalIncTax
           const revenueExGst = site.totalExTax.isZero()
@@ -237,33 +244,48 @@ export async function GET(request: Request) {
           await db.dailyCategoryTopItem.deleteMany({
             where: { date: reportDate, venue },
           })
+          // Also clear the item-level EMAIL rows: a resent EOD report can
+          // carry a different product mix, and without this delete the
+          // upserts below leave stale rows from the earlier version of the
+          // report in place. API-sourced rows are untouched.
+          await db.dailySales.deleteMany({
+            where: { date: reportDate, venue, source: "EMAIL" },
+          })
 
-          // The same product can appear under more than one category —
+          // The same product can appear under more than one category,
           // aggregate per name for the item-level DailySales rows.
           const qtyByProduct = new Map<string, number>()
 
           for (const cat of site.categories) {
-            let rank = 0
+            // The same product can also appear on more than one line WITHIN
+            // a category. Sum those lines first and write ONE top-item row
+            // per product; the old per-line create swallowed the unique
+            // violation, which hid that the quantity had already been added
+            // to qtyByProduct twice.
+            const qtyByName = new Map<string, number>()
+            const nameOrder: string[] = []
             for (const product of cat.topProducts) {
-              rank++
-              qtyByProduct.set(
+              if (!qtyByName.has(product.name)) nameOrder.push(product.name)
+              qtyByName.set(
                 product.name,
-                (qtyByProduct.get(product.name) ?? 0) + product.quantity
+                (qtyByName.get(product.name) ?? 0) + product.quantity
               )
-              try {
-                await db.dailyCategoryTopItem.create({
-                  data: {
-                    date: reportDate,
-                    venue,
-                    categoryName: cat.categoryName,
-                    productName: product.name,
-                    quantity: product.quantity,
-                    rank,
-                  },
-                })
-              } catch {
-                // Duplicate product name in the same category — skip.
-              }
+            }
+            let rank = 0
+            for (const name of nameOrder) {
+              rank++
+              const quantity = qtyByName.get(name)!
+              qtyByProduct.set(name, (qtyByProduct.get(name) ?? 0) + quantity)
+              await db.dailyCategoryTopItem.create({
+                data: {
+                  date: reportDate,
+                  venue,
+                  categoryName: cat.categoryName,
+                  productName: name,
+                  quantity,
+                  rank,
+                },
+              })
             }
           }
 
@@ -293,17 +315,19 @@ export async function GET(request: Request) {
             })
           }
 
-          // Only record the gmail message once, keyed to the first venue we
-          // processed (the table's unique constraint is on gmailMessageId).
-          if (!messageRecorded) {
-            await db.lightspeedReportImport.create({
-              data: { gmailMessageId: ref.id, reportDate, venue },
-            })
-            messageRecorded = true
-          }
-
           processedVenueDates.add(`${venue}|${dateKey}`)
           reportsIngested++
+        }
+
+        // Only record the gmail message once EVERY venue in it processed
+        // without error (keyed to the first venue; the table's unique
+        // constraint is on gmailMessageId). A partially-processed message
+        // stays unrecorded so the next run retries it; all writes above are
+        // idempotent upserts/delete-then-create.
+        if (!anyVenueFailed && firstVenue) {
+          await db.lightspeedReportImport.create({
+            data: { gmailMessageId: ref.id, reportDate, venue: firstVenue },
+          })
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)

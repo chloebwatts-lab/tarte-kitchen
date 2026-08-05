@@ -81,7 +81,7 @@ export function DeputyConnection({ status, configured }: Props) {
     startTransition(async () => {
       try {
         const n = await refreshDeputyLocations()
-        setSyncResult(`Refreshed — ${n} locations found`)
+        setSyncResult(`Refreshed: ${n} locations found`)
       } catch (e) {
         setSyncResult(`Error: ${(e as Error).message}`)
       }
@@ -94,7 +94,7 @@ export function DeputyConnection({ status, configured }: Props) {
       try {
         const r = await triggerDeputySync()
         setSyncResult(
-          `Synced — ${r.roster.upserted} roster + ${r.timesheets.upserted} timesheet shifts ` +
+          `Synced: ${r.roster.upserted} roster + ${r.timesheets.upserted} timesheet shifts ` +
             `(${r.roster.skipped + r.timesheets.skipped} skipped, no venue mapping)`
         )
       } catch (e) {
@@ -147,7 +147,7 @@ export function DeputyConnection({ status, configured }: Props) {
   }
 
   function handleDisconnect() {
-    if (!confirm("Disconnect Deputy? Labour data stays — just stops syncing."))
+    if (!confirm("Disconnect Deputy? Labour data stays, just stops syncing."))
       return
     startTransition(async () => {
       await disconnectDeputy()
@@ -360,7 +360,7 @@ export function DeputyConnection({ status, configured }: Props) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="NONE">— Unmapped —</SelectItem>
+                      <SelectItem value="NONE">Unmapped</SelectItem>
                       {SINGLE_VENUES.map((v) => (
                         <SelectItem key={v} value={v}>
                           {VENUE_LABEL[v]}
@@ -373,7 +373,7 @@ export function DeputyConnection({ status, configured }: Props) {
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
-              No locations loaded yet — click &ldquo;Refresh from Deputy&rdquo;.
+              No locations loaded yet, click &ldquo;Refresh from Deputy&rdquo;.
             </div>
           )}
         </div>

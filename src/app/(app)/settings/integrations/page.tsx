@@ -30,7 +30,7 @@ export default async function IntegrationsPage() {
     <div className="space-y-6">
       <BackLink href="/dashboard" label="Back to dashboard" />
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Integrations</h1>
+        <h1 className="font-serif text-2xl font-semibold tracking-tight">Integrations</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Connect external services to sync sales data and automate workflows
         </p>

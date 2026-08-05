@@ -22,7 +22,7 @@ import { isAutoRow, isHumanRow, matchProduct, buildBakeRows } from "@/lib/pastry
  */
 
 const VENUES: Venue[] = ["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN"]
-// Last fully hand-entered day per venue — used only for the bake-time split.
+// Last fully hand-entered day per venue, used only for the bake-time split.
 const SPLIT_TEMPLATE_DAY: Record<string, string> = {
   BURLEIGH: "2026-07-25",
   BEACH_HOUSE: "2026-07-11",
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
         where: { date: entryDate, venue },
         select: { menuItemName: true, quantitySold: true },
       })
-      if (sales.length === 0) continue // no POS data — leave the day alone
+      if (sales.length === 0) continue // no POS data, leave the day alone
 
       const soldByProduct = new Map<string, number>()
       for (const s of sales) {

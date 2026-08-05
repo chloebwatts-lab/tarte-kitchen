@@ -1,11 +1,13 @@
 export const dynamic = "force-dynamic"
 
+import { cookies } from "next/headers"
 import {
   getPastryRotationDay,
   type PastryRotationDay,
 } from "@/lib/actions/pastry-rotation"
 import { PastryRotationDashboard } from "@/components/kitchen/PastryRotationDashboard"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
@@ -27,7 +29,15 @@ export default async function PastryRotationPage({
 }) {
   const sp = await searchParams
   const venueParam = typeof sp.venue === "string" ? sp.venue : null
-  const venue: Venue = isVenue(venueParam) ? venueParam : "BURLEIGH"
+  // Explicit ?venue= wins; otherwise use the venue remembered by the
+  // picker's tk-venue cookie. Never silently default to a venue.
+  const cookieVenue = (await cookies()).get("tk-venue")?.value ?? null
+  const venue: Venue | null = isVenue(venueParam)
+    ? venueParam
+    : isVenue(cookieVenue)
+      ? cookieVenue
+      : null
+  if (!venue) return <KitchenVenuePicker />
   const date =
     typeof sp.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.date)
       ? sp.date

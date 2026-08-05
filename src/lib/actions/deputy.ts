@@ -42,10 +42,10 @@ export async function getDeputyStatus(): Promise<DeputyStatus> {
     }
   }
   // Three ways the connection can be healthy:
-  //   1. Has a refresh token — we can refresh on demand (OAuth mode).
-  //   2. Has no expiry at all — it's a permanent token (install-minted),
+  //   1. Has a refresh token, we can refresh on demand (OAuth mode).
+  //   2. Has no expiry at all, it's a permanent token (install-minted),
   //      which never expires.
-  //   3. Has an expiry still in the future — OAuth token still valid.
+  //   3. Has an expiry still in the future: OAuth token still valid.
   const tokenHealthy =
     connection.refreshToken !== null ||
     connection.tokenExpiresAt === null ||
@@ -143,7 +143,7 @@ export async function refreshDeputyLocations() {
 }
 
 /**
- * Persist one venue mapping. Idempotent — sets the venue for a single
+ * Persist one venue mapping. Idempotent, sets the venue for a single
  * operational unit id.
  */
 export async function setDeputyLocationVenue(params: {
@@ -177,7 +177,7 @@ export async function triggerDeputySync() {
 /**
  * Simpler alternative to the OAuth dance: Deputy supports long-lived
  * "Permanent Tokens" you can mint from your own install without any app
- * registration. The token doesn't expire and doesn't need a refresh —
+ * registration. The token doesn't expire and doesn't need a refresh,
  * perfect for a single-tenant server integration like this one.
  *
  * Given `https://tarte.au.deputy.com`, install = "tarte", region = "au".
@@ -197,13 +197,13 @@ export async function connectDeputyWithToken(params: {
   const match = cleaned.match(/^([^.]+)\.([^.]+)\.deputy\.com$/i)
   if (!match) {
     throw new Error(
-      `Install URL should look like "tarte.au.deputy.com" — got "${cleaned}"`
+      `Install URL should look like "tarte.au.deputy.com", got "${cleaned}"`
     )
   }
   const install = match[1].toLowerCase()
   const region = match[2].toLowerCase()
 
-  // Quick sanity check — call Deputy once to verify the token works.
+  // Quick sanity check, call Deputy once to verify the token works.
   const probe = await fetch(
     `https://${install}.${region}.deputy.com/api/v1/resource/OperationalUnit`,
     {

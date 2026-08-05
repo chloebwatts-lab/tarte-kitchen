@@ -31,14 +31,15 @@ export interface WastageAnalytics {
     ingredientId: string | null
     dishId: string | null
   }[]
-  // Trending — items where cost spiked vs their own trailing average
+  // Trending, items where cost spiked vs the prior window of equal length.
+  // deltaPct is null when the item had no waste in the prior window (new).
   trendingUp: {
     itemName: string
-    recent14dCost: number
-    prior14dCost: number
-    deltaPct: number
+    recentCost: number
+    priorCost: number
+    deltaPct: number | null
   }[]
-  // Shrinkage detective — compare reported waste to what theoretical vs actual
+  // Shrinkage detective, compare reported waste to what theoretical vs actual
   // stocktakes suggest we lost
   shrinkage: {
     ingredientId: string
@@ -70,19 +71,43 @@ function startOfAestDay(offsetDays = 0): Date {
 }
 
 function weekStartIso(d: Date): string {
-  // Monday-anchored AEST week
-  const day = d.getUTCDay()
-  const diff = (day + 6) % 7
-  const monday = new Date(d)
-  monday.setUTCDate(d.getUTCDate() - diff)
-  return monday.toISOString().split("T")[0]
+  // Monday-anchored AEST week. Mirrors the +10h shift pattern of
+  // startOfTarteWeekUtc in src/lib/dates.ts (Monday-anchored to match the
+  // checklist-cycle convention). DB dates are stored as UTC midnight of the
+  // AEST date, so the shift is a no-op for those, but this stays correct
+  // for any real timestamp too.
+  const shifted = new Date(d.getTime() + 10 * 60 * 60 * 1000)
+  shifted.setUTCHours(0, 0, 0, 0)
+  const diff = (shifted.getUTCDay() + 6) % 7
+  shifted.setUTCDate(shifted.getUTCDate() - diff)
+  return shifted.toISOString().split("T")[0]
 }
 
-function toBase(qty: number, unit: string) {
-  const u = unit.toLowerCase()
-  if (u === "kg") return qty * 1000
-  if (u === "l") return qty * 1000
-  return qty
+/**
+ * Convert a waste-entry quantity to the ingredient's base unit (g / ml / ea).
+ * Returns null when the unit cannot be converted for that base type, e.g.
+ * "serve", "tray" or a pack unit; callers skip those rows rather than mix
+ * incomparable units into a grams-based variance.
+ */
+function toIngredientBase(
+  qty: number,
+  unit: string,
+  baseType: "WEIGHT" | "VOLUME" | "COUNT"
+): number | null {
+  const u = unit.trim().toLowerCase()
+  if (baseType === "WEIGHT") {
+    if (u === "g" || u === "gm" || u === "gms" || u === "gram" || u === "grams") return qty
+    if (u === "kg" || u === "kgs") return qty * 1000
+    return null
+  }
+  if (baseType === "VOLUME") {
+    if (u === "ml") return qty
+    if (u === "l" || u === "lt" || u === "ltr" || u === "litre" || u === "litres") return qty * 1000
+    return null
+  }
+  if (u === "ea" || u === "each") return qty
+  if (u === "dozen") return qty * 12
+  return null
 }
 
 // ============================================================================
@@ -246,49 +271,59 @@ export async function getWastageAnalytics(params: {
       quantity: Math.round(i.quantity * 1000) / 1000,
     }))
 
-  // ---------- Trending up (last 14d vs prior 14d) ----------
-  const recentStart = startOfAestDay(14)
-  const priorStart = startOfAestDay(28)
+  // ---------- Trending up (last rangeDays vs the rangeDays before) ----------
+  // The prior window needs its own fetch: `entries` only covers the current
+  // range, so comparing inside it left the prior window empty at 14d and
+  // flagged every item as +999%.
+  const priorStart = startOfAestDay(rangeDays * 2)
+  const priorEntries = await db.wasteEntry.findMany({
+    where: { ...venueFilter, date: { gte: priorStart, lt: start } },
+  })
   const recentMap = new Map<string, number>()
   const priorMap = new Map<string, number>()
   for (const e of entries) {
     const key = canon(e.itemName)
-    const cost = Number(e.estimatedCost)
-    if (e.date >= recentStart) {
-      recentMap.set(key, (recentMap.get(key) ?? 0) + cost)
-    } else if (e.date >= priorStart) {
-      priorMap.set(key, (priorMap.get(key) ?? 0) + cost)
-    }
+    recentMap.set(key, (recentMap.get(key) ?? 0) + Number(e.estimatedCost))
+  }
+  for (const e of priorEntries) {
+    const key = canon(e.itemName)
+    priorMap.set(key, (priorMap.get(key) ?? 0) + Number(e.estimatedCost))
   }
   const trendingUp = Array.from(recentMap.entries())
     .map(([itemName, recent]) => {
       const prior = priorMap.get(itemName) ?? 0
+      // null delta = no prior-window waste at all; the UI renders "new"
+      // instead of a fabricated percentage.
       const deltaPct =
-        prior > 0
-          ? Math.round(((recent - prior) / prior) * 100)
-          : recent > 0
-            ? 999
-            : 0
+        prior > 0 ? Math.round(((recent - prior) / prior) * 100) : null
       return {
         itemName,
-        recent14dCost: Math.round(recent * 100) / 100,
-        prior14dCost: Math.round(prior * 100) / 100,
+        recentCost: Math.round(recent * 100) / 100,
+        priorCost: Math.round(prior * 100) / 100,
         deltaPct,
       }
     })
-    .filter((t) => t.recent14dCost >= 10 && t.deltaPct >= 30)
-    .sort((a, b) => b.deltaPct - a.deltaPct)
+    .filter((t) => t.recentCost >= 10 && (t.deltaPct === null || t.deltaPct >= 30))
+    .sort((a, b) => {
+      if (a.deltaPct === null && b.deltaPct === null) return b.recentCost - a.recentCost
+      if (a.deltaPct === null) return -1
+      if (b.deltaPct === null) return 1
+      return b.deltaPct - a.deltaPct
+    })
     .slice(0, 8)
 
   // ---------- Shrinkage detective ----------
-  // For each SUBMITTED stocktake pair, compare variance (expected − counted)
-  // against waste entries logged in the same window. The gap is unaccounted
-  // loss — theft, over-portioning, dropped trays never logged.
+  // A SUBMITTED stocktake's variance covers the interval since the previous
+  // submitted stocktake at the same venue (that is how saveStocktakeCounts
+  // computes expected stock). So each negative variance must be compared to
+  // the waste logged for that ingredient in the SAME interval, converted to
+  // the ingredient's base unit. The remaining gap is unaccounted loss:
+  // theft, over-portioning, dropped trays never logged.
   const stocktakes = await db.stocktake.findMany({
     where: {
       ...venueFilter,
       status: "SUBMITTED",
-      date: { gte: startOfAestDay(rangeDays + 28) }, // slightly wider window
+      date: { gte: startOfAestDay(rangeDays + 28) }, // catch pairs straddling the range
     },
     orderBy: { date: "desc" },
     include: {
@@ -300,61 +335,119 @@ export async function getWastageAnalytics(params: {
     },
   })
 
+  // Interval start per stocktake = date of the previous submitted stocktake
+  // at the same venue. Inside the fetched (desc-ordered) set that's just the
+  // next row for the venue; the earliest fetched one needs a DB lookup.
+  const stocktakesByVenue = new Map<Venue, typeof stocktakes>()
+  for (const st of stocktakes) {
+    const arr = stocktakesByVenue.get(st.venue) ?? []
+    arr.push(st)
+    stocktakesByVenue.set(st.venue, arr)
+  }
+  const intervalStartByStocktake = new Map<string, Date>()
+  for (const [stVenue, sts] of stocktakesByVenue) {
+    for (let i = 0; i < sts.length; i++) {
+      if (i + 1 < sts.length) {
+        intervalStartByStocktake.set(sts[i].id, sts[i + 1].date)
+      } else {
+        const prevSt = await db.stocktake.findFirst({
+          where: { venue: stVenue, status: "SUBMITTED", date: { lt: sts[i].date } },
+          orderBy: { date: "desc" },
+          select: { date: true },
+        })
+        if (prevSt) intervalStartByStocktake.set(sts[i].id, prevSt.date)
+      }
+    }
+  }
+
+  // Waste entries covering the earliest interval, indexed per venue+ingredient.
+  const intervalStarts = Array.from(intervalStartByStocktake.values())
+  const shrinkWasteByKey = new Map<
+    string,
+    { date: Date; quantity: number; unit: string }[]
+  >()
+  if (intervalStarts.length > 0) {
+    const minIntervalStart = new Date(
+      Math.min(...intervalStarts.map((d) => d.getTime()))
+    )
+    const shrinkWaste = await db.wasteEntry.findMany({
+      where: {
+        ...venueFilter,
+        ingredientId: { not: null },
+        date: { gte: minIntervalStart },
+      },
+      select: { ingredientId: true, venue: true, date: true, quantity: true, unit: true },
+    })
+    for (const w of shrinkWaste) {
+      if (!w.ingredientId) continue
+      const k = `${w.venue}|${w.ingredientId}`
+      const arr = shrinkWasteByKey.get(k) ?? []
+      arr.push({ date: w.date, quantity: Number(w.quantity), unit: w.unit })
+      shrinkWasteByKey.set(k, arr)
+    }
+  }
+
   const shrinkageMap = new Map<
     string,
-    { ingredientName: string; variancePositiveBase: number; unit: string; unitCost: number }
+    {
+      ingredientName: string
+      variancePositiveBase: number
+      reportedBase: number
+      unit: string
+      unitCost: number
+    }
   >()
   for (const st of stocktakes) {
+    const intervalStart = intervalStartByStocktake.get(st.id)
+    // No previous stocktake means no variance was computed for this one.
+    if (!intervalStart) continue
     for (const it of st.items) {
       if (!it.ingredient) continue
       const variance = Number(it.varianceBaseQty ?? 0)
-      // Only count NEGATIVE variance — i.e. we counted less than expected,
+      // Only count NEGATIVE variance, i.e. we counted less than expected,
       // which means "we lost more than we accounted for". Positive variance
       // is over-count (mis-count, found in another fridge, etc).
       if (variance >= 0) continue
       const lossBase = -variance
-      const baseUnit =
-        it.ingredient.baseUnitType === "WEIGHT"
-          ? "g"
-          : it.ingredient.baseUnitType === "VOLUME"
-            ? "ml"
-            : "ea"
+      const baseType = it.ingredient.baseUnitType as "WEIGHT" | "VOLUME" | "COUNT"
+      const baseUnit = baseType === "WEIGHT" ? "g" : baseType === "VOLUME" ? "ml" : "ea"
       const unitCost =
         Number(it.ingredient.baseUnitsPerPurchase) > 0
           ? Number(it.ingredient.purchasePrice) /
             Number(it.ingredient.baseUnitsPerPurchase)
           : 0
+      // Waste logged in this stocktake pair's own interval (prev, current],
+      // in the ingredient's base unit. Unconvertible rows are skipped.
+      let reportedBase = 0
+      const wasteRows = shrinkWasteByKey.get(`${st.venue}|${it.ingredientId}`) ?? []
+      for (const w of wasteRows) {
+        if (!(w.date > intervalStart && w.date <= st.date)) continue
+        const base = toIngredientBase(w.quantity, w.unit, baseType)
+        if (base === null) continue
+        reportedBase += base
+      }
       const existing = shrinkageMap.get(it.ingredientId) ?? {
         ingredientName: it.ingredient.name,
         variancePositiveBase: 0,
+        reportedBase: 0,
         unit: baseUnit,
         unitCost,
       }
       existing.variancePositiveBase += lossBase
+      existing.reportedBase += reportedBase
       shrinkageMap.set(it.ingredientId, existing)
     }
   }
-  // Subtract reported waste (converted to base units) from the variance
-  const wasteByIngredient = new Map<string, number>()
-  for (const e of entries) {
-    if (!e.ingredientId) continue
-    const base = toBase(Number(e.quantity), e.unit)
-    wasteByIngredient.set(
-      e.ingredientId,
-      (wasteByIngredient.get(e.ingredientId) ?? 0) + base
-    )
-  }
   const shrinkage = Array.from(shrinkageMap.entries())
     .map(([ingredientId, s]) => {
-      const reported = wasteByIngredient.get(ingredientId) ?? 0
       const unaccountedBase = Math.max(
-        s.variancePositiveBase - reported,
+        s.variancePositiveBase - s.reportedBase,
         0
       )
       return {
         ingredientId,
         ingredientName: s.ingredientName,
-        reportedWasteBase: Math.round(reported),
+        reportedWasteBase: Math.round(s.reportedBase),
         variancePositiveBase: Math.round(s.variancePositiveBase),
         unaccountedValue:
           Math.round(unaccountedBase * s.unitCost * 100) / 100,
@@ -374,7 +467,7 @@ export async function getWastageAnalytics(params: {
       title: `Waste is ${wasteAsPctRevenue.toFixed(1)}% of revenue`,
       body:
         wasteAsPctRevenue >= 5
-          ? "Industry benchmark is under 3%. Every 1% recovered here drops straight to gross profit — if this holds over a year that's real money."
+          ? "Industry benchmark is under 3%. Every 1% recovered here drops straight to gross profit, if this holds over a year that's real money."
           : "You're above the 2–3% benchmark. Focus the next 4 weeks on the top 5 items below; most hospitality sites halve their waste within 60 days of starting tight tracking.",
     })
   }
@@ -383,20 +476,20 @@ export async function getWastageAnalytics(params: {
   if (topReason && topReason.pctOfTotal >= 30) {
     const map: Record<WasteReason, string> = {
       OVERPRODUCTION:
-        "Trim the prep sheet for these items, or switch to made-to-order. Review venue-specific DoW patterns — the prep sheet already uses a median forecast.",
+        "Trim the prep sheet for these items, or switch to made-to-order. Review venue-specific DoW patterns, the prep sheet already uses a median forecast.",
       SPOILAGE:
-        "Audit FIFO rotation and fridge temps. Check the HACCP checklist is actually being completed each shift (alerting coming — see Checklists).",
+        "Audit FIFO rotation and fridge temps. Check the HACCP checklist is actually being completed each shift (alerting coming, see Checklists).",
       EXPIRED:
         "Shorten order windows with the supplier, tighten the par level, or introduce smaller batch preps.",
       DROPPED:
         "Usually a training/layout issue. Tag the venue with the most drops and spot-check lunch service.",
       STAFF_MEAL:
-        "Reclassify staff meals if they're a perk — they're not technically waste. Otherwise cap via a dedicated staff-meal budget.",
+        "Reclassify staff meals if they're a perk, they're not technically waste. Otherwise cap via a dedicated staff-meal budget.",
       CUSTOMER_RETURN:
-        "Pull the top returned dishes from the Menu Matrix — classic Dog quadrant behaviour.",
+        "Pull the top returned dishes from the Menu Matrix, classic Dog quadrant behaviour.",
       QUALITY_ISSUE:
         "Trace back to the supplier via invoice history; a pattern here warrants a price-history + rejection conversation.",
-      OTHER: "Reclassify 'Other' entries — most are really spoilage or overproduction.",
+      OTHER: "Reclassify 'Other' entries, most are really spoilage or overproduction.",
     }
     recs.push({
       severity: "warn",
@@ -409,8 +502,14 @@ export async function getWastageAnalytics(params: {
     const t = trendingUp[0]
     recs.push({
       severity: "warn",
-      title: `${t.itemName} waste up ${t.deltaPct}% in the last 14 days`,
-      body: `Was $${t.prior14dCost.toFixed(0)} → now $${t.recent14dCost.toFixed(0)}. Likely a prep/portion issue — check who's on that section and whether the recipe yield shifted.`,
+      title:
+        t.deltaPct === null
+          ? `${t.itemName} waste is new in the last ${rangeDays} days`
+          : `${t.itemName} waste up ${t.deltaPct}% in the last ${rangeDays} days`,
+      body:
+        t.deltaPct === null
+          ? `Nothing logged in the prior ${rangeDays} days, now $${t.recentCost.toFixed(0)}. Likely a prep/portion issue: check who's on that section and whether the recipe yield shifted.`
+          : `Was $${t.priorCost.toFixed(0)}, now $${t.recentCost.toFixed(0)}. Likely a prep/portion issue: check who's on that section and whether the recipe yield shifted.`,
       action: {
         label: "Review entries",
         href: `/wastage?search=${encodeURIComponent(t.itemName)}`,
@@ -437,7 +536,7 @@ export async function getWastageAnalytics(params: {
       severity: "info",
       title: "No waste logged this period",
       body:
-        "If that's accurate — great. If not, you can't improve what you don't measure; prompt staff via a daily closing checklist item.",
+        "If that's accurate, great. If not, you can't improve what you don't measure; prompt staff via a daily closing checklist item.",
     })
   }
 

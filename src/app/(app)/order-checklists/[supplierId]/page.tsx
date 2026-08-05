@@ -35,7 +35,10 @@ export default async function OrderRunPage({
   }
 
   const { supplier, order, rows } = await getOrderRunRows(supplierId, orderId)
-  if (!supplier || !order) notFound()
+  if (!supplier) notFound()
+  // Stale or mismatched ?order param (e.g. another supplier's order id):
+  // fall back to no order selected and re-resolve today's draft.
+  if (!order) redirect(`/order-checklists/${supplierId}?venue=${venue}`)
 
   return (
     <div className="space-y-4">

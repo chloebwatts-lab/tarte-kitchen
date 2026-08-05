@@ -175,7 +175,7 @@ export function WastageAnalyticsView({
             <p className="text-sm text-muted-foreground">Trending up</p>
             <p className="mt-1 font-serif text-3xl font-semibold">{data.trendingUp.length}</p>
             <p className="text-xs text-muted-foreground">
-              items +30% in last 14 days
+              items +30% or new vs prior {data.rangeDays}d
             </p>
           </CardContent>
         </Card>
@@ -293,7 +293,7 @@ export function WastageAnalyticsView({
                     tickFormatter={(v) => `$${v}`}
                   />
                   <Tooltip
-                    formatter={(value: number, name: string) =>
+                    formatter={(value, name) =>
                       name === "pctOfRevenue"
                         ? `${Number(value).toFixed(2)}%`
                         : `$${Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
@@ -367,9 +367,9 @@ export function WastageAnalyticsView({
                       width={95}
                     />
                     <Tooltip
-                      formatter={(v: number, _n, p) => [
+                      formatter={(v, _n, p) => [
                         `$${Number(v).toFixed(2)}`,
-                        `${REASON_LABEL[p.payload.reason]} · ${p.payload.pctOfTotal}%`,
+                        `${REASON_LABEL[(p as { payload: { reason: string } }).payload.reason]} · ${(p as { payload: { pctOfTotal: number } }).payload.pctOfTotal}%`,
                       ]}
                     />
                     <Bar dataKey="cost" radius={[0, 4, 4, 0]}>
@@ -391,7 +391,7 @@ export function WastageAnalyticsView({
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">
-              By venue — cost & % of revenue
+              By venue, cost & % of revenue
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -495,7 +495,7 @@ export function WastageAnalyticsView({
           <CardHeader className="pb-2">
             <CardTitle className="inline-flex items-center gap-1.5 text-sm font-medium">
               <TrendingUp className="h-4 w-4 text-red-text" />
-              Spiking items (last 14d vs prior 14d)
+              Spiking items (last {data.rangeDays}d vs prior {data.rangeDays}d)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -518,11 +518,11 @@ export function WastageAnalyticsView({
                         {t.itemName}
                       </Link>
                       <div className="text-[10px] text-muted-foreground">
-                        ${t.prior14dCost.toFixed(0)} → ${t.recent14dCost.toFixed(0)}
+                        ${t.priorCost.toFixed(0)} → ${t.recentCost.toFixed(0)}
                       </div>
                     </div>
                     <Badge variant="red" className="tabular-nums">
-                      +{t.deltaPct}%
+                      {t.deltaPct === null ? "new" : `+${t.deltaPct}%`}
                     </Badge>
                   </div>
                 ))}
@@ -540,7 +540,7 @@ export function WastageAnalyticsView({
             Shrinkage detective
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Stocktake said we had less than we should — and the gap isn&apos;t
+            Stocktake said we had less than we should, and the gap isn&apos;t
             explained by logged wastage. That&apos;s over-portioning,
             unrecorded staff meals, theft, or dropped items that never made
             it into the log.

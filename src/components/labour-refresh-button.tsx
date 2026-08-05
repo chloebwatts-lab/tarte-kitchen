@@ -19,8 +19,10 @@ export function LabourRefreshButton({ lastSyncedAt }: Props) {
     startTransition(async () => {
       try {
         const r = await triggerDeputySync()
+        const upserted = r.roster.upserted + r.timesheets.upserted
+        const skipped = r.roster.skipped + r.timesheets.skipped
         setMsg(
-          `Synced ${r.upserted} shifts${r.skipped ? ` (${r.skipped} skipped — unmapped venue)` : ""}`
+          `Synced ${upserted} shifts${skipped ? ` (${skipped} skipped, unmapped venue)` : ""}`
         )
       } catch (e) {
         setMsg(`Error: ${(e as Error).message}`)

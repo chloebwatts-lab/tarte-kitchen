@@ -7,7 +7,12 @@ import { Venue } from "@/generated/prisma/enums"
 export const dynamic = "force-dynamic"
 
 const TODAY = () => {
-  const d = new Date()
+  // Same +10 AEST convention as src/lib/dates.ts: shift into Brisbane
+  // clock space before snapping to midnight, so "today" ticks over at
+  // midnight AEST rather than 10:00 (UTC midnight). Result is a UTC-
+  // midnight Date labelled with the AEST calendar day, matching how
+  // expiresOn dates are stored.
+  const d = new Date(Date.now() + 10 * 60 * 60 * 1000)
   d.setUTCHours(0, 0, 0, 0)
   return d
 }
@@ -56,7 +61,7 @@ export default async function CouncilLandingPage() {
             GCCC Inspection Folder
           </div>
           <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            Tarte Kitchen — Council Folder
+            Tarte Kitchen Council Folder
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
             Everything an Environmental Health Officer needs in one place.
@@ -81,8 +86,8 @@ export default async function CouncilLandingPage() {
                   <span className="truncate">
                     <span className="font-medium">
                       {VENUE_LABEL[d.venue].replace(/^Tarte\s+/, "")}
-                    </span>{" "}
-                    — {d.title}
+                    </span>
+                    : {d.title}
                   </span>
                   <span
                     className={
@@ -128,7 +133,8 @@ export default async function CouncilLandingPage() {
 
       <p className="mt-10 text-center text-xs text-muted-foreground">
         Compliance under <em>Food Act 2006</em> (Qld) &amp; FSANZ Standard
-        3.2.2A. Session expires 12 hours from login.
+        3.2.2A. Documents are viewable without signing in; managers sign in
+        to upload or remove them.
       </p>
     </div>
   )

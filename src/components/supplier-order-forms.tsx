@@ -123,7 +123,7 @@ function SupplierFormTable({ supplier }: { supplier: Supplier }) {
               <h3 className="mb-2 font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                 {category}
               </h3>
-              <div className="rounded-lg border border-border">
+              <div className="overflow-x-auto rounded-lg border border-border">
                 <table className="w-full text-sm">
                   <thead className="border-b bg-muted/40 font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     <tr>
@@ -338,7 +338,7 @@ function BulkPasteDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Bulk paste — {supplierName}</DialogTitle>
+          <DialogTitle>Bulk paste: {supplierName}</DialogTitle>
         </DialogHeader>
         <p className="text-xs text-muted-foreground">
           One item per line. Tab- or comma-separated:{" "}

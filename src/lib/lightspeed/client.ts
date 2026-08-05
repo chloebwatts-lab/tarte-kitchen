@@ -42,7 +42,7 @@ async function lightspeedFetch<T>(path: string, options: FetchOptions = {}): Pro
         body: body ? JSON.stringify(body) : undefined,
       })
 
-      // Rate limiting — exponential backoff
+      // Rate limiting, exponential backoff
       if (res.status === 429) {
         const backoffMs = Math.min(1000 * Math.pow(2, attempt), 30000)
         await sleep(backoffMs)

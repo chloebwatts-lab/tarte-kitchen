@@ -1,7 +1,7 @@
 "use server"
 
 /**
- * Order-checklist actions — the chef-facing daily ordering workflow.
+ * Order-checklist actions, the chef-facing daily ordering workflow.
  *
  * Each supplier is treated like a daily checklist run:
  *   - There's at most ONE open DRAFT order per (supplier, venue) per day.
@@ -173,7 +173,11 @@ export async function getOrderRunRows(
       orderBy: [{ category: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
     }),
   ])
-  if (!supplier || !order) return { supplier: null, order: null, rows: [] }
+  if (!supplier) return { supplier: null, order: null, rows: [] }
+  // A stale/foreign ?order param must not graft another supplier's order
+  // onto this supplier's form, treat it as "no order selected".
+  if (!order || order.supplierId !== supplierId)
+    return { supplier, order: null, rows: [] }
 
   // Existing draft lines: index by ingredientId or by description-match on the
   // approved item name (handles unlinked items).
@@ -191,7 +195,7 @@ export async function getOrderRunRows(
   }
 
   const rows: SupplierOrderRow[] = items.map((it) => {
-    // Must mirror upsertOrderLine's description format — lines are written
+    // Must mirror upsertOrderLine's description format, lines are written
     // as "Name (packSize)", so a bare-name lookup never matched and every
     // saved quantity looked lost after a reload.
     const descKey = (it.packSize ? `${it.name} (${it.packSize})` : it.name).toLowerCase()
@@ -238,17 +242,28 @@ export async function upsertOrderLine(params: {
 }): Promise<void> {
   const { orderId, approvedItemId, quantity } = params
 
-  const item = await db.approvedSupplierItem.findUnique({
-    where: { id: approvedItemId },
-    select: {
-      id: true,
-      name: true,
-      packSize: true,
-      packPrice: true,
-      ingredientId: true,
-    },
-  })
+  const [item, targetOrder] = await Promise.all([
+    db.approvedSupplierItem.findUnique({
+      where: { id: approvedItemId },
+      select: {
+        id: true,
+        name: true,
+        packSize: true,
+        packPrice: true,
+        ingredientId: true,
+        supplierId: true,
+      },
+    }),
+    db.purchaseOrder.findUnique({
+      where: { id: orderId },
+      select: { supplierId: true },
+    }),
+  ])
   if (!item) throw new Error("Approved item not found")
+  if (!targetOrder) throw new Error("Order not found")
+  // Never write another supplier's approved item onto this order.
+  if (targetOrder.supplierId !== item.supplierId)
+    throw new Error("Item does not belong to this order's supplier")
 
   const description = item.packSize ? `${item.name} (${item.packSize})` : item.name
 

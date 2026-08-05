@@ -1,8 +1,10 @@
 export const dynamic = "force-dynamic"
 
+import { cookies } from "next/headers"
 import { getCountSheet } from "@/lib/actions/restock"
 import { RestockPaperSheet } from "@/components/kitchen/RestockPaperSheet"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
 import { STATION_LABEL, isKitchenStation } from "@/lib/stations"
 
@@ -13,10 +15,10 @@ function isVenue(v: string | null): v is Venue {
 }
 
 /**
- * Paper-style alternative to the standard evening count — the same sheet
+ * Paper-style alternative to the standard evening count: the same sheet
  * records and autosave, laid out like Jose's printed restock request so a
  * chef can fill it in with an Apple Pencil (iPad Scribble turns handwriting
- * into digits right in the boxes — no photo, no transcription).
+ * into digits right in the boxes, no photo, no transcription).
  */
 export default async function RestockPaperPage({
   searchParams,
@@ -26,7 +28,15 @@ export default async function RestockPaperPage({
   const sp = await searchParams
   const venueParam = typeof sp.venue === "string" ? sp.venue : null
   const stationParam = typeof sp.station === "string" ? sp.station : null
-  const venue: Venue = isVenue(venueParam) ? venueParam : "BEACH_HOUSE"
+  // Explicit ?venue= wins; otherwise use the venue remembered by the
+  // picker's tk-venue cookie. Never silently default to a venue.
+  const cookieVenue = (await cookies()).get("tk-venue")?.value ?? null
+  const venue: Venue | null = isVenue(venueParam)
+    ? venueParam
+    : isVenue(cookieVenue)
+      ? cookieVenue
+      : null
+  if (!venue) return <KitchenVenuePicker />
   const station = isKitchenStation(stationParam) ? stationParam : "MAIN"
 
   const sheet = await getCountSheet({ venue, station })
@@ -39,7 +49,7 @@ export default async function RestockPaperPage({
           { label: "Venues", href: "/kitchen" },
           { label: venueLabel, href: `/kitchen?venue=${venue}` },
           { label: "Restock & prep", href: `/kitchen/restock?venue=${venue}` },
-          { label: `${STATION_LABEL[station]} — paper sheet` },
+          { label: `${STATION_LABEL[station]} paper sheet` },
         ]}
       />
 
@@ -48,11 +58,11 @@ export default async function RestockPaperPage({
           className="tk-display leading-none text-[var(--tk-charcoal)]"
           style={{ fontSize: 40, fontWeight: 700, letterSpacing: "-0.025em" }}
         >
-          {STATION_LABEL[station]} — restock sheet
+          {STATION_LABEL[station]} restock sheet
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
           The paper sheet, on the iPad. Write straight into the boxes with the
-          Apple Pencil — the iPad turns your handwriting into numbers as you
+          Apple Pencil. The iPad turns your handwriting into numbers as you
           go, so check the box shows what you meant. Count{" "}
           <strong>backup prep in the coolroom</strong>{" "}only, leave
           &ldquo;Need&rdquo; empty when you&apos;re fine. It saves as you

@@ -7,7 +7,7 @@ export default function LogLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Mirrors the /kitchen kiosk layout — same tokens, same proportions, so
+  // Mirrors the /kitchen kiosk layout, same tokens, same proportions, so
   // the wastage entry page reads as part of the same in-store iPad app.
   return (
     <div

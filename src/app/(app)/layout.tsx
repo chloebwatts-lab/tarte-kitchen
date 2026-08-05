@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { AppLayoutClient } from "./AppLayoutClient";
 
 /**
- * Server wrapper — reads the X-Auth-User header Caddy forwards (the
+ * Server wrapper, reads the X-Auth-User header Caddy forwards (the
  * basic-auth username) and hands it to the client layout so the
  * sidebar can hide nav items for restricted users like Shawna.
  *

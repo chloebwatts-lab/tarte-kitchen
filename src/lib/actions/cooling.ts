@@ -71,7 +71,7 @@ function toRecord(row: {
 
 /**
  * Create a cooling log entry. Used both for "starting cooling now" and for
- * back-dating a forgotten earlier batch — the difference is whether
+ * back-dating a forgotten earlier batch, the difference is whether
  * `startedAt` is the default (now) or supplied by the form.
  */
 export async function createCoolingLog(params: {

@@ -225,7 +225,7 @@ export function MaintenanceDashboard({
               key={a.id}
               tone="amber"
               icon={<CalendarClock className="h-4 w-4" />}
-              title={`Warranty ends in ${w.daysLeft} days — ${a.name}`}
+              title={`Warranty ends in ${w.daysLeft} days: ${a.name}`}
               sub={`Claim any faults with ${a.warrantyProvider ?? "the supplier"} before ${w.end!.toLocaleDateString("en-AU")}`}
               href={`/kitchen/fix/${a.slug}`}
             />
@@ -235,7 +235,7 @@ export function MaintenanceDashboard({
               key={i.id}
               tone="neutral"
               icon={<ClipboardList className="h-4 w-4" />}
-              title={`Open since ${new Date(i.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short" })} — ${i.title}`}
+              title={`Open since ${new Date(i.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}: ${i.title}`}
               sub={`${i.assetName ?? i.venue}${i.contactName ? ` · trade: ${i.contactName}` : " · no trade assigned yet"}`}
               href={i.assetSlug ? `/kitchen/fix/${i.assetSlug}` : undefined}
             />
@@ -370,7 +370,7 @@ export function MaintenanceDashboard({
           ))}
           {registerRows.length === 0 && (
             <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-              Nothing matches — try the other venue tab or clear the search.
+              Nothing matches, try the other venue tab or clear the search.
             </p>
           )}
         </div>

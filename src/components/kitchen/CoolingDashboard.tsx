@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState, useTransition } from "react"
+import { useEffect, useRef, useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { Plus, Clock, Thermometer, History, Trash2 } from "lucide-react"
 import { KitchenButton } from "@/components/kitchen/KitchenButton"
 import {
@@ -48,7 +49,10 @@ export function CoolingDashboard({
   venue: Venue
   initialLogs: CoolingLogRecord[]
 }) {
-  const [logs] = useState(initialLogs)
+  // Render straight from props: router.refresh() re-renders the server
+  // component with fresh data, so holding a copy in state would pin the
+  // first load forever.
+  const logs = initialLogs
   const [now, setNow] = useState(() => Date.now())
   const [openForm, setOpenForm] = useState<null | "start" | "late">(null)
   const [openCheckpoint, setOpenCheckpoint] = useState<null | {
@@ -418,16 +422,38 @@ function CompletedRow({ log }: { log: CoolingLogRecord }) {
 function FormShell({
   title,
   onClose,
+  dirty = false,
   children,
 }: {
   title: string
   onClose: () => void
+  /** When true, a backdrop tap asks for a second tap before discarding. */
+  dirty?: boolean
   children: React.ReactNode
 }) {
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (confirmTimer.current) clearTimeout(confirmTimer.current)
+    }
+  }, [])
+
+  const handleBackdrop = () => {
+    if (!dirty || confirmDiscard) {
+      onClose()
+      return
+    }
+    setConfirmDiscard(true)
+    if (confirmTimer.current) clearTimeout(confirmTimer.current)
+    confirmTimer.current = setTimeout(() => setConfirmDiscard(false), 2500)
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-6"
-      onClick={onClose}
+      onClick={handleBackdrop}
     >
       <div
         className="w-full max-w-[560px] rounded-t-[24px] bg-white p-6 sm:rounded-[24px]"
@@ -439,6 +465,11 @@ function FormShell({
         >
           {title}
         </div>
+        {confirmDiscard && (
+          <div className="mb-3 rounded-[10px] bg-[var(--tk-warn-soft)] px-3 py-2 text-[13px] font-semibold text-[var(--tk-warn)]">
+            Tap outside again to discard what you typed.
+          </div>
+        )}
         {children}
       </div>
     </div>
@@ -459,6 +490,82 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 const inputClass =
   "w-full rounded-[10px] border border-[var(--tk-line)] bg-white px-3 py-2.5 text-[15px] text-[var(--tk-ink)] focus:border-[var(--tk-charcoal)] focus:outline-none"
 
+/**
+ * Temperature input that keeps the raw typed string ("3.", "-", "-1.5") so
+ * decimals and the minus sign survive re-renders; the parent parses with
+ * Number() on save. `allowNegative` adds a +/- toggle because the iOS
+ * decimal keypad has no minus key (freezer readings sit at -18).
+ */
+function TempInput({
+  value,
+  onChange,
+  allowNegative = false,
+  placeholder,
+  autoFocus,
+}: {
+  value: string
+  onChange: (v: string) => void
+  allowNegative?: boolean
+  placeholder?: string
+  autoFocus?: boolean
+}) {
+  const handleInput = (raw: string) => {
+    // Digits, one leading minus, one decimal point.
+    let cleaned = raw.replace(/[^0-9.\-]/g, "")
+    const neg = cleaned.startsWith("-")
+    cleaned = cleaned.replace(/-/g, "")
+    const firstDot = cleaned.indexOf(".")
+    if (firstDot !== -1) {
+      cleaned =
+        cleaned.slice(0, firstDot + 1) +
+        cleaned.slice(firstDot + 1).replace(/\./g, "")
+    }
+    if (neg) cleaned = `-${cleaned}`
+    onChange(cleaned)
+  }
+
+  const handleBlur = () => {
+    const n = Number(value)
+    if (value.trim() === "" || !Number.isFinite(n)) onChange("")
+    else onChange(String(n))
+  }
+
+  const input = (
+    <input
+      inputMode="decimal"
+      className={inputClass}
+      placeholder={placeholder}
+      autoFocus={autoFocus}
+      value={value}
+      onChange={(e) => handleInput(e.target.value)}
+      onBlur={handleBlur}
+    />
+  )
+
+  if (!allowNegative) return input
+
+  return (
+    <div className="flex items-center gap-2">
+      {input}
+      <button
+        type="button"
+        onClick={() =>
+          onChange(value.startsWith("-") ? value.slice(1) : `-${value}`)
+        }
+        aria-label="Toggle minus sign for sub-zero temps"
+        className={
+          "h-11 w-11 shrink-0 rounded-[10px] border text-[15px] font-semibold tabular-nums transition active:scale-[0.96] " +
+          (value.startsWith("-")
+            ? "border-[var(--tk-charcoal)] bg-[var(--tk-charcoal)] text-white"
+            : "border-[var(--tk-line)] bg-white text-[var(--tk-ink-soft)]")
+        }
+      >
+        +/-
+      </button>
+    </div>
+  )
+}
+
 function StartForm({
   venue,
   mode,
@@ -468,6 +575,7 @@ function StartForm({
   mode: "now" | "late"
   onClose: () => void
 }) {
+  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [itemName, setItemName] = useState("")
   const [batchSize, setBatchSize] = useState("")
@@ -481,6 +589,19 @@ function StartForm({
   const [fridgeTempC, setFridgeTempC] = useState("")
   const [notes, setNotes] = useState("")
   const [error, setError] = useState<string | null>(null)
+
+  // Anything typed that a backdrop tap would throw away (the default
+  // date/time pickers don't count).
+  const dirty = [
+    itemName,
+    batchSize,
+    staffInitials,
+    startTempC,
+    twoHourTempC,
+    sixHourTempC,
+    fridgeTempC,
+    notes,
+  ].some((v) => v.trim() !== "")
 
   const submit = () => {
     setError(null)
@@ -502,9 +623,10 @@ function StartForm({
           fridgeTempC: fridgeTempC ? Number(fridgeTempC) : null,
           notes: notes || null,
         })
+        // Closing unmounts the form; refresh pulls the new entry in without
+        // a full page reload (which loses scroll mid-service on the iPad).
         onClose()
-        // Light reload so the new entry appears.
-        window.location.reload()
+        router.refresh()
       } catch (e) {
         setError(e instanceof Error ? e.message : "Save failed")
       }
@@ -515,6 +637,7 @@ function StartForm({
     <FormShell
       title={mode === "late" ? "Add previous batch" : "Start cooling"}
       onClose={onClose}
+      dirty={dirty}
     >
       <div className="space-y-3">
         <div>
@@ -563,26 +686,19 @@ function StartForm({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <FieldLabel>Start temp (°C)</FieldLabel>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.1"
-              className={inputClass}
+            <TempInput
               placeholder="65"
               value={startTempC}
-              onChange={(e) => setStartTempC(e.target.value)}
+              onChange={setStartTempC}
             />
           </div>
           <div>
             <FieldLabel>Fridge / cool room (°C)</FieldLabel>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.1"
-              className={inputClass}
+            <TempInput
               placeholder="3"
               value={fridgeTempC}
-              onChange={(e) => setFridgeTempC(e.target.value)}
+              onChange={setFridgeTempC}
+              allowNegative
             />
           </div>
         </div>
@@ -595,13 +711,10 @@ function StartForm({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <FieldLabel>Temp (°C)</FieldLabel>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.1"
-                  className={inputClass}
+                <TempInput
                   value={twoHourTempC}
-                  onChange={(e) => setTwoHourTempC(e.target.value)}
+                  onChange={setTwoHourTempC}
+                  allowNegative
                 />
               </div>
               <div>
@@ -620,13 +733,10 @@ function StartForm({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <FieldLabel>Temp (°C)</FieldLabel>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.1"
-                  className={inputClass}
+                <TempInput
                   value={sixHourTempC}
-                  onChange={(e) => setSixHourTempC(e.target.value)}
+                  onChange={setSixHourTempC}
+                  allowNegative
                 />
               </div>
               <div>
@@ -680,6 +790,7 @@ function CheckpointForm({
   checkpoint: "TWO_HOUR" | "SIX_HOUR"
   onClose: () => void
 }) {
+  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [tempC, setTempC] = useState("")
   const [at, setAt] = useState(nowLocalIso())
@@ -690,6 +801,8 @@ function CheckpointForm({
 
   const target = checkpoint === "TWO_HOUR" ? "≤ 21 °C" : "≤ 5 °C"
   const title = checkpoint === "TWO_HOUR" ? "2-hour check" : "6-hour check"
+
+  const dirty = [tempC, fridgeTempC, notes].some((v) => v.trim() !== "")
 
   const submit = () => {
     setError(null)
@@ -706,7 +819,7 @@ function CheckpointForm({
           notes: notes || null,
         })
         onClose()
-        window.location.reload()
+        router.refresh()
       } catch (e) {
         setError(e instanceof Error ? e.message : "Save failed")
       }
@@ -718,7 +831,7 @@ function CheckpointForm({
       try {
         await deleteCoolingLog(log.id)
         onClose()
-        window.location.reload()
+        router.refresh()
       } catch (e) {
         setError(e instanceof Error ? e.message : "Delete failed")
       }
@@ -726,23 +839,20 @@ function CheckpointForm({
   }
 
   return (
-    <FormShell title={`${title} — ${log.itemName}`} onClose={onClose}>
+    <FormShell title={`${title}: ${log.itemName}`} onClose={onClose} dirty={dirty}>
       <div className="space-y-3">
         <div className="rounded-[10px] bg-[var(--tk-bg)] px-3 py-2 text-[13px] text-[var(--tk-ink-soft)]">
-          Target {target}. Reading auto-uses now — adjust only if you took the
+          Target {target}. Reading auto-uses now, adjust only if you took the
           temp earlier.
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <FieldLabel>Temperature (°C)</FieldLabel>
-            <input
+            <TempInput
               autoFocus
-              type="number"
-              inputMode="decimal"
-              step="0.1"
-              className={inputClass}
               value={tempC}
-              onChange={(e) => setTempC(e.target.value)}
+              onChange={setTempC}
+              allowNegative
             />
           </div>
           <div>
@@ -757,13 +867,10 @@ function CheckpointForm({
         </div>
         <div>
           <FieldLabel>Fridge / cool room temp (°C)</FieldLabel>
-          <input
-            type="number"
-            inputMode="decimal"
-            step="0.1"
-            className={inputClass}
+          <TempInput
             value={fridgeTempC}
-            onChange={(e) => setFridgeTempC(e.target.value)}
+            onChange={setFridgeTempC}
+            allowNegative
           />
         </div>
         <div>

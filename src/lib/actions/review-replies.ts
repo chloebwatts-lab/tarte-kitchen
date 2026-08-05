@@ -3,8 +3,8 @@
 /**
  * Server actions for the /reviews dashboard's inline reply UI.
  *
- *   approveReply(id, editedText?)  — edit-then-post in one motion
- *   skipReply(id)                  — mark SKIPPED, no post
+ *   approveReply(id, editedText?) , edit-then-post in one motion
+ *   skipReply(id)                 , mark SKIPPED, no post
  *
  * Mirrors the email-link handler in /api/reviews/reply, but takes a
  * review id (not a per-row token) since the dashboard already

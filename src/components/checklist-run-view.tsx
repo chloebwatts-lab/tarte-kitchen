@@ -257,8 +257,8 @@ export function ChecklistRunView({
             <CardContent className="py-4 text-center text-sm text-green-text">
               <CheckCircle2 className="mx-auto mb-1 h-6 w-6" />
               {isDone
-                ? "All checked — this run is logged for compliance."
-                : `Submitted — ${completed} of ${items.length} items completed.`}
+                ? "All checked, this run is logged for compliance."
+                : `Submitted: ${completed} of ${items.length} items completed.`}
             </CardContent>
           </Card>
 

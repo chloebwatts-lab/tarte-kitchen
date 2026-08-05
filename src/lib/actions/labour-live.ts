@@ -72,7 +72,7 @@ export async function getLiveLabourSnapshot(
   // LabourShift.shiftStart is a real UTC instant. weekStart / weekEnd are
   // UTC midnights whose calendar date matches the AEST Wed (the DB
   // convention used by DATE columns like weekStartWed). AEST Wed 00:00 is
-  // actually UTC Tue 14:00 — 10 hours earlier — so to filter shifts by
+  // actually UTC Tue 14:00: 10 hours earlier, so to filter shifts by
   // the trading day we need the instant-corrected bounds, otherwise we
   // both miss last week's early-AM Wed bakery shifts and sweep in this
   // week's Wed-morning roster as "future" labour for the prior week.
@@ -144,7 +144,7 @@ export async function getLiveLabourSnapshot(
   }
   const lockedDays = days.filter((d) => d < todayAest)
   const remainingDays = days.filter((d) => d > todayAest)
-  // todayAest itself is "running" — locked-as-of-now revenue, plus
+  // todayAest itself is "running", locked-as-of-now revenue, plus
   // labour accruing per timesheet rows.
 
   const venues: LiveVenueSnapshot[] = SINGLE_VENUES.map((venue) => {
@@ -175,8 +175,8 @@ export async function getLiveLabourSnapshot(
         bucketSpent[bucket] += cost
       } else {
         // ROSTER rows: two reasons to include in the projection.
-        //   1. Shift hasn't started yet — it's genuinely "remaining".
-        //   2. Salary X placeholder — represents a weekly fixed cost
+        //   1. Shift hasn't started yet, it's genuinely "remaining".
+        //   2. Salary X placeholder, represents a weekly fixed cost
         //      that doesn't have a matching Timesheet row, so without
         //      this we'd under-count by the salaried staff's wages.
         const isSalaryPlaceholder = s.area?.toLowerCase().startsWith("salary") ?? false
@@ -205,12 +205,12 @@ export async function getLiveLabourSnapshot(
     const todayDow = todayDate.getUTCDay()
 
     // Forecast for the remaining days, in priority order:
-    //   1. Day-of-week median from the prior 4 Tarte weeks — handles the
+    //   1. Day-of-week median from the prior 4 Tarte weeks, handles the
     //      Mon-and-Tue-are-slow-days reality. Best accuracy when we have
     //      historical data.
-    //   2. Manager's Deputy forecast pro-rated equally — fallback when
+    //   2. Manager's Deputy forecast pro-rated equally, fallback when
     //      we don't have enough history.
-    //   3. Average of locked days — last-resort fallback.
+    //   3. Average of locked days, last-resort fallback.
     const venueHistory = history.filter((h) => h.venue === venue)
     const historyByDow = new Map<number, number[]>()
     for (const h of venueHistory) {

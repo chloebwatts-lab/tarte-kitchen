@@ -77,7 +77,7 @@ function ymd(d: Date): string {
  *
  * Weekly/monthly runs are cycle-anchored (not stamped with the day they
  * happened to be started) so a part-done list stays open and continuable
- * for the whole cycle — you chip items off across days against one run —
+ * for the whole cycle, you chip items off across days against one run,
  * instead of looking "not started" again the next morning.
  */
 function cycleAnchor(cadence: ChecklistCadence, ref?: Date): Date {
@@ -110,10 +110,13 @@ function distinctAnchorDates(): Date[] {
 export async function listChecklistTemplates(params?: {
   venue?: Venue | "ALL"
 }): Promise<ChecklistTemplateSummary[]> {
-  const venueFilter =
-    !params?.venue || params.venue === "ALL"
-      ? {}
-      : { venue: { in: [params.venue, "BOTH"] as Venue[] } }
+  // The single venue being displayed, when the caller asked for one (the
+  // /kitchen tiles). null = the ALL view on /checklists.
+  const displayVenue =
+    !params?.venue || params.venue === "ALL" ? null : params.venue
+  const venueFilter = displayVenue
+    ? { venue: { in: [displayVenue, "BOTH"] as Venue[] } }
+    : {}
   const templates = await db.checklistTemplate.findMany({
     where: { isActive: true, ...venueFilter },
     include: {
@@ -121,8 +124,15 @@ export async function listChecklistTemplates(params?: {
       runs: {
         // Pull runs for every cadence's current anchor (today / this Monday /
         // the 1st); each template then picks the one matching its own cadence.
-        where: { runDate: { in: distinctAnchorDates() } },
+        // Scoped to the displayed venue so a BOTH-venue template's tile never
+        // shows the OTHER venue's progress, and ordered deterministically so
+        // repeat renders always pick the same run.
+        where: {
+          runDate: { in: distinctAnchorDates() },
+          ...(displayVenue ? { venue: displayVenue } : {}),
+        },
         include: { _count: { select: { items: true } }, items: { select: { checkedAt: true } } },
+        orderBy: [{ venue: "asc" }, { shift: "asc" }, { createdAt: "asc" }],
         take: 10,
       },
     },
@@ -134,7 +144,15 @@ export async function listChecklistTemplates(params?: {
     // The run for THIS cadence's current cycle (weekly/monthly stay open all
     // cycle; daily is still just today). `todayRun` kept as the field name so
     // existing callers (/checklists, /kitchen) don't need to change.
-    const currentRun = t.runs.find((r) => ymd(r.runDate) === ymd(anchor)) ?? null
+    // Match the template's shift too, so an AM template never surfaces a PM
+    // run's progress. Runs started before shift was threaded through carry
+    // ANY, which stays acceptable for any template shift.
+    const currentRun =
+      t.runs.find(
+        (r) =>
+          ymd(r.runDate) === ymd(anchor) &&
+          (r.shift === t.shift || r.shift === "ANY")
+      ) ?? null
     const completed = currentRun
       ? currentRun.items.filter((i) => i.checkedAt !== null).length
       : 0

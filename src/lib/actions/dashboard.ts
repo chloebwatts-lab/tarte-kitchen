@@ -45,7 +45,7 @@ export interface DashboardHighlights {
 export async function getDashboardHighlights(): Promise<DashboardHighlights> {
   const now = new Date()
 
-  // Today (AEST date in UTC label) — DailySalesSummary.date is stored as
+  // Today (AEST date in UTC label): DailySalesSummary.date is stored as
   // a UTC midnight matching the AEST calendar day.
   const aestNow = new Date(now.getTime() + 10 * 60 * 60 * 1000)
   const todayKey = aestNow.toISOString().split("T")[0]
@@ -188,7 +188,7 @@ export async function getDashboardHighlights(): Promise<DashboardHighlights> {
       if (avg <= 0) continue
       const pctIncrease = ((latestAmount - avg) / avg) * 100
       if (pctIncrease < 25) continue
-      if (latestAmount - avg < 50) continue // ignore <$50 deltas — noise
+      if (latestAmount - avg < 50) continue // ignore <$50 deltas, noise
       if (!bestSpike || pctIncrease > bestSpike.pctIncrease) {
         const venueShort = VENUE_SHORT_LABEL[venue as SingleVenue]
         const latestEnd = new Date(latestWeek)
@@ -253,7 +253,7 @@ export async function getDashboardStats() {
     db.preparation.count(),
   ])
 
-  // Invoice tables may not exist yet — guard against missing tables
+  // Invoice tables may not exist yet, guard against missing tables
   let invoiceAlertCount = 0
   let recentInvoices: Array<{ id: string; supplier: { name: string } | null; invoiceNumber: string | null; totalAmount: unknown; status: string; createdAt: Date }> = []
   try {
@@ -274,7 +274,7 @@ export async function getDashboardStats() {
       createdAt: r.createdAt,
     }))
   } catch {
-    // Invoice tables not yet migrated — skip
+    // Invoice tables not yet migrated, skip
   }
 
   const totalMenuItems = dishes.length

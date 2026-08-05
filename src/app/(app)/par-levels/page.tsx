@@ -12,7 +12,7 @@ export default async function ParLevelsPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           Suggested par per venue, computed from the last 4 weeks of
           theoretical usage × supplier delivery-cadence multiplier, rounded
-          up to whole packs. Edit anything, then save — anything you save
+          up to whole packs. Edit anything, then save, anything you save
           flips the source to MANUAL and won&apos;t be overwritten by future
           suggestion re-runs.
         </p>

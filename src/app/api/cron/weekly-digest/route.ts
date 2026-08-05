@@ -6,11 +6,11 @@ export const maxDuration = 300
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 })
   }
 
-  // SENSITIVE — the digest includes P&L, supplier price detail, wastage,
+  // SENSITIVE, the digest includes P&L, supplier price detail, wastage,
   // staff feedback. Owner mailbox only. See tarte_recipients.md memory.
   const recipient =
     process.env.WEEKLY_DIGEST_RECIPIENT ||

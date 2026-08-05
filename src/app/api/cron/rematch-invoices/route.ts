@@ -19,7 +19,7 @@ export const maxDuration = 1500
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 })
   }
   const url = new URL(req.url)
@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
             suggestedConversionFactor = evaluation.suggestedConversionFactor
             normalisedUnitPrice = evaluation.normalisedUnitPrice
             // Produce never enters the unit-review queue (standing rule
-            // 2026-07-15) — the processor suppresses this; the rematch
+            // 2026-07-15), the processor suppresses this; the rematch
             // path must too or produce piles back in nightly.
             if (unitChanged && streamForCategory(ing.category) === "PRODUCE") {
               unitChanged = false

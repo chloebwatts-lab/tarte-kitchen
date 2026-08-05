@@ -27,19 +27,19 @@ export interface SupplierReply {
 
 export interface SupplierRepliesResult {
   connected: boolean
-  /** Gmail account used for the query — useful when staff hot-swap accounts. */
+  /** Gmail account used for the query, useful when staff hot-swap accounts. */
   account: string | null
   daysBack: number
   domainsSearched: string[]
   replies: SupplierReply[]
-  /** Set when the Gmail call threw — surfaces the reason without crashing the page. */
+  /** Set when the Gmail call threw, surfaces the reason without crashing the page. */
   error: string | null
 }
 
 /**
  * Pull recent emails from supplier domains so the user can scan for
  * price-quote replies without leaving the app. Domains are derived
- * from the live Supplier table — whatever's in `Supplier.email`
+ * from the live Supplier table, whatever's in `Supplier.email`
  * becomes a domain filter. That way new suppliers don't need a code
  * change to start showing up here.
  */
@@ -72,7 +72,7 @@ export async function getSupplierReplies(params?: {
   for (const s of suppliers) {
     const domain = s.email?.split("@")[1]?.toLowerCase().trim()
     if (!domain) continue
-    // Skip Google's catch-all and personal domains — they'd return too
+    // Skip Google's catch-all and personal domains, they'd return too
     // much noise (a personal gmail contact ≠ a supplier).
     if (
       domain === "gmail.com" ||

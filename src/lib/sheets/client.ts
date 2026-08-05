@@ -1,5 +1,5 @@
 /**
- * Google Sheets API client — uses the same OAuth token as Gmail.
+ * Google Sheets API client, uses the same OAuth token as Gmail.
  * Requires the token to have spreadsheets.readonly scope.
  */
 

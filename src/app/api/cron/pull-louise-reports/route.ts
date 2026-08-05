@@ -58,7 +58,7 @@ interface AttachmentOutcome {
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 })
   }
 
@@ -67,9 +67,18 @@ export async function GET(req: NextRequest) {
     const messages = await searchMessages(accessToken, SEARCH_QUERY, 5)
 
     if (messages.length === 0) {
-      // Quiet success — nothing to do. Don't email; cron runs weekly so
-      // a missing report is noise unless we explicitly want to chase it.
-      return Response.json({ ok: true, messagesFound: 0 })
+      // No Reports email this week. Tell Chloe so she can chase Louise or
+      // upload manually; a silent skip meant Friday's digest quietly ran
+      // without actuals.
+      const noReportText =
+        "Heads up, the Thursday auto-pull didn't find a Reports email from Louise this week, so Friday's digest may be missing the wages and COGS actuals. If she's sent it somewhere else, forward it to accounts@ or upload the files at https://kitchen.tarte.com.au/labour/upload and the digest will pick them up."
+      await sendHtmlEmail({
+        to: NOTIFY_RECIPIENT,
+        subject: "Tarte: no Reports email from Louise this week",
+        html: `<p>Heads up, the Thursday auto-pull didn't find a Reports email from Louise this week, so Friday's digest may be missing the wages and COGS actuals. If she's sent it somewhere else, forward it to accounts@ or upload the files at <a href="https://kitchen.tarte.com.au/labour/upload">kitchen.tarte.com.au/labour/upload</a> and the digest will pick them up.</p>`,
+        text: noReportText,
+      })
+      return Response.json({ ok: true, messagesFound: 0, notified: true })
     }
 
     const allOutcomes: Array<{
@@ -116,7 +125,7 @@ export async function GET(req: NextRequest) {
         text: `Auto-pull failed: ${errMsg}\nUpload manually at https://kitchen.tarte.com.au/labour/upload`,
       })
     } catch {
-      // Notification itself failed — just log and surface.
+      // Notification itself failed, just log and surface.
       console.error("Failed to send failure notification", e)
     }
     return Response.json({ error: errMsg }, { status: 500 })
@@ -150,12 +159,12 @@ async function ingestOne(
     }
   }
 
-  // Idempotency check — skip if we've already ingested THIS attachment
+  // Idempotency check, skip if we've already ingested THIS attachment
   // (by its full tagged filename). Bug fix 2026-05-21: previous version
   // matched on `startsWith: tag`, which silently dropped the 2nd, 3rd…
   // attachment of any email that bundled multiple files of the same kind
   // (e.g. Louise's Thursday email packs Burleigh + Currumbin + Tea Garden
-  // labour PDFs *and* two COGS xlsx — only the first of each kind was
+  // labour PDFs *and* two COGS xlsx, only the first of each kind was
   // ingested, the rest were marked "duplicate"). Matching the full
   // filename means each attachment dedupes against itself only.
   if (kind === "labour-pdf") {
@@ -201,7 +210,7 @@ async function ingestOne(
           filename: origFilename,
           kind,
           status: "failed",
-          error: `${missing.length}/${weeks.length} week(s) missing venue or week-start — needs manual review`,
+          error: `${missing.length}/${weeks.length} week(s) missing venue or week-start, needs manual review`,
         }
       }
       const res = await commitLabourMgePdf({
@@ -226,7 +235,7 @@ async function ingestOne(
         filename: origFilename,
         kind,
         status: "failed",
-        error: `${missing.length}/${weeks.length} COGS week(s) missing venue or week-start — needs manual review`,
+        error: `${missing.length}/${weeks.length} COGS week(s) missing venue or week-start, needs manual review`,
       }
     }
     const res = await commitCogsXlsx({
@@ -281,7 +290,7 @@ async function sendNotification(
   summary: ReturnType<typeof summarise>
 ) {
   // Skip the email when every attachment is a duplicate from a previous
-  // run — that's just the cron checking idempotently, no news for Chloe.
+  // run, that's just the cron checking idempotently, no news for Chloe.
   if (
     summary.ingested === 0 &&
     summary.failed === 0 &&
@@ -293,7 +302,7 @@ async function sendNotification(
 
   const hasFailure = summary.failed > 0 || summary.unknown > 0
   const subject = hasFailure
-    ? `Tarte: Louise's reports auto-pull — ${summary.failed + summary.unknown} need your eyes`
+    ? `Tarte: Louise's reports auto-pull: ${summary.failed + summary.unknown} need your eyes`
     : `Tarte: Louise's reports ingested (${summary.ingested}/${summary.attachmentsTotal})`
 
   const rows = allOutcomes

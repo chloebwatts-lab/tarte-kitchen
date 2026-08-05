@@ -80,7 +80,7 @@ function DraftCountView({ detail, ingredients }: Props) {
       const c = counts[ing.id]
       if (!c || !c.qty) return sum
       const qty = parseFloat(c.qty) || 0
-      const normalised = normaliseQty(qty, c.unit, ing.baseUnitType)
+      const normalised = normaliseQty(qty, c.unit, ing)
       const unitCost =
         ing.baseUnitsPerPurchase > 0
           ? ing.purchasePrice / ing.baseUnitsPerPurchase
@@ -90,18 +90,15 @@ function DraftCountView({ detail, ingredients }: Props) {
   }, [ingredients, counts])
 
   function updateCount(id: string, patch: Partial<LocalCount>) {
-    setCounts((prev) => ({
-      ...prev,
-      [id]: {
+    setCounts((prev) => {
+      const base: LocalCount = prev[id] ?? {
         qty: "",
         unit: ingredients.find((i) => i.id === id)?.baseUnitLabel ?? "g",
         note: "",
         dirty: true,
-        ...(prev[id] ?? {}),
-        ...patch,
-        dirty: true,
-      },
-    }))
+      }
+      return { ...prev, [id]: { ...base, ...patch, dirty: true } }
+    })
   }
 
   async function saveAll(submit: boolean) {
@@ -142,7 +139,7 @@ function DraftCountView({ detail, ingredients }: Props) {
             Back to stocktakes
           </Link>
           <h1 className="mt-1 font-serif text-2xl font-semibold tracking-tight">
-            Stocktake — {formatDate(detail.date)}
+            Stocktake: {formatDate(detail.date)}
           </h1>
           <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
             <Badge variant="outline">{VENUE_SHORT_LABEL[detail.venue] ?? detail.venue}</Badge>
@@ -298,7 +295,7 @@ function CountRow({
   const unit = value?.unit ?? ing.baseUnitLabel
   const note = value?.note ?? ""
   const qtyNum = parseFloat(qty) || 0
-  const baseQty = qtyNum > 0 ? normaliseQty(qtyNum, unit, ing.baseUnitType) : 0
+  const baseQty = qtyNum > 0 ? normaliseQty(qtyNum, unit, ing) : 0
   const unitCost =
     ing.baseUnitsPerPurchase > 0
       ? ing.purchasePrice / ing.baseUnitsPerPurchase
@@ -384,7 +381,7 @@ function SubmittedView({ detail }: { detail: StocktakeDetail }) {
           Back to stocktakes
         </Link>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-          Stocktake — {formatDate(detail.date)}
+          Stocktake: {formatDate(detail.date)}
         </h1>
         <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
           <Badge variant="outline">{VENUE_SHORT_LABEL[detail.venue] ?? detail.venue}</Badge>
@@ -437,13 +434,13 @@ function SubmittedView({ detail }: { detail: StocktakeDetail }) {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium">
-            Variance — biggest movers first
+            Variance, biggest movers first
           </CardTitle>
         </CardHeader>
         <CardContent>
           {flagged.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              No variance data yet — this needs a previous submitted stocktake
+              No variance data yet, this needs a previous submitted stocktake
               at the same venue to compute expected stock.
             </p>
           ) : (
@@ -525,19 +522,28 @@ function formatDate(iso: string) {
   })
 }
 
-function normaliseQty(
-  qty: number,
-  unit: string,
-  baseType: "WEIGHT" | "VOLUME" | "COUNT"
-) {
-  const u = unit.toLowerCase()
-  if (baseType === "WEIGHT") {
+// Mirrors normaliseToBaseUnits in src/lib/actions/stocktake.ts so the live
+// $ preview matches what the server persists. For pack-named units (the
+// ingredient's purchaseUnit, e.g. "carton"), one purchase unit holds
+// baseUnitsPerPurchase / purchaseQuantity base units.
+function normaliseQty(qty: number, unit: string, ing: StocktakeIngredient) {
+  const u = unit.trim().toLowerCase()
+  if (ing.baseUnitType === "WEIGHT") {
     if (u === "kg") return qty * 1000
     return qty
   }
-  if (baseType === "VOLUME") {
+  if (ing.baseUnitType === "VOLUME") {
     if (u === "l") return qty * 1000
     return qty
   }
+  if (u === "ea" || u === "each") return qty
+  if (
+    u === ing.purchaseUnit.trim().toLowerCase() &&
+    ing.baseUnitsPerPurchase > 0 &&
+    ing.purchaseQuantity > 0
+  ) {
+    return qty * (ing.baseUnitsPerPurchase / ing.purchaseQuantity)
+  }
+  if (u === "dozen") return qty * 12
   return qty
 }

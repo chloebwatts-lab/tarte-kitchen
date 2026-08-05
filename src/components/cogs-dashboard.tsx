@@ -92,7 +92,7 @@ function buildPatternExplanation(
   const topCat = categoryDeltas[0]
   if (topCat && Math.abs(topCat.delta) > 100) {
     parts.push(
-      `${topCat.label} is the main driver — ` +
+      `${topCat.label} is the main driver, ` +
         `${topCat.delta > 0 ? "up" : "down"} $${Math.abs(Math.round(topCat.delta))} vs the prior 4 weeks.`
     )
   }
@@ -101,11 +101,11 @@ function buildPatternExplanation(
   const spikes = suppliers.filter((s) => s.spike).slice(0, 2)
   if (spikes.length > 0) {
     parts.push(
-      `Watch ${spikes.map((s) => s.supplier).join(" + ")} — spending jumped >25% vs the 4-wk avg.`
+      `Watch ${spikes.map((s) => s.supplier).join(" + ")}, spending jumped >25% vs the 4-wk avg.`
     )
   } else if (priorAvg !== null && latest.cogsPct - priorAvg > 1) {
     parts.push(
-      "No single supplier is spiking, so the lift is spread across the order — tighten par levels on the top categories."
+      "No single supplier is spiking, so the lift is spread across the order, tighten par levels on the top categories."
     )
   }
 
@@ -305,7 +305,7 @@ export function CogsDashboard({ initial }: { initial: CogsDashboardData }) {
             </div>
             {venue === "BEACH_HOUSE" && (
               <p className="mt-3 text-[11px] italic text-muted-foreground">
-                Beach House COGS covers Beach House + Tea Garden combined — stock is
+                Beach House COGS covers Beach House + Tea Garden combined, stock is
                 purchased jointly for both venues.
               </p>
             )}
@@ -316,7 +316,7 @@ export function CogsDashboard({ initial }: { initial: CogsDashboardData }) {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium">
-            Category mix — last {initial.weeks.length} weeks ·{" "}
+            Category mix, last {initial.weeks.length} weeks ·{" "}
             <span style={{ color: VENUE_CHART_COLOR[venue] }}>
               {VENUE_SHORT_LABEL[venue]}
             </span>
@@ -387,7 +387,7 @@ export function CogsDashboard({ initial }: { initial: CogsDashboardData }) {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium">
-            Total COGS % — all venues
+            Total COGS %, all venues
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -437,7 +437,7 @@ export function CogsDashboard({ initial }: { initial: CogsDashboardData }) {
         <CardContent>
           {suppliers.length === 0 ? (
             <div className="py-6 text-center text-xs text-muted-foreground">
-              No supplier lines yet — upload a COGS xlsx to populate.
+              No supplier lines yet, upload a COGS xlsx to populate.
             </div>
           ) : (
             <div className="overflow-x-auto">

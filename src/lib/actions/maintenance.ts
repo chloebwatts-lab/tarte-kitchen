@@ -133,7 +133,7 @@ export interface MarkFixedInput {
 export async function markIssueFixed(input: MarkFixedInput) {
   if (!input.fixedBy.trim()) throw new Error("Name is required")
   if (!input.fixSummary.trim())
-    throw new Error("Say what fixed it — that's the whole point of the history")
+    throw new Error("Say what fixed it, that's the whole point of the history")
   const issue = await db.maintenanceIssue.update({
     where: { id: input.issueId },
     data: {

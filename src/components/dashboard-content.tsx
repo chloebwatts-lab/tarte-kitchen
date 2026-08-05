@@ -22,6 +22,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { VENUE_SHORT_LABEL } from "@/lib/venues"
+import type { Venue } from "@/generated/prisma/client"
+
+const MENU_CATEGORY_LABEL: Record<string, string> = {
+  BREAKFAST: "Breakfast",
+  LUNCH: "Lunch",
+  SIDES: "Sides",
+  DRINKS: "Drinks",
+  KIDS: "Kids",
+  DESSERT: "Dessert",
+  PASTRY: "Pastry",
+  SPECIAL: "Special",
+  OTHER: "Other",
+}
 
 interface DashboardDish {
   id: string
@@ -269,7 +283,7 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
           </CardHeader>
           <CardContent>
             {stats.itemsAbove35.length === 0 ? (
-              <p className="text-sm text-muted-foreground">All items are within target — nice work!</p>
+              <p className="text-sm text-muted-foreground">All items are within target. Nice work!</p>
             ) : (
               <div className="space-y-3">
                 {stats.itemsAbove35.map((item) => (
@@ -281,7 +295,9 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
                       >
                         {item.name}
                       </Link>
-                      <p className="text-xs text-muted-foreground">{item.venue}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {VENUE_SHORT_LABEL[item.venue as Venue] ?? item.venue}
+                      </p>
                     </div>
                     <Badge variant="red">{item.foodCostPercentage.toFixed(1)}%</Badge>
                   </div>
@@ -441,8 +457,12 @@ export function DashboardContent({ stats }: { stats: DashboardStats }) {
                       {dish.name}
                     </Link>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] text-muted-foreground">{dish.venue}</span>
-                      <span className="text-[10px] text-muted-foreground">{dish.menuCategory}</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {VENUE_SHORT_LABEL[dish.venue as Venue] ?? dish.venue}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {MENU_CATEGORY_LABEL[dish.menuCategory] ?? dish.menuCategory}
+                      </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">

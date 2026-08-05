@@ -13,7 +13,7 @@ export interface TopSeller {
 export interface VenueSalesSnapshot {
   venue: Venue
   today: { revenueExGst: number; covers: number; averageSpend: number } | null
-  /** Current Tarte trading week (Wed→Tue) to date — matches the weekly digest framing. */
+  /** Current Tarte trading week (Wed→Tue) to date, matches the weekly digest framing. */
   thisWeek: {
     revenueExGst: number
     covers: number

@@ -17,7 +17,7 @@ export interface ReviewTagging {
   summary: string
 }
 
-const SYSTEM_PROMPT = `You are tagging Google reviews for a small group of cafes (Tarte Bakery, Beach House, Tea Garden — Gold Coast, AU). Output strict JSON only — no preamble, no code fences, no commentary.
+const SYSTEM_PROMPT = `You are tagging Google reviews for a small group of cafes (Tarte Bakery, Beach House, Tea Garden: Gold Coast, AU). Output strict JSON only, no preamble, no code fences, no commentary.
 
 Schema:
 {

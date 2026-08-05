@@ -1,5 +1,5 @@
 /**
- * Friday weekly digest — produces a polished HTML email for Chloe.
+ * Friday weekly digest, produces a polished HTML email for Chloe.
  *
  * Two-stage design:
  *   1. Aggregator (this file's `buildWeeklyDigestSnapshot`) does the maths.
@@ -9,7 +9,7 @@
  *      structured data, so the layout is reliable and the AI never
  *      hand-writes tables/HTML.
  *
- * Recipient is owner-only — never accounts@. See tarte_recipients.md.
+ * Recipient is owner-only, never accounts@. See tarte_recipients.md.
  */
 
 import Anthropic from "@anthropic-ai/sdk"
@@ -25,7 +25,7 @@ import {
   type DigestNarrative,
 } from "./html-renderer"
 
-const NARRATIVE_SYSTEM = `You write the narrative bits for Tarte Kitchen's Friday weekly digest. The renderer lays out tables, tiles and structure separately — your job is JUST the prose. Output strict JSON only — no preamble, no code fences.
+const NARRATIVE_SYSTEM = `You write the narrative bits for Tarte Kitchen's Friday weekly digest. The renderer lays out tables, tiles and structure separately, your job is JUST the prose. Output strict JSON only, no preamble, no code fences.
 
 Schema:
 {
@@ -39,18 +39,18 @@ Schema:
     "topSellers"?: string,
     "reviews"?: string,       // if responseWatch shows unanswered negatives or median response over 2 days, lead with that
     "operations"?: string,  // 1-2 sentences on checklist completion + any temp/cooling breaches. Lead with breaches if any.
-    "commitments"?: string  // Said + Done tracker incl. meeting actions. Only if something is overdue or a standing commitment slipped 2+ weeks — name it plainly, no scolding tone.
+    "commitments"?: string  // Said + Done tracker incl. meeting actions. Only if something is overdue or a standing commitment slipped 2+ weeks, name it plainly, no scolding tone.
   },
   "actionItems": string[]       // 3-6 concrete actions ranked by impact
 }
 
 Tone rules:
 - Owner-to-owner. Confident, direct, plain English. No "great week!" filler.
-- Reference specific numbers from the data (the renderer is already showing tables — your prose should call out the most important number in each section).
-- If a section has no data, set its note to a short explanation ("No POS sync this week — labour ratio can't be cross-checked.") so the reader knows why it's empty rather than guessing.
+- Reference specific numbers from the data (the renderer is already showing tables, your prose should call out the most important number in each section).
+- If a section has no data, set its note to a short explanation ("No POS sync this week, labour ratio can't be cross-checked.") so the reader knows why it's empty rather than guessing.
 - Negative news first within each section if relevant.
 - Phone-readable: keep each section note under ~30 words. Headline under 50.
-- Action items: each one specific and doable this week (e.g. "Re-quote olive oil — Bidfood up 18% since April"). Avoid generic advice ("monitor wastage closely").`
+- Action items: each one specific and doable this week (e.g. "Re-quote olive oil: Bidfood up 18% since April"). Avoid generic advice ("monitor wastage closely").`
 
 async function generateNarrative(
   snapshot: WeeklyDigestSnapshot

@@ -4,7 +4,7 @@
  * `src/lib/weekly-digest/aggregator.ts` so the live tracker and the
  * Friday digest grade themselves against the same numbers.
  *
- * Areas not listed here fall through to "other" — usually the salary
+ * Areas not listed here fall through to "other", usually the salary
  * placeholders themselves (kept in their bucket explicitly) or admin
  * roles that aren't part of dept-bucket targets.
  */
@@ -25,7 +25,7 @@ export interface BucketTarget {
  * sits in its own LabourWeekActual row. We credit this share of TG's ex-GST
  * revenue into the Beach House pastry denominator so Pastry % reflects the
  * revenue that team's output actually drives, instead of looking chronically
- * over target. Only applied to the Beach House Pastry bucket — all other
+ * over target. Only applied to the Beach House Pastry bucket, all other
  * buckets and venues use their own venue revenue. Source: Chris, 2026-06-06.
  */
 export const TG_PASTRY_REVENUE_SHARE = 0.5
@@ -98,7 +98,7 @@ export function bucketTargets(venue: Venue): BucketTarget[] {
       { key: "pastry", label: "Pastry", min: 2.5, max: 3.0 },
     ]
   }
-  // Tea Garden — no targets configured yet (only FOH mapped, kitchen
+  // Tea Garden, no targets configured yet (only FOH mapped, kitchen
   // shared with Beach House). Returning an empty list hides the cards
   // until the venue has its own banding.
   return []
@@ -110,7 +110,7 @@ export function bucketTargets(venue: Venue): BucketTarget[] {
  *   - "amber" when within 0.5pp of the max
  *   - "red" beyond +0.5pp
  *   - "no-target" when no band is configured (e.g. Tea Garden)
- * One-sided like the digest — under-band is a win, not a flag.
+ * One-sided like the digest, under-band is a win, not a flag.
  */
 export function bucketStatus(
   pct: number | null,

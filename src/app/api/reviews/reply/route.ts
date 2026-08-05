@@ -1,11 +1,15 @@
 /**
- * /api/reviews/reply — review-reply approval handler (links in approval emails).
+ * /api/reviews/reply, review-reply approval handler (links in approval emails).
  *
- * GET ?token=X&action=approve  → mark APPROVED + post to GBP (or fallback)
- * GET ?token=X&action=skip     → mark SKIPPED
+ * GET ?token=X&action=approve  → render confirmation page (form POSTs back)
+ * GET ?token=X&action=skip     → render confirmation page (form POSTs back)
  * GET ?token=X&action=edit     → render edit page (form POSTs back here)
- * POST ?token=X                → read editedReply from form, run approve
- *                                flow with the edited text
+ * POST                         → perform the approve/skip (token + action in
+ *                                the form body; edit page sends editedReply)
+ *
+ * GET never mutates: email scanners follow links, so a bare GET must not
+ * post a reply to Google or resolve the review. All side effects live in
+ * the POST handler, reached via the confirmation forms.
  *
  * Linked from email, so output is HTML pages, not JSON.
  */
@@ -33,7 +37,7 @@ function htmlPage(title: string, body: string): NextResponse {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${title} — Tarte Kitchen</title>
+  <title>${title}: Tarte Kitchen</title>
   <style>
     body{margin:0;padding:40px 24px;background:#f5f0e8;font-family:sans-serif;color:#1f1d1a;}
     .card{max-width:560px;margin:0 auto;background:#fff;border:1px solid #d9d2c4;border-radius:10px;padding:32px;}
@@ -96,6 +100,17 @@ function alreadyActionedPage(review: { replyStatus: string | null; replyPostedAt
       <a class="btn" href="https://kitchen.tarte.com.au/reviews">View reviews</a>`
     )
   }
+  // Single-use semantics: the only actionable state is a pending draft
+  // (DRAFTED or legacy null). Anything else means the token was already
+  // consumed, so reject rather than fall through to the action.
+  if (review.replyStatus !== null && review.replyStatus !== "DRAFTED") {
+    return htmlPage(
+      "Link already used",
+      `<h2>Link already used</h2>
+      <p>This review has already been actioned.</p>
+      <a class="btn" href="https://kitchen.tarte.com.au/reviews">View reviews</a>`
+    )
+  }
   return null
 }
 
@@ -131,14 +146,14 @@ async function runApprove(
       "Reply posted",
       `<h2>Reply posted to Google ✓</h2>
       <span class="tag green">Posted</span>
-      <p>${venueName} · ${review.rating}/5${review.authorName ? ` · ${review.authorName}` : ""}</p>
+      <p>${escapeHtml(venueName)} · ${review.rating}/5${review.authorName ? ` · ${escapeHtml(review.authorName)}` : ""}</p>
       <p>Your reply is now live on Google:</p>
       <div class="reply-box">${escapeHtml(replyText)}</div>
       <a class="btn" href="https://kitchen.tarte.com.au/reviews">View reviews</a>`
     )
   }
 
-  // GBP post failed — show the text with one-click copy + direct link to Google reviews.
+  // GBP post failed, show the text with one-click copy + direct link to Google reviews.
   const placeId = PLACE_IDS[review.venue]
   const googleUrl = placeId
     ? `https://search.google.com/local/reviews?placeid=${placeId}`
@@ -148,7 +163,7 @@ async function runApprove(
     "Reply ready to post",
     `<h2>Reply approved ✓</h2>
     <span class="tag green">Approved</span>
-    <p style="margin-top:12px;">${venueName} · ${review.rating}/5${review.authorName ? ` · ${review.authorName}` : ""}</p>
+    <p style="margin-top:12px;">${escapeHtml(venueName)} · ${review.rating}/5${review.authorName ? ` · ${escapeHtml(review.authorName)}` : ""}</p>
     <p style="margin-bottom:8px;color:#4a4641;">We couldn't auto-post (${escapeHtml(result.reason)}). Copy the reply, then click <strong>Open Google reviews</strong> to paste it in.</p>
     <div class="reply-box" id="reply-text">${escapeHtml(replyText)}</div>
     <button class="copy-btn">Copy reply</button>
@@ -182,17 +197,21 @@ export async function GET(req: NextRequest) {
   const venueName = VENUE_SHORT_LABEL[review.venue as Venue] ?? review.venue
 
   if (action === "skip") {
-    await db.googleReview.update({
-      where: { id: review.id },
-      data: { replyStatus: "SKIPPED" },
-    })
+    // Confirmation page only. The actual skip happens on POST so that an
+    // email scanner following this link can't resolve the review.
     return htmlPage(
-      "Skipped",
-      `<h2>Review skipped</h2>
-      <span class="tag grey">Skipped</span>
-      <p>${venueName} · ${review.rating}/5${review.authorName ? ` · ${review.authorName}` : ""}</p>
+      "Skip this review?",
+      `<h2>Skip this review?</h2>
+      <span class="tag grey">Confirm skip</span>
+      <p>${escapeHtml(venueName)} · ${review.rating}/5${review.authorName ? ` · ${escapeHtml(review.authorName)}` : ""}</p>
       <p>No reply will be posted. You can always reply manually in Google Maps.</p>
-      <a class="btn" href="https://kitchen.tarte.com.au/reviews">View reviews</a>`
+      <form method="POST" action="/api/reviews/reply">
+        <input type="hidden" name="token" value="${escapeHtml(token)}">
+        <input type="hidden" name="action" value="skip">
+        <button type="submit" class="btn">Yes, skip it</button>
+        <a class="btn" href="https://kitchen.tarte.com.au/reviews"
+           style="background:#fff;color:#4a4641;border:1px solid #d9d2c4;margin-left:6px;">Cancel</a>
+      </form>`
     )
   }
 
@@ -200,7 +219,7 @@ export async function GET(req: NextRequest) {
     if (!review.draftReply) {
       return htmlPage(
         "No draft found",
-        `<h2>No draft reply found</h2><p>Something went wrong — the draft reply is missing.</p>`
+        `<h2>No draft reply found</h2><p>Something went wrong, the draft reply is missing.</p>`
       )
     }
     const reviewText = review.text ?? "(no review text)"
@@ -225,25 +244,52 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  // action === "approve" — one-click, no edit
+  // action === "approve", confirmation page only. The actual approve +
+  // post to Google happens on POST so a scanned email link can't publish.
   if (!review.draftReply) {
     return htmlPage(
       "No draft found",
-      `<h2>No draft reply found</h2><p>Something went wrong — the draft reply is missing. Please reply manually in Google Maps.</p>`
+      `<h2>No draft reply found</h2><p>Something went wrong, the draft reply is missing. Please reply manually in Google Maps.</p>`
     )
   }
-  return runApprove(review, review.draftReply)
+  return htmlPage(
+    "Post this reply?",
+    `<h2>Post this reply to Google?</h2>
+    <span class="tag green">Confirm approve</span>
+    <p>${escapeHtml(venueName)} · ${review.rating}/5${review.authorName ? ` · ${escapeHtml(review.authorName)}` : ""}</p>
+    <div class="reply-box">${escapeHtml(review.draftReply)}</div>
+    <form method="POST" action="/api/reviews/reply">
+      <input type="hidden" name="token" value="${escapeHtml(token)}">
+      <input type="hidden" name="action" value="approve">
+      <button type="submit" class="btn">✓ Approve &amp; Post</button>
+      <a class="btn" href="/api/reviews/reply?token=${encodeURIComponent(token)}&action=edit"
+         style="background:#fff;color:#4a4641;border:1px solid #d9d2c4;margin-left:6px;">Edit first</a>
+    </form>`
+  )
 }
 
 export async function POST(req: NextRequest) {
-  // Form submission from the Edit page. Token is in the query string;
-  // the textarea name is `editedReply`.
+  // Form submission from the Edit page (editedReply + token in query
+  // string) or from the approve/skip confirmation pages (token + action
+  // as hidden fields).
   const { searchParams } = new URL(req.url)
-  const token = searchParams.get("token")
   const form = await req.formData()
-  const editedReply = (form.get("editedReply") as string | null)?.trim() ?? ""
+  const token =
+    (form.get("token") as string | null) ?? searchParams.get("token")
+  const action = (form.get("action") as string | null) ?? "approve"
+  const editedReplyRaw = form.get("editedReply") as string | null
+  const editedReply = editedReplyRaw?.trim() ?? ""
 
-  if (!token || !editedReply) {
+  if (!token || (action !== "approve" && action !== "skip")) {
+    return htmlPage(
+      "Invalid submission",
+      `<h2>Invalid submission</h2><p>This submission is missing required fields. Please use the links from the review approval email.</p>`
+    )
+  }
+
+  // The edit form posts an editedReply textarea; an empty edit is a
+  // user error, not a fall-through to the stored draft.
+  if (editedReplyRaw !== null && editedReply === "") {
     return htmlPage(
       "Invalid submission",
       `<h2>Invalid submission</h2><p>The reply text was empty. Go back and try again.</p>`
@@ -261,5 +307,30 @@ export async function POST(req: NextRequest) {
   const alreadyDone = alreadyActionedPage(review)
   if (alreadyDone) return alreadyDone
 
-  return runApprove(review, editedReply)
+  const venueName = VENUE_SHORT_LABEL[review.venue as Venue] ?? review.venue
+
+  if (action === "skip") {
+    await db.googleReview.update({
+      where: { id: review.id },
+      data: { replyStatus: "SKIPPED" },
+    })
+    return htmlPage(
+      "Skipped",
+      `<h2>Review skipped</h2>
+      <span class="tag grey">Skipped</span>
+      <p>${escapeHtml(venueName)} · ${review.rating}/5${review.authorName ? ` · ${escapeHtml(review.authorName)}` : ""}</p>
+      <p>No reply will be posted. You can always reply manually in Google Maps.</p>
+      <a class="btn" href="https://kitchen.tarte.com.au/reviews">View reviews</a>`
+    )
+  }
+
+  const replyText = editedReply || review.draftReply?.trim() || ""
+  if (!replyText) {
+    return htmlPage(
+      "No draft found",
+      `<h2>No draft reply found</h2><p>Something went wrong: the draft reply is missing. Please reply manually in Google Maps.</p>`
+    )
+  }
+
+  return runApprove(review, replyText)
 }

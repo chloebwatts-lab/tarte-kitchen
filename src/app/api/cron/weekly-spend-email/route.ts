@@ -6,18 +6,18 @@ export const maxDuration = 120
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 })
   }
 
-  // SENSITIVE — carries forecast revenue + supplier spend. Owner mailbox
+  // SENSITIVE, carries forecast revenue + supplier spend. Owner mailbox
   // only, never accounts@. See tarte_recipients.md memory.
   const recipient =
     process.env.WEEKLY_DIGEST_RECIPIENT ||
     process.env.REVIEW_SUMMARY_RECIPIENT ||
     "chloe@tarte.com.au"
 
-  // ?dry=1 renders the email and returns it WITHOUT sending — for previews.
+  // ?dry=1 renders the email and returns it WITHOUT sending, for previews.
   const dryRun = new URL(req.url).searchParams.get("dry") === "1"
 
   try {

@@ -63,7 +63,7 @@ const SECTION_ORDER: {
   {
     key: "training",
     title: "Training records",
-    blurb: "Food handler training records — every staff member.",
+    blurb: "Food handler training records, every staff member.",
     Icon: GraduationCap,
     types: [
       CouncilDocumentType.TRAINING_RECORD,
@@ -144,7 +144,12 @@ const TYPE_LABEL: Record<CouncilDocumentType, string> = {
 }
 
 const TODAY = () => {
-  const d = new Date()
+  // Same +10 AEST convention as src/lib/dates.ts: shift into Brisbane
+  // clock space before snapping to midnight, so "today" ticks over at
+  // midnight AEST rather than 10:00 (UTC midnight). Result is a UTC-
+  // midnight Date labelled with the AEST calendar day, matching how
+  // expiresOn dates are stored.
+  const d = new Date(Date.now() + 10 * 60 * 60 * 1000)
   d.setUTCHours(0, 0, 0, 0)
   return d
 }
@@ -246,7 +251,7 @@ export default async function CouncilVenuePage({
         </p>
       </header>
 
-      {/* Venue switcher + section jump nav — sticky so you can move between
+      {/* Venue switcher + section jump nav, sticky so you can move between
           sections without scrolling back up. */}
       <nav className="sticky top-0 z-10 -mx-4 mb-6 border-b border-border bg-background/95 px-4 py-2 backdrop-blur print:hidden sm:-mx-6 sm:px-6">
         <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -415,7 +420,7 @@ export default async function CouncilVenuePage({
       </div>
 
       <p className="mt-10 text-center text-xs text-muted-foreground">
-        Tarte Kitchen — generated{" "}
+        Tarte Kitchen · generated{" "}
         {new Date().toLocaleString("en-AU", {
           timeZone: "Australia/Brisbane",
           dateStyle: "medium",

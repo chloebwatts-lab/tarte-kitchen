@@ -15,6 +15,8 @@ export default async function ReportsPage() {
       weeklyPnl={weeklyPnl}
       labourStats={labourStats}
       xeroConnected={xeroStatus.connected}
+      xeroTokenExpired={xeroStatus.tokenExpired}
+      xeroLastSyncedAt={xeroStatus.lastSyncedAt}
     />
   )
 }

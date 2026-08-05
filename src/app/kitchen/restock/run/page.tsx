@@ -1,8 +1,10 @@
 export const dynamic = "force-dynamic"
 
+import { cookies } from "next/headers"
 import { getRestockRun } from "@/lib/actions/restock"
 import { RestockRunBoard } from "@/components/kitchen/RestockRunBoard"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
 import { isKitchenStation, stationsForVenue } from "@/lib/stations"
 
@@ -19,7 +21,15 @@ export default async function RestockRunPage({
 }) {
   const sp = await searchParams
   const venueParam = typeof sp.venue === "string" ? sp.venue : null
-  const venue: Venue = isVenue(venueParam) ? venueParam : "BEACH_HOUSE"
+  // Explicit ?venue= wins; otherwise use the venue remembered by the
+  // picker's tk-venue cookie. Never silently default to a venue.
+  const cookieVenue = (await cookies()).get("tk-venue")?.value ?? null
+  const venue: Venue | null = isVenue(venueParam)
+    ? venueParam
+    : isVenue(cookieVenue)
+      ? cookieVenue
+      : null
+  if (!venue) return <KitchenVenuePicker />
 
   const run = await getRestockRun(venue)
   const venueLabel = VENUE_LABEL[venue].replace(/\s*\(.*\)$/, "")
@@ -53,7 +63,7 @@ export default async function RestockRunPage({
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
           One consolidated list from every kitchen&apos;s evening count. Items
           needed in both kitchens are grouped so you make them once and split
-          the batch. Log what you actually deliver — gaps show on the daily
+          the batch. Log what you actually deliver. Gaps show on the daily
           report.
         </p>
       </div>

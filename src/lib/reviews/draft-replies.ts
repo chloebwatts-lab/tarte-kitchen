@@ -3,9 +3,9 @@
  *
  * After each hourly sync we call `draftAndNotifyNewReviews()`, which:
  *   1. Finds ALL reviews with no owner reply that haven't been drafted yet
- *      (not just negative ones — replying to every review signals engagement
+ *      (not just negative ones, replying to every review signals engagement
  *      to Google and boosts local SEO ranking).
- *   2. Generates a warm, on-brand reply via Claude — shorter thank-yous for
+ *   2. Generates a warm, on-brand reply via Claude, shorter thank-yous for
  *      positive reviews, fuller apologies + invite-back for negative.
  *   3. Stores the draft + a one-time token on the row.
  *   4. Emails Chloe with the reviews grouped by venue + sentiment, with
@@ -192,7 +192,7 @@ function buildEmailHtml(reviews: DraftedReview[]): { html: string; text: string 
 <body style="margin:0;padding:24px;background:#f5f0e8;">
   <div style="max-width:600px;margin:0 auto;">
     <h2 style="font-family:sans-serif;color:#1f1d1a;margin:0 0 4px;">
-      Tarte — ${count} review${count !== 1 ? "s" : ""} to reply to
+      Tarte: ${count} review${count !== 1 ? "s" : ""} to reply to
     </h2>
     <p style="font-family:sans-serif;color:#8a857c;margin:0 0 6px;font-size:14px;">${parts.join(" · ")}</p>
     <p style="font-family:sans-serif;color:#8a857c;margin:0 0 24px;font-size:13px;">
@@ -228,7 +228,7 @@ function buildEmailHtml(reviews: DraftedReview[]): { html: string; text: string 
   }).join("\n\n")
 
   const text = [
-    `Tarte — ${count} review${count !== 1 ? "s" : ""} to reply to`,
+    `Tarte: ${count} review${count !== 1 ? "s" : ""} to reply to`,
     `Replying to all reviews (positive + negative) boosts your Google ranking.`,
     ``,
     textItems,
@@ -240,10 +240,10 @@ function buildEmailHtml(reviews: DraftedReview[]): { html: string; text: string 
 }
 
 /**
- * Main entry point — called by sync-reviews after ingestion.
+ * Main entry point, called by sync-reviews after ingestion.
  *
  * Finds ALL reviews with no owner reply and no draft yet (any rating).
- * Caps a single batch at 20 to avoid email overload — leftover reviews
+ * Caps a single batch at 20 to avoid email overload, leftover reviews
  * will be picked up on the next hourly run.
  *
  * Returns the number of drafts sent.
@@ -270,7 +270,7 @@ export async function draftAndNotifyNewReviews(): Promise<number> {
       { rating: "asc" },          // negatives first
       { publishTime: "desc" },    // newest first within each rating
     ],
-    take: 50,  // cap per run — leftover picked up next day
+    take: 50,  // cap per run, leftover picked up next day
   })
 
   // Google sometimes re-issues a review under a new id when it's edited,
@@ -316,7 +316,7 @@ export async function draftAndNotifyNewReviews(): Promise<number> {
         })
         return { ...r, draftReply, replyToken }
       } catch {
-        // Non-fatal — review stays null, picked up next run.
+        // Non-fatal, review stays null, picked up next run.
         return null
       }
     })

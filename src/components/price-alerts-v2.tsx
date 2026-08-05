@@ -39,6 +39,11 @@ interface Props {
   alerts: AlertRow[]
 }
 
+/** Title Case label for ingredient category enums ("DRY_GOOD" to "Dry good"). */
+function categoryLabel(raw: string): string {
+  return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase().replace(/_/g, " ")
+}
+
 export function PriceAlertsV2({ alerts }: Props) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<"PRODUCE" | "STABLE">("STABLE")
@@ -145,7 +150,7 @@ export function PriceAlertsV2({ alerts }: Props) {
                           {a.ingredientName}
                         </span>
                         <Badge variant="outline" className="text-xs">
-                          {a.category}
+                          {categoryLabel(a.category)}
                         </Badge>
                         {a.supplierName && (
                           <span className="text-xs text-muted-foreground">
@@ -216,7 +221,7 @@ export function PriceAlertsV2({ alerts }: Props) {
       {activeTab === "STABLE" && (
         <p className="text-xs text-muted-foreground">
           Stable alerts fire on any ±5% movement vs Ingredient.purchasePrice.
-          Bidfood rebate drops surface here too — not just price rises.
+          Bidfood rebate drops surface here too, not just price rises.
         </p>
       )}
     </div>

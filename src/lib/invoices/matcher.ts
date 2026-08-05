@@ -1,4 +1,5 @@
 import { db } from "@/lib/db"
+import { Prisma } from "@/generated/prisma/client"
 import Fuse from "fuse.js"
 
 interface MatchResult {
@@ -15,7 +16,7 @@ interface NoMatch {
 // The "all ingredients" lookup is the same for every line in a cron
 // run. Fetching it once per call (1000+ lines × 500 ingredients each)
 // is what OOMd the app during the rematch backfill. We cache the
-// snapshot + the built Fuse index for 60s — long enough to cover the
+// snapshot + the built Fuse index for 60s, long enough to cover the
 // longest cron run, short enough that fresh ingredients added in the
 // UI show up reliably.
 
@@ -62,14 +63,14 @@ export function clearMatcherCache() {
 
 /**
  * Maps invoice line descriptions to TK ingredients. Strategy is a
- * cascade — exact-mapped first, then fuzzy-mapped, then fuzzy against
+ * cascade, exact-mapped first, then fuzzy-mapped, then fuzzy against
  * supplier's own ingredient subset, finally fuzzy against the WHOLE
  * ingredient master list. The all-ingredients fallback is what catches
  * cases where the supplier row has no linked ingredients (e.g. Pixel
  * Bakehouse, Provedores, Fermex) but the items themselves exist in the
  * costing list under a different supplier or none at all.
  *
- * Match quality bar gets stricter as we widen the net — same-supplier
+ * Match quality bar gets stricter as we widen the net, same-supplier
  * fuzzy is 0.4 (loose), cross-supplier fuzzy is 0.28 (tight) because a
  * generic name like "Olive Oil" matches dozens of ingredients and we
  * only want a hit when it's nearly identical.
@@ -78,7 +79,7 @@ export async function matchLineItem(
   invoiceDescription: string,
   supplierId: string
 ): Promise<MatchResult | NoMatch> {
-  // 1. Exact mapping (skip ignored ones — user rejected them)
+  // 1. Exact mapping (skip ignored ones, user rejected them)
   const mapping = await db.supplierItemMapping.findUnique({
     where: {
       supplierId_invoiceDescription: {
@@ -99,7 +100,7 @@ export async function matchLineItem(
   // An IGNORED mapping is a rejected pairing: this description must never
   // re-match to that ingredient via ANY later step (fuzzy/token would
   // happily re-derive the same wrong answer and undo the user's rejection
-  // on the next rematch run — the "2L CAPO → Caperberry forever" loop).
+  // on the next rematch run, the "2L CAPO → Caperberry forever" loop).
   const rejectedIngredientId = mapping?.ignored ? mapping.ingredientId : null
 
   // 2. Case-insensitive mapping match (also skip ignored)
@@ -221,11 +222,11 @@ export async function matchLineItem(
     }
   }
 
-  // 5. Cross-supplier fuzzy as a final fallback (tight threshold —
+  // 5. Cross-supplier fuzzy as a final fallback (tight threshold,
   // typo recovery, not generic matching).
   //
   // Short-residue guard: Fuse's bitap score is relative to pattern length,
-  // so a 4-char residue tolerates a whole edit inside 0.28 — that's how
+  // so a 4-char residue tolerates a whole edit inside 0.28, that's how
   // "2L CAPO (BROWN)" (residue "capo") matched "Caperberry" at 0.25.
   // Below 8 chars there isn't enough signal for typo-recovery to be
   // distinguishable from coincidence; leave the line for a human.
@@ -265,18 +266,27 @@ async function safeCreateMapping(
       data: { supplierId, ingredientId, invoiceDescription },
     })
     return created.id
-  } catch {
-    return null
+  } catch (err) {
+    // Only swallow the expected unique-constraint hit on
+    // (supplierId, invoiceDescription); anything else (connection loss,
+    // FK violation, ...) must surface, not silently drop the mapping.
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      return null
+    }
+    throw err
   }
 }
 
 /**
- * Cheap English stemmer for the token matcher — collapses common
+ * Cheap English stemmer for the token matcher, collapses common
  * singular/plural variants without pulling in a real Porter stemmer.
  * Solves things like supplier "TOMATO" vs ingredient "Tomatoes",
  * "CHIVE" vs "Chives", "PEAR" vs "Pears", "POTATO" vs "Potatoes".
  *
- * Conservative — only modifies words of length ≥4 so we don't mangle
+ * Conservative, only modifies words of length ≥4 so we don't mangle
  * short ones (e.g. "tea" stays "tea").
  */
 function stem(t: string): string {
@@ -298,7 +308,7 @@ function stem(t: string): string {
 
 /**
  * Trims the noise that supplier descriptions add and that fuzzy match
- * weights heavily — pack sizes ("12.5kg", "ea", "carton"), product
+ * weights heavily, pack sizes ("12.5kg", "ea", "carton"), product
  * codes embedded in the name, and parenthetical notes. What's left is
  * the actual food name we want to match.
  */

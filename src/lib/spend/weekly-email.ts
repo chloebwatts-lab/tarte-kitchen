@@ -1,15 +1,16 @@
 /**
  * Sunday "how much have we got left to spend this week" email.
  *
- * Deliberately deterministic — NO LLM narrative. It renders straight off
+ * Deliberately deterministic: NO LLM narrative. It renders straight off
  * `getCurrentWeekSpend()` (the same snapshot the /spend page shows), so the
  * numbers in the email are identical to the live tracker and can be handed
  * to staff as-is. Accuracy over flourish: the only prose is computed.
  *
- * Sent Sundays 17:00 AEST so the team heads into the last two days of the
- * trading week (Wed→Tue) knowing exactly how much room is left per venue.
+ * Sent Sunday mornings 08:30 AEST (see the crontab in docker-compose.yml)
+ * so the team heads into the final three days of the trading week
+ * (Wed→Tue) knowing exactly how much room is left per venue.
  *
- * Recipient is owner-only (chloe@) per tarte_recipients.md — it carries
+ * Recipient is owner-only (chloe@) per tarte_recipients.md, it carries
  * forecast revenue + supplier spend, which is sensitive.
  */
 
@@ -60,7 +61,7 @@ function bucketLine(b: BucketSpendData, daysLeft: number): string {
     daysLeft > 1
       ? ` That's about ${money0(remaining / daysLeft)}/day for the ${daysLeft} days left.`
       : daysLeft === 1
-        ? ` That's the whole budget for tomorrow, the last day of the week.`
+        ? ` That's the whole budget for today, the last day of the week.`
         : ""
   return `${b.label}: ${money0(remaining)} left to spend (${money0(b.spentToDate)} of ${money0(b.budget)} used).${tail}`
 }
@@ -105,7 +106,9 @@ function render(snapshot: CurrentWeekSpendSnapshot): {
   text: string
   html: string
 } {
-  const daysLeft = Math.max(0, 7 - snapshot.dayOfWeek)
+  // Days remaining INCLUDING the send day: this goes out in the morning,
+  // so today's trading is still ahead. dayOfWeek is 1-7 with Wed = 1.
+  const daysLeft = Math.max(0, 8 - snapshot.dayOfWeek)
   const range = `${shortDate(snapshot.weekStartWed)} – ${shortDate(snapshot.weekEndTue)}`
   const subject = `COGS TRACKING (${range}): ${daysLeft} day${daysLeft === 1 ? "" : "s"} to go`
 
@@ -134,7 +137,7 @@ function render(snapshot: CurrentWeekSpendSnapshot): {
       `Note: ${money0(unassignedTotal)} of invoices this week aren't tagged to a venue yet (${snapshot.unassigned
         .map((u) => u.supplierName)
         .filter((v, i, a) => a.indexOf(v) === i)
-        .join(", ")}) — usually liquor. Not counted in the per-venue figures above.`
+        .join(", ")}), usually liquor. Not counted in the per-venue figures above.`
     )
     textLines.push(``)
   }
@@ -188,7 +191,7 @@ function render(snapshot: CurrentWeekSpendSnapshot): {
           .filter((v, i, a) => a.indexOf(v) === i)
           .join(
             ", "
-          )}) — usually liquor — so they're not in the per-venue figures.</p>`
+          )}), usually liquor, so they're not in the per-venue figures.</p>`
       : ""
 
   const html = `<!doctype html><html><body style="margin:0;background:#f6f8fa;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
@@ -224,7 +227,7 @@ function render(snapshot: CurrentWeekSpendSnapshot): {
 
 export interface RunWeeklySpendEmailArgs {
   recipient: string
-  /** When true, render only — do not send. Used for previews. */
+  /** When true, render only, do not send. Used for previews. */
   dryRun?: boolean
 }
 
@@ -233,7 +236,8 @@ export async function runWeeklySpendEmail(
 ): Promise<WeeklySpendEmailResult> {
   const snapshot = await getCurrentWeekSpend()
   const { subject, text, html } = render(snapshot)
-  const daysLeft = Math.max(0, 7 - snapshot.dayOfWeek)
+  // Same morning-send semantics as render(): today still counts.
+  const daysLeft = Math.max(0, 8 - snapshot.dayOfWeek)
 
   let sent = false
   if (!args.dryRun) {

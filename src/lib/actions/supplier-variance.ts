@@ -2,6 +2,11 @@
 
 import { db } from "@/lib/db"
 import type { Venue } from "@/generated/prisma/client"
+import {
+  effectiveUnitPrice,
+  metricConversionFactor,
+  normaliseUnit,
+} from "@/lib/invoices/units"
 
 const STOP_WORDS = new Set([
   "the", "and", "of", "for", "with", "from", "a", "an",
@@ -21,6 +26,30 @@ function tokenOverlap(a: string[], b: string[]): number {
   let n = 0
   for (const t of a) if (setB.has(t)) n++
   return n
+}
+
+/**
+ * Express the invoice line's price + quantity in the approved item's pack
+ * basis. Same unit label (case-insensitive, synonym-aware) compares
+ * directly; metric siblings (kg vs g, L vs ml) convert deterministically.
+ * Anything else is NOT comparable, comparing a per-kg invoice line
+ * against a per-carton form price fabricates overspend, so callers must
+ * skip those lines entirely.
+ */
+function toApprovedBasis(
+  invoiceUnit: string | null,
+  approvedUnit: string | null,
+  unitPrice: number,
+  quantity: number
+): { price: number; quantity: number } | null {
+  if (normaliseUnit(invoiceUnit) === normaliseUnit(approvedUnit)) {
+    return { price: unitPrice, quantity }
+  }
+  const factor = metricConversionFactor(invoiceUnit, approvedUnit ?? "")
+  if (factor === null || factor <= 0) return null
+  // Price scales by the factor; quantity scales inversely so that
+  // price × quantity (the spend) is preserved.
+  return { price: unitPrice * factor, quantity: quantity / factor }
 }
 
 export type SupplierVarianceRow = {
@@ -48,7 +77,7 @@ export type SupplierVarianceSummary = {
   totalOverspend: number
   byVenue: { venue: Venue; overspend: number; rows: number }[]
   suppliersWithoutForms: string[]
-  /** True iff any approved order-form items exist at all — drives the
+  /** True iff any approved order-form items exist at all, drives the
    * "variance not yet active" empty state honestly, rather than inferring
    * it from how many suppliers happen to lack forms. */
   hasApprovedForms: boolean
@@ -56,7 +85,7 @@ export type SupplierVarianceSummary = {
 
 /**
  * Walk recent invoice line items and flag purchases that shouldn't have
- * come from that supplier — or that came in above the approved form price.
+ * come from that supplier, or that came in above the approved form price.
  * Compares against ApprovedSupplierItem by fuzzy token overlap on name.
  */
 export async function getSupplierVariance(params?: {
@@ -127,19 +156,30 @@ export async function getSupplierVariance(params?: {
         }
       }
 
-      const unitPrice = Number(li.unitPrice ?? 0)
       const qty = Number(li.quantity ?? 0)
       const lineTotal = Number(li.lineTotal)
+      // What was actually PAID per unit. Some suppliers (Jensens) print a
+      // list unit price then discount per line, lineTotal ÷ qty is the
+      // truth when it disagrees with unitPrice by more than 5%.
+      const unitPrice =
+        effectiveUnitPrice(
+          li.unitPrice != null ? Number(li.unitPrice) : null,
+          qty > 0 ? qty : null,
+          lineTotal > 0 ? lineTotal : null
+        ) ?? 0
 
       // Decide whether this is a variance.
       // Case 1: item is on the bought supplier's form → only flag if
       // invoice price > form price (price creep).
       // Case 2: item is NOT on bought supplier's form, but IS on another
       // supplier's form → flag as cross-supplier misorder.
+      // Either way, only compare when the invoice line's unit is
+      // comparable to the approved item's pack basis, otherwise skip.
       if (ownMatch) {
         const formPrice = Number(ownMatch.packPrice)
-        if (unitPrice > formPrice * 1.02) {
-          const over = qty * (unitPrice - formPrice)
+        const basis = toApprovedBasis(li.unit, ownMatch.unit, unitPrice, qty)
+        if (basis && basis.price > formPrice * 1.02) {
+          const over = basis.quantity * (basis.price - formPrice)
           rows.push({
             invoiceId: inv.id,
             invoiceDate: inv.invoiceDate ? inv.invoiceDate.toISOString().slice(0, 10) : null,
@@ -158,7 +198,12 @@ export async function getSupplierVariance(params?: {
         }
       } else if (otherMatch) {
         const otherPrice = Number(otherMatch.packPrice)
-        const over = unitPrice > otherPrice ? qty * (unitPrice - otherPrice) : null
+        const basis = toApprovedBasis(li.unit, otherMatch.unit, unitPrice, qty)
+        if (!basis) continue
+        const over =
+          basis.price > otherPrice
+            ? basis.quantity * (basis.price - otherPrice)
+            : null
         rows.push({
           invoiceId: inv.id,
           invoiceDate: inv.invoiceDate ? inv.invoiceDate.toISOString().slice(0, 10) : null,

@@ -2,10 +2,10 @@
  * Google Places API client + ingestion pipeline.
  *
  * Per venue per run we issue TWO calls:
- *   1. Places API v1 (new) — top-5 "most relevant" reviews + the
+ *   1. Places API v1 (new), top-5 "most relevant" reviews + the
  *      aggregate rating snapshot + owner replies (v1 is the only one
  *      that returns `authorReply`).
- *   2. Legacy Places API with `reviews_sort=newest` — the 5 most
+ *   2. Legacy Places API with `reviews_sort=newest`, the 5 most
  *      recently published reviews. v1 has no review-sort param, so
  *      without this second call brand-new reviews never surface once
  *      five popular older reviews squat the top of the relevance list.
@@ -136,7 +136,7 @@ async function fetchNewestReviewsLegacy(placeId: string): Promise<RawReview[]> {
 function legacyToRaw(placeId: string, r: LegacyReview): RawReview {
   // Legacy reviews have no opaque review ID; synthesize a stable one
   // from (time, author_url|author_name). v1 IDs look like
-  // "places/<pid>/reviews/<opaque>" — we use a distinct namespace so we
+  // "places/<pid>/reviews/<opaque>", we use a distinct namespace so we
   // never collide with a real Google ID, and resolveReviewIdentity()
   // below merges with any pre-existing v1 row for the same review.
   const authorKey = r.author_url || r.author_name || "anon"
@@ -161,7 +161,7 @@ function legacyToRaw(placeId: string, r: LegacyReview): RawReview {
 
 function mergeReviews(v1: RawReview[], legacy: RawReview[]): RawReview[] {
   // Dedupe by content identity: same (publishTime second, authorName).
-  // Prefer the v1 entry when both exist — it carries the opaque Google
+  // Prefer the v1 entry when both exist, it carries the opaque Google
   // review ID and any owner reply (legacy API exposes neither).
   const byKey = new Map<string, RawReview>()
   const keyOf = (r: RawReview) => {
@@ -242,7 +242,28 @@ export async function ingestVenueReviews(args: {
     try {
       const existing = await resolveExistingReview(args.placeId, r)
       if (existing && existing.taggedAt) {
-        // Already ingested + tagged; skip.
+        // Already ingested + tagged. When the review was edited (new
+        // publishTime from Google), still refresh the stored text +
+        // publishTime so the row tracks the live review, but skip the
+        // expensive re-tag.
+        if (r.publishTime) {
+          const incoming = new Date(r.publishTime)
+          if (
+            Math.abs(incoming.getTime() - existing.publishTime.getTime()) >
+            2000
+          ) {
+            await db.googleReview.update({
+              where: { id: existing.id },
+              data: {
+                text: (r.text?.text ?? r.originalText?.text ?? "") || null,
+                originalText: r.originalText?.text ?? null,
+                publishTime: incoming,
+                relativePublishTime:
+                  r.relativePublishTimeDescription ?? null,
+              },
+            })
+          }
+        }
         continue
       }
 
@@ -288,7 +309,7 @@ export async function ingestVenueReviews(args: {
       }
 
       if (existing) {
-        // Update by the row's actual id — `r.name` may be a legacy-
+        // Update by the row's actual id, `r.name` may be a legacy-
         // synthesized id that doesn't match an existing v1-stored row
         // we matched on content (publishTime + author).
         await db.googleReview.update({
@@ -374,33 +395,47 @@ function approximatePublishTime(
  * Find a pre-existing DB row for an incoming raw review. First tries an
  * exact match on googleReviewId (covers re-fetches of the same review
  * from the same API), then falls back to a content-identity lookup
- * (placeId + publishTime second + lower-cased author name) so a review
- * already stored under a v1 opaque ID doesn't get re-inserted as a
- * legacy-synthesized duplicate (and vice-versa).
+ * (placeId + author name + rating + publishTime within 14 days) so a
+ * review already stored under a v1 opaque ID doesn't get re-inserted as
+ * a legacy-synthesized duplicate (and vice-versa).
+ *
+ * The window is 14 days, not seconds: when a reviewer EDITS their review,
+ * Google issues a new review id AND a new publishTime, so a narrow window
+ * saw the edit as a brand-new review and inserted a duplicate row. Same
+ * author + venue + rating within a fortnight is treated as the same
+ * review and updated in place (insert-time only; existing duplicate rows
+ * are left alone).
  */
 async function resolveExistingReview(
   placeId: string,
   r: RawReview
-): Promise<{ id: string; googleReviewId: string; taggedAt: Date | null } | null> {
+): Promise<{
+  id: string
+  googleReviewId: string
+  taggedAt: Date | null
+  publishTime: Date
+} | null> {
   const byId = await db.googleReview.findUnique({
     where: { googleReviewId: r.name },
-    select: { id: true, googleReviewId: true, taggedAt: true },
+    select: { id: true, googleReviewId: true, taggedAt: true, publishTime: true },
   })
   if (byId) return byId
 
   const author = r.authorAttribution?.displayName?.trim()
   if (!r.publishTime || !author) return null
   const ts = new Date(r.publishTime)
-  // ±2s window to absorb sub-second rounding between v1 and legacy.
-  const lo = new Date(ts.getTime() - 2000)
-  const hi = new Date(ts.getTime() + 2000)
+  const WINDOW_MS = 14 * 24 * 60 * 60 * 1000
+  const lo = new Date(ts.getTime() - WINDOW_MS)
+  const hi = new Date(ts.getTime() + WINDOW_MS)
   return db.googleReview.findFirst({
     where: {
       placeId,
+      rating: r.rating,
       publishTime: { gte: lo, lte: hi },
       authorName: { equals: author, mode: "insensitive" },
     },
-    select: { id: true, googleReviewId: true, taggedAt: true },
+    orderBy: { publishTime: "desc" },
+    select: { id: true, googleReviewId: true, taggedAt: true, publishTime: true },
   })
 }
 

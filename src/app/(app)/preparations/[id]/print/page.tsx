@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 
 import { notFound } from "next/navigation"
 import { db } from "@/lib/db"
+import { collectPrepAllergens } from "@/lib/allergens"
 import { RecipeCard } from "@/components/recipe-card"
 
 export default async function PreparationPrintPage({
@@ -26,13 +27,9 @@ export default async function PreparationPrintPage({
 
   if (!prep) notFound()
 
-  // Collect allergens from any ingredient used directly
-  const allergens = new Set<string>()
-  for (const it of prep.items) {
-    if (it.ingredient?.allergens) {
-      for (const a of it.ingredient.allergens) allergens.add(a)
-    }
-  }
+  // Collect allergens from the full tree: direct ingredients plus every
+  // nested sub-preparation (the old version dropped sub-prep allergens).
+  const allergens = await collectPrepAllergens([prep.id])
 
   return (
     <RecipeCard

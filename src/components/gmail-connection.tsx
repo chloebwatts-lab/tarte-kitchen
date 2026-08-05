@@ -45,7 +45,7 @@ export function GmailConnection({ status, configured }: Props) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5" />
-            Gmail — Invoice Monitoring
+            Gmail: Invoice Monitoring
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -109,7 +109,7 @@ export function GmailConnection({ status, configured }: Props) {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5" />
-            Gmail — Invoice Monitoring
+            Gmail: Invoice Monitoring
           </CardTitle>
           <Badge
             className={

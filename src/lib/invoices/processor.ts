@@ -29,9 +29,9 @@ export async function processInvoice(
 
   // Venue resolution, most-reliable signal first:
   //   1. delivery (ship-to) address text
-  //   2. bill-to / account block (who's charged — names the venue when
+  //   2. bill-to / account block (who's charged, names the venue when
   //      there's no ship-to, e.g. Paramount/Pencilpay portal PDFs)
-  //   3. per-supplier default, keyed off the CANONICAL matched supplier —
+  //   3. per-supplier default, keyed off the CANONICAL matched supplier,
   //      NOT parsedData.supplierName, which is whatever Claude read off the
   //      PDF (often a payment processor like "Pencil.One" or a bill-to
   //      entity) and so never matched the supplier rules.
@@ -41,8 +41,8 @@ export async function processInvoice(
   })
   // Guard the per-supplier default: only trust it when the PDF actually
   // corroborates this supplier (its name appears, or it's billed to Tarte).
-  // Otherwise a mis-matched non-supplier invoice — e.g. a visa or software
-  // subscription the Gmail matcher wrongly attached to "Paramount Liquor" —
+  // Otherwise a mis-matched non-supplier invoice, e.g. a visa or software
+  // subscription the Gmail matcher wrongly attached to "Paramount Liquor",
   // would be force-routed into that supplier's venue and pollute its spend.
   const canonicalName = supplier?.name ?? null
   const pdfText = `${parsedData.supplierName ?? ""} ${parsedData.billTo ?? ""} ${
@@ -59,7 +59,7 @@ export async function processInvoice(
 
   // Match every line first, buffering the rows to write. All writes happen
   // in one transaction at the end (metadata + delete-and-recreate of the
-  // invoice's lines + status), keyed by invoiceId — so re-running
+  // invoice's lines + status), keyed by invoiceId, so re-running
   // processInvoice on the same invoice (rescue of a crashed run, retry of
   // an ERROR row) can never leave duplicate or half-written line items.
   type LineRow = {
@@ -137,7 +137,7 @@ export async function processInvoice(
         suggestedConversionFactor = evaluation.suggestedConversionFactor
         normalisedUnitPrice = evaluation.normalisedUnitPrice
         // Chloe 2026-07-15: fruit & veg with floating pack sizes (tray one
-        // week, bunch the next) must NOT pile into the unit-review queue —
+        // week, bunch the next) must NOT pile into the unit-review queue,
         // produce only alerts on like-for-like comparisons (same unit or a
         // confirmed conversion). Unresolvable produce units skip silently.
         if (unitChanged && streamForCategory(ing.category) === "PRODUCE") {
@@ -168,22 +168,22 @@ export async function processInvoice(
   }
 
   // Set invoice status. Schema's InvoiceStatus enum does not have
-  // PROCESSED / NEEDS_REVIEW — use the closest equivalents.
+  // PROCESSED / NEEDS_REVIEW, use the closest equivalents.
   //
   // Zero line items on an INVOICE is never "fully processed": it's either a
   // long document whose line extraction blew the output budget
   // (lineItemsTruncated) or a parse that found nothing. Marking those
   // MATCHED used to make them look done while all line detail was silently
-  // missing — surface them as EXTRACTED (needs review) with a note instead.
+  // missing, surface them as EXTRACTED (needs review) with a note instead.
   let status: InvoiceStatus = unmatchedItems > 0 ? "EXTRACTED" : "MATCHED"
   let errorMessage: string | null = null
   if (parsedData.lineItems.length === 0) {
     status = "EXTRACTED"
     errorMessage = parsedData.lineItemsTruncated
-      ? `Line items not extracted — document too long for the extraction budget (${
+      ? `Line items not extracted, document too long for the extraction budget (${
           parsedData.pageCount ?? "?"
         } pages). Header totals captured; line detail needs manual review.`
-      : "Parsed with zero line items — needs manual review."
+      : "Parsed with zero line items, needs manual review."
   }
 
   await db.$transaction([
@@ -234,7 +234,7 @@ export async function applyPriceChanges(invoiceId: string): Promise<number> {
       priceChanged: true,
       priceApproved: null,
       ingredientId: { not: null },
-      // Only lines whose price passed the units.ts gate — raw unitPrice on a
+      // Only lines whose price passed the units.ts gate, raw unitPrice on a
       // pack-priced line is NOT a purchase price.
       normalisedUnitPrice: { not: null },
     },
@@ -246,7 +246,7 @@ export async function applyPriceChanges(invoiceId: string): Promise<number> {
   const { bulkUpdatePrices } = await import("@/lib/actions/ingredients")
 
   // Ingredient.purchasePrice covers purchaseQuantity purchase-units, while
-  // normalisedUnitPrice is per single purchase-unit — multiply back up.
+  // normalisedUnitPrice is per single purchase-unit, multiply back up.
   // (The old code wrote the RAW invoice unitPrice as the purchasePrice,
   // so approving a carton-priced alert corrupted a per-kg ingredient and
   // every invoice after that re-alerted against the corrupted price.)

@@ -7,7 +7,7 @@ export function InspectionPrintButton() {
     <button
       type="button"
       onClick={() => {
-        // Day sections are collapsed <details> — pop them all open so the
+        // Day sections are collapsed <details>, pop them all open so the
         // paper copy carries the full record, then print.
         document
           .querySelectorAll<HTMLDetailsElement>("details")

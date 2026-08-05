@@ -131,9 +131,9 @@ export function PrepSheetView({ initial }: { initial: PrepSheet }) {
         </Card>
       </div>
 
-      {/* Print header — only visible on print */}
+      {/* Print header, only visible on print */}
       <div className="hidden print:block">
-        <h1 className="font-serif text-2xl font-semibold">Prep Sheet — {humanDate}</h1>
+        <p className="font-serif text-xl font-semibold">Prep Sheet, {humanDate}</p>
         <p className="text-sm">
           {venue === "ALL" ? "All venues" : VENUE_SHORT_LABEL[venue as Venue]}
         </p>

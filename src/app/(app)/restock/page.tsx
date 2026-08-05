@@ -33,7 +33,7 @@ export default async function RestockAdminPage({
           The head chef&apos;s prep system: closing chefs count each kitchen
           nightly, the prep chef restocks from one consolidated run, and the
           daily report shows counted vs requested vs supplied. Manage the item
-          catalogue here — chefs use the kiosk at{" "}
+          catalogue here, chefs use the kiosk at{" "}
           <a
             href={`/kitchen/restock?venue=${venue}`}
             className="underline underline-offset-2"

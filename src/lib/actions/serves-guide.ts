@@ -41,7 +41,7 @@ function isServesUnit(u: string) {
 
 /**
  * Everything needed to turn "weight written on the tub" into "full serves".
- * Only preps with a derivable portion are returned — a prep whose yield is
+ * Only preps with a derivable portion are returned, a prep whose yield is
  * in serves uses its own card, otherwise we fall back to the biggest gram
  * quantity a dish plates per serve (the "full serve" dish, not a garnish use).
  */
@@ -90,7 +90,7 @@ export async function getServesGuide(): Promise<ServesGuideEntry[]> {
         : null
 
     // Single-serve recipes (cocktails, made-to-order plates) aren't stored in
-    // buckets — skip unless a dish plates them by weight.
+    // buckets, skip unless a dish plates them by weight.
     if (recipePortion !== null && yieldQty <= 1 && dishUses.length === 0) continue
 
     const dishPortion = dishUses.find((d) => d.isActive)?.grams ?? dishUses[0]?.grams

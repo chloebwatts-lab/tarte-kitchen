@@ -23,7 +23,7 @@ import { STATION_LABEL, STATION_SHORT_LABEL } from "@/lib/stations"
 
 /**
  * Closing chef's count sheet. Mirrors the paper "Kitchen Restock Request"
- * — same columns (available / amount required / note), same item order —
+ * (same columns: available / amount required / note, same item order)
  * but autosaves every entry and can't get lost under a chopping board.
  */
 export function RestockCountSheet({
@@ -74,7 +74,7 @@ export function RestockCountSheet({
   /**
    * Jose's priority system: a tap order, not a flag. First tap = 1,
    * next = 2, and so on; tapping a ranked item clears its number
-   * (later numbers keep their value — gaps don't matter, order does).
+   * (later numbers keep their value; gaps don't matter, order does).
    */
   // Ranks form one sequence across the whole sheet, other-kitchen
   // requests included.
@@ -131,9 +131,9 @@ export function RestockCountSheet({
       setSavingCount((n) => n + 1)
       saveCountLine({ sheetId: sheet.sheetId, itemId, ...patch })
         .then((res) => {
-          if (!res.ok) setError(res.error ?? "Couldn't save — try again")
+          if (!res.ok) setError(res.error ?? "Couldn't save. Try again.")
         })
-        .catch(() => setError("Couldn't save — check the connection"))
+        .catch(() => setError("Couldn't save. Check the connection."))
         .finally(() => setSavingCount((n) => n - 1))
     }
     if (debounceKey) {
@@ -161,7 +161,7 @@ export function RestockCountSheet({
     if (res.ok) {
       setSheet((s) => ({ ...s, status: "SUBMITTED", countedBy: name.trim() }))
     } else {
-      setError(res.error ?? "Couldn't send — try again")
+      setError(res.error ?? "Couldn't send. Try again.")
     }
   }
 
@@ -216,7 +216,7 @@ export function RestockCountSheet({
           Sent to prep ✓
         </div>
         <p className="mt-3 text-[16px] text-[var(--tk-ink-soft)]">
-          {STATION_LABEL[sheet.station]} count — {countedCount} item
+          {STATION_LABEL[sheet.station]} count: {countedCount} item
           {countedCount === 1 ? "" : "s"} counted, {requestedCount} requested
           {sheet.countedBy ? ` · by ${sheet.countedBy}` : ""}.
         </p>
@@ -270,7 +270,7 @@ export function RestockCountSheet({
           style={{ background: "var(--tk-gold-soft)", color: "#8a6d1f" }}
         >
           <AlertTriangle className="h-5 w-5 shrink-0" />
-          This sheet was already restocked — it&apos;s read-only now.
+          This sheet was already restocked, so it&apos;s read-only now.
         </div>
       )}
 
@@ -322,7 +322,7 @@ export function RestockCountSheet({
                 preps?
               </div>
               <div className="mt-0.5 text-[13px] text-[var(--tk-ink-soft)]">
-                Their coolroom count is shown — add a &ldquo;Need&rdquo; and it
+                Their coolroom count is shown. Add a &ldquo;Need&rdquo; and it
                 lands on the same morning run.
               </div>
             </div>
@@ -401,7 +401,7 @@ export function RestockCountSheet({
         </div>
       )}
 
-      {/* Add missing item — the blank rows at the bottom of the paper sheet */}
+      {/* Add missing item: the blank rows at the bottom of the paper sheet */}
       {!readOnly && (
         <div className="flex items-center gap-2 rounded-[18px] border border-dashed border-[var(--tk-line)] bg-white px-4 py-3">
           <Plus className="h-5 w-5 shrink-0 text-[var(--tk-ink-soft)]" />
@@ -463,9 +463,9 @@ export function RestockCountSheet({
           </div>
           <p className="mt-2 text-[13px] text-[var(--tk-ink-soft)]">
             {requestedCount === 0
-              ? "Nothing requested yet — you can still send an all-good count."
+              ? "Nothing requested yet. You can still send an all-good count."
               : `${requestedCount} item${requestedCount === 1 ? "" : "s"} will go on the prep chef's morning run.`}{" "}
-            Forget to send? The count still reaches the prep chef — sending
+            Forget to send? The count still reaches the prep chef. Sending
             just signs it off with your name.
           </p>
         </div>
@@ -578,7 +578,7 @@ function CountRow({
 }
 
 /**
- * Numeric cell — free typing plus a one-tap stepper feel: tapping the empty
+ * Numeric cell: free typing plus a one-tap stepper feel. Tapping the empty
  * cell starts at 0 so a single "+1" tap covers the common case.
  */
 function QtyInput({

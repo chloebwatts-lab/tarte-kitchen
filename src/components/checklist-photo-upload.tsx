@@ -14,7 +14,7 @@ interface Props {
   runId: string
   initialPhotos?: Photo[]
   uploadedBy?: string | null
-  /** Notified whenever the photo count changes — used by the parent to gate
+  /** Notified whenever the photo count changes, used by the parent to gate
    *  the "complete section" button when a minimum is required. */
   onPhotosChange?: (count: number) => void
   /** Hides the built-in "please take at least one" warning so the parent
@@ -25,7 +25,7 @@ interface Props {
 const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
 
-/** Evidence photos don't need 12MP — downscale to ≤1600px JPEG before
+/** Evidence photos don't need 12MP, downscale to ≤1600px JPEG before
  *  uploading so iPad camera shots (~4–6MB) become a few hundred KB. */
 const MAX_DIMENSION = 1600
 const JPEG_QUALITY = 0.8
@@ -79,7 +79,7 @@ export function ChecklistPhotoUpload({
   if (!CLOUD_NAME || !UPLOAD_PRESET) {
     return (
       <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-        Photo uploads not configured — add Cloudinary env vars to enable.
+        Photo uploads not configured, add Cloudinary env vars to enable.
       </div>
     )
   }

@@ -3,8 +3,8 @@
  * directly unit-testable). Used by /api/cron/sync-pastry-rotation.
  */
 
-/** Rows the auto-fill may replace. Anything else — including rows with a
- * NULL staff name — is treated as human and never touched. */
+/** Rows the auto-fill may replace. Anything else, including rows with a
+ * NULL staff name, is treated as human and never touched. */
 export const AUTO_NAMES = new Set(["auto", "JP", "BM", "BB", "DE", "TZ"])
 
 export function isAutoRow(staffName: string | null): boolean {
@@ -18,7 +18,7 @@ export function isHumanRow(staffName: string | null): boolean {
 /** Map a POS / wastage item name to a PastryProduct name. Null = not a
  * tracked pastry (almond croissants, generic "Cruellers", sourdough…).
  * Ordering matters: specific berries BEFORE the generic berry→strawberry
- * fallback — "blueberry"/"raspberry" contain the substring "berry". */
+ * fallback, "blueberry"/"raspberry" contain the substring "berry". */
 export function matchProduct(raw: string): string | null {
   const n = raw.toLowerCase().replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim()
   if (/tarte?s?\b/.test(n)) {
@@ -35,7 +35,7 @@ export function matchProduct(raw: string): string | null {
   if (/crueller|cruller/.test(n)) {
     if (/vanilla/.test(n)) return "Vanilla crueller"
     if (/dul/.test(n)) return "Dulce crueller"
-    return null // cinnamon / generic — not tracked products
+    return null // cinnamon / generic, not tracked products
   }
   if (/croissant/.test(n)) {
     if (/almond|chocolate|choc|ham|cheese/.test(n)) return null
@@ -70,7 +70,7 @@ export function splitAcrossBakes(total: number, props: number[]): number[] {
 /**
  * Distribute a day's prepared/discarded across bakes. Waste is discovered
  * at close, so discard fills backwards from the LAST producing bake until
- * exhausted (a 10-piece discard on a [7,4,1] day lands 1+4+5, not just 1 —
+ * exhausted (a 10-piece discard on a [7,4,1] day lands 1+4+5, not just 1,
  * sold + discarded always reconciles with the wastage register exactly).
  */
 export function buildBakeRows(

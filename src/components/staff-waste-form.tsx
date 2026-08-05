@@ -34,7 +34,7 @@ type PrepItem = {
   costPerGram: number
   costPerServe: number
   type: "prep"
-  // "serves" / "g" / "ml" / "l" — what a batch of the recipe yields.
+  // "serves" / "g" / "ml" / "l", what a batch of the recipe yields.
   // Used to decide whether the waste form should offer a "serves" unit at
   // all: a 750g batch of hollandaise is *not* 750 serves.
   yieldUnit?: string
@@ -151,7 +151,7 @@ export function StaffWasteForm({ items }: Props) {
   const [success, setSuccess] = useState<{ name: string; cost: number } | null>(null)
 
   // Combine all items, sorted so the most-wasted-in-last-30-days float to
-  // the top — so a staffer typing "h" hits "Hollandaise" before "Herbs".
+  // the top, so a staffer typing "h" hits "Hollandaise" before "Herbs".
   const allItems = useMemo<FormItem[]>(() => {
     const combined: FormItem[] = [...items.preps, ...items.ingredients, ...items.dishes]
     return combined.sort((a, b) => {
@@ -223,14 +223,15 @@ export function StaffWasteForm({ items }: Props) {
         const msg = (e instanceof Error ? e.message : String(e)) || ''
         // Server action hash changes on every deploy. If the browser has
         // a stale bundle, the POST returns 'Failed to find Server Action'.
-        // Reload once so the user gets fresh JS and can retry.
-        if (msg.includes('Server Action') || msg.includes('NEXT_REDIRECT') === false && /action|deployment/i.test(msg)) {
-          setError('Updating — reloading the app...')
+        // Reload once so the user gets fresh JS and can retry. Anything
+        // else is a real failure and must stay visible, not reload-loop.
+        if (msg.includes('Failed to find Server Action') || msg.includes('Server Action')) {
+          setError('Updating, reloading the app...')
           setTimeout(() => window.location.reload(), 800)
           return
         }
         console.error('Waste save failed:', e)
-        setError('Failed to save — try again')
+        setError('Failed to save, try again')
       }
     })
   }

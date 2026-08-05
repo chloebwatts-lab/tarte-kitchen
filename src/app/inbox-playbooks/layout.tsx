@@ -1,4 +1,4 @@
-// Standalone layout — no TK sidebar. Lives outside the (app) group so
+// Standalone layout, no TK sidebar. Lives outside the (app) group so
 // users with the inbox-playbooks-only password can access this page
 // without ever seeing the rest of TK (P&Ls, COGS, etc).
 
@@ -25,7 +25,7 @@ export default function InboxPlaybooksLayout({
               Tarte Inbox
             </Link>
             <p className="text-xs text-muted-foreground">
-              hello@tarte.com.au — agent playbooks
+              hello@tarte.com.au · agent playbooks
             </p>
           </div>
         </div>

@@ -68,7 +68,7 @@ export default async function LabourPage() {
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
           <span>
             {status.unmappedCount} Deputy operational unit
-            {status.unmappedCount === 1 ? " is" : "s are"} unmapped — shifts
+            {status.unmappedCount === 1 ? " is" : "s are"} unmapped, shifts
             from {status.unmappedCount === 1 ? "it" : "them"} aren&apos;t being
             counted, which will under-report wages.{" "}
             <Link

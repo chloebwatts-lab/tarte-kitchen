@@ -99,7 +99,7 @@ function parseWeCell(text: string): Date | null {
  * Layout assumed (confirmed against both real files):
  * - Cell near top-left contains venue label ("Bakery Burleigh" /
  *   "BeachHouse Currumbin").
- * - Header row contains "we dd/m/yy" cells — one per week. "4 week
+ * - Header row contains "we dd/m/yy" cells, one per week. "4 week
  *   Average" columns are ignored (they don't match the we-regex).
  * - Column B holds category labels; we match by regex for resilience
  *   against minor wording drift:
@@ -115,7 +115,7 @@ export async function parseCogsXlsx(params: {
 }): Promise<{ weeks: ExtractedCogsWeek[]; notes?: string }> {
   const wb = new ExcelJS.Workbook()
   const buf = Buffer.from(params.xlsxBase64, "base64")
-  // exceljs types lag @types/node's Buffer<ArrayBuffer> generics — runtime
+  // exceljs types lag @types/node's Buffer<ArrayBuffer> generics, runtime
   // accepts either Buffer or raw ArrayBuffer, so cast.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await wb.xlsx.load(buf as any)
@@ -195,7 +195,7 @@ export async function parseCogsXlsx(params: {
   }
 
   // Supplier rows sit between the header and the "Total food cost" row.
-  // Skip blank labels. Store the label as-is (trimmed) — UI normalises
+  // Skip blank labels. Store the label as-is (trimmed): UI normalises
   // "Other : Woolworths, …" etc. when displaying.
   const supplierRows: { row: number; supplier: string }[] = []
   if (labelRows.food > headerRow + 1) {
@@ -262,7 +262,7 @@ export interface SupplierWeekCell {
   supplier: string
   // Amounts keyed by weekStartWed. Missing keys mean no spend that week.
   byWeek: Record<string, number>
-  total: number // sum across the displayed window — used for ranking
+  total: number // sum across the displayed window, used for ranking
   latest: number | null // latest non-zero week's amount
   fourWeekAvg: number | null // average of last 4 non-null weeks ending latest
   spike: boolean // latest > 1.25 × 4-wk avg AND both defined

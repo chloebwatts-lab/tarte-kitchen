@@ -16,7 +16,12 @@ export default async function NewSupplierOrderPage({
 }) {
   const { supplierId } = await params
   const { venue: venueParam } = await searchParams
-  const venue = (venueParam as Venue) || "BURLEIGH"
+  // Validate against the real enum, an arbitrary ?venue= must not reach
+  // Prisma and 500.
+  const VALID_VENUES = ["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN", "BOTH"] as const
+  const venue: Venue = (VALID_VENUES as readonly string[]).includes(venueParam ?? "")
+    ? (venueParam as Venue)
+    : "BURLEIGH"
 
   const { supplier, lines } = await getSupplierOrderForm(supplierId, venue)
   if (!supplier) notFound()
@@ -32,7 +37,7 @@ export default async function NewSupplierOrderPage({
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Tick the items you want to order. Suggested quantities are pre-filled
-          from par levels and recent invoices — adjust as needed, then send.
+          from par levels and recent invoices, adjust as needed, then send.
         </p>
       </div>
       {lines.length === 0 ? (

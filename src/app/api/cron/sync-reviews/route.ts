@@ -9,14 +9,14 @@ export const maxDuration = 300
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 })
   }
 
   // The Places API path stays unconditional: it owns the aggregate
   // rating snapshot (GBP doesn't expose it) and acts as a fallback if
   // GBP is disconnected or partially bound. When the GBP connection is
-  // live, we run it too — it returns *all* reviews paginated, beating
+  // live, we run it too, it returns *all* reviews paginated, beating
   // the 5-cap Places window. Content-identity dedup in both fetchers
   // keeps overlap from creating duplicate rows.
   let gbp: Awaited<ReturnType<typeof ingestAllVenuesGbp>> | null = null

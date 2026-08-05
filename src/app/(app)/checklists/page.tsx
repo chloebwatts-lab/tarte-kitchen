@@ -26,6 +26,13 @@ const CADENCE_LABEL: Record<string, string> = {
   ON_DEMAND: "On demand",
 }
 
+const SHIFT_LABEL: Record<string, string> = {
+  OPEN: "Opening",
+  MID: "Midday",
+  CLOSE: "Closing",
+  ANY: "Any",
+}
+
 function isCompliance(t: ChecklistTemplateSummary) {
   return t.isFoodSafety || t.area === "Food Safety"
 }
@@ -63,7 +70,7 @@ function TemplateCard({ t }: { t: ChecklistTemplateSummary }) {
             <div className="mt-1 flex flex-wrap gap-1 text-[10px] text-muted-foreground">
               <span>{VENUE_SHORT_LABEL[t.venue] ?? t.venue}</span>
               {t.area && t.area !== "Food Safety" && <span>· {t.area}</span>}
-              <span>· {t.shift.toLowerCase()} shift</span>
+              <span>· {SHIFT_LABEL[t.shift] ?? t.shift} shift</span>
               <span>· {t.itemCount} items</span>
             </div>
           </div>
@@ -133,7 +140,7 @@ export default async function ChecklistsPage() {
             logged and timestamped for compliance.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link
             href="/checklists/food-safety"
             className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted/50"

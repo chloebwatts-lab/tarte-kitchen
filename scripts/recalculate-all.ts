@@ -13,10 +13,11 @@ import Decimal from "decimal.js"
 
 const UNIT_MULT: Record<string, number> = {
   g: 1, kg: 1000, ml: 1, l: 1000, ea: 1, dozen: 12, oz: 28.3495, lb: 453.592,
+  serve: 1, serves: 1,
 }
 const WEIGHT_UNITS = new Set(["g", "kg", "oz", "lb"])
 const VOLUME_UNITS = new Set(["ml", "l", "cl"])
-const COUNT_UNITS = new Set(["ea", "dozen", "serve"])
+const COUNT_UNITS = new Set(["ea", "dozen", "serve", "serves"])
 
 function calcIngredientLineCost(
   quantity: number,
@@ -58,7 +59,7 @@ function calcPrepLineCost(
 
   // COUNT → COUNT: "1 ea" from "70 ea" batch, or "2 serve" from "180 serve" batch
   const unitIsCount = COUNT_UNITS.has(u)
-  const yieldIsCount = yu === "serve" || yu === "ea"
+  const yieldIsCount = yu === "serve" || yu === "serves" || yu === "ea"
   if (unitIsCount && yieldIsCount) {
     const baseQ = q.mul(UNIT_MULT[u] ?? 1)      // ea→1, dozen→12, serve→1
     const baseY = yieldQuantity.mul(UNIT_MULT[yu] ?? 1)

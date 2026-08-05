@@ -14,7 +14,7 @@
 //   - "converted"     : differing units but we have a conversion factor
 //                       (either stored on SupplierItemMapping, or parsed
 //                       from the description "5kg" / "12x500g" / "1L" etc.)
-//   - "unit_changed"  : units differ and we have no usable conversion —
+//   - "unit_changed"  : units differ and we have no usable conversion,
 //                       surface for chef confirmation, do NOT auto-apply.
 
 export interface IngredientUnitInfo {
@@ -104,7 +104,7 @@ const PACK_REGEX =
   /(\d+(?:\.\d+)?)\s*(?:x\s*(\d+(?:\.\d+)?)\s*)?(kgs?|kilos?|kilograms?|grams?|grms?|gms?|gr|g|ml|millilitres?|milliliters?|litres?|liters?|ltrs?|lt|l|ea|each|pcs?|pieces?|dz|dozen)\b/i
 
 // Reversed multiplier form: "1L x 6", "400ml x 12" (unit before the count).
-// Tried FIRST — the forward regex would otherwise match just the "1L" and
+// Tried FIRST, the forward regex would otherwise match just the "1L" and
 // drop the ×6.
 const PACK_REGEX_REVERSED =
   /(\d+(?:\.\d+)?)\s*(kgs?|kilos?|kilograms?|grams?|grms?|gms?|gr|g|ml|millilitres?|milliliters?|litres?|liters?|ltrs?|lt|l|ea|each|pcs?|pieces?|dz|dozen)\s*x\s*(\d+(?:\.\d+)?)\b/i
@@ -117,14 +117,14 @@ export interface ParsedPackSize {
 }
 
 // Multipack count without a unit on the count: "12PK : 500ML", "6pk 375ml".
-// Neither base regex catches these — "PK" isn't a measure unit, so the size
+// Neither base regex catches these, "PK" isn't a measure unit, so the size
 // alone matched and a 12×500ml case normalised as if it held one 500ml can.
 const PACK_REGEX_MULTIPACK =
   /(\d+)\s*(?:pk|pack)\b[^0-9]{0,6}(\d+(?:\.\d+)?)\s*(kgs?|grams?|gms?|gr|g|ml|litres?|liters?|ltrs?|lt|l)\b/i
 
 // Triple multiplier: "SODA WATER 4 X 6 X 250ML" (4 trays of 6 cans). The
 // forward regex anchors on the inner "6 X 250ML" and silently drops the
-// outer 4× — a 6 L case normalising as 1.5 L (price 4× high). Tried FIRST.
+// outer 4×, a 6 L case normalising as 1.5 L (price 4× high). Tried FIRST.
 const PACK_REGEX_TRIPLE =
   /(\d+)\s*x\s*(\d+)\s*x\s*(\d+(?:\.\d+)?)\s*(kgs?|grams?|gms?|gr|g|ml|litres?|liters?|ltrs?|lt|l)\b/i
 
@@ -137,7 +137,7 @@ const PACK_REGEX_WORDED_REVERSED =
 
 export function parsePackSize(rawDescription: string): ParsedPackSize | null {
   // Strip bracketed size-grades before parsing: "Slipper Bug Meat Raw
-  // [10-50g] 1kg" grades the PIECES at 10-50 g — parsing "50g" as the pack
+  // [10-50g] 1kg" grades the PIECES at 10-50 g, parsing "50g" as the pack
   // size made a 1 kg bag normalise 20x too high.
   const description = rawDescription.replace(/\[[^\]]*\]/g, " ")
   let a: number
@@ -215,7 +215,7 @@ export function inferConversionFromPack(
   // stored units), so the multiplier is 1 / contents-in-stored-units.
   //
   // The previous formula multiplied by contents and divided by
-  // purchaseQuantity — "SUGAR Brown 15kg bag $35.90" against sugar stored
+  // purchaseQuantity, "SUGAR Brown 15kg bag $35.90" against sugar stored
   // per-kg came out as $35.90/kg (+1237%) instead of $2.39/kg (−11%). That
   // one inversion produced most of the bogus >200% price alerts.
   if (pack.unit === "kg" && stored === "kg") return 1 / pack.qty
@@ -225,7 +225,7 @@ export function inferConversionFromPack(
   if (pack.unit === "ea" && stored === "ea") return 1 / pack.qty
 
   // Ingredient stored as a pack-unit (carton, case, bag) with a fixed
-  // purchaseQuantity — interpret purchaseQuantity as "1 carton contains
+  // purchaseQuantity, interpret purchaseQuantity as "1 carton contains
   // <purchaseQuantity> base units".  We can't trust the pack-unit alone
   // without a base measure; needs explicit conversion.
   return null
@@ -294,7 +294,7 @@ export function compareUnits(
   mappingConversion: number | null,
   // Unit the mapping's factor was confirmed against. Suppliers reuse one
   // description across pack formats (Bidfood "BUTTER SALTED" ships as a
-  // 500g PAT and a 5kg BLK) — a factor learned on one format is garbage on
+  // 500g PAT and a 5kg BLK), a factor learned on one format is garbage on
   // the other, so when we know the mapping's unit, the factor only applies
   // to lines billed in that unit. Null (legacy mappings) keeps old behaviour.
   mappingInvoiceUnit?: string | null
@@ -314,7 +314,7 @@ export function compareUnits(
 
   // 0. A unit-scoped mapping outranks even a same-unit label match. Some
   // suppliers bill cartons as "ea" (Eustralis: "Bridor Croissant 70g, 2 ea
-  // @ $65.15" = two 60-packs) — the label agrees with the stored unit but
+  // @ $65.15" = two 60-packs), the label agrees with the stored unit but
   // lies about the quantity, and only chef-confirmed knowledge can say so.
   // Requires BOTH a factor and a matching invoiceUnit so a legacy unscoped
   // factor can't hijack genuine like-for-like lines.
@@ -425,8 +425,8 @@ export function compareUnits(
 /**
  * What to write to the `InvoiceLineItem` after running the comparison.
  * Same-unit and converted results are real, applicable price changes.
- * Unit-changed results park in a separate bucket awaiting confirmation —
- * `priceChanged=false, unitChanged=true` — so they don't get auto-applied.
+ * Unit-changed results park in a separate bucket awaiting confirmation,
+ * `priceChanged=false, unitChanged=true`, so they don't get auto-applied.
  */
 export interface PriceEvaluation {
   priceChanged: boolean
@@ -492,9 +492,9 @@ export function evaluatePriceChange(
     }
   }
 
-  // unit_changed — try one more time to pre-fill a suggestion from pack-size
+  // unit_changed, try one more time to pre-fill a suggestion from pack-size
   // parsing even if inferConversionFromPack couldn't satisfy it (e.g. pack
-  // unit is "kg" but stored is "carton" with no base unit — leave for user).
+  // unit is "kg" but stored is "carton" with no base unit, leave for user).
   const pack = parsePackSize(line.description)
   const suggested = pack
     ? inferConversionFromPack(pack, ingredient.purchaseUnit, ingredient.purchaseQuantity)
@@ -517,7 +517,7 @@ export function evaluatePriceChange(
  * Converted case:  invoice's per-unit × conversionFactor × purchaseQuantity
  *                  i.e. the storedUnitPrice equivalent × purchaseQuantity.
  *
- * Throws if the comparison wasn't applicable — callers should never reach
+ * Throws if the comparison wasn't applicable, callers should never reach
  * here for unit_changed or skip results.
  */
 export function newPurchasePriceFromComparison(

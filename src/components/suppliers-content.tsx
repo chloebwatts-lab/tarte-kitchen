@@ -113,7 +113,7 @@ export function SuppliersContent({ suppliers }: { suppliers: Supplier[] }) {
                       className="h-8 w-8 text-destructive hover:text-destructive"
                       onClick={async () => {
                         if (supplier.ingredientCount > 0) {
-                          alert(`Cannot delete ${supplier.name} — it has ${supplier.ingredientCount} ingredients assigned.`)
+                          alert(`Cannot delete ${supplier.name}, it has ${supplier.ingredientCount} ingredients assigned.`)
                           return
                         }
                         if (confirm(`Delete ${supplier.name}?`)) {

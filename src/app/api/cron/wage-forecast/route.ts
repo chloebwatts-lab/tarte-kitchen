@@ -1,5 +1,5 @@
 /**
- * TEMPORARY endpoint — pulls the live wage forecast for the Tarte week
+ * TEMPORARY endpoint, pulls the live wage forecast for the Tarte week
  * containing the optional `at` query timestamp (defaults to now).
  *
  * Usage:
@@ -7,7 +7,7 @@
  *     "http://app:3000/api/cron/wage-forecast?at=2026-05-26T13:00:00Z"
  *
  * With `?diagnostic=1`, also returns per-employee labour rows for the
- * Tarte week containing `at`, plus DeputyConnection multiplier rates —
+ * Tarte week containing `at`, plus DeputyConnection multiplier rates,
  * used to triage which hypothesis is driving the over-target wage %
  * (salary double-count vs. multiplier vs. revenue source).
  *
@@ -25,7 +25,7 @@ export const maxDuration = 60
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 })
   }
 
@@ -146,7 +146,7 @@ export async function GET(req: NextRequest) {
   ])
 
   // Group per (venue, employeeName) so we can spot double-counting
-  // — i.e. the same person showing up in BOTH a "Salary X" ROSTER
+  //, i.e. the same person showing up in BOTH a "Salary X" ROSTER
   // placeholder row AND non-zero-cost TIMESHEET rows in another area.
   type Row = {
     venue: string

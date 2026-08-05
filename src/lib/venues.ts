@@ -2,7 +2,7 @@ import { Venue } from "@/generated/prisma/client"
 
 /**
  * Human-readable labels for each venue. Use these anywhere a venue
- * is rendered in the UI — never hardcode "Burleigh" / "Currumbin" etc.
+ * is rendered in the UI, never hardcode "Burleigh" / "Currumbin" etc.
  */
 export const VENUE_LABEL: Record<Venue, string> = {
   BURLEIGH: "Tarte Bakery (Burleigh)",
@@ -29,7 +29,7 @@ export const SINGLE_VENUES = ["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN"] as const
 export type SingleVenue = (typeof SINGLE_VENUES)[number]
 
 /**
- * Recharts fill colors — keyed by venue so stacked bar charts stay consistent
+ * Recharts fill colors, keyed by venue so stacked bar charts stay consistent
  * across every dashboard.
  */
 export const VENUE_CHART_COLOR: Record<Venue, string> = {
@@ -62,7 +62,7 @@ export function normalizeVenueSlug(input: string | null | undefined): Venue | nu
   if (s === "CURRUMBIN") return "BEACH_HOUSE"
 
   // Substring match on concept names (priority: Tea Garden before Beach House
-  // before Burleigh, since "Currumbin" alone is ambiguous — default to Beach House)
+  // before Burleigh, since "Currumbin" alone is ambiguous, default to Beach House)
   if (s.includes("TEA GARDEN") || s.includes("TEA_GARDEN") || s.includes("TEAGARDEN")) {
     return "TEA_GARDEN"
   }

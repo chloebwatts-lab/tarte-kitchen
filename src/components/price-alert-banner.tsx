@@ -2,26 +2,32 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { AlertTriangle, X } from "lucide-react"
 
 export function PriceAlertBanner() {
+  const pathname = usePathname()
   const [count, setCount] = useState(0)
   const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
     async function fetchCount() {
       try {
         const res = await fetch("/api/alerts/count")
         if (res.ok) {
           const data = await res.json()
-          setCount(data.count)
+          if (!cancelled) setCount(data.count)
         }
       } catch {
-        // Silently ignore — banner just won't show
+        // Silently ignore, the banner just won't show
       }
     }
     fetchCount()
-  }, [])
+    return () => {
+      cancelled = true
+    }
+  }, [pathname])
 
   if (count === 0 || dismissed) return null
 
@@ -33,8 +39,8 @@ export function PriceAlertBanner() {
       >
         <AlertTriangle className="h-4 w-4" />
         <span>
-          {count} price alert{count !== 1 ? "s" : ""} open — review in Price
-          Alerts
+          {count} price alert{count !== 1 ? "s" : ""} open. Review in Price
+          Alerts.
         </span>
       </Link>
       <button

@@ -101,9 +101,9 @@ export async function matchLineItem(lineItemId: string, ingredientId: string) {
       },
       select: { conversionFactor: true, invoiceUnit: true, ignored: true, ingredientId: true },
     })
-    // An ignored mapping's factor is knowledge about a REJECTED pairing —
+    // An ignored mapping's factor is knowledge about a REJECTED pairing,
     // never apply it. And a factor learned for a different ingredient is in
-    // that ingredient's unit basis — also unusable here.
+    // that ingredient's unit basis, also unusable here.
     if (existing && !existing.ignored && existing.ingredientId === ingredientId) {
       mappingConversion = existing.conversionFactor ? Number(existing.conversionFactor) : null
       mappingInvoiceUnit = existing.invoiceUnit ?? null
@@ -138,7 +138,7 @@ export async function matchLineItem(lineItemId: string, ingredientId: string) {
       currentPrice: evaluation.currentPrice,
       priceChanged: evaluation.priceChanged,
       // Produce never enters the unit-review queue (standing rule
-      // 2026-07-15) — floating tray/bunch pack sizes skip silently.
+      // 2026-07-15), floating tray/bunch pack sizes skip silently.
       unitChanged:
         streamForCategory(ingredient.category) === "PRODUCE" ? false : evaluation.unitChanged,
       normalisedUnitPrice: evaluation.normalisedUnitPrice,
@@ -149,7 +149,7 @@ export async function matchLineItem(lineItemId: string, ingredientId: string) {
 
   // Create supplier-item mapping for future auto-matching. On a RE-map the
   // old ingredient's conversion factor is meaningless for the new one (it's
-  // in the old ingredient's unit basis) — clear it so the pipeline falls
+  // in the old ingredient's unit basis), clear it so the pipeline falls
   // back to description parsing / unit review rather than silently applying
   // a factor from a different product. A manual re-map also un-ignores.
   if (lineItem.invoice.supplierId) {
@@ -253,7 +253,15 @@ export async function getPendingPriceChanges() {
   })
 }
 
-export async function approvePriceChange(lineItemId: string) {
+/**
+ * The per-line write path shared by approvePriceChange and
+ * approveAllPriceChanges: validates units, logs PriceHistory (mandatory),
+ * updates the ingredient price, marks the line approved, syncs the v2
+ * alert surface, and flips the invoice to APPROVED when nothing is left
+ * pending. Deliberately does NOT recalculate recipe costs or revalidate
+ * paths, callers do that once per user action, not once per line.
+ */
+async function applyPriceChangeCore(lineItemId: string): Promise<void> {
   const li = await db.invoiceLineItem.findUnique({
     where: { id: lineItemId },
     include: { invoice: true },
@@ -307,7 +315,7 @@ export async function approvePriceChange(lineItemId: string) {
   if (result.kind === "skip" || result.kind === "unit_changed") {
     throw new Error(
       result.kind === "unit_changed"
-        ? `Pack/unit changed (invoice "${result.invoiceUnit}" vs stored "${result.storedUnit}") — confirm a conversion factor before applying.`
+        ? `Pack/unit changed (invoice "${result.invoiceUnit}" vs stored "${result.storedUnit}"), confirm a conversion factor before applying.`
         : `Cannot apply: ${result.reason}`
     )
   }
@@ -341,16 +349,12 @@ export async function approvePriceChange(lineItemId: string) {
   })
 
   // Keep the v2 alert surface (/price-alerts) in sync: applying the price
-  // here resolves the open PriceAlert for this ingredient too — otherwise
+  // here resolves the open PriceAlert for this ingredient too, otherwise
   // the other page keeps showing an alert the chef already actioned.
   await db.priceAlert.updateMany({
     where: { ingredientId: li.ingredientId, status: "OPEN" },
     data: { status: "ACCEPTED", resolvedAt: new Date() },
   })
-
-  // Cascade recalculation (reuse existing logic)
-  const { recalculateAll } = await import("./ingredients")
-  await recalculateAll()
 
   // Check if all price changes for this invoice are resolved
   const pending = await db.invoiceLineItem.count({
@@ -366,6 +370,14 @@ export async function approvePriceChange(lineItemId: string) {
       data: { status: "APPROVED", approvedAt: new Date() },
     })
   }
+}
+
+export async function approvePriceChange(lineItemId: string) {
+  await applyPriceChangeCore(lineItemId)
+
+  // Cascade recalculation (reuse existing logic)
+  const { recalculateAll } = await import("./ingredients")
+  await recalculateAll()
 
   revalidatePath("/invoices")
   revalidatePath("/ingredients")
@@ -425,7 +437,7 @@ export async function rejectAndIgnoreMapping(lineItemId: string) {
   })
   if (!line) throw new Error("Line not found")
 
-  // Mark mapping as ignored — by id if we have one, otherwise by
+  // Mark mapping as ignored, by id if we have one, otherwise by
   // (supplier, description) lookup.
   if (line.mappingId) {
     await db.supplierItemMapping.update({
@@ -473,17 +485,29 @@ export async function approveAllPriceChanges(invoiceId?: string) {
   })
 
   // One refused line (unit changed since flagging, mapping since ignored)
-  // must not abort the rest of the batch — collect and report instead.
+  // must not abort the rest of the batch, collect and report instead.
+  // Writes are batched via the core path (PriceHistory stays per line);
+  // the recipe-cost cascade and path revalidation run ONCE at the end
+  // rather than once per line.
   let applied = 0
   const failed: string[] = []
   for (const li of lineItems) {
     try {
-      await approvePriceChange(li.id)
+      await applyPriceChangeCore(li.id)
       applied++
     } catch {
       failed.push(li.description)
     }
   }
+
+  if (applied > 0) {
+    const { recalculateAll } = await import("./ingredients")
+    await recalculateAll()
+  }
+  revalidatePath("/invoices")
+  revalidatePath("/ingredients")
+  revalidatePath("/preparations")
+  revalidatePath("/dishes")
   return { applied, failed }
 }
 
@@ -697,7 +721,7 @@ export async function getUnitChangedAlerts(): Promise<UnitChangedAlert[]> {
  * holds 5 kg). The ENGINE multiplies invoice price × factor to get the
  * per-stored-unit price, so what we store is the RECIPROCAL: 1/5.
  * Getting this backwards was the single biggest source of corrupted
- * prices (a 5 kg carton saved as ×5 instead of ÷5 = 25× off) — keep the
+ * prices (a 5 kg carton saved as ×5 instead of ÷5 = 25× off), keep the
  * human semantics at this boundary and the engine semantics below it.
  */
 export async function confirmConversion(lineItemId: string, storedUnitsPerInvoiceUnit: number) {
@@ -789,19 +813,45 @@ export async function getUnacknowledgedAlertCount(): Promise<number> {
 
 export async function acknowledgeAlert(lineItemId: string) {
   // Acknowledge = reject the price change (mark handled without applying).
-  await db.invoiceLineItem.update({
+  const li = await db.invoiceLineItem.update({
     where: { id: lineItemId },
     data: { priceApproved: false },
+    select: { ingredientId: true },
   })
+  // Keep the v2 alert surface (/price-alerts) in sync, mirror of what
+  // approvePriceChange does on the accept path, so the nav badge and both
+  // pages agree after an acknowledge.
+  if (li.ingredientId) {
+    await db.priceAlert.updateMany({
+      where: { ingredientId: li.ingredientId, status: "OPEN" },
+      data: { status: "DISMISSED", resolvedAt: new Date() },
+    })
+  }
   revalidatePath("/suppliers")
+  revalidatePath("/price-alerts")
+  revalidatePath("/dashboard")
 }
 
 export async function acknowledgeAllAlerts() {
+  const pending = await db.invoiceLineItem.findMany({
+    where: { priceChanged: true, priceApproved: null, ingredientId: { not: null } },
+    select: { ingredientId: true },
+  })
   await db.invoiceLineItem.updateMany({
     where: { priceChanged: true, priceApproved: null },
     data: { priceApproved: false },
   })
+  // Resolve the matching v2 PriceAlert rows too (see acknowledgeAlert).
+  const ingredientIds = [...new Set(pending.map((p) => p.ingredientId!))]
+  if (ingredientIds.length > 0) {
+    await db.priceAlert.updateMany({
+      where: { ingredientId: { in: ingredientIds }, status: "OPEN" },
+      data: { status: "DISMISSED", resolvedAt: new Date() },
+    })
+  }
   revalidatePath("/suppliers")
+  revalidatePath("/price-alerts")
+  revalidatePath("/dashboard")
 }
 
 export async function applyAndAcknowledgeAlert(lineItemId: string) {

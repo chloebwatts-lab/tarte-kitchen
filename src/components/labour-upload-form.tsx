@@ -80,7 +80,7 @@ export function LabourUploadForm() {
         const { rows } = await parseLabourCsv(text)
         patchFile(entry.id, { status: "parsed", csvRows: rows, csvRaw: text })
       } else {
-        patchFile(entry.id, { status: "error", error: "Unrecognised file type — need .pdf, .xlsx, or .csv" })
+        patchFile(entry.id, { status: "error", error: "Unrecognised file type: need .pdf, .xlsx, or .csv" })
       }
     } catch (e) {
       patchFile(entry.id, { status: "error", error: (e as Error).message })
@@ -152,7 +152,7 @@ export function LabourUploadForm() {
           venue: entry.fixedVenues[idx] ?? r.venue,
         }))
         if (!resolved.every((r) => r.venue !== null)) {
-          throw new Error("CSV has rows with unresolved venues — pick one for each highlighted row")
+          throw new Error("CSV has rows with unresolved venues: pick one for each highlighted row")
         }
         const res = await commitLabourCsv({
           filename: entry.filename,
@@ -250,17 +250,17 @@ export function LabourUploadForm() {
             <p className="font-medium">Drop in any combination</p>
             <ul className="mt-1 list-disc space-y-0.5 pl-5 text-muted-foreground">
               <li>
-                <strong>Mge PDF</strong> — weekly management report per venue. Extracts revenue, department wage breakdown, ex-admin totals, COGS.
+                <strong>Mge PDF</strong>: weekly management report per venue. Extracts revenue, department wage breakdown, ex-admin totals, COGS.
               </li>
               <li>
-                <strong>COGS xlsx</strong> — weekly Burleigh / Currumbin food-costs spreadsheet.
+                <strong>COGS xlsx</strong>: weekly Burleigh / Currumbin food-costs spreadsheet.
               </li>
               <li>
-                <strong>Payroll CSV</strong> — columns: venue, week_start, gross_wages, super, hours, m_forecast.
+                <strong>Payroll CSV</strong>: columns venue, week_start, gross_wages, super, hours, m_forecast.
               </li>
             </ul>
             <p className="mt-2 text-muted-foreground">
-              Files parse in parallel — one slow PDF won&apos;t hold the others up.
+              Files parse in parallel, so one slow PDF won&apos;t hold the others up.
             </p>
           </div>
         </CardContent>
@@ -379,7 +379,7 @@ function StatusBadge({ status, type }: { status: FileStatus; type: FileType }) {
     saved: "saved",
     error: "error",
   }
-  // Cast — Badge accepts these via its variant union plus "neutral" fallback below.
+  // Cast: Badge accepts these via its variant union plus "neutral" fallback below.
   return (
     <Badge variant={variant[status] === "neutral" ? undefined : variant[status]}>
       {label[status]}
@@ -435,7 +435,7 @@ function MgePreview({ weeks }: { weeks: ExtractedMgeWeek[] }) {
 
 function CogsPreview({ weeks }: { weeks: ExtractedCogsWeek[] }) {
   return (
-    <div className="max-h-80 overflow-y-auto rounded-lg border border-border">
+    <div className="max-h-80 overflow-y-auto overflow-x-auto rounded-lg border border-border">
       <table className="w-full text-xs">
         <thead className="sticky top-0 bg-muted/50">
           <tr className="border-b border-border text-left font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -490,6 +490,7 @@ function CsvPreview({
   onSetVenue: (rowIdx: number, venue: Venue) => void
 }) {
   return (
+    <div className="overflow-x-auto">
     <table className="w-full text-sm">
       <thead>
         <tr className="border-b border-border text-left font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -518,7 +519,7 @@ function CsvPreview({
                     onChange={(e) => onSetVenue(i, e.target.value as Venue)}
                   >
                     <option value="" disabled>
-                      ⚠ pick — was &quot;{r.venueRaw}&quot;
+                      ⚠ pick, was &quot;{r.venueRaw}&quot;
                     </option>
                     {SINGLE_VENUES.map((v) => (
                       <option key={v} value={v}>
@@ -545,6 +546,7 @@ function CsvPreview({
         })}
       </tbody>
     </table>
+    </div>
   )
 }
 

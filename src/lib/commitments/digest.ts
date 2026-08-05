@@ -89,7 +89,7 @@ export async function buildCommitmentsSection(): Promise<CommitmentsSection> {
 
   // Walk back from the last fully completed Mon–Sun week counting
   // consecutive misses. An unmarked (and underivable) week breaks the
-  // streak — only explicit Ns count.
+  // streak, only explicit Ns count.
   const standingConcerns: CommitmentsSection["standingConcerns"] = []
   for (const c of standing) {
     let streak = 0

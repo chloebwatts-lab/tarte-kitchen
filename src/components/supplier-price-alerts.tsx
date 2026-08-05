@@ -91,7 +91,7 @@ export function SupplierPriceAlerts({
       } catch (e) {
         // The apply path REFUSES when the line is no longer like-for-like
         // (unit changed, mapping since ignored). Silence here previously
-        // made the button look broken — surface the refusal.
+        // made the button look broken, surface the refusal.
         setActionError(e instanceof Error ? e.message : "Could not apply this price")
       }
       router.refresh()
@@ -101,7 +101,7 @@ export function SupplierPriceAlerts({
   function handleReject(id: string, ingredientName: string, supplierName: string) {
     if (
       !confirm(
-        `Reject this match? "${ingredientName}" (${supplierName}) won't be linked to this invoice description again — future invoices will re-run through the matcher.`
+        `Reject this match? "${ingredientName}" (${supplierName}) won't be linked to this invoice description again, future invoices will re-run through the matcher.`
       )
     ) {
       return
@@ -158,7 +158,7 @@ export function SupplierPriceAlerts({
           <div className="flex items-center gap-2">
             <Ruler className="h-4 w-4 text-amber-text" />
             <p className="text-sm font-medium text-amber-text">
-              Pack / unit changed — needs remap ({unitChangedAlerts.length})
+              Pack / unit changed, needs remap ({unitChangedAlerts.length})
             </p>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -316,7 +316,7 @@ function AlertRow({
                 size="sm"
                 onClick={onReject}
                 disabled={isPending}
-                title="Reject — wrong match. Future invoices with this description won't auto-link to this ingredient."
+                title="Reject, wrong match. Future invoices with this description won't auto-link to this ingredient."
                 className="text-red-text hover:bg-red-light hover:text-red-text"
               >
                 <X className="h-3.5 w-3.5" />
@@ -438,7 +438,7 @@ function UnitChangedRow({
       </div>
       {alert.suggestedConversionFactor != null && (
         <p className="text-[11px] text-amber-text">
-          Suggested from description — confirm or adjust before saving.
+          Suggested from description, confirm or adjust before saving.
         </p>
       )}
       {error && <p className="text-[11px] text-red-text">{error}</p>}

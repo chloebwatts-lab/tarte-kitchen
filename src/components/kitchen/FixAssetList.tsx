@@ -140,7 +140,7 @@ export function FixAssetList({ assets }: { assets: FixAssetRow[] }) {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Or search — “big oven”, “Meiko”, “B07”…"
+          placeholder="Or search: “big oven”, “Meiko”, “B07”…"
           className="w-full rounded-2xl border border-[var(--tk-line)] bg-[var(--tk-card)] py-4 pl-12 pr-4 text-[17px] text-[var(--tk-ink)] outline-none focus:border-[var(--tk-sage)]"
         />
       </div>

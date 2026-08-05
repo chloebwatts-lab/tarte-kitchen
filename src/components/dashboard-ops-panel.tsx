@@ -112,7 +112,7 @@ export function DashboardOpsPanel({
 
         {labourVenues.length === 0 ? (
           <p className="mt-3 text-sm text-muted-foreground">
-            No forecast entered yet — set in Labour &rarr; Forecasts
+            No forecast entered yet, set in Labour &rarr; Forecasts
           </p>
         ) : (
           <div className="mt-3 space-y-2">

@@ -28,7 +28,7 @@ export default async function PriceAlertsPage() {
         <p className="text-sm text-muted-foreground mt-1">
           Two-stream supplier pricing watch. Stable items (pantry, dairy, dry
           goods) flag any ±5% move. Fruit &amp; veg only flag a sustained
-          ≥25% jump above the 4-week median — single-week market spikes are
+          ≥25% jump above the 4-week median, single-week market spikes are
           suppressed.
         </p>
       </header>

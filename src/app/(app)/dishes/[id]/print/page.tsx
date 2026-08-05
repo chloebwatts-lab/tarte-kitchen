@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 
 import { notFound } from "next/navigation"
 import { db } from "@/lib/db"
+import { collectPrepAllergens } from "@/lib/allergens"
 import { RecipeCard } from "@/components/recipe-card"
 
 export default async function DishPrintPage({
@@ -34,17 +35,13 @@ export default async function DishPrintPage({
 
   if (!dish) notFound()
 
-  // Roll up allergens across ingredients + preparation ingredients (1 level)
-  const allergens = new Set<string>()
+  // Roll up allergens: direct ingredients plus the FULL prep tree (any
+  // depth). One-level rollup dropped allergens from nested sub-preps.
+  const allergens = await collectPrepAllergens(
+    dish.components.filter((c) => c.preparation).map((c) => c.preparation!.id)
+  )
   for (const c of dish.components) {
-    if (c.ingredient?.allergens) {
-      for (const a of c.ingredient.allergens) allergens.add(a)
-    }
-    if (c.preparation) {
-      for (const it of c.preparation.items) {
-        for (const a of it.ingredient?.allergens ?? []) allergens.add(a)
-      }
-    }
+    for (const a of c.ingredient?.allergens ?? []) allergens.add(a)
   }
 
   return (

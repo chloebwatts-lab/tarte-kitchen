@@ -3,12 +3,12 @@
  * gets handed to Claude for narrative synthesis.
  *
  * The whole digest is anchored to Tarte's trading week (Wed → Tue) via
- * `lastCompletedTarteWeek()` — by Friday 08:00 AEST the freshest closed
+ * `lastCompletedTarteWeek()`, by Friday 08:00 AEST the freshest closed
  * week is the Wed → Tue that ended on Tuesday, which is also the
  * payroll cycle Chloe's labour PDF covers.
  *
  * Per the dept-wage-targets memory we group raw wage fields into
- * combined buckets when comparing to band targets — never show Chef
+ * combined buckets when comparing to band targets, never show Chef
  * vs KP separately when the target is the pair, and fold wagesBarista
  * into FOH for Beach House.
  */
@@ -66,7 +66,7 @@ export interface WeeklyDigestSnapshot {
   topSellers: TopSellersSection
   sales: SalesSection
   operations: OperationsSection
-  /// Pacing snapshot for the CURRENT (in-flight) trading week — what
+  /// Pacing snapshot for the CURRENT (in-flight) trading week, what
   /// the kitchen has spent on invoices so far this week and what's
   /// left in the cap. Distinct from `cogs` (which is the just-closed
   /// week's xlsx-sourced actuals).
@@ -153,7 +153,7 @@ interface ReviewsSection {
 interface PriceAlertDigestItem {
   ingredient: string
   supplier: string | null
-  /// Per-unit prices in `unit` (the ingredient's purchase base unit —
+  /// Per-unit prices in `unit` (the ingredient's purchase base unit,
   /// per g / ml / piece), NOT per carton/pack.
   oldPrice: number
   newPrice: number
@@ -170,7 +170,7 @@ interface PriceSpikesSection {
   count: number
   produce: PriceAlertDigestItem[]
   stable: PriceAlertDigestItem[]
-  /// Total OPEN alerts per stream — the lists above are capped, and the
+  /// Total OPEN alerts per stream, the lists above are capped, and the
   /// email says "top N of M" rather than silently truncating.
   produceTotal: number
   stableTotal: number
@@ -374,7 +374,7 @@ async function buildReviewsSection(week: DigestWeek): Promise<ReviewsSection> {
     }))
 
   // A negative counts as answered if Google's payload shows a reply OR
-  // we posted one through the app (replyStatus POSTED) — the GBP list
+  // we posted one through the app (replyStatus POSTED), the GBP list
   // can lag behind a successful post.
   const answered = watchNegatives.filter(
     (r) =>
@@ -395,7 +395,7 @@ async function buildReviewsSection(week: DigestWeek): Promise<ReviewsSection> {
     ? responseDays[Math.floor(responseDays.length / 2)]
     : null
   // 2-day grace: brand-new negatives already show under "Needs
-  // attention" — this list is for ones going stale without a reply.
+  // attention", this list is for ones going stale without a reply.
   const unanswered = watchNegatives
     .filter(
       (r) =>
@@ -448,7 +448,7 @@ async function buildPriceSpikes(week: DigestWeek): Promise<PriceSpikesSection> {
   const toItem = (a: (typeof alerts)[number]): PriceAlertDigestItem => ({
     ingredient: a.canonicalName,
     // Who actually billed the triggering price, not the ingredient's
-    // default supplier — those diverge when the chef shops around.
+    // default supplier, those diverge when the chef shops around.
     supplier: a.supplierName,
     oldPrice: Number(a.priorPrice),
     newPrice: Number(a.currentPrice),
@@ -459,7 +459,7 @@ async function buildPriceSpikes(week: DigestWeek): Promise<PriceSpikesSection> {
     isNew: a.firstSeenAt >= week.start,
   })
 
-  // Dollar impact ranks the list — a 6% flour move can cost more per week
+  // Dollar impact ranks the list, a 6% flour move can cost more per week
   // than a 40% saffron move. Alerts without an impact estimate sort after
   // the ones with dollars attached, by |%| among themselves.
   const byImpact = (a: PriceAlertDigestItem, b: PriceAlertDigestItem) => {
@@ -570,7 +570,7 @@ async function buildWastage(week: DigestWeek): Promise<WastageSection> {
         null,
     }))
 
-  // Recurring offenders — same itemName showing up on 3+ different days
+  // Recurring offenders, same itemName showing up on 3+ different days
   const offenderMap = new Map<
     string,
     { name: string; dayKeys: Set<string>; venues: Set<string> }
@@ -627,7 +627,7 @@ async function buildCogs(): Promise<CogsSection> {
     where: { weekStartWed: latest.weekStartWed },
   })
 
-  // Tea Garden has no separate COGS report — Louise's "Currumbin" xlsx
+  // Tea Garden has no separate COGS report: Louise's "Currumbin" xlsx
   // covers Beach House + Tea Garden combined ingredient/coffee costs.
   // To get a meaningful BH cogs%, we add the Tea Garden weekly revenue
   // (pulled separately from the Tea Garden Mge PDF into LabourWeekActual)
@@ -645,8 +645,8 @@ async function buildCogs(): Promise<CogsSection> {
 
   // 3-line layout per Chloe 2026-05-22:
   //   1. Burleigh
-  //   2. Beach House + Tea Garden (combined) — primary, drives the headline %
-  //   3. Beach House (BH revenue only) — as-reported from the Currumbin
+  //   2. Beach House + Tea Garden (combined), primary, drives the headline %
+  //   3. Beach House (BH revenue only), as-reported from the Currumbin
   //      xlsx, kept "out of interest" so we can spot whether the combine
   //      step changes the picture materially.
   // Tea Garden no longer renders as its own row (it had no separate COGS
@@ -700,7 +700,7 @@ async function buildCogs(): Promise<CogsSection> {
       continue
     }
 
-    // Beach House — push the combined row first (primary), then the
+    // Beach House, push the combined row first (primary), then the
     // standalone row for reference.
     if (xlsxRevenue != null && tgRevenue != null) {
       const combined = xlsxRevenue + tgRevenue
@@ -714,7 +714,7 @@ async function buildCogs(): Promise<CogsSection> {
         delta: targetPct != null ? combinedPct - targetPct : null,
         biggestCategory: sorted[0] ?? null,
         nonFoodFoh,
-        note: `BH $${xlsxRevenue.toLocaleString()} + TG $${tgRevenue.toLocaleString()} = $${combined.toLocaleString()} ex-GST. Kitchen shares stock across both venues — combined view is the operationally meaningful one.`,
+        note: `BH $${xlsxRevenue.toLocaleString()} + TG $${tgRevenue.toLocaleString()} = $${combined.toLocaleString()} ex-GST. Kitchen shares stock across both venues, combined view is the operationally meaningful one.`,
       })
     }
     perVenue.push({
@@ -727,7 +727,7 @@ async function buildCogs(): Promise<CogsSection> {
       biggestCategory: sorted[0] ?? null,
       nonFoodFoh,
       note: tgRevenue != null
-        ? "Reference only — Louise's Currumbin xlsx with BH revenue only."
+        ? "Reference only: Louise's Currumbin xlsx with BH revenue only."
         : undefined,
     })
   }
@@ -777,7 +777,7 @@ async function buildLabour(): Promise<LabourSection> {
       let status: "ok" | "amber" | "red" | "no-target" = "no-target"
       if (pct != null && target) {
         // For wage targets, only overspend is bad. Coming in under the
-        // band is fine — cheaper labour, more margin. Only flag amber/
+        // band is fine, cheaper labour, more margin. Only flag amber/
         // red when we exceed the top of the band.
         if (pct <= target.max) status = "ok"
         else if (pct <= target.max + 0.5) status = "amber"
@@ -797,7 +797,7 @@ async function buildLabour(): Promise<LabourSection> {
       const chefsKp = Number(r.wagesChef ?? 0) + Number(r.wagesKp ?? 0)
       const foh = Number(r.wagesFoh ?? 0) + Number(r.wagesBarista ?? 0)
       const pastry = Number(r.wagesPastry ?? 0)
-      // Beach House pastry also supplies Tea Garden — credit half of TG's
+      // Beach House pastry also supplies Tea Garden, credit half of TG's
       // ex-GST revenue into the pastry denominator (see TG_PASTRY_REVENUE_SHARE).
       const tgRow = rows.find((x) => x.venue === Venue.TEA_GARDEN)
       const tgRev = tgRow?.revenueExGst ? Number(tgRow.revenueExGst) : 0
@@ -807,7 +807,7 @@ async function buildLabour(): Promise<LabourSection> {
       addGroup("FOH (incl. Barista)", foh, targets?.foh ?? null)
       addGroup("Pastry", pastry, targets?.pastry ?? null, pastryDenom)
     } else {
-      // Tea Garden — targets TBD per memory; just show raw groupings.
+      // Tea Garden, targets TBD per memory; just show raw groupings.
       const chefsKp = Number(r.wagesChef ?? 0) + Number(r.wagesKp ?? 0)
       const foh = Number(r.wagesFoh ?? 0) + Number(r.wagesBarista ?? 0)
       const pastry = Number(r.wagesPastry ?? 0)
@@ -1107,7 +1107,7 @@ export async function buildWeeklyDigestSnapshot(
 }
 
 async function buildSpendPacing(): Promise<SpendPacingSection> {
-  // Import lazily to keep this file's tree-shaking clean — the
+  // Import lazily to keep this file's tree-shaking clean, the
   // aggregator is also imported by build-time paths.
   const { getCurrentWeekSpend } = await import("@/lib/spend/current-week")
   const snap = await getCurrentWeekSpend()

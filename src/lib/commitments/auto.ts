@@ -30,7 +30,7 @@ function venuesFor(v: Venue): Venue[] {
  *   - DAILY: one completed run per template-venue per elapsed day
  *   - WEEKLY: one completed run per template-venue, anchored to Monday
  *
- * The week only earns a Y/N once it has fully elapsed — for the
+ * The week only earns a Y/N once it has fully elapsed, for the
  * in-flight week we return met=null with a progress detail. Historical
  * weeks are measured against today's template set, which is the best
  * available approximation.
@@ -82,7 +82,7 @@ export async function checklistWeekAuto(weekStart: string): Promise<AutoMark> {
     select: { templateId: true, venue: true, runDate: true },
   })
 
-  // Count each (template, venue, date) slot at most once — the run
+  // Count each (template, venue, date) slot at most once, the run
   // unique key also includes shift, so double-shift runs shouldn't
   // inflate the numerator.
   const done = new Set(
@@ -114,7 +114,7 @@ export async function checklistWeekAuto(weekStart: string): Promise<AutoMark> {
 }
 
 /**
- * "Roster posted 3 weeks ahead" — hook for the Tarte Shifts app
+ * "Roster posted 3 weeks ahead", hook for the Tarte Shifts app
  * (~/C/tarte-shifts). Once Shifts is deployed, this should ask it how
  * far ahead published rosters extend as of this week (its rosters are
  * Wed–Tue, keyed by venue) and return met = horizon >= 3 weeks.
@@ -124,7 +124,7 @@ export async function rosterHorizonAuto(): Promise<AutoMark> {
   return { met: null, detail: null }
 }
 
-/** Dispatch table — keyed by StandingCommitment.autoSource. */
+/** Dispatch table, keyed by StandingCommitment.autoSource. */
 export const AUTO_SOURCES: Record<
   string,
   (weekStart: string) => Promise<AutoMark>

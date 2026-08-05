@@ -64,7 +64,7 @@ export function SupplierPriceHistory({ alerts }: { alerts: PriceAlert[] }) {
     return alerts.filter((a) => a.ingredientId === selectedIngredient)
   }, [alerts, selectedIngredient])
 
-  // Build chart data — group by date, one series per supplier
+  // Build chart data, group by date, one series per supplier
   const { chartData, suppliers } = useMemo(() => {
     const supplierSet = new Set<string>()
     const dateMap = new Map<string, Record<string, string | number>>()

@@ -107,7 +107,7 @@ export async function calculateTheoreticalCogs(
 /**
  * Expand dish-matched sales into theoretical ingredient-level usage,
  * upserting into TheoreticalUsage. Follows preparations recursively (one
- * level — matches prior behaviour).
+ * level, matches prior behaviour).
  */
 export async function calculateTheoreticalUsage(date: Date, venue: Venue) {
   const matchedSales = await db.dailySales.findMany({

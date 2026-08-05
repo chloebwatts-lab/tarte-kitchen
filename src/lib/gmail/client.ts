@@ -38,7 +38,7 @@ export function getHeader(message: GmailMessage, name: string): string | undefin
 }
 
 /**
- * Searches Gmail. `maxResults` is the hard cap on what we'll return —
+ * Searches Gmail. `maxResults` is the hard cap on what we'll return,
  * we paginate via Gmail's `nextPageToken` to collect up to that many
  * messages. The 500-page per request hard cap from Gmail still applies
  * per page, so for `maxResults=500` we make 1-5 round trips. Important
@@ -133,7 +133,7 @@ export function extractPdfAttachments(message: GmailMessage): PdfAttachmentInfo[
   // Some suppliers (Pacific Wholesale, The Provedores, etc.) send PDF
   // attachments with mimeType "application/octet-stream" instead of
   // "application/pdf". Trust the filename in that case so we don't
-  // silently drop the invoice. Discovered 2026-05-17 — both suppliers'
+  // silently drop the invoice. Discovered 2026-05-17, both suppliers'
   // invoice flows had broken on 14/15 Apr when their billing provider
   // switched mimetype headers.
   function isPdfAttachment(part: GmailMessagePart): boolean {

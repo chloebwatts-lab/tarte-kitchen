@@ -46,7 +46,7 @@ export function WeeklyDigestPanel({ digest }: { digest: DigestRow }) {
       <header className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <Sparkles className="h-4 w-4 text-green-text" />
-          Weekly digest — {fmtDate(digest.weekStart)} to{" "}
+          Weekly digest: {fmtDate(digest.weekStart)} to{" "}
           {fmtDate(digest.weekEnd)}
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -73,7 +73,7 @@ export function WeeklyDigestPanel({ digest }: { digest: DigestRow }) {
         <summary className="cursor-pointer text-xs font-medium text-green-text hover:underline">
           Read the full digest
         </summary>
-        {/* body is generated server-side HTML from our own renderer — safe to inject */}
+        {/* body is generated server-side HTML from our own renderer, safe to inject */}
         <div
           className="mt-3 max-h-[640px] overflow-auto rounded-md bg-muted/50 p-3"
           dangerouslySetInnerHTML={{ __html: digest.body }}

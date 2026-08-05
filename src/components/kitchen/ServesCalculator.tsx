@@ -34,14 +34,14 @@ export function ServesCalculator({ entries }: { entries: ServesGuideEntry[] }) {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Find a prep — scramble, health bowl, beans…"
+          placeholder="Find a prep: scramble, health bowl, beans…"
           className="w-full rounded-[16px] border border-[var(--tk-line)] bg-white py-4 pl-12 pr-4 text-[17px] text-[var(--tk-charcoal)] outline-none placeholder:text-[var(--tk-ink-mute)] focus:border-[var(--tk-sage)]"
         />
       </div>
 
       {filtered.length === 0 ? (
         <div className="rounded-[20px] border border-dashed border-[var(--tk-line)] bg-white p-10 text-center text-[14px] text-[var(--tk-ink-soft)]">
-          No prep matches that. Portions come from the recipe cards — if a prep
+          No prep matches that. Portions come from the recipe cards, so if a prep
           is missing here, its card has no serve size yet.
         </div>
       ) : (
@@ -192,7 +192,7 @@ function PrepRow({
 
           {entry.portionSource === "dish" && (
             <p className="mt-3 text-[12px] leading-snug text-[var(--tk-ink-mute)]">
-              Serve size taken from how the dish plates it — this prep&apos;s
+              Serve size taken from how the dish plates it, because this prep&apos;s
               recipe card doesn&apos;t list a per-serve yield.
             </p>
           )}

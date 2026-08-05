@@ -127,7 +127,7 @@ export default async function InboxPlaybooksPage() {
             Recent tick failed
           </div>
           <p className="mt-1 text-xs text-red-text/80">
-            {fmtTime(lastErrorRun.started_at)} — {lastErrorRun.error}
+            {fmtTime(lastErrorRun.started_at)}: {lastErrorRun.error}
           </p>
         </div>
       )}
@@ -144,7 +144,7 @@ export default async function InboxPlaybooksPage() {
           <h2 className="mb-3 font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Recent edits ({learnings.length})
             <span className="ml-2 normal-case text-muted-foreground font-normal">
-              — what humans rewrote before sending
+              · what humans rewrote before sending
             </span>
           </h2>
           <div className="space-y-2">

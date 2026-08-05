@@ -27,7 +27,7 @@ export async function InvoiceSyncHealthBanner() {
   const issues: string[] = []
   if (hoursSince > 36) {
     issues.push(
-      `Last invoice sync ran ${hoursSince.toFixed(0)}h ago — cron may be stuck.`
+      `Last invoice sync ran ${hoursSince.toFixed(0)}h ago, cron may be stuck.`
     )
   }
   if (latest.finishedAt && !latest.healthy) {
@@ -35,7 +35,7 @@ export async function InvoiceSyncHealthBanner() {
       `Last run errored: ${latest.errorSummary?.slice(0, 200) ?? "see InvoiceSyncRun row"}.`
     )
   }
-  // 3 consecutive runs that saw mail but ingested nothing — strong
+  // 3 consecutive runs that saw mail but ingested nothing, strong
   // signal of a parse / mapping / auth regression.
   const recent = runs.slice(0, 3)
   if (
@@ -43,12 +43,12 @@ export async function InvoiceSyncHealthBanner() {
     recent.every((r) => r.messagesFound > 0 && r.invoicesIngested === 0)
   ) {
     issues.push(
-      `3 consecutive runs found mail but ingested nothing — check the parser / supplier-email map.`
+      `3 consecutive runs found mail but ingested nothing, check the parser / supplier-email map.`
     )
   }
 
   if (issues.length === 0) {
-    // Quiet success state — only show on the /suppliers page, not the
+    // Quiet success state, only show on the /suppliers page, not the
     // main dashboard. Returning null keeps the dashboard clean.
     return null
   }

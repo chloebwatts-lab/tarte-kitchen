@@ -40,10 +40,10 @@ function nightLabel(ymd: string, today: string): string {
 
 /**
  * The prep chef's consolidated morning list. Every requested line from all
- * submitted evening counts, grouped by item — priority flags first. Tick a
+ * submitted evening counts, grouped by item, priority flags first. Tick a
  * station chip to log "delivered as requested"; long-tap/edit for partial.
  * At Beach House the Restaurant/Cafe toggle filters to one kitchen's
- * requests — items both kitchens asked for stay visible in either view so
+ * requests; items both kitchens asked for stay visible in either view so
  * the batch still gets made once and split.
  */
 export function RestockRunBoard({
@@ -129,7 +129,7 @@ export function RestockRunBoard({
         supplied: line.supplied,
         suppliedBy: line.suppliedBy,
       })
-      setError("Couldn't save — try again")
+      setError("Couldn't save. Try again.")
     }
   }
 
@@ -152,7 +152,7 @@ export function RestockRunBoard({
       supplied: n,
       suppliedBy: name.trim(),
     })
-    if (!res.ok) setError("Couldn't save — try again")
+    if (!res.ok) setError("Couldn't save. Try again.")
   }
 
   async function clearSheet(sheetId: string) {
@@ -163,7 +163,7 @@ export function RestockRunBoard({
     }
     const sheet = run.sheets.find((s) => s.sheetId === sheetId)
     const ok = window.confirm(
-      `Clear the ${sheet ? STATION_SHORT_LABEL[sheet.station] : ""} count from ${sheet ? shortDate(sheet.sheetDate) : "that night"}? Its requests come off this run — anything not delivered shows as a shortfall on that day's report.`
+      `Clear the ${sheet ? STATION_SHORT_LABEL[sheet.station] : ""} count from ${sheet ? shortDate(sheet.sheetDate) : "that night"}? Its requests come off this run. Anything not delivered shows as a shortfall on that day's report.`
     )
     if (!ok) return
     setClearing(sheetId)
@@ -171,7 +171,7 @@ export function RestockRunBoard({
     const res = await clearStaleRunSheet({ sheetId, clearedBy: name.trim() })
     setClearing(null)
     if (!res.ok) {
-      setError(res.error ?? "Couldn't clear — try again")
+      setError(res.error ?? "Couldn't clear. Try again.")
       return
     }
     setRun((prev) => ({
@@ -211,7 +211,7 @@ export function RestockRunBoard({
     })
     setFinishing(false)
     if (res.ok) setFinished(true)
-    else setError(res.error ?? "Couldn't finish — try again")
+    else setError(res.error ?? "Couldn't finish. Try again.")
   }
 
   if (run.items.length === 0 && !finished) {
@@ -222,7 +222,7 @@ export function RestockRunBoard({
         </p>
         <p className="mx-auto mt-3 max-w-xl text-[14px] leading-snug text-[var(--tk-ink-soft)]">
           {run.sheets.length > 0
-            ? "The counts didn't request anything — all kitchens are stocked."
+            ? "The counts didn't request anything. All kitchens are stocked."
             : "No kitchen has entered an evening count yet. As soon as a closing chef starts one it lands here, even if they forget to tap Send."}
         </p>
         <a
@@ -301,7 +301,7 @@ export function RestockRunBoard({
             {run.sheets
               .map(
                 (s) =>
-                  `${STATION_SHORT_LABEL[s.station]} ${nightLabel(s.sheetDate, today)}${s.countedBy ? ` (${s.countedBy})` : ""}${s.sent ? "" : " — not sent"}`
+                  `${STATION_SHORT_LABEL[s.station]} ${nightLabel(s.sheetDate, today)}${s.countedBy ? ` (${s.countedBy})` : ""}${s.sent ? "" : " (not sent)"}`
               )
               .join(" + ")}
           </div>
@@ -309,7 +309,7 @@ export function RestockRunBoard({
         {run.sheets.some((s) => !s.sent) && (
           <p className="mt-2 text-[13px]" style={{ color: "#8a6d1f" }}>
             A count marked &ldquo;not sent&rdquo; was never sent by the closing
-            chef — it&apos;s included anyway so nothing is lost. Double-check it
+            chef. It&apos;s included anyway so nothing is lost. Double-check it
             looks finished before you rely on it.
           </p>
         )}
@@ -331,7 +331,7 @@ export function RestockRunBoard({
           <p className="mt-1 text-[13px] leading-snug" style={{ color: "#8a6d1f" }}>
             These earlier nights were never finished, so their requests are
             added on top of the newest count. If they were already handled,
-            clear them — undelivered lines go down as shortfalls on their own
+            clear them. Undelivered lines go down as shortfalls on their own
             day&apos;s report.
           </p>
           <div className="mt-3 space-y-2">
@@ -342,7 +342,7 @@ export function RestockRunBoard({
               >
                 <div className="text-[14px] text-[var(--tk-charcoal)]">
                   <span className="font-medium">
-                    {STATION_SHORT_LABEL[s.station]} — {shortDate(s.sheetDate)}
+                    {STATION_SHORT_LABEL[s.station]} · {shortDate(s.sheetDate)}
                   </span>{" "}
                   <span className="text-[var(--tk-ink-soft)]">
                     {s.countedBy ? `by ${s.countedBy} · ` : ""}
@@ -367,7 +367,7 @@ export function RestockRunBoard({
         </div>
       )}
 
-      {/* Kitchen filter — Beach House runs two kitchens */}
+      {/* Kitchen filter: Beach House runs two kitchens */}
       {showToggle && (
         <div className="flex flex-wrap items-center gap-3 px-1">
           <div className="inline-flex rounded-full border border-[var(--tk-line)] bg-white p-1">
@@ -397,7 +397,7 @@ export function RestockRunBoard({
           </div>
           {stationFilter !== "ALL" && (
             <span className="text-[13px] text-[var(--tk-ink-soft)]">
-              Items the other kitchen also asked for stay listed — make once,
+              Items the other kitchen also asked for stay listed. Make once,
               split the batch.
             </span>
           )}
@@ -420,7 +420,7 @@ export function RestockRunBoard({
             style={{ color: "#8a6d1f" }}
           >
             <Star className="h-3.5 w-3.5" fill="var(--tk-gold)" stroke="var(--tk-gold)" />
-            Priority — work top to bottom
+            Priority: work top to bottom
           </div>
           {priorityItems.map((item) => (
             <RunItemCard
@@ -554,7 +554,7 @@ function RunItemCard({
           </div>
           {multiKitchen && (
             <div className="mt-0.5 text-[13px] text-[var(--tk-ink-soft)]">
-              Both kitchens — make{" "}
+              Both kitchens: make{" "}
               <strong className="text-[var(--tk-charcoal)]">
                 {formatQty(item.totalRequested)}
               </strong>{" "}
@@ -563,7 +563,7 @@ function RunItemCard({
           )}
           {repeatNights && (
             <div className="mt-0.5 text-[13px]" style={{ color: "#8a6d1f" }}>
-              Asked for on more than one night — check the older requests are
+              Asked for on more than one night. Check the older requests are
               still needed before making the lot
             </div>
           )}
@@ -603,7 +603,7 @@ function RunItemCard({
               </button>
               <div className="min-w-0 flex-1">
                 <div className="text-[15px] font-medium text-[var(--tk-charcoal)]">
-                  {STATION_SHORT_LABEL[s.station]} — needs{" "}
+                  {STATION_SHORT_LABEL[s.station]} needs{" "}
                   <span className="tabular-nums">{formatQty(s.requested)}</span>
                   {old && (
                     <span

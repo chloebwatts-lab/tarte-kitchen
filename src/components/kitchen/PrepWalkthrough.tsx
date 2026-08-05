@@ -1,16 +1,22 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Check, SkipForward, RotateCcw, ArrowRight, Clock } from "lucide-react"
 import type { PrepSheet, PrepSheetLine } from "@/lib/actions/prep-sheet"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
 type Status = "pending" | "done" | "skipped"
 
-// Per-prep client-side state. The whole point of this view is fast tap-through
-// — staff don't want to type or wait for round-trips. If we later want a
-// completion audit trail (e.g. for council inspection), persist on each tap;
-// for now it's session-only.
+// Per-prep client-side state. The whole point of this view is fast tap-through,
+// staff don't want to type or wait for round-trips. Progress is mirrored to
+// localStorage (keyed by venue + date) so an iPad going to sleep mid-shift
+// doesn't wipe the run; there's still no server-side audit trail.
+
+const STORAGE_PREFIX = "tk-prep-walkthrough:"
+
+function storageKeyFor(venue: Venue, forDate: string) {
+  return `${STORAGE_PREFIX}${venue}:${forDate.slice(0, 10)}`
+}
 
 export function PrepWalkthrough({
   sheet,
@@ -30,6 +36,52 @@ export function PrepWalkthrough({
   const [statuses, setStatuses] = useState<Record<string, Status>>({})
   const [index, setIndex] = useState(0)
 
+  const storageKey = storageKeyFor(venue, sheet.forDate)
+
+  // Restore today's progress after a sleep/reload, and clear keys left over
+  // from earlier dates so the iPad doesn't accumulate stale runs.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(storageKey)
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<string, Status>
+        if (parsed && typeof parsed === "object") {
+          setStatuses(parsed)
+          setIndex(0)
+        }
+      }
+      const todayPart = storageKey.split(":")[2]
+      for (let i = window.localStorage.length - 1; i >= 0; i--) {
+        const key = window.localStorage.key(i)
+        if (!key || !key.startsWith(STORAGE_PREFIX) || key === storageKey) {
+          continue
+        }
+        const keyDate = key.split(":")[2]
+        if (keyDate && todayPart && keyDate < todayPart) {
+          window.localStorage.removeItem(key)
+        }
+      }
+    } catch {
+      // localStorage unavailable (private mode), progress stays session-only
+    }
+  }, [storageKey])
+
+  function persistStatuses(next: Record<string, Status>) {
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(next))
+    } catch {
+      // best-effort only
+    }
+  }
+
+  function clearPersisted() {
+    try {
+      window.localStorage.removeItem(storageKey)
+    } catch {
+      // best-effort only
+    }
+  }
+
   const done = lines.filter((l) => statuses[l.preparationId] === "done").length
   const skipped = lines.filter((l) => statuses[l.preparationId] === "skipped")
     .length
@@ -37,7 +89,7 @@ export function PrepWalkthrough({
   const finished = remaining === 0 && lines.length > 0
 
   if (lines.length === 0) {
-    // Two reasons we'd land here: (a) genuinely nothing forecast (rare —
+    // Two reasons we'd land here: (a) genuinely nothing forecast (rare,
     // would imply zero same-weekday sales in the last 8 weeks), or (b)
     // the upstream sales feed is empty for the lookback window, which
     // is the usual culprit and the user can't fix from this screen.
@@ -52,7 +104,7 @@ export function PrepWalkthrough({
         }
         body={
           looksLikeDataGap
-            ? "The prep sheet builds from the last 4 same-weekday sales. No matching sales are in the database for the lookback window — usually means the POS sync is behind. Ask a manager to check Lightspeed sync."
+            ? "The prep sheet builds from the last 4 same-weekday sales. No matching sales are in the database for the lookback window, which usually means the POS sync is behind. Ask a manager to check Lightspeed sync."
             : "No same-weekday sales matched a preparation. Either nothing on the menu uses a tracked prep, or component recipes need to be filled in."
         }
       />
@@ -69,6 +121,7 @@ export function PrepWalkthrough({
         onReset={() => {
           setStatuses({})
           setIndex(0)
+          clearPersisted()
         }}
       />
     )
@@ -84,7 +137,7 @@ export function PrepWalkthrough({
     visibleIndex++
   }
   if (visibleIndex >= lines.length) {
-    // We ran past the end with no remaining — shouldn't happen because the
+    // We ran past the end with no remaining, shouldn't happen because the
     // `finished` branch above catches it, but guard anyway.
     visibleIndex = lines.findIndex(
       (l) => statuses[l.preparationId] == null,
@@ -101,8 +154,10 @@ export function PrepWalkthrough({
         : "Tea Garden"
 
   function mark(status: Status) {
-    setStatuses((prev) => ({ ...prev, [current.preparationId]: status }))
+    const next = { ...statuses, [current.preparationId]: status }
+    setStatuses(next)
     setIndex(visibleIndex + 1)
+    persistStatuses(next)
   }
 
   function back() {
@@ -111,12 +166,11 @@ export function PrepWalkthrough({
     for (let i = visibleIndex - 1; i >= 0; i--) {
       const id = lines[i].preparationId
       if (statuses[id] != null) {
-        setStatuses((prev) => {
-          const next = { ...prev }
-          delete next[id]
-          return next
-        })
+        const next = { ...statuses }
+        delete next[id]
+        setStatuses(next)
         setIndex(i)
+        persistStatuses(next)
         return
       }
     }
@@ -140,7 +194,7 @@ export function PrepWalkthrough({
           className="flex min-h-[72px] items-center justify-center gap-3 rounded-[18px] border border-[var(--tk-line)] bg-white px-6 text-[18px] font-semibold text-[var(--tk-charcoal)] transition active:scale-[0.985]"
         >
           <SkipForward className="h-5 w-5" />
-          Skip — have enough
+          Skip, have enough
         </button>
         <button
           onClick={() => mark("done")}
@@ -262,7 +316,6 @@ function PrepCard({ line }: { line: PrepSheetLine }) {
         <Stat
           label="Total needed"
           value={totalLabel}
-          sub={`~$${line.totalCost.toFixed(0)}`}
         />
       </div>
 
@@ -385,7 +438,7 @@ function FinishedState({
         All done!
       </div>
       <p className="mt-3 text-[16px] text-[var(--tk-ink-soft)]">
-        {human} prep — {done} made, {skipped} skipped.
+        {human} prep: {done} made, {skipped} skipped.
       </p>
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         <button

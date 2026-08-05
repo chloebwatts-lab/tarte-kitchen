@@ -5,7 +5,7 @@ import { useMemo, useState } from "react"
 import { ArrowRight, Phone, Search, ShoppingBasket, Wheat, X } from "lucide-react"
 
 // Content source: G's "Tarte ordering" doc, added 2026-08-05. Keep this
-// page free of passwords or logins — the staff area is public.
+// page free of passwords or logins, the staff area is public.
 
 interface Store {
   name: string

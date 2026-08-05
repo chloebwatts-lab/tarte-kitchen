@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
-import { Star, Quote, Mail } from "lucide-react"
+import { Star, Quote } from "lucide-react"
 import { db } from "@/lib/db"
 import { SINGLE_VENUES, VENUE_LABEL, VENUE_SHORT_LABEL } from "@/lib/venues"
 import { Venue, ReviewSentiment, ReviewTheme } from "@/generated/prisma/enums"
@@ -83,7 +83,7 @@ export default async function ReviewsPage({
   const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000)
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000)
 
-  const [places, reviews, themeRollupRaw, weeklySummary, pendingReplies] =
+  const [places, reviews, themeRollupRaw, pendingReplies] =
     await Promise.all([
     db.googleVenuePlace.findMany({
       orderBy: { venue: "asc" },
@@ -103,9 +103,6 @@ export default async function ReviewsPage({
         ...(venueFilter !== "ALL" ? { venue: venueFilter } : {}),
       },
       select: { venue: true, themes: true, sentiment: true },
-    }),
-    db.googleReviewWeeklySummary.findFirst({
-      orderBy: { weekStart: "desc" },
     }),
     // Pending = DRAFTED + venue matches current filter. Show negatives
     // first (need more care), then newest first within each rating.
@@ -168,7 +165,7 @@ export default async function ReviewsPage({
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground">
+          <h1 className="font-serif text-2xl font-semibold tracking-tight text-foreground">
             Google Reviews
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -178,7 +175,7 @@ export default async function ReviewsPage({
         </div>
       </header>
 
-      {/* Pending replies — edit + approve inline */}
+      {/* Pending replies, edit + approve inline */}
       {pendingReplies.length > 0 && (
         <section className="rounded-xl border border-green-text/20 bg-green-light/40 p-4">
           <div className="mb-3 flex items-center gap-2">
@@ -217,7 +214,7 @@ export default async function ReviewsPage({
           return (
             <Link
               key={v}
-              href={`/reviews?venue=${v}`}
+              href={`/reviews?venue=${v}&sentiment=${sentimentFilter}`}
               className="block rounded-xl border border-border bg-card p-4 shadow-sm transition hover:border-sage hover:shadow"
             >
               <div className="mb-2 flex items-center justify-between">
@@ -279,24 +276,6 @@ export default async function ReviewsPage({
         </section>
       )}
 
-      {/* Latest weekly summary */}
-      {weeklySummary && (
-        <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-            <Mail className="h-4 w-4" />
-            Last weekly digest
-            <span className="ml-auto text-xs font-normal text-muted-foreground">
-              week of {fmtDate(weeklySummary.weekStart)} ·{" "}
-              {weeklySummary.reviewCount} review
-              {weeklySummary.reviewCount === 1 ? "" : "s"}
-            </span>
-          </div>
-          <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap rounded-md bg-muted/50 p-3 text-xs leading-relaxed text-foreground">
-            {weeklySummary.body}
-          </pre>
-        </section>
-      )}
-
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
         <FilterPills
@@ -332,6 +311,12 @@ export default async function ReviewsPage({
           No reviews in this view yet. The daily fetch runs at 09:00 AEST.
         </div>
       ) : (
+        <>
+        {reviews.length === 60 && (
+          <p className="text-xs text-muted-foreground">
+            Showing the latest 60 reviews. Use the filters to narrow the list.
+          </p>
+        )}
         <ul className="space-y-3">
           {reviews.map((r) => (
             <li
@@ -395,6 +380,7 @@ export default async function ReviewsPage({
             </li>
           ))}
         </ul>
+        </>
       )}
     </div>
   )

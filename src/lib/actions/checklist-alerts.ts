@@ -121,7 +121,7 @@ export async function getOverdueChecklists(): Promise<OverdueRun[]> {
 }
 
 /**
- * Called by the alert cron (see /api/cron/checklist-alerts). Idempotent —
+ * Called by the alert cron (see /api/cron/checklist-alerts). Idempotent,
  * we upsert a ChecklistAlert row per (template, venue, date) so repeat
  * cron hits don't spam. `emailedAt` is set on first send; subsequent
  * passes won't re-send unless you explicitly reset it.
@@ -331,7 +331,7 @@ function ymd(d: Date): string {
   return d.toISOString().split("T")[0]
 }
 
-/** Mirror of the anchor logic in checklists.ts (kept local — checklists.ts is
+/** Mirror of the anchor logic in checklists.ts (kept local, checklists.ts is
  *  a "use server" module and can't export a sync helper). */
 function cycleAnchor(cadence: ChecklistCadence, ref?: Date): Date {
   const base = ref ? new Date(ymd(ref)) : todayAest()
@@ -475,7 +475,7 @@ async function buildCycleRow(
  * and returns the rows to email plus the alert ids to mark emailed after send.
  *
  * Fires the WEEKLY set on Sat + Sun (Sat is the nudge; Sun is a retry if
- * Saturday's email failed — idempotency stops a double send). Fires MONTHLY
+ * Saturday's email failed, idempotency stops a double send). Fires MONTHLY
  * across the last 4 days of the month.
  */
 export async function getCycleEndingChecklists(): Promise<{

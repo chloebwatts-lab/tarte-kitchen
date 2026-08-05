@@ -46,7 +46,7 @@ export default async function LiveLabourPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           Wage % tracking for the current Tarte trading week ({snap.weekLabel}).
           Blends actual clock-ins (so far) with rostered shifts (remaining).
-          Refresh for the latest accrual — page rebuilds on every load.
+          Refresh for the latest accrual, page rebuilds on every load.
         </p>
         <p className="mt-1 text-xs text-muted-foreground">As of {asOfLocal} AEST</p>
       </div>
@@ -173,7 +173,7 @@ export default async function LiveLabourPage() {
           <li>
             Dept status: <strong>ok</strong> when projected % ≤ band max,
             <strong> amber</strong> within +0.5pp, <strong>red</strong> beyond.
-            Under-band isn&apos;t flagged — that&apos;s a happy underspend.
+            Under-band isn&apos;t flagged, that&apos;s a happy underspend.
           </li>
         </ul>
       </div>

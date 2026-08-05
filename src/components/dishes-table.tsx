@@ -603,7 +603,7 @@ export function DishesTable({
                       <InlineVenue value={dish.venue} dishId={dish.id} onSaved={handleSaved} />
                     </div>
 
-                    {/* Selling price — click to edit */}
+                    {/* Selling price, click to edit */}
                     <div className="col-span-2 mt-1 text-right sm:mt-0">
                       <InlinePrice
                         value={dish.sellingPrice}

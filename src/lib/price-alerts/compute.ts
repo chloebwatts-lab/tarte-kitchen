@@ -2,20 +2,20 @@
  * Compute open PriceAlerts from current invoice + ingredient state.
  *
  * Two streams:
- *   PRODUCE — categories VEGETABLE/FRUIT/HERB/MUSHROOM/SALAD. Volatile.
+ *   PRODUCE, categories VEGETABLE/FRUIT/HERB/MUSHROOM/SALAD. Volatile.
  *     Compare current invoice price against 4-week trailing MEDIAN of
  *     same ingredient. Only flag if ≥25% above median AND confirmed on
  *     ≥2 deliveries (don't fire on a one-off market move).
  *
- *   STABLE — everything else. Compare against Ingredient.purchasePrice.
- *     Flag if delta ≥5% either direction. Drops matter — Bidfood rebate
+ *   STABLE, everything else. Compare against Ingredient.purchasePrice.
+ *     Flag if delta ≥5% either direction. Drops matter: Bidfood rebate
  *     refreshes go unnoticed otherwise. Group by canonicalName so
  *     "American Burger cheese" Bidfood and "Cheese Slices Hi Melt" Fermex
  *     surface as one alert if the chef switches suppliers between invoices.
  *
  * Unit safety: only compare invoice lines where the invoice unit matches
  * the ingredient.purchaseUnit (or has a known SupplierItemMapping.conversionFactor).
- * Skip unit-changed lines — those are handled by the existing units.ts gate.
+ * Skip unit-changed lines, those are handled by the existing units.ts gate.
  */
 import { db } from "@/lib/db"
 import Decimal from "decimal.js"
@@ -67,7 +67,7 @@ export interface ComputeResult {
 
 /**
  * Recompute the entire PriceAlert table from scratch using the last 90 days
- * of invoice data. Idempotent — running twice is a no-op except for
+ * of invoice data. Idempotent, running twice is a no-op except for
  * lastSeenAt timestamps. OPEN alerts that no longer fire are auto-closed
  * (status → DISMISSED with resolvedAt set).
  */
@@ -141,7 +141,7 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
     const ing = ingLines[0].ingredient!
     const stream = streamForCategory(ing.category)
 
-    // Sort by date asc — last is most recent.
+    // Sort by date asc, last is most recent.
     ingLines.sort(
       (a, b) =>
         (a.invoice?.invoiceDate?.getTime() ?? 0) -
@@ -150,12 +150,12 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
 
     // Only use lines where we have a normalisedUnitPrice (the validated,
     // unit-corrected per-base-unit price computed during invoice ingestion).
-    // The raw `unitPrice` field is unreliable — pack-priced lines slip
+    // The raw `unitPrice` field is unreliable, pack-priced lines slip
     // through with the wrong unit label (e.g. "L" tagged on a per-bottle
     // price for a 5L bottle). normalisedUnitPrice goes through `units.ts`
     // which catches all of that.
     // normalisedUnitPrice is only ever written for same-unit and converted
-    // comparisons (units.ts gate) — its presence IS the unit-safety check.
+    // comparisons (units.ts gate), its presence IS the unit-safety check.
     // Requiring the raw unit label to also match the stored unit used to
     // exclude every legitimately converted line (cartons, "1L x 6" packs,
     // kg↔g scaling), which starved the produce stream of data points.
@@ -175,7 +175,7 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
 
     if (stream === "PRODUCE") {
       // 4-week trailing median target, EXCLUDING the latest delivery being
-      // tested — a self-referential median drags itself up toward the spike
+      // tested, a self-referential median drags itself up toward the spike
       // (with 2 points, "+25% vs median" silently required +67% vs prior).
       const latestDate = latest.invoice!.invoiceDate!.getTime()
       const inWindow = validLines.filter((l) => {
@@ -196,7 +196,7 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
           : sortedPrices[mid - 1].plus(sortedPrices[mid]).div(2)
       priorPrice = priorMedian
 
-      // Require ≥2 consecutive recent DELIVERIES above threshold — distinct
+      // Require ≥2 consecutive recent DELIVERIES above threshold, distinct
       // invoice dates, not the last N line items (one invoice with two lines
       // for the same ingredient must not self-confirm a one-off spike).
       const byDate = new Map<number, LineWithRels>()
@@ -218,7 +218,7 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
       })
       triggered = allAbove
     } else {
-      // STABLE — compare against Ingredient.purchasePrice converted to per-unit.
+      // STABLE, compare against Ingredient.purchasePrice converted to per-unit.
       const purQty = new Decimal(ing.purchaseQuantity.toString())
       if (purQty.lte(0)) {
         counts.dismissed++
@@ -267,7 +267,7 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
     // Volume comes from the trailing 28 days of validated lines: each line's
     // base-unit quantity is lineTotal / normalisedUnitPrice (both already
     // unit-safe), so carton/pack conversions can't distort it. Null when no
-    // line in the window carries a total — the digest sorts those last.
+    // line in the window carries a total, the digest sorts those last.
     let volumeBaseUnits = new Decimal(0)
     let hasVolume = false
     for (const l of validLines) {
@@ -291,7 +291,7 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
 
     // Sanity cap for unit-mismatch ghosts. With conversions unit-scoped and
     // normalised prices rebuilt, big moves are usually REAL (cocoa doubled;
-    // vanilla paste +115% was being hidden by the old 100% cap) — only
+    // vanilla paste +115% was being hidden by the old 100% cap), only
     // truly absurd multiples are still worth suppressing.
     if (changePct.abs().gte(500)) {
       counts.dismissed++
@@ -346,7 +346,7 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
         newAlerts++
       } catch {
         // Partial unique index (one OPEN per ingredient): a concurrent run
-        // (manual Recompute racing the cron) created it first — that run's
+        // (manual Recompute racing the cron) created it first, that run's
         // values are equivalent; skip rather than duplicate.
         refreshed++
       }

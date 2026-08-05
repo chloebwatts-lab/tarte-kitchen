@@ -28,8 +28,8 @@ export interface InspectionChecklistCardProps {
 
 /**
  * One checklist run in the Inspection view. Collapsed it shows the summary line
- * (as before); tap/click to expand the full per-item detail — labels, ticks,
- * temps and notes — so an EHO can drill into e.g. stock/pastry rotation.
+ * (as before); tap/click to expand the full per-item detail, labels, ticks,
+ * temps and notes, so an EHO can drill into e.g. stock/pastry rotation.
  */
 export function InspectionChecklistCard({
   templateName,
@@ -74,7 +74,7 @@ export function InspectionChecklistCard({
         </div>
       </button>
 
-      {/* Rendered always, hidden by class when collapsed — so Print carries
+      {/* Rendered always, hidden by class when collapsed, so Print carries
           the item-level temps/notes/sign-offs even for collapsed cards. */}
       <div
         className={`border-t border-[var(--tk-line)] print:border-black print:block ${open ? "" : "hidden"}`}

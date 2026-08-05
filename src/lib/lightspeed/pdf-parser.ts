@@ -6,7 +6,7 @@
  * The report has three sections:
  *   1. Revenue per site (Total Ex Tax / Total Inc Tax)
  *   2. Total Reporting Group Sales (list of categories)
- *   3. Reporting Group Breakdown — per site, per category, top 10
+ *   3. Reporting Group Breakdown, per site, per category, top 10
  *      products by quantity, shown side-by-side
  *
  * Rather than hand-roll a PDF text parser (Looker's layout uses floating
@@ -36,7 +36,7 @@ export interface LightspeedSite {
 }
 
 export interface LightspeedPdfReport {
-  /** YYYY-MM-DD — the single trading day the report covers. */
+  /** YYYY-MM-DD, the single trading day the report covers. */
   reportDate: string | null
   sites: LightspeedSite[]
 }
@@ -67,7 +67,7 @@ Important:
 - The report covers a single trading day ("Sale Closed Date is in the last 1 complete day").
   reportDate is that day in YYYY-MM-DD format (i.e. the day BEFORE the "Generated on" footer).
 - This report covers THREE Tarte venues. Look for and include ALL of them:
-    1. "Tarte Burleigh" — appears as "Tarte Pty Ltd" in the top Revenue
+    1. "Tarte Burleigh", appears as "Tarte Pty Ltd" in the top Revenue
        table, but as "Tarte Burleigh" in the per-site breakdown header.
        Always emit siteName: "Tarte Burleigh" for this venue (use the
        breakdown name, not the legal entity name).
@@ -75,18 +75,18 @@ Important:
     3. "Tarte Market"
   These appear in BOTH the Revenue section at the top AND in the per-site
   Reporting Group Breakdown sections lower down. Cross-reference:
-  Revenue-table "Tarte Pty Ltd" = breakdown-header "Tarte Burleigh" — same
+  Revenue-table "Tarte Pty Ltd" = breakdown-header "Tarte Burleigh", same
   site, two labels. Merge them into ONE entry with siteName "Tarte Burleigh"
   containing both the totals AND the breakdown categories.
-  Never skip a venue because it's thin on data — if needed, return it with
+  Never skip a venue because it's thin on data, if needed, return it with
   categories: [] and the totals from the Revenue table.
 - Include every reporting group / category shown in the per-site breakdown section,
   even if it has zero products listed.
 - For each category, list the top products with their quantity, in the order shown.
-- Skip duplicate "(Copy)" sections — e.g. ignore "Coffee & Tea (Copy)" if
+- Skip duplicate "(Copy)" sections, e.g. ignore "Coffee & Tea (Copy)" if
   "Coffee & Tea" is already there.
 - Strip trailing ellipsis (...) and trailing periods from category names and product
-  names — e.g. "Iced Latte." becomes "Iced Latte", "Coffee & Tea ..." becomes "Coffee & Tea".
+  names, e.g. "Iced Latte." becomes "Iced Latte", "Coffee & Tea ..." becomes "Coffee & Tea".
 - totalExTax and totalIncTax are the site-level revenue totals from the first
   section ("Revenue"). Parse $14,769.41 style strings as 14769.41.
 - If a field cannot be determined, use null.`
@@ -99,12 +99,12 @@ export async function parseLightspeedPdf(
   const response = await client.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 8192,
-    // Sonnet 4.6 dropped support for assistant-message prefill — the API
+    // Sonnet 4.6 dropped support for assistant-message prefill, the API
     // returns 400 "This model does not support assistant message prefill"
     // if we try the "{" trick. Belt-and-braces is now: strong system
     // prompt + robust outermost-brace extraction on the response.
     system:
-      "You are a strict JSON extractor. Output ONLY a single JSON object — no preamble, no commentary, no markdown fences. Your entire response must be valid JSON that can be passed directly to JSON.parse.",
+      "You are a strict JSON extractor. Output ONLY a single JSON object, no preamble, no commentary, no markdown fences. Your entire response must be valid JSON that can be passed directly to JSON.parse.",
     messages: [
       {
         role: "user",

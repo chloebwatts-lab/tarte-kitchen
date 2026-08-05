@@ -14,7 +14,7 @@ export default async function MenuEngineeringPage() {
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Classify every dish by popularity and margin. Each quadrant has a
-          different strategic play — protect stars, reprice plowhorses, promote
+          different strategic play, protect stars, reprice plowhorses, promote
           puzzles, cut dogs.
         </p>
       </div>

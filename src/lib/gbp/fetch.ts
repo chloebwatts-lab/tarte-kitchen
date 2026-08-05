@@ -6,11 +6,11 @@
  *   - Account Management v1: list /accounts (we cache the result on
  *     GbpConnection.accountName so cron runs aren't N+1).
  *   - Business Information v1: list /accounts/X/locations to discover
- *     each location's resource name + Maps placeId — used to bind our
+ *     each location's resource name + Maps placeId, used to bind our
  *     existing GoogleVenuePlace rows (which already have a placeId)
  *     to a GBP location automatically. No manual mapping UI needed.
  *   - My Business v4 (legacy, not migrated, still supported): list
- *     /accounts/X/locations/Y/reviews — paginated, all reviews, sorted
+ *     /accounts/X/locations/Y/reviews, paginated, all reviews, sorted
  *     by updateTime desc.
  */
 
@@ -77,7 +77,7 @@ async function gbpFetch<T>(url: string, accessToken: string): Promise<T> {
  *
  * If the authorising user is a member of multiple GBP accounts we pick
  * the first one that owns at least one location matching one of our
- * GoogleVenuePlace placeIds — that handles the common case where
+ * GoogleVenuePlace placeIds, that handles the common case where
  * Chloe's account has a personal listing + the Tarte business account.
  */
 export async function resolveGbpAccountName(
@@ -176,7 +176,7 @@ export async function syncLocationBindings(): Promise<{
     if (!placeId) continue
     const venue = byPlaceId.get(placeId)
     if (!venue) continue
-    // The GBP location.name is relative — "locations/123". We want it
+    // The GBP location.name is relative, "locations/123". We want it
     // fully qualified under the account so the reviews endpoint works.
     const fullName = `${accountName}/${loc.name}`
     if (venue.gbpLocationName !== fullName) {
@@ -264,31 +264,38 @@ async function ingestVenueGbp(
       const text = r.comment?.trim() || null
 
       // Dedupe against rows previously ingested via Places API. Match
-      // by content identity (placeId + publishTime second + author)
-      // before touching the unique googleReviewId, so the same review
-      // returned by both providers ends up as one row, not two.
+      // by content identity (placeId + author + rating + publishTime
+      // within 14 days) before touching the unique googleReviewId, so
+      // the same review returned by both providers ends up as one row,
+      // not two. The wide window matters because an EDITED review gets
+      // a new review id and a new publishTime from Google; a seconds
+      // window used to insert a duplicate row for every edit. Insert
+      // time only; existing duplicate rows are left alone.
+      const WINDOW_MS = 14 * 24 * 60 * 60 * 1000
       const existingByContent = author
         ? await db.googleReview.findFirst({
             where: {
               placeId: args.placeId,
+              rating,
               publishTime: {
-                gte: new Date(publishTime.getTime() - 2000),
-                lte: new Date(publishTime.getTime() + 2000),
+                gte: new Date(publishTime.getTime() - WINDOW_MS),
+                lte: new Date(publishTime.getTime() + WINDOW_MS),
               },
               authorName: { equals: author, mode: "insensitive" },
             },
-            select: { id: true, googleReviewId: true, taggedAt: true },
+            orderBy: { publishTime: "desc" },
+            select: { id: true, googleReviewId: true, taggedAt: true, publishTime: true },
           })
         : null
       const existing =
         existingByContent ??
         (await db.googleReview.findUnique({
           where: { googleReviewId: reviewName },
-          select: { id: true, googleReviewId: true, taggedAt: true },
+          select: { id: true, googleReviewId: true, taggedAt: true, publishTime: true },
         }))
 
       if (existing?.taggedAt) {
-        // Already tagged — skip the expensive re-tag, but still refresh
+        // Already tagged, skip the expensive re-tag, but still refresh
         // the owner-reply mirror: replies land AFTER first ingest, and
         // skipping here outright left replyText/replyTime permanently
         // stale for every app-posted reply. Only write when the payload
@@ -303,6 +310,17 @@ async function ingestVenueGbp(
                 ? new Date(r.reviewReply.updateTime)
                 : null,
             },
+          })
+        }
+        // Edited review (new publishTime): refresh text + publishTime on
+        // the matched row so it tracks the live review, without re-tagging.
+        if (
+          Math.abs(publishTime.getTime() - existing.publishTime.getTime()) >
+          2000
+        ) {
+          await db.googleReview.update({
+            where: { id: existing.id },
+            data: { text, publishTime },
           })
         }
         continue
@@ -368,7 +386,7 @@ async function ingestVenueGbp(
   }
 
   // Best-effort sentiment touch-up: GBP doesn't expose Google's
-  // aggregate star average — leave the GoogleVenuePlace.rating snapshot
+  // aggregate star average, leave the GoogleVenuePlace.rating snapshot
   // to the Places API pass (still cheap to call alongside).
   return result
 }
@@ -394,6 +412,6 @@ export async function ingestAllVenuesGbp(): Promise<{
   return { bindings, results }
 }
 
-// Re-exported for the cron route — keeps Tagger off the
+// Re-exported for the cron route, keeps Tagger off the
 // ReviewSentiment-equals path inadvertently.
 export { ReviewSentiment }

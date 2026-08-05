@@ -8,8 +8,10 @@ import {
   Moon,
   Sunrise,
 } from "lucide-react"
+import { cookies } from "next/headers"
 import { getRestockHub } from "@/lib/actions/restock"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
 import { STATION_LABEL } from "@/lib/stations"
 
@@ -26,7 +28,15 @@ export default async function RestockHubPage({
 }) {
   const sp = await searchParams
   const venueParam = typeof sp.venue === "string" ? sp.venue : null
-  const venue: Venue = isVenue(venueParam) ? venueParam : "BEACH_HOUSE"
+  // Explicit ?venue= wins; otherwise use the venue remembered by the
+  // picker's tk-venue cookie. Never silently default to a venue.
+  const cookieVenue = (await cookies()).get("tk-venue")?.value ?? null
+  const venue: Venue | null = isVenue(venueParam)
+    ? venueParam
+    : isVenue(cookieVenue)
+      ? cookieVenue
+      : null
+  if (!venue) return <KitchenVenuePicker />
   const venueLabel = VENUE_LABEL[venue].replace(/\s*\(.*\)$/, "")
 
   const hub = await getRestockHub(venue)
@@ -58,7 +68,7 @@ export default async function RestockHubPage({
       <div className="space-y-3">
         <div className="tk-caps px-1" style={{ color: "var(--tk-ink-mute)" }}>
           <Moon className="mr-1.5 inline h-3.5 w-3.5" />
-          End of shift — count your kitchen
+          End of shift: count your kitchen
         </div>
         {hub.stations.map(({ station, todaySheet }) => {
           const status = todaySheet?.status
@@ -112,7 +122,7 @@ export default async function RestockHubPage({
       <div className="space-y-3">
         <div className="tk-caps px-1" style={{ color: "var(--tk-ink-mute)" }}>
           <Sunrise className="mr-1.5 inline h-3.5 w-3.5" />
-          Morning — prep chef
+          Morning: prep chef
         </div>
         <Link
           href={`/kitchen/restock/run?venue=${venue}`}
@@ -133,7 +143,7 @@ export default async function RestockHubPage({
             </div>
             <div className="mt-0.5 text-[14px] text-[var(--tk-ink-soft)]">
               {hub.pendingRunSheets > 0
-                ? `${hub.pendingRunSheets} kitchen count${hub.pendingRunSheets === 1 ? "" : "s"} waiting — one consolidated list`
+                ? `${hub.pendingRunSheets} kitchen count${hub.pendingRunSheets === 1 ? "" : "s"} waiting, one consolidated list`
                 : "No counts waiting right now"}
             </div>
           </div>

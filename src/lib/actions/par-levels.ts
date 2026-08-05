@@ -22,7 +22,7 @@ import { revalidatePath } from "next/cache"
 // Local conversion to base units (g / ml / ea). Mirrors the helper in
 // orders.ts so par suggestions and order math use identical arithmetic.
 // `baseUnitsPerOne` is how many base units one `unit` contains
-// (Ingredient.baseUnitsPerPurchase ÷ purchaseQuantity) — REQUIRED for
+// (Ingredient.baseUnitsPerPurchase ÷ purchaseQuantity): REQUIRED for
 // pack-named units ("bag", "punnet", "btl"): without it a 25,000 g flour
 // bag was treated as 1 g and the suggested par inflated ~25,000×.
 function toBaseUnits(
@@ -43,6 +43,17 @@ function toBaseUnits(
   }
   if (baseUnitsPerOne && baseUnitsPerOne > 0) return qty * baseUnitsPerOne
   return qty
+}
+
+// Canonicalise a unit string for comparison against an ingredient's
+// purchaseUnit. Same alias families as toBaseUnits above.
+function canonicalUnit(u: string | null | undefined): string {
+  const s = (u ?? "").trim().toLowerCase()
+  if (s === "kgs") return "kg"
+  if (s === "gm" || s === "gms" || s === "gram" || s === "grams") return "g"
+  if (s === "lt" || s === "ltr" || s === "litre" || s === "litres") return "l"
+  if (s === "each") return "ea"
+  return s
 }
 
 const FOUR_WEEKS_DAYS = 28
@@ -89,7 +100,7 @@ export async function getParSuggestions(): Promise<ParSuggestionRow[]> {
   const cutoff = new Date()
   cutoff.setUTCDate(cutoff.getUTCDate() - FOUR_WEEKS_DAYS)
 
-  // Pull ingredients with a supplier set — only those are orderable.
+  // Pull ingredients with a supplier set, only those are orderable.
   const ingredients = await db.ingredient.findMany({
     where: { supplierId: { not: null } },
     include: {
@@ -186,13 +197,17 @@ export async function getParSuggestions(): Promise<ParSuggestionRow[]> {
  * Recompute auto-pars from invoice purchase history.
  *
  * For every ingredient with an invoice line in the last `windowWeeks` (default 8):
- *   - Group matched invoice lines by venue
- *   - Sum total quantity bought, divide by windowWeeks → weekly average qty
+ *   - Group matched invoice lines by venue and by the line's own unit
+ *   - Sum only lines whose unit matches the ingredient's purchaseUnit (the
+ *     unit the par is expressed in); a supplier invoicing "1 x 12.5kg bag"
+ *     one week and "12.5 kg" the next must not sum 1 + 12.5. Mismatched
+ *     lines are skipped and counted in the result.
+ *   - Divide by windowWeeks → weekly average qty
  *   - Round up to whole packs (so we always order in whole packs)
  *
  * Stores the result on `IngredientPar` with source=AUTO_INVOICE.
  *
- * **Never overwrites** a MANUAL row — chef tuning wins. AUTO_INVOICE rows
+ * **Never overwrites** a MANUAL row, chef tuning wins. AUTO_INVOICE rows
  * are refreshed each call so the par tracks reality as buying habits shift.
  */
 export async function refreshAutoParsFromInvoices(opts?: {
@@ -203,6 +218,7 @@ export async function refreshAutoParsFromInvoices(opts?: {
   ingredientsProcessed: number
   parsUpserted: number
   skippedManual: number
+  skippedMismatchedUnits: number
 }> {
   const windowWeeks = opts?.windowWeeks ?? 8
   const overwriteManual = opts?.overwriteManual ?? false
@@ -210,9 +226,8 @@ export async function refreshAutoParsFromInvoices(opts?: {
   cutoff.setUTCDate(cutoff.getUTCDate() - windowWeeks * 7)
 
   // Pull invoice line items in window with matched ingredients and a venue.
-  // Group by (ingredientId, venue) summing quantity in the line's own unit.
-  // We then convert to base units against the ingredient's purchase unit
-  // before applying pack rounding.
+  // Group by (ingredientId, venue, unit); only lines invoiced in the
+  // ingredient's own purchaseUnit are comparable to the par.
   const rows = await db.invoiceLineItem.findMany({
     where: {
       ingredientId: { not: null },
@@ -231,21 +246,29 @@ export async function refreshAutoParsFromInvoices(opts?: {
     },
   })
 
-  // Aggregate
+  // Aggregate per (venue, ingredient) keyed by the line's canonical unit
   type Key = string // `${venue}|${ingredientId}`
-  const totalBaseByKey = new Map<Key, number>()
+  const qtyByKeyUnit = new Map<Key, Map<string, { qty: number; lines: number }>>()
   const ingredientIds = new Set<string>()
   for (const r of rows) {
     if (!r.ingredientId || !r.invoice.venue || r.quantity == null) continue
     ingredientIds.add(r.ingredientId)
-    totalBaseByKey.set(
-      `${r.invoice.venue}|${r.ingredientId}`,
-      (totalBaseByKey.get(`${r.invoice.venue}|${r.ingredientId}`) ?? 0) +
-        Number(r.quantity)
-    )
+    const key: Key = `${r.invoice.venue}|${r.ingredientId}`
+    const unit = canonicalUnit(r.unit)
+    const byUnit = qtyByKeyUnit.get(key) ?? new Map<string, { qty: number; lines: number }>()
+    const agg = byUnit.get(unit) ?? { qty: 0, lines: 0 }
+    agg.qty += Number(r.quantity)
+    agg.lines += 1
+    byUnit.set(unit, agg)
+    qtyByKeyUnit.set(key, byUnit)
   }
   if (ingredientIds.size === 0)
-    return { ingredientsProcessed: 0, parsUpserted: 0, skippedManual: 0 }
+    return {
+      ingredientsProcessed: 0,
+      parsUpserted: 0,
+      skippedManual: 0,
+      skippedMismatchedUnits: 0,
+    }
 
   // Fetch the matched ingredients (need pack info + existing par rows)
   const ingredients = await db.ingredient.findMany({
@@ -254,16 +277,16 @@ export async function refreshAutoParsFromInvoices(opts?: {
       id: true,
       purchaseQuantity: true,
       purchaseUnit: true,
-      baseUnitType: true,
       pars: { select: { venue: true, source: true } },
     },
   })
 
   let parsUpserted = 0
   let skippedManual = 0
+  let skippedMismatchedUnits = 0
   for (const ing of ingredients) {
     const packQty = Number(ing.purchaseQuantity)
-    const baseType = ing.baseUnitType as "WEIGHT" | "VOLUME" | "COUNT"
+    const parUnit = canonicalUnit(ing.purchaseUnit)
     const manualVenues = new Set(
       ing.pars
         .filter((p) => p.source === "MANUAL")
@@ -272,12 +295,19 @@ export async function refreshAutoParsFromInvoices(opts?: {
 
     for (const venue of LIVE_VENUES) {
       const key: Key = `${venue}|${ing.id}`
-      const totalQty = totalBaseByKey.get(key)
-      if (!totalQty || totalQty <= 0) continue
+      const byUnit = qtyByKeyUnit.get(key)
+      if (!byUnit) continue
 
-      // Weekly avg in the invoice line's unit. Invoice lines for this
-      // ingredient should be using the same unit family as the ingredient's
-      // purchaseUnit (kg / L / each), so the values are directly comparable.
+      // Sum only the lines invoiced in the par's own unit (the ingredient's
+      // purchaseUnit). Lines in any other unit are not comparable without a
+      // per-line conversion, so they are skipped and surfaced in the count.
+      let totalQty = 0
+      for (const [unit, agg] of byUnit) {
+        if (unit === parUnit) totalQty += agg.qty
+        else skippedMismatchedUnits += agg.lines
+      }
+      if (totalQty <= 0) continue
+
       const weeklyQty = totalQty / windowWeeks
       // Round up to whole packs
       const parQty = packQty > 0
@@ -288,8 +318,6 @@ export async function refreshAutoParsFromInvoices(opts?: {
         skippedManual++
         continue
       }
-      // Suppress baseType-unused lint
-      void baseType
 
       await db.ingredientPar.upsert({
         where: { ingredientId_venue: { ingredientId: ing.id, venue } },
@@ -317,6 +345,7 @@ export async function refreshAutoParsFromInvoices(opts?: {
     ingredientsProcessed: ingredients.length,
     parsUpserted,
     skippedManual,
+    skippedMismatchedUnits,
   }
 }
 

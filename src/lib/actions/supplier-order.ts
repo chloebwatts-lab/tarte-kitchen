@@ -9,7 +9,7 @@
  *   1) IngredientPar (per-venue) when the item is linked to an Ingredient
  *      and has a par row, else
  *   2) the last invoiced qty for that supplier+ingredient+venue, else
- *   3) blank — chef enters manually
+ *   3) blank, chef enters manually
  *
  * Ticking items + entering quantities + clicking "Send order" creates a
  * DRAFT PurchaseOrder, populates lines (linked to Ingredients where possible),
@@ -147,7 +147,7 @@ export async function getSupplierOrderForm(
 }
 
 /**
- * List all suppliers that have at least one active ApprovedSupplierItem —
+ * List all suppliers that have at least one active ApprovedSupplierItem,
  * these are the candidates for the "pick a supplier to order from" landing.
  */
 export async function listSuppliersWithForms(): Promise<

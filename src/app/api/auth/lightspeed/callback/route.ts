@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     const tokenData = await tokenRes.json()
 
-    // Delete any existing connections (single-tenant — one connection at a time)
+    // Delete any existing connections (single-tenant, one connection at a time)
     await db.lightspeedConnection.deleteMany()
 
     // Store encrypted tokens

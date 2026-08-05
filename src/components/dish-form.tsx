@@ -29,8 +29,7 @@ import { createDish, updateDish, deleteDish } from "@/lib/actions/dishes"
 import { cn } from "@/lib/utils"
 import Decimal from "decimal.js"
 import {
-  costPerBaseUnit,
-  toBaseUnits,
+  ingredientLineCost as calcIngLineCost,
   preparationLineCost as calcPrepLineCost,
   getRecipeUnits,
   getPreparationUnits,
@@ -50,6 +49,7 @@ interface IngredientRef {
   purchasePrice: number
   baseUnitsPerPurchase: number
   wastePercentage: number
+  gramsPerUnit?: number | null
 }
 
 interface PreparationRef {
@@ -125,20 +125,29 @@ const VENUES = [
   { value: "BOTH", label: "Both" },
 ]
 
+/** Title Case label for ingredient / preparation category enums ("DRY_GOOD" to "Dry good"). */
+function categoryLabel(raw: string): string {
+  return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase().replace(/_/g, " ")
+}
+
 function generateKey() {
   return Math.random().toString(36).slice(2, 10)
 }
 
 function calcIngredientLineCost(ing: IngredientRef, quantity: number, unit: string): number {
   try {
-    const cpbu = costPerBaseUnit({
-      purchasePrice: new Decimal(ing.purchasePrice),
-      baseUnitsPerPurchase: new Decimal(ing.baseUnitsPerPurchase),
-      wastePercentage: new Decimal(ing.wastePercentage),
-      baseUnitType: ing.baseUnitType as BaseUnitType,
-    })
-    const baseQty = toBaseUnits(quantity, unit)
-    return Number(baseQty.mul(cpbu).toDecimalPlaces(4))
+    // Canonical units.ts math, including the COUNT-ingredient-by-weight
+    // branch (gramsPerUnit). The old hand-rolled preview skipped it, so
+    // "20 g cos lettuce" previewed as 20 heads' worth.
+    return Number(
+      calcIngLineCost(quantity, unit, {
+        purchasePrice: new Decimal(ing.purchasePrice),
+        baseUnitsPerPurchase: new Decimal(ing.baseUnitsPerPurchase),
+        wastePercentage: new Decimal(ing.wastePercentage),
+        baseUnitType: ing.baseUnitType as BaseUnitType,
+        gramsPerUnit: ing.gramsPerUnit != null ? new Decimal(ing.gramsPerUnit) : null,
+      }).toDecimalPlaces(4)
+    )
   } catch {
     return 0
   }
@@ -262,7 +271,7 @@ function ItemSearch({
                 >
                   <span className="text-base leading-none">&#x1f955;</span>
                   <span className="flex-1">{ing.name}</span>
-                  <span className="text-[10px] text-muted-foreground">{ing.category}</span>
+                  <span className="text-[10px] text-muted-foreground">{categoryLabel(ing.category)}</span>
                 </button>
               ))}
             </div>
@@ -285,7 +294,7 @@ function ItemSearch({
                 >
                   <span className="text-base leading-none">&#x1f373;</span>
                   <span className="flex-1">{prep.name}</span>
-                  <span className="text-[10px] text-muted-foreground">{prep.category}</span>
+                  <span className="text-[10px] text-muted-foreground">{categoryLabel(prep.category)}</span>
                 </button>
               ))}
             </div>

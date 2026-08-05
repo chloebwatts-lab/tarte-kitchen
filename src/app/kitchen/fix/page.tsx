@@ -39,7 +39,7 @@ function VenueLanding() {
           Maintenance
         </h1>
         <p className="mx-auto mt-5 max-w-xl text-[20px] leading-snug" style={{ color: "rgba(255,255,255,0.85)" }}>
-          Something broken? No login needed. Scan the machine's QR sticker — or pick
+          Something broken? No login needed. Scan the machine&apos;s QR sticker, or pick
           your venue below.
         </p>
       </div>
@@ -73,8 +73,8 @@ function VenueLanding() {
           style={{ background: "rgba(255,255,255,0.12)" }}
         >
           <QrCode className="h-8 w-8 shrink-0" />
-          Fastest way: open your phone camera and scan the QR sticker on the machine —
-          it goes straight to that machine's page.
+          Fastest way: open your phone camera and scan the QR sticker on the machine.
+          It goes straight to that machine&apos;s page.
         </div>
       </div>
     </div>

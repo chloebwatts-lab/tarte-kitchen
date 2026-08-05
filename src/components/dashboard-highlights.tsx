@@ -7,16 +7,18 @@ import {
   Banknote,
 } from "lucide-react"
 import type { DashboardHighlights } from "@/lib/actions/dashboard"
+import { VENUE_SHORT_LABEL } from "@/lib/venues"
+import type { Venue } from "@/generated/prisma/client"
 
 function pctColor(pct: number | null, kind: "sales" | "waste"): string {
   if (pct === null) return "text-muted-foreground"
   if (kind === "sales") {
-    // % of daily target — higher is better.
+    // % of daily target, higher is better.
     if (pct >= 95) return "text-green-text"
     if (pct >= 80) return "text-amber-text"
     return "text-red-text"
   }
-  // waste week-over-week — lower is better, negative = improvement.
+  // waste week-over-week, lower is better, negative = improvement.
   if (pct <= -10) return "text-green-text"
   if (pct <= 10) return "text-muted-foreground"
   return "text-red-text"
@@ -64,7 +66,7 @@ export function DashboardHighlights({
           </p>
         ) : (
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            No weekly forecast set — enter on /labour/upload
+            No weekly forecast set. Enter one on the Labour upload page.
           </p>
         )}
         <div className="mt-2 space-y-0.5">
@@ -124,7 +126,9 @@ export function DashboardHighlights({
               Top: {waste.topItem.name}
             </p>
             <p className="text-muted-foreground tabular-nums">
-              ${waste.topItem.cost.toFixed(0)} · {waste.topItem.venue}
+              ${waste.topItem.cost.toFixed(0)} ·{" "}
+              {VENUE_SHORT_LABEL[waste.topItem.venue as Venue] ??
+                waste.topItem.venue}
             </p>
           </div>
         ) : (

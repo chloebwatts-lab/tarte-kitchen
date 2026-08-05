@@ -1,4 +1,4 @@
-// Public demo of the iPad kitchen flow — renders the same KitchenRunView
+// Public demo of the iPad kitchen flow, renders the same KitchenRunView
 // staff see, with static mock data so no auth or DB is required. Exists to
 // let owners/managers preview the UX without handing out credentials.
 // The real kitchen routes live at /kitchen and are behind auth.
@@ -39,7 +39,7 @@ async function DemoContent({
           initial={{
             id: "demo-run",
             templateId: "demo-template",
-            templateName: "Closing clean — kitchen",
+            templateName: "Closing clean: kitchen",
             area: "Pastry section",
             venue: "BURLEIGH",
             runDate: new Date().toISOString().split("T")[0],
@@ -54,6 +54,7 @@ async function DemoContent({
                   "Use the green spray bottle. Let dwell 60 seconds before wiping.",
                 requireTemp: false,
                 requireNote: false,
+                hotCheck: false,
                 checkedAt: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
                 checkedBy: "CR",
                 tempCelsius: null,
@@ -65,6 +66,7 @@ async function DemoContent({
                 instructions: "Acceptable range 0–4 °C. Note anything above 5.",
                 requireTemp: true,
                 requireNote: false,
+                hotCheck: false,
                 checkedAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
                 checkedBy: "CR",
                 tempCelsius: 2.8,
@@ -76,6 +78,7 @@ async function DemoContent({
                 instructions: null,
                 requireTemp: false,
                 requireNote: false,
+                hotCheck: false,
                 checkedAt: null,
                 checkedBy: null,
                 tempCelsius: null,
@@ -87,6 +90,7 @@ async function DemoContent({
                 instructions: "Target: 3 kg butter, 2 L cream in day fridge.",
                 requireTemp: false,
                 requireNote: true,
+                hotCheck: false,
                 checkedAt: null,
                 checkedBy: null,
                 tempCelsius: null,
@@ -94,10 +98,11 @@ async function DemoContent({
               },
               {
                 id: "i5",
-                label: "Mop floors — front to back",
+                label: "Mop floors, front to back",
                 instructions: null,
                 requireTemp: false,
                 requireNote: false,
+                hotCheck: false,
                 checkedAt: null,
                 checkedBy: null,
                 tempCelsius: null,
@@ -109,6 +114,7 @@ async function DemoContent({
                 instructions: null,
                 requireTemp: false,
                 requireNote: false,
+                hotCheck: false,
                 checkedAt: null,
                 checkedBy: null,
                 tempCelsius: null,
@@ -144,7 +150,7 @@ async function DemoContent({
 
         <div className="grid gap-3 md:grid-cols-2">
           <DemoChecklistCard
-            title="Opening checklist — kitchen"
+            title="Opening checklist: kitchen"
             area="Pastry section"
             shift="open"
             items={8}
@@ -161,7 +167,7 @@ async function DemoContent({
             href="/kitchen-demo?screen=run"
           />
           <DemoChecklistCard
-            title="Closing clean — kitchen"
+            title="Closing clean: kitchen"
             area="Pastry section"
             shift="close"
             items={6}
@@ -170,7 +176,7 @@ async function DemoContent({
             href="/kitchen-demo?screen=run"
           />
           <DemoChecklistCard
-            title="Closing clean — front of house"
+            title="Closing clean: front of house"
             area="FOH"
             shift="close"
             items={7}
@@ -250,7 +256,7 @@ function DemoStripe() {
   return (
     <div className="mb-4 flex items-center justify-between rounded-md border-2 border-dashed border-indigo-300 bg-indigo-50 px-4 py-2 text-xs">
       <span>
-        <strong>Demo</strong> — this is what staff see on the wall-mounted
+        <strong>Demo</strong>: this is what staff see on the wall-mounted
         iPad. Real route is <code>/kitchen</code> and requires login.
       </span>
       <Link href="/kitchen-demo" className="font-medium text-indigo-700 hover:underline">

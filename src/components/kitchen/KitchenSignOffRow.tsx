@@ -4,11 +4,11 @@ import { Camera, Check } from "lucide-react"
 import type { ReactNode } from "react"
 
 /**
- * Final sign-off row — mandatory photo step on every cleaning checklist.
+ * Final sign-off row, mandatory photo step on every cleaning checklist.
  * Brand-locked: sage background, white text.
  *
  * This is a visual wrapper. The actual photo upload UI (file picker,
- * thumbnails, delete) is rendered inside `children` — pass the existing
+ * thumbnails, delete) is rendered inside `children`, pass the existing
  * ChecklistPhotoUpload here so the server-action contract is preserved.
  */
 export function KitchenSignOffRow({

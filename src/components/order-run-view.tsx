@@ -120,7 +120,7 @@ export function OrderRunView({
   function onSubmit() {
     if (itemsSelected === 0 || sent) return
     startSubmit(async () => {
-      // Send email + flip status — existing submitOrder action handles both
+      // Send email + flip status, existing submitOrder action handles both
       await submitOrder({ orderId: order.id })
       router.refresh()
     })

@@ -202,7 +202,7 @@ export function AnalysisDashboard({ initial }: { initial: AnalysisData }) {
               <span className="font-medium text-foreground">
                 {data.theoreticalCoverage.matchedQtyPct}%
               </span>{" "}
-              of units sold in this window — only items matched to a costed
+              of units sold in this window. Only items matched to a costed
               dish count.
               {data.theoreticalCoverage.topUncosted.length > 0 && (
                 <>
@@ -343,6 +343,7 @@ export function AnalysisDashboard({ initial }: { initial: AnalysisData }) {
             {data.bestSellerMovers.length === 0 ? (
               <p className="text-sm text-muted-foreground">No data yet.</p>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -371,6 +372,7 @@ export function AnalysisDashboard({ initial }: { initial: AnalysisData }) {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -387,6 +389,7 @@ export function AnalysisDashboard({ initial }: { initial: AnalysisData }) {
                 No items down 30%+ with meaningful prior volume.
               </p>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -409,6 +412,7 @@ export function AnalysisDashboard({ initial }: { initial: AnalysisData }) {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </CardContent>
         </Card>

@@ -44,6 +44,7 @@ function serializeDish(d: DishWithComponents) {
             purchasePrice: Number(c.ingredient.purchasePrice),
             baseUnitsPerPurchase: Number(c.ingredient.baseUnitsPerPurchase),
             wastePercentage: Number(c.ingredient.wastePercentage),
+            gramsPerUnit: c.ingredient.gramsPerUnit != null ? Number(c.ingredient.gramsPerUnit) : null,
           }
         : null,
       preparationId: c.preparationId,
@@ -251,8 +252,6 @@ export async function updateDish(
     }>
   }
 ) {
-  await db.dishComponent.deleteMany({ where: { dishId: id } })
-
   const { ingredientMap, prepMap } = await fetchMaps(data.components)
   const { compsWithCost, totalCost } = computeComponentCosts(data.components, ingredientMap, prepMap)
 
@@ -262,24 +261,28 @@ export async function updateDish(
 
   const compsWithDishId = compsWithCost.map((c) => ({ ...c, dishId: id }))
 
-  await db.dish.update({
-    where: { id },
-    data: {
-      name: data.name,
-      menuCategory: data.menuCategory as "BREAKFAST",
-      venue: data.venue as "BOTH",
-      sellingPrice: data.sellingPrice,
-      sellingPriceExGst: Number(sellingPriceExGst.toDecimalPlaces(2)),
-      totalCost: Number(totalCost.toDecimalPlaces(2)),
-      foodCostPercentage: Number(fcPct.toDecimalPlaces(1)),
-      grossProfit: Number(gp.toDecimalPlaces(2)),
-      notes: data.notes || null,
-    },
+  // One transaction: a failure after deleteMany used to permanently wipe
+  // the dish's component rows.
+  await db.$transaction(async (tx) => {
+    await tx.dishComponent.deleteMany({ where: { dishId: id } })
+    await tx.dish.update({
+      where: { id },
+      data: {
+        name: data.name,
+        menuCategory: data.menuCategory as "BREAKFAST",
+        venue: data.venue as "BOTH",
+        sellingPrice: data.sellingPrice,
+        sellingPriceExGst: Number(sellingPriceExGst.toDecimalPlaces(2)),
+        totalCost: Number(totalCost.toDecimalPlaces(2)),
+        foodCostPercentage: Number(fcPct.toDecimalPlaces(1)),
+        grossProfit: Number(gp.toDecimalPlaces(2)),
+        notes: data.notes || null,
+      },
+    })
+    if (compsWithDishId.length > 0) {
+      await tx.dishComponent.createMany({ data: compsWithDishId })
+    }
   })
-
-  if (compsWithDishId.length > 0) {
-    await db.dishComponent.createMany({ data: compsWithDishId })
-  }
 
   revalidatePath("/dishes")
   revalidatePath("/dashboard")
@@ -287,7 +290,7 @@ export async function updateDish(
 }
 
 /**
- * Lightweight update for inline editing — updates metadata fields
+ * Lightweight update for inline editing, updates metadata fields
  * and recalculates derived fields without touching components.
  */
 export async function updateDishQuick(

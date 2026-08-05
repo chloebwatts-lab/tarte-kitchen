@@ -56,7 +56,7 @@ export default function StaffAccessPage() {
           Staff tools
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-[19px] leading-snug" style={{ color: "rgba(255,255,255,0.85)" }}>
-          Everything in one place — no login needed. Bookmark this page.
+          Everything in one place, no login needed. Bookmark this page.
         </p>
       </div>
 

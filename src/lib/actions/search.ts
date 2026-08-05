@@ -3,7 +3,7 @@
 import { db } from "@/lib/db"
 import type { Ingredient, Preparation } from "@/generated/prisma/client"
 
-type IngredientSearchResult = Pick<Ingredient, "id" | "name" | "category" | "baseUnitType" | "purchasePrice" | "baseUnitsPerPurchase" | "wastePercentage">
+type IngredientSearchResult = Pick<Ingredient, "id" | "name" | "category" | "baseUnitType" | "purchasePrice" | "baseUnitsPerPurchase" | "wastePercentage" | "gramsPerUnit">
 type PrepSearchResult = Pick<Preparation, "id" | "name" | "category" | "batchCost" | "yieldQuantity" | "yieldUnit" | "yieldWeightGrams">
 
 export async function globalSearch(query: string) {
@@ -20,6 +20,7 @@ export async function globalSearch(query: string) {
         purchasePrice: true,
         baseUnitsPerPurchase: true,
         wastePercentage: true,
+        gramsPerUnit: true,
       },
       take: 10,
       orderBy: { name: "asc" },
@@ -46,6 +47,7 @@ export async function globalSearch(query: string) {
       purchasePrice: Number(i.purchasePrice),
       baseUnitsPerPurchase: Number(i.baseUnitsPerPurchase),
       wastePercentage: Number(i.wastePercentage),
+      gramsPerUnit: i.gramsPerUnit != null ? Number(i.gramsPerUnit) : null,
     })),
     preparations: preparations.map((p: PrepSearchResult) => ({
       ...p,

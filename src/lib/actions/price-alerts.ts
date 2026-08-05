@@ -38,7 +38,7 @@ export async function listOpenAlerts(
     },
     orderBy: [{ stream: "asc" }],
   })
-  // Sort by |changePct| desc within stream — a −40% drop (Bidfood rebate)
+  // Sort by |changePct| desc within stream, a −40% drop (Bidfood rebate)
   // matters as much as a +40% rise and must not sink below +5% noise.
   alerts.sort((a, b) => {
     if (a.stream !== b.stream) return a.stream < b.stream ? -1 : 1
@@ -48,7 +48,7 @@ export async function listOpenAlerts(
 }
 
 /**
- * Accept the new price — flow it into Ingredient.purchasePrice and trigger
+ * Accept the new price, flow it into Ingredient.purchasePrice and trigger
  * the recipe cost recalculation cascade. Logs the change to PriceHistory.
  */
 export async function acceptAlert(alertId: string) {
@@ -58,14 +58,31 @@ export async function acceptAlert(alertId: string) {
   })
   if (!alert) return { ok: false as const, reason: "Alert no longer exists" }
   // The nightly recompute can flip an alert to DISMISSED between the chef's
-  // page load and their tap. That's a stale-close race, not a real refusal —
+  // page load and their tap. That's a stale-close race, not a real refusal,
   // the chef is looking at the numbers and accepting THEM, so honour it.
   // Only a genuinely already-accepted alert is a no-op.
   if (alert.status === "ACCEPTED") return { ok: true as const, reason: "Already accepted" }
 
   const ing = alert.ingredient
-  // New purchasePrice = currentPrice (per-unit) × purchaseQuantity
-  const newPrice = new Decimal(alert.currentPrice.toString())
+  // New purchasePrice = per-unit price × purchaseQuantity. The alert's
+  // currentPrice is Decimal(12,4), for cheap per-g/per-ml ingredients the
+  // 4dp truncation corrupts the price and immediately re-alerts. Recompute
+  // from the most recent triggering line's normalisedUnitPrice (12,6, the
+  // exact value the alert was computed from) when available.
+  const latestLine = await db.invoiceLineItem.findFirst({
+    where: {
+      ingredientId: ing.id,
+      normalisedUnitPrice: { not: null },
+      invoice: {
+        invoiceDate: { not: null },
+        status: { in: ["MATCHED", "EXTRACTED", "APPROVED"] },
+      },
+    },
+    orderBy: { invoice: { invoiceDate: "desc" } },
+    select: { normalisedUnitPrice: true },
+  })
+  const perUnitPrice = latestLine?.normalisedUnitPrice ?? alert.currentPrice
+  const newPrice = new Decimal(perUnitPrice.toString())
     .mul(new Decimal(ing.purchaseQuantity.toString()))
     .toDecimalPlaces(4)
   const oldPrice = new Decimal(ing.purchasePrice.toString())
@@ -111,12 +128,30 @@ export async function acceptAlert(alertId: string) {
 }
 
 export async function dismissAlert(alertId: string) {
+  const alert = await db.priceAlert.findUnique({
+    where: { id: alertId },
+    select: { ingredientId: true },
+  })
+  if (!alert) return
   await db.priceAlert.update({
     where: { id: alertId },
     data: { status: "DISMISSED", resolvedAt: new Date() },
   })
+  // Keep the v1 per-line alert surface (/suppliers) in sync, mirror of
+  // what acceptAlert does on the accept path. Dismissing here acknowledges
+  // the pending priceChanged lines for the same ingredient so the nav
+  // badge and both pages agree.
+  await db.invoiceLineItem.updateMany({
+    where: {
+      ingredientId: alert.ingredientId,
+      priceChanged: true,
+      priceApproved: null,
+    },
+    data: { priceApproved: false },
+  })
   revalidatePath("/dashboard")
   revalidatePath("/price-alerts")
+  revalidatePath("/suppliers")
 }
 
 export async function recomputeAllAlerts() {

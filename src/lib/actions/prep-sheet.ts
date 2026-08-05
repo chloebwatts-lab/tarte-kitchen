@@ -13,7 +13,7 @@ export interface PrepSheetLine {
   // (including sub-preparation cascades).
   requiredBaseQty: number
   baseUnit: string // "g" or "ml" or "ea"
-  // Number of batches, rounded up — one row of the print-out should say
+  // Number of batches, rounded up, one row of the print-out should say
   // "make 2 batches of caramel (yields 750 g)"
   batchesNeeded: number
   yieldPerBatch: number
@@ -48,7 +48,7 @@ interface DishDemand {
   forecastQty: number
 }
 
-// Lightspeed report categories whose products never need kitchen prep —
+// Lightspeed report categories whose products never need kitchen prep,
 // used only to de-noise the unmatched-forecast list, never to drop demand.
 const NON_KITCHEN_CATEGORIES = new Set([
   "Alcohol",
@@ -77,7 +77,7 @@ function startOfAestDay(offsetDays = 0): Date {
 /**
  * Build tomorrow's prep list from recent same-day-of-week sales.
  *
- * Approach — we look at the last N weeks on the same weekday at the same
+ * Approach, we look at the last N weeks on the same weekday at the same
  * venue and take the median quantity sold per dish. That's our forecast.
  * Then we walk each dish's component tree: each DishComponent that's a
  * preparation adds demand = forecast × recipeQty (converted to the prep's
@@ -130,7 +130,7 @@ export async function getPrepSheet(params: {
     }
   }
 
-  // A product can appear under more than one category on the same day —
+  // A product can appear under more than one category on the same day,
   // collapse to one sample per (venue, product, date) before bucketing.
   // Category is kept (as a set per product) so the unmatched list can drop
   // products that only ever sell in non-kitchen categories.
@@ -164,7 +164,7 @@ export async function getPrepSheet(params: {
   }
 
   // Forecast = median of last N same-DoW samples (falls back to first
-  // sample's qty if fewer than N) — median is robust against public
+  // sample's qty if fewer than N), median is robust against public
   // holidays and freak days.
   function median(ns: number[]) {
     if (ns.length === 0) return 0
@@ -189,7 +189,7 @@ export async function getPrepSheet(params: {
         forecastQty,
       })
     } else {
-      // Drinks / retail / hire products will never have a prep recipe —
+      // Drinks / retail / hire products will never have a prep recipe,
       // listing them as "unmatched" just buries the real gaps (food items
       // missing a dish link). Skip products seen only in those categories.
       const cats = productCategories.get(b.name.toLowerCase().trim())
@@ -277,12 +277,17 @@ export async function getPrepSheet(params: {
   // Cascade: any preparation that has sub-preparations contributes demand
   // to those sub-preps proportional to its own required quantity. We load
   // prep trees iteratively until the queue drains.
-  const preparationsById = new Map<string, typeof dishes[number]["components"][number]["preparation"]>()
+  type LoadedPrep = NonNullable<typeof dishes[number]["components"][number]["preparation"]>
+  const preparationsById = new Map<string, LoadedPrep>()
   for (const d of dishes) {
     for (const c of d.components) {
       if (c.preparation) preparationsById.set(c.preparation.id, c.preparation)
     }
   }
+  // Delta propagation to a fixpoint: a sub-prep can gain demand AFTER it
+  // was first processed (via another parent), so we re-queue on every
+  // addition and only cascade the not-yet-propagated delta each visit.
+  const propagatedDemand = new Map<string, number>()
   const queue = [...prepDemand.keys()]
   while (queue.length > 0) {
     const prepId = queue.shift()!
@@ -294,12 +299,20 @@ export async function getPrepSheet(params: {
         include: { items: { include: { subPreparation: true } } },
       })
       if (!loaded) continue
-      preparationsById.set(prepId, loaded as typeof prep)
+      preparationsById.set(prepId, loaded)
     }
     const full = preparationsById.get(prepId)!
-    const parentDemandBase = prepDemand.get(prepId) ?? 0
-    const parentYieldBase = Number(full.yieldWeightGrams) || Number(full.yieldQuantity)
-    if (parentYieldBase === 0) continue
+    const totalDemand = prepDemand.get(prepId) ?? 0
+    const alreadyDone = propagatedDemand.get(prepId) ?? 0
+    const deltaDemand = totalDemand - alreadyDone
+    if (deltaDemand <= 1e-9) continue
+    propagatedDemand.set(prepId, totalDemand)
+    const parentYieldBase = yieldBaseOf(
+      full.yieldUnit,
+      Number(full.yieldWeightGrams),
+      Number(full.yieldQuantity)
+    )
+    if (parentYieldBase <= 0) continue
     for (const item of full.items) {
       if (!item.subPreparation) continue
       const perBatchBase = convertToPrepBase(
@@ -309,25 +322,24 @@ export async function getPrepSheet(params: {
         Number(item.subPreparation.yieldWeightGrams),
         Number(item.subPreparation.yieldQuantity)
       )
-      const cascadeBatches = parentDemandBase / parentYieldBase
+      const cascadeBatches = deltaDemand / parentYieldBase
       const addBase = perBatchBase * cascadeBatches
       if (addBase <= 0) continue
-      const existed = prepDemand.has(item.subPreparation.id)
       prepDemand.set(
         item.subPreparation.id,
         (prepDemand.get(item.subPreparation.id) ?? 0) + addBase
       )
-      // Inherit driver list for traceability
+      // Inherit driver list for traceability (deduped at materialise)
       const parentDrivers = prepDrivers.get(prepId) ?? []
       prepDrivers.set(item.subPreparation.id, [
         ...(prepDrivers.get(item.subPreparation.id) ?? []),
         ...parentDrivers,
       ])
-      if (!existed) queue.push(item.subPreparation.id)
+      queue.push(item.subPreparation.id)
     }
   }
 
-  // Materialise lines — need preparation metadata for yieldWeightGrams etc.
+  // Materialise lines, need preparation metadata for yieldWeightGrams etc.
   const prepIds = Array.from(prepDemand.keys())
   const preps = await db.preparation.findMany({
     where: { id: { in: prepIds } },
@@ -339,18 +351,24 @@ export async function getPrepSheet(params: {
     const p = prepMeta.get(prepId)
     if (!p) continue
     const baseUnit = baseUnitOf(p.yieldUnit, Number(p.yieldWeightGrams), Number(p.yieldQuantity))
-    // Demand is accumulated in ml, so a yield stored in litres must be
-    // scaled before computing batches (1 l batch covers 1000 ml, not 1).
-    const yieldBase =
-      baseUnit === "g"
-        ? Number(p.yieldWeightGrams)
-        : baseUnit === "ml" && p.yieldUnit.toLowerCase() === "l"
-          ? Number(p.yieldQuantity) * 1000
-          : Number(p.yieldQuantity)
+    const yieldBase = yieldBaseOf(
+      p.yieldUnit,
+      Number(p.yieldWeightGrams),
+      Number(p.yieldQuantity)
+    )
     const batches = yieldBase > 0 ? Math.ceil(required / yieldBase) : 0
     const batchCost = Number(p.batchCost)
-    // Collapse duplicate drivers
-    const drivers = (prepDrivers.get(prepId) ?? []).slice(0, 8)
+    // Collapse duplicate drivers (a dish reachable both directly and via a
+    // parent prep used to appear twice)
+    const seenDrivers = new Set<string>()
+    const drivers = (prepDrivers.get(prepId) ?? [])
+      .filter((d) => {
+        const key = `${d.dishName}|${d.venue}`
+        if (seenDrivers.has(key)) return false
+        seenDrivers.add(key)
+        return true
+      })
+      .slice(0, 8)
 
     lines.push({
       preparationId: prepId,
@@ -387,9 +405,13 @@ export async function getPrepSheet(params: {
 }
 
 /**
- * Convert a dish-component quantity into the preparation's "base" unit.
- * - If the preparation yields in "serves", we treat it as units (ea).
- * - If it yields in g/kg/ml/l, we normalise to g or ml.
+ * Convert a dish-component quantity into the preparation's canonical base
+ * unit, i.e. the SAME unit baseUnitOf reports for that prep. Every path
+ * must land in that one unit: the old version returned counts for "serve"
+ * rows and grams for "g" rows into a single accumulator, so 2 serves of a
+ * serve-yield prep with a batch weight counted as 2 grams.
+ * Returns 0 when no meaningful conversion exists (the row is skipped
+ * rather than polluting the accumulator with a wrong-unit number).
  */
 function convertToPrepBase(
   qty: number,
@@ -399,24 +421,40 @@ function convertToPrepBase(
   yieldQuantity: number
 ): number {
   const u = unit.toLowerCase()
+  const base = baseUnitOf(yieldUnit, yieldWeightGrams, yieldQuantity)
   const yu = yieldUnit.toLowerCase()
-  // Weight mass
-  if (u === "kg") return qty * 1000
-  if (u === "g") return qty
-  if (u === "l") return qty * 1000
-  if (u === "ml") return qty
-  // Portion counts
-  if (u === "serve" || u === "serves" || u === "portion" || u === "portions") {
-    // If the prep yields servings, we need count; if it yields mass, we
-    // can approximate by using weight per serve.
-    if (yu === "serves" || yu === "serve" || yu === "ea") return qty
-    const perServe = yieldWeightGrams / Math.max(yieldQuantity, 1)
-    return qty * perServe
+  const yieldIsCount = yu === "serve" || yu === "serves" || yu === "ea"
+  // Grams (or ml) per single serve, only meaningful for count yields
+  // that also carry a batch weight.
+  const perServe =
+    yieldIsCount && yieldWeightGrams > 0 && yieldQuantity > 0
+      ? yieldWeightGrams / yieldQuantity
+      : 0
+
+  const massMult: Record<string, number> = { g: 1, kg: 1000, ml: 1, l: 1000 }
+
+  // Weight/volume reference
+  if (u in massMult) {
+    const grams = qty * massMult[u]
+    if (base === "g" || base === "ml") return grams
+    // base "ea": only convertible when we know weight per piece
+    return perServe > 0 ? grams / perServe : 0
   }
-  if (u === "ea" || u === "each" || u === "piece" || u === "pieces") {
-    return qty
+
+  // Count reference (serves / portions / pieces / each / dozen)
+  const countMult =
+    u === "dozen" ? 12 : 1
+  if (
+    u === "serve" || u === "serves" || u === "portion" || u === "portions" ||
+    u === "ea" || u === "each" || u === "piece" || u === "pieces" || u === "dozen"
+  ) {
+    const count = qty * countMult
+    if (base === "ea") return count
+    // base "g"/"ml": convert count to mass via weight per serve
+    return perServe > 0 ? count * perServe : 0
   }
-  return qty // last-resort
+
+  return 0
 }
 
 function baseUnitOf(
@@ -431,4 +469,26 @@ function baseUnitOf(
   if (yu === "ml" || yu === "l") return "ml"
   if (yu === "g" || yu === "kg") return "g"
   return yieldUnit
+}
+
+/**
+ * The prep's batch yield expressed in its canonical base unit, matching
+ * baseUnitOf/convertToPrepBase. Used for both cascade batch maths and the
+ * final batches-needed division.
+ */
+function yieldBaseOf(
+  yieldUnit: string,
+  yieldWeightGrams: number,
+  yieldQuantity: number
+): number {
+  const base = baseUnitOf(yieldUnit, yieldWeightGrams, yieldQuantity)
+  const yu = yieldUnit.toLowerCase()
+  if (base === "g") {
+    if (yieldWeightGrams > 0) return yieldWeightGrams
+    return yu === "kg" ? yieldQuantity * 1000 : yieldQuantity
+  }
+  if (base === "ml") {
+    return yu === "l" ? yieldQuantity * 1000 : yieldQuantity
+  }
+  return yieldQuantity
 }

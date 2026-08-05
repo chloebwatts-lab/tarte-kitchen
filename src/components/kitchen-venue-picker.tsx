@@ -1,7 +1,19 @@
+"use client"
+
 import Link from "next/link"
 import { ArrowRight, Clock, LayoutGrid } from "lucide-react"
 import { SINGLE_VENUES, VENUE_LABEL } from "@/lib/venues"
 import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
+
+/**
+ * Remember the chosen venue for a year so staff pages opened without a
+ * ?venue= param (home-screen bookmarks, /staffaccess tiles) land on the
+ * right venue instead of a silent default. Server pages read this via
+ * cookies(); an explicit ?venue= param always wins.
+ */
+function rememberVenue(venue: (typeof SINGLE_VENUES)[number]) {
+  document.cookie = `tk-venue=${venue}; path=/; max-age=31536000; samesite=lax`
+}
 
 const VENUE_SUB: Record<(typeof SINGLE_VENUES)[number], string> = {
   BURLEIGH: "Burleigh Heads",
@@ -44,7 +56,7 @@ export function KitchenVenuePicker() {
             style={{ background: "rgba(255,255,255,0.15)" }}
           >
             <Clock className="h-3.5 w-3.5" />
-            <span>{formatNow()}</span>
+            <span suppressHydrationWarning>{formatNow()}</span>
           </div>
         </div>
       </div>
@@ -77,6 +89,7 @@ export function KitchenVenuePicker() {
             <Link
               key={v}
               href={`/kitchen?venue=${v}`}
+              onClick={() => rememberVenue(v)}
               className="group flex min-h-[180px] flex-col justify-between rounded-[20px] bg-white/95 p-6 text-left transition active:scale-[0.99]"
               style={{ color: "var(--tk-charcoal)" }}
             >
@@ -118,7 +131,7 @@ export function KitchenVenuePicker() {
         className="pb-7 text-center tk-caps"
         style={{ color: "rgba(255,255,255,0.65)" }}
       >
-        Stays on this venue until you change it
+        This device remembers your venue until you pick a different one
       </div>
     </div>
   )

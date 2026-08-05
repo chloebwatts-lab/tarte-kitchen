@@ -72,7 +72,7 @@ export async function getLatestDailyReport(): Promise<DailyReport> {
 
   const sites: DailyReportSite[] = summaries.map((s) => {
     const cats = Array.from(perVenue.get(s.venue)?.values() ?? [])
-    // Sort categories alphabetically — matches the report's layout.
+    // Sort categories alphabetically, matches the report's layout.
     cats.sort((a, b) => a.categoryName.localeCompare(b.categoryName))
     return {
       venue: s.venue,

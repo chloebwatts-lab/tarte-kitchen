@@ -168,7 +168,7 @@ async function matchItem(name: string): Promise<MatchResult> {
 export async function GET(request: Request) {
   // Auth check
   const authHeader = request.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 })
   }
 

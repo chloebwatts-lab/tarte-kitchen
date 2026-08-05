@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { Plus, Pencil, Trash2, ShieldCheck, GraduationCap } from "lucide-react"
 import { KitchenButton } from "@/components/kitchen/KitchenButton"
 import {
@@ -68,10 +69,15 @@ export function TrainingDashboard({
   venue: Venue
   initialRecords: TrainingRecordDto[]
 }) {
-  const [records] = useState(initialRecords)
+  const router = useRouter()
+  // Render straight from props: router.refresh() re-renders the server
+  // component with fresh data, and holding a copy in state would pin the
+  // first load forever.
+  const records = initialRecords
   const [openForm, setOpenForm] = useState<null | { record: TrainingRecordDto | null }>(
     null
   )
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [, startTransition] = useTransition()
 
   const complete = records.filter((r) => r.complete)
@@ -79,9 +85,18 @@ export function TrainingDashboard({
 
   const remove = (r: TrainingRecordDto) => {
     if (!window.confirm(`Delete the training record for ${r.staffName}?`)) return
+    setDeleteError(null)
     startTransition(async () => {
-      await deleteTrainingRecord(r.id)
-      window.location.reload()
+      try {
+        await deleteTrainingRecord(r.id)
+        router.refresh()
+      } catch (e) {
+        setDeleteError(
+          e instanceof Error
+            ? `Couldn't delete ${r.staffName}'s record: ${e.message}`
+            : `Couldn't delete ${r.staffName}'s record. Try again.`
+        )
+      }
     })
   }
 
@@ -94,12 +109,18 @@ export function TrainingDashboard({
         </KitchenButton>
       </div>
 
+      {deleteError && (
+        <div className="rounded-[10px] bg-[var(--tk-warn-soft)] px-3 py-2 text-[13px] text-[var(--tk-warn)]">
+          {deleteError}
+        </div>
+      )}
+
       <section>
         <h2 className="tk-caps mb-3" style={{ color: "var(--tk-ink-soft)", fontSize: 12 }}>
           In progress · {inProgress.length}
         </h2>
         {inProgress.length === 0 ? (
-          <EmptyState text="No in-progress records. Add one per staff member — every food handler needs a completed record." />
+          <EmptyState text="No in-progress records. Add one per staff member, every food handler needs a completed record." />
         ) : (
           <div className="space-y-3">
             {inProgress.map((r) => (
@@ -289,6 +310,7 @@ function RecordForm({
   record: TrainingRecordDto | null
   onClose: () => void
 }) {
+  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [staffName, setStaffName] = useState(record?.staffName ?? "")
   const [role, setRole] = useState(record?.role ?? "")
@@ -325,8 +347,10 @@ function RecordForm({
       try {
         if (record) await updateTrainingRecord(record.id, input)
         else await createTrainingRecord(venue, input)
+        // Closing unmounts the form (its state goes with it); refresh pulls
+        // the updated list without losing scroll position mid-service.
         onClose()
-        window.location.reload()
+        router.refresh()
       } catch (e) {
         setError(e instanceof Error ? e.message : "Save failed")
       }

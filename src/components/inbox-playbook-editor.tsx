@@ -16,9 +16,9 @@ import {
 import { saveInboxPlaybook, type InboxPlaybook } from "@/lib/actions/inbox-playbooks"
 
 const CATEGORY_LABELS: Record<string, string> = {
-  events_tea_garden_high_tea: "Tea Garden — High Tea",
-  events_tea_garden_functions: "Tea Garden — Functions",
-  events_beach_house_functions: "Beach House — Functions",
+  events_tea_garden_high_tea: "Tea Garden: High Tea",
+  events_tea_garden_functions: "Tea Garden: Functions",
+  events_beach_house_functions: "Beach House: Functions",
   suppliers: "Suppliers",
   reviews: "Reviews",
   bookings_dine_in: "Bookings (dine-in)",
@@ -131,7 +131,7 @@ export function InboxPlaybookEditor({
 
   return (
     <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-      {/* Header — always visible */}
+      {/* Header, always visible */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -204,7 +204,7 @@ export function InboxPlaybookEditor({
         <div className="border-t border-border bg-muted/30 px-5 py-5 space-y-5">
           <Field
             label="Voice guidance"
-            hint="How Claude should write — tone, openers, sign-offs, do's and don'ts."
+            hint="How Claude should write, tone, openers, sign-offs, do's and don'ts."
           >
             <textarea
               className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm focus:border-sage-deep focus:ring-0"
@@ -248,7 +248,7 @@ export function InboxPlaybookEditor({
                 <code className="rounded bg-muted px-1 py-0.5 text-[10px]">
                   /root/tarte-inbox/attachments/
                 </code>{" "}
-                — one per line. Attached only on our first reply in a thread.
+               , one per line. Attached only on our first reply in a thread.
               </>
             }
           >
@@ -295,7 +295,7 @@ export function InboxPlaybookEditor({
                   Auto-send replies in this category
                 </span>
                 <span className="block text-xs text-muted-foreground">
-                  When confidence is at least the threshold below. Off by default — leave off until you trust the drafts.
+                  When confidence is at least the threshold below. Off by default, leave off until you trust the drafts.
                 </span>
               </span>
             </label>
@@ -325,7 +325,7 @@ export function InboxPlaybookEditor({
                 <HelpCircle className="h-4 w-4 text-muted-foreground" />
                 Cheat sheet
                 <span className="ml-1 text-xs font-normal text-muted-foreground">
-                  — Q&amp;A the agent uses as authoritative facts
+                 : Q&amp;A the agent uses as authoritative facts
                 </span>
               </h4>
               <button
@@ -398,7 +398,7 @@ export function InboxPlaybookEditor({
               <h4 className="text-sm font-semibold text-foreground">
                 Examples
                 <span className="ml-1 text-xs font-normal text-muted-foreground">
-                  — real past pairs Claude reads as reference
+                 , real past pairs Claude reads as reference
                 </span>
               </h4>
               <button
@@ -497,7 +497,7 @@ function ExampleRow({
 
   return (
     <li className="rounded-lg border border-border bg-card">
-      {/* Compact preview row — click to expand */}
+      {/* Compact preview row, click to expand */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}

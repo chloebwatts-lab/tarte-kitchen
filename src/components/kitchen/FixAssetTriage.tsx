@@ -68,6 +68,21 @@ function fmtDate(iso: string) {
   })
 }
 
+function ordinal(n: number) {
+  const rem100 = n % 100
+  if (rem100 >= 11 && rem100 <= 13) return `${n}th`
+  switch (n % 10) {
+    case 1:
+      return `${n}st`
+    case 2:
+      return `${n}nd`
+    case 3:
+      return `${n}rd`
+    default:
+      return `${n}th`
+  }
+}
+
 interface ErrorCodeRow {
   code: string
   meaning: string
@@ -100,7 +115,7 @@ export function FixAssetTriage({
 
   const symptom = symptoms.find((s) => s.key === symptomKey) ?? null
   const openIssues = issues.filter((i) => i.status === "OPEN")
-  // History ordered by when it was actually fixed, newest first — "last time"
+  // History ordered by when it was actually fixed, newest first, "last time"
   // must mean last time, not "last time someone wrote notes".
   const fixedIssues = [...issues]
     .filter((i) => i.status !== "OPEN")
@@ -158,7 +173,7 @@ export function FixAssetTriage({
     startTransition(async () => {
       try {
         const repeatTag = priorSameClass
-          ? `[REPEAT — this machine's ${priorSameClass.count + 1}th ${priorSameClass.cls.label} issue] `
+          ? `[REPEAT: this machine's ${ordinal(priorSameClass.count + 1)} ${priorSameClass.cls.label} issue] `
           : ""
         await reportIssue({
           assetSlug: asset.slug,
@@ -202,7 +217,7 @@ export function FixAssetTriage({
           </div>
         </div>
 
-        {/* Warranty banner — deliberately loud so nobody pays for a free repair */}
+        {/* Warranty banner, deliberately loud so nobody pays for a free repair */}
         {underWarranty === true && (
           <div className="bg-[#0e9f5c] px-6 py-5 text-white">
             <div className="flex items-center gap-3">
@@ -218,7 +233,7 @@ export function FixAssetTriage({
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <div className="text-[16px] font-semibold leading-snug">
-                Don't pay a trade — this repair should be FREE. Call{" "}
+                Don't pay a trade: this repair should be FREE. Call{" "}
                 {asset.warrantyProvider ?? warrantyContact?.name ?? "the supplier"}.
               </div>
               {warrantyContact?.phone && (
@@ -245,7 +260,7 @@ export function FixAssetTriage({
         )}
       </div>
 
-      {/* ── Known repeat problems — front and centre ── */}
+      {/* ── Known repeat problems, front and centre ── */}
       {chronic.length > 0 && (
         <div className="rounded-2xl border-2 border-[var(--tk-warn)] bg-[var(--tk-warn-soft)] p-5">
           <div className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-[var(--tk-warn)]">
@@ -255,13 +270,13 @@ export function FixAssetTriage({
             {chronic.map((c) => (
               <div key={c.label} className="text-[16px] font-semibold text-[var(--tk-charcoal)]">
                 {c.n}× {c.label} issues
-                <span className="font-normal text-[var(--tk-ink-soft)]"> — most recent {fmtDate(c.last)}</span>
+                <span className="font-normal text-[var(--tk-ink-soft)]">, most recent {fmtDate(c.last)}</span>
               </div>
             ))}
           </div>
           <div className="mt-2 text-[14px] leading-snug text-[var(--tk-ink-soft)]">
-            If it's doing the same thing again, log it below even if you get it going —
-            repeat faults mean the fixes aren't holding, and the record builds the case
+            If it's doing the same thing again, log it below even if you get it going.
+            Repeat faults mean the fixes aren't holding, and the record builds the case
             for a warranty claim or replacement instead of another callout bill.
           </div>
         </div>
@@ -293,7 +308,7 @@ export function FixAssetTriage({
           </div>
           <div className="mt-1 text-[15px] text-[var(--tk-ink-soft)]">
             {lastFix.fixSummary ??
-              "No fix notes were recorded for this one — if you know how it was fixed, add it as a comment so next time is faster."}
+              "No fix notes were recorded for this one. If you know how it was fixed, add it as a comment so next time is faster."}
           </div>
         </div>
       )}
@@ -335,7 +350,7 @@ export function FixAssetTriage({
                     before
                   </b>{" "}
                   (last one {fmtDate(priorSameClass.last)}). That usually means the previous fix
-                  didn't hold. <b>Please log it below even if you get it going again</b> — and
+                  didn't hold. <b>Please log it below even if you get it going again</b>, and
                   mention it's a repeat to whoever fixes it. Repeat faults build the case for a
                   warranty claim or replacement instead of another bill.
                 </div>
@@ -344,12 +359,12 @@ export function FixAssetTriage({
             {symptom.safety && (
               <div className="flex items-start gap-3 rounded-xl bg-[#fdecea] p-4 text-[15px] font-semibold text-[#b3362a]">
                 <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
-                Safety issue — stop using the machine and tell the manager now. Then log it below.
+                Safety issue: stop using the machine and tell the manager now. Then log it below.
               </div>
             )}
             <div>
               <div className="text-[13px] font-semibold uppercase tracking-wide text-[var(--tk-ink-mute)]">
-                Try this first — before anyone gets paid a callout
+                Try this first, before anyone gets paid a callout
               </div>
               <ol className="mt-2 space-y-2">
                 {symptom.quickFixes.map((f, idx) => (
@@ -368,7 +383,7 @@ export function FixAssetTriage({
                 onClick={() => setShowReport(true)}
                 className="w-full rounded-xl bg-[var(--tk-charcoal)] py-4 text-[17px] font-bold text-white"
               >
-                Still broken — log it
+                Still broken? Log it
               </button>
             )}
           </div>
@@ -379,7 +394,7 @@ export function FixAssetTriage({
             onClick={() => setShowReport(true)}
             className="mt-4 w-full rounded-xl border border-[var(--tk-line)] py-3 text-[15px] font-semibold text-[var(--tk-ink-soft)]"
           >
-            None of these — describe it myself
+            None of these? Describe it myself
           </button>
         )}
 
@@ -399,7 +414,7 @@ export function FixAssetTriage({
               placeholder={
                 symptom
                   ? "Anything extra the fixer should know? (error codes, when it happens…)"
-                  : "What's wrong? Be specific — error codes, what you tried…"
+                  : "What's wrong? Be specific: error codes, what you tried…"
               }
               className="w-full rounded-xl border border-[var(--tk-line)] px-4 py-3 text-[16px] outline-none focus:border-[var(--tk-sage)]"
             />
@@ -416,7 +431,7 @@ export function FixAssetTriage({
 
         {done && (
           <div className="mt-5 flex items-center gap-3 rounded-xl bg-[var(--tk-done-soft)] p-4 text-[16px] font-semibold text-[var(--tk-done)]">
-            <CheckCircle2 className="h-6 w-6" /> Logged. It's on the maintenance board —
+            <CheckCircle2 className="h-6 w-6" /> Logged. It's on the maintenance board,
             no WhatsApp message needed.
           </div>
         )}
@@ -437,7 +452,7 @@ export function FixAssetTriage({
         </h2>
         <div className="mt-4 space-y-3">
           {underWarranty && warrantyContact && (
-            <ContactCard contact={warrantyContact} badge="WARRANTY — call first" highlight />
+            <ContactCard contact={warrantyContact} badge="WARRANTY: call first" highlight />
           )}
           {suggestedContacts
             .filter((c) => c.id !== (underWarranty ? warrantyContact?.id : ""))
@@ -446,7 +461,7 @@ export function FixAssetTriage({
             ))}
           {suggestedContacts.length === 0 && !warrantyContact && (
             <div className="text-[15px] text-[var(--tk-ink-soft)]">
-              No contact on file for this kind of machine yet — tell Chloe so it gets added.
+              No contact on file for this kind of machine yet, tell Chloe so it gets added.
             </div>
           )}
         </div>
@@ -536,7 +551,7 @@ function ErrorCodeLookup({
             <input
               value={q}
               onChange={(e) => { setQ(e.target.value); setPicked(null) }}
-              placeholder="Type the code — e.g. 032, Er04, AF02…"
+              placeholder="Type the code, e.g. 032, Er04, AF02…"
               className="w-full rounded-xl border border-[var(--tk-line)] px-4 py-3 text-[16px] outline-none focus:border-[var(--tk-sage)]"
             />
           )}
@@ -574,12 +589,12 @@ function ErrorCodeLookup({
           {picked === null && (
             <div className="text-[13px] text-[var(--tk-ink-mute)]">
               Tap the code you see on the display. Not listed? Photo the screen and log
-              it below — the exact code halves the tech's diagnosis time.
+              it below. The exact code halves the tech's diagnosis time.
             </div>
           )}
           {filtered.length === 0 && (
             <div className="text-[14px] text-[var(--tk-ink-soft)]">
-              Code not in the list — photo the screen and log it below.
+              Code not in the list, photo the screen and log it below.
             </div>
           )}
         </div>
@@ -639,6 +654,7 @@ function OpenIssueCard({ issue }: { issue: IssueRow }) {
   const [who, setWho] = useState("")
   const [showFix, setShowFix] = useState(false)
   const [fixSummary, setFixSummary] = useState("")
+  const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
   return (
@@ -656,7 +672,7 @@ function OpenIssueCard({ issue }: { issue: IssueRow }) {
               issue.isSafety ? "text-[#b3362a]" : "text-[var(--tk-warn)]"
             }`}
           >
-            {issue.isSafety ? "⚠ Safety fault — logged" : "Already logged — being handled"}
+            {issue.isSafety ? "⚠ Safety fault, logged" : "Already logged, being handled"}
           </div>
           <div className="mt-1 text-[16px] font-semibold text-[var(--tk-charcoal)]">
             {issue.title}
@@ -676,6 +692,12 @@ function OpenIssueCard({ issue }: { issue: IssueRow }) {
               <b>{e.author ?? "?"}:</b> {e.body}
             </div>
           ))}
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-3 rounded-lg bg-white/70 px-3 py-2 text-[13px] font-semibold text-[#b3362a]">
+          {error}
         </div>
       )}
 
@@ -699,8 +721,13 @@ function OpenIssueCard({ issue }: { issue: IssueRow }) {
                 disabled={pending || !comment.trim()}
                 onClick={() =>
                   startTransition(async () => {
-                    await addIssueComment(issue.id, who, comment)
-                    setComment("")
+                    setError(null)
+                    try {
+                      await addIssueComment(issue.id, who, comment)
+                      setComment("")
+                    } catch {
+                      setError("Couldn't save the update, tap Add to retry.")
+                    }
                   })
                 }
                 className="rounded-lg bg-[var(--tk-charcoal)] px-4 py-2 text-[14px] font-bold text-white disabled:opacity-40"
@@ -720,7 +747,7 @@ function OpenIssueCard({ issue }: { issue: IssueRow }) {
             <input
               value={fixSummary}
               onChange={(e) => setFixSummary(e.target.value)}
-              placeholder="What fixed it? Who did it? (required — future-you will thank you)"
+              placeholder="What fixed it? Who did it? (required, future-you will thank you)"
               className="w-full flex-1 rounded-lg border border-black/10 bg-white/70 px-3 py-2 text-[14px] outline-none"
             />
             <div className="flex gap-2">
@@ -728,11 +755,16 @@ function OpenIssueCard({ issue }: { issue: IssueRow }) {
                 disabled={pending || !fixSummary.trim() || !who.trim()}
                 onClick={() =>
                   startTransition(async () => {
-                    await markIssueFixed({
-                      issueId: issue.id,
-                      fixedBy: who,
-                      fixSummary,
-                    })
+                    setError(null)
+                    try {
+                      await markIssueFixed({
+                        issueId: issue.id,
+                        fixedBy: who,
+                        fixSummary,
+                      })
+                    } catch {
+                      setError("Couldn't mark it fixed, tap Mark fixed to retry.")
+                    }
                   })
                 }
                 className="rounded-lg bg-[var(--tk-done)] px-4 py-2 text-[14px] font-bold text-white disabled:opacity-40"

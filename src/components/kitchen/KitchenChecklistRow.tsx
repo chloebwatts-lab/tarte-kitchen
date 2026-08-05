@@ -1,6 +1,7 @@
 "use client"
 
 import { Thermometer } from "lucide-react"
+import { useState } from "react"
 import type { ReactNode } from "react"
 import { cn } from "@/lib/utils"
 import { KitchenTick } from "./KitchenTick"
@@ -31,6 +32,57 @@ export function KitchenChecklistRow({
   onNoteChange: (v: string | null) => void
 }) {
   const done = !!checkedAt
+
+  // Raw text keeps what the chef actually typed ("3.", "-", "-1.5") so the
+  // decimal point and minus sign survive re-renders; only valid numbers are
+  // pushed up to the parent / server.
+  const [tempRaw, setTempRaw] = useState<string>(
+    tempCelsius !== null ? String(tempCelsius) : ""
+  )
+
+  function pushTemp(raw: string) {
+    if (raw.trim() === "") {
+      onTempChange(null)
+      return
+    }
+    const n = Number(raw)
+    if (Number.isFinite(n)) onTempChange(n)
+  }
+
+  function handleTempInput(raw: string) {
+    // Digits, one leading minus, one decimal point.
+    let cleaned = raw.replace(/[^0-9.\-]/g, "")
+    const neg = cleaned.startsWith("-")
+    cleaned = cleaned.replace(/-/g, "")
+    const firstDot = cleaned.indexOf(".")
+    if (firstDot !== -1) {
+      cleaned =
+        cleaned.slice(0, firstDot + 1) +
+        cleaned.slice(firstDot + 1).replace(/\./g, "")
+    }
+    if (neg) cleaned = `-${cleaned}`
+    setTempRaw(cleaned)
+    pushTemp(cleaned)
+  }
+
+  function handleTempBlur() {
+    const n = Number(tempRaw)
+    if (tempRaw.trim() === "" || !Number.isFinite(n)) {
+      setTempRaw("")
+      onTempChange(null)
+    } else {
+      setTempRaw(String(n))
+      onTempChange(n)
+    }
+  }
+
+  // iOS decimal keypads have no minus key, so freezer readings (-18) need an
+  // explicit sign toggle.
+  function toggleTempSign() {
+    const next = tempRaw.startsWith("-") ? tempRaw.slice(1) : `-${tempRaw}`
+    setTempRaw(next)
+    pushTemp(next)
+  }
 
   return (
     <div
@@ -89,16 +141,24 @@ export function KitchenChecklistRow({
                   </span>
                   <input
                     inputMode="decimal"
-                    value={tempCelsius ?? ""}
-                    onChange={(e) =>
-                      onTempChange(
-                        e.target.value === ""
-                          ? null
-                          : parseFloat(e.target.value)
-                      )
-                    }
+                    value={tempRaw}
+                    onChange={(e) => handleTempInput(e.target.value)}
+                    onBlur={handleTempBlur}
                     className="w-24 rounded-[10px] border border-[var(--tk-line)] bg-white px-3 py-2 text-[17px] font-semibold tabular-nums focus:border-[var(--tk-charcoal)] focus:outline-none"
                   />
+                  <button
+                    type="button"
+                    onClick={toggleTempSign}
+                    aria-label="Toggle minus sign for sub-zero temps"
+                    className={cn(
+                      "h-10 w-10 shrink-0 rounded-[10px] border text-[15px] font-semibold tabular-nums transition active:scale-[0.96]",
+                      tempRaw.startsWith("-")
+                        ? "border-[var(--tk-charcoal)] bg-[var(--tk-charcoal)] text-white"
+                        : "border-[var(--tk-line)] bg-white text-[var(--tk-ink-soft)]"
+                    )}
+                  >
+                    +/-
+                  </button>
                 </label>
               )}
               {requireNote && (

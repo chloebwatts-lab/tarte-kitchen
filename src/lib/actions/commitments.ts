@@ -31,7 +31,7 @@ const STANDING_SEEDS: Array<{
   {
     slug: "portions-weighed",
     title: "Portions weighed every prep, every day",
-    description: "Scales out at every prep — no eyeballing serves.",
+    description: "Scales out at every prep, no eyeballing serves.",
     sortOrder: 2,
     autoSource: null,
   },
@@ -45,7 +45,7 @@ const STANDING_SEEDS: Array<{
   {
     slug: "weekly-update-friday",
     title: "Weekly Update sent by Friday",
-    description: "Paper is fine — photo it on the sheets page.",
+    description: "Paper is fine, photo it on the sheets page.",
     sortOrder: 4,
     autoSource: null,
   },
@@ -65,7 +65,7 @@ const STANDING_SEEDS: Array<{
   },
 ]
 
-/** Idempotent — keeps the six sheet rows present and ordered without
+/** Idempotent, keeps the six sheet rows present and ordered without
  *  disturbing any marks. Called on board load. */
 export async function ensureStandingCommitments(): Promise<void> {
   for (const seed of STANDING_SEEDS) {
@@ -310,7 +310,7 @@ export async function setStandingMark(params: {
   revalidateCommitments()
 }
 
-/** Remove a manual mark — an auto-sourced commitment falls back to its
+/** Remove a manual mark, an auto-sourced commitment falls back to its
  *  derived value, a manual one back to unmarked. */
 export async function clearStandingMark(params: {
   commitmentId: string

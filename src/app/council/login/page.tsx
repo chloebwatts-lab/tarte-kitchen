@@ -22,7 +22,7 @@ export default async function CouncilLoginPage({
             Council Inspection Folder
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Tarte Kitchen — enter password to continue
+            Tarte Kitchen manager sign-in
           </p>
         </div>
 
@@ -47,7 +47,8 @@ export default async function CouncilLoginPage({
         </form>
 
         <p className="text-center text-xs text-muted-foreground">
-          For Gold Coast City Council EHO use. 12-hour session.
+          Inspection documents are viewable without signing in. This sign-in
+          is for Tarte managers who need to upload or remove documents.
         </p>
       </div>
     </div>

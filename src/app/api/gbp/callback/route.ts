@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Look up the email of the authorising user (display only). Userinfo
-    // is the cheapest endpoint that works with any Google OAuth scope —
+    // is the cheapest endpoint that works with any Google OAuth scope,
     // no extra scope needed beyond what we already requested.
     let email = "unknown"
     try {
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
         email = u.email ?? email
       }
     } catch {
-      // Non-fatal — the connection still works without a known email.
+      // Non-fatal, the connection still works without a known email.
     }
 
     // Single-tenant: drop any existing connection.

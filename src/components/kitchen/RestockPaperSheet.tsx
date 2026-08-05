@@ -14,7 +14,7 @@ import { STATION_SHORT_LABEL } from "@/lib/stations"
 /**
  * Paper facsimile of the printed "Kitchen Restock Request": one ruled
  * table, every item visible, write-in boxes for coolroom count / need /
- * priority number / note. Built for Apple Pencil — Scribble converts
+ * priority number / note. Built for Apple Pencil: Scribble converts
  * handwriting into the field, the chef sees the digit instantly and fixes
  * a bad conversion on the spot. Same sheet records and autosave as the
  * standard count; this is an alternative front-end, not a fork.
@@ -131,9 +131,9 @@ export function RestockPaperSheet({
       setSavingCount((n) => n + 1)
       saveCountLine({ sheetId: sheet.sheetId, itemId, ...patch })
         .then((res) => {
-          if (!res.ok) setError(res.error ?? "Couldn't save — try again")
+          if (!res.ok) setError(res.error ?? "Couldn't save. Try again.")
         })
-        .catch(() => setError("Couldn't save — check the connection"))
+        .catch(() => setError("Couldn't save. Check the connection."))
         .finally(() => setSavingCount((n) => n - 1))
     }
     const key = `${itemId}|${debounceKey}`
@@ -171,11 +171,11 @@ export function RestockPaperSheet({
       return
     }
     const n = parseNum(raw)
-    if (n === undefined) return // scribble garbage — leave on screen, don't save
+    if (n === undefined) return // scribble garbage: leave on screen, don't save
     persist(itemId, field === "available" ? { available: n } : { requested: n }, field)
   }
 
-  /** The blank rows at the bottom of the paper sheet — write a name, it
+  /** The blank rows at the bottom of the paper sheet: write a name, it
    *  becomes a real catalogue item on this station. */
   async function commitBlank(idx: number) {
     const itemName = blanks[idx].trim()
@@ -227,7 +227,7 @@ export function RestockPaperSheet({
     if (res.ok) {
       setSheet((s) => ({ ...s, status: "SUBMITTED", countedBy: name.trim() }))
     } else {
-      setError(res.error ?? "Couldn't send — try again")
+      setError(res.error ?? "Couldn't send. Try again.")
     }
   }
 
@@ -257,13 +257,13 @@ export function RestockPaperSheet({
             <Check className="h-4 w-4" />
             Sent to the prep chef
             {sheet.countedBy ? ` by ${sheet.countedBy}` : ""}. You can still
-            write on it — changes save straight onto the sent sheet.
+            write on it, changes save straight onto the sent sheet.
           </span>
         </div>
       )}
       {readOnly && (
         <div className="rounded-[16px] bg-[var(--tk-bg)] px-5 py-4 text-[14px] font-medium text-[var(--tk-ink-soft)]">
-          This sheet has been restocked — start tonight&apos;s count from the
+          This sheet has been restocked. Start tonight&apos;s count from the
           restock page.
         </div>
       )}
@@ -445,7 +445,7 @@ export function RestockPaperSheet({
               {STATION_SHORT_LABEL[sheet.siblingStation]} preps?
             </div>
             <div className="text-[13px] text-[var(--tk-ink-soft)]">
-              Their latest coolroom count is shown — write a number in Need
+              Their latest coolroom count is shown. Write a number in Need
               and it lands on the same morning run.
             </div>
           </div>

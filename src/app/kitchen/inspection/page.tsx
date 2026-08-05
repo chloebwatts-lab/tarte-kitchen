@@ -42,7 +42,7 @@ function dayKey(d: Date | string) {
   // ISO yyyy-mm-dd (en-CA) so the descending sort is chronological. The
   // previous dd/mm/yyyy key sorted as a STRING: "31/07" ranked above
   // "05/08", so once the month ticked over every August day sank below
-  // late July — the whole view looked like it ended on the 31st.
+  // late July, the whole view looked like it ended on the 31st.
   return new Date(d).toLocaleDateString("en-CA", {
     timeZone: "Australia/Brisbane",
   })
@@ -158,7 +158,7 @@ export default async function InspectionPage({
   const pastryDiscarded = pastryRows.reduce((s, p) => s + p.discarded, 0)
   // Count notes describing an ACTION taken, not routine all-clears ("No
   // activity", "All labelled, FIFO OK" are fine and vastly outnumber real
-  // corrective notes — matching keywords beats maintaining a whitelist).
+  // corrective notes, matching keywords beats maintaining a whitelist).
   const CORRECTIVE = /discard|binned|reheat|re-?check|door|thermostat|compressor|seal|bait|maintenance|pulled|moved|adjusted|defrost|monitor|blast chiller|notified/i
   const flaggedItems = checklistRuns.reduce(
     (s, r) => s + r.items.filter((i) => i.note && CORRECTIVE.test(i.note)).length,
@@ -203,12 +203,12 @@ export default async function InspectionPage({
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
           Read-only record of food safety activity. Hand the iPad or phone to
-          the inspector — the summary tells the story, each day expands for
+          the inspector, the summary tells the story, each day expands for
           detail.
         </p>
       </div>
 
-      {/* Documents & FSS — the folder the EHO asks for first */}
+      {/* Documents & FSS, the folder the EHO asks for first */}
       <Link
         href={
           venueFilter === "ALL" ? "/council" : `/council/${venueFilter}`
@@ -220,7 +220,7 @@ export default async function InspectionPage({
             Council documents folder
           </div>
           <div className="mt-0.5 text-[13px] leading-snug text-white/70">
-            Licence, FSS certificates, pest control, training, calibration —
+            Licence, FSS certificates, pest control, training, calibration,
             all printable.
           </div>
         </div>

@@ -24,8 +24,11 @@ const UNIT_DEFINITIONS: Record<string, { type: BaseUnitType; toBase: number }> =
   ea:    { type: "COUNT", toBase: 1 },
   dozen: { type: "COUNT", toBase: 12 },
 
-  // Special: "serve" is used for preparations
-  serve: { type: "COUNT", toBase: 1 },
+  // Special: "serve" is used for preparations. Legacy rows store the
+  // plural "serves"; both must resolve or preparationLineCost throws
+  // mid-cascade and aborts recalcs halfway.
+  serve:  { type: "COUNT", toBase: 1 },
+  serves: { type: "COUNT", toBase: 1 },
 }
 
 /** Get the base unit type for a given unit string */
@@ -73,7 +76,7 @@ export const PURCHASE_UNITS = [
   "carton", "box", "bag", "packet", "case", "tub", "bottle", "bunch",
 ]
 
-/** Recipe units only — no packaging units */
+/** Recipe units only, no packaging units */
 export const RECIPE_UNITS = ["g", "kg", "ml", "l", "ea", "dozen", "serve"]
 
 // ============================================================

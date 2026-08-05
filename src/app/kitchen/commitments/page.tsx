@@ -15,7 +15,7 @@ import {
 } from "@/lib/commitments/shared"
 
 /**
- * Read-only Said + Done board for the kitchen iPad — Jose's view of the
+ * Read-only Said + Done board for the kitchen iPad: Jose's view of the
  * same sheet Chloe ticks from her phone. Marks are made on the admin
  * page; this page never mutates.
  */
@@ -40,7 +40,7 @@ export default async function KitchenCommitmentsPage() {
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
           The commitments from the kitchen reset meeting, week by week. Y means
-          it happened, N means it didn&apos;t — the point is that everyone sees
+          it happened, N means it didn&apos;t. The point is that everyone sees
           the same sheet.
         </p>
       </div>
@@ -221,7 +221,7 @@ export default async function KitchenCommitmentsPage() {
             Photograph a paper sheet
           </div>
           <div className="mt-0.5 text-[14px] text-[var(--tk-ink-soft)]">
-            Weekly update, issue + solution or fault report — snap it and
+            Weekly update, issue + solution or fault report: snap it and
             it&apos;s filed to this week
             {sheetPhotoCount > 0
               ? ` · ${sheetPhotoCount} filed this week`

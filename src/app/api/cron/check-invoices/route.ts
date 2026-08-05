@@ -25,12 +25,12 @@ import path from "path"
  * Resilient supplier-invoice ingestion.
  *
  * Two queries per run, both relying on the `Invoice.gmailMessageId
- * @unique` constraint to dedupe — so re-scanning a window we've
+ * @unique` constraint to dedupe, so re-scanning a window we've
  * already processed is free:
  *
- *   1. Incremental — `from:(supplier-emails) after:lastScanAt`. Fast
+ *   1. Incremental, `from:(supplier-emails) after:lastScanAt`. Fast
  *      path for normal daily ticks.
- *   2. Sweep — `from:(supplier-emails) newer_than:14d`. Catches anything
+ *   2. Sweep, `from:(supplier-emails) newer_than:14d`. Catches anything
  *      a stale or jumped watermark would have skipped. Without this the
  *      pipeline silently lost ~30 invoices over 4 days in May 2026.
  *
@@ -102,7 +102,7 @@ const SENDER_PROBE_HINTS: Array<{ probe: string; supplier: string }> = [
 ]
 
 // Known NON-FOOD senders on the shared Xero address. Deliberately not
-// ingested (overheads would distort the COGS spend tracker) — skip them
+// ingested (overheads would distort the COGS spend tracker), skip them
 // silently instead of logging a "could not match" error on every sweep.
 const IGNORED_SENDER_PROBES = [
   "here to help clean",
@@ -195,7 +195,7 @@ async function finalizeParsedInvoice(
 
   // Pre-delivery order confirmations (Fresho et al) share their order ref
   // with the tax invoice that follows. They must never count as spend and
-  // must never sit in the dedupe candidate set — when they did, every real
+  // must never sit in the dedupe candidate set, when they did, every real
   // Fresho invoice was marked DUPLICATE of its own confirmation and the
   // indicative total was kept instead of the actual one.
   if (parsed.documentType === "ORDER_CONFIRMATION") {
@@ -265,7 +265,7 @@ async function processMessages(
 
   for (const ref of messageRefs) {
     try {
-      // Per-message isolation — one bad parse can't kill the run.
+      // Per-message isolation, one bad parse can't kill the run.
       //
       // Deliberately NO message-level "already seen" fast-path here: dedupe
       // is per ATTACHMENT below. A bare `gmailMessageId: ref.id` skip meant
@@ -303,7 +303,7 @@ async function processMessages(
         try {
           parsed = await parseInvoicePdf(pdfBuffer)
         } catch (parseErr) {
-          stats.errors.push(`Message ${ref.id}: parse failed — ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`)
+          stats.errors.push(`Message ${ref.id}: parse failed: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`)
           continue
         }
 
@@ -349,10 +349,10 @@ async function processMessages(
 
 /**
  * Sweep-mode rescue for rows the pipeline abandoned:
- *  - PENDING stuck >2h — a run crashed between creating the Invoice row and
+ *  - PENDING stuck >2h, a run crashed between creating the Invoice row and
  *    finishing processInvoice. Previously invisible forever (the row exists,
  *    so Gmail-side dedupe skips the attachment on every re-scan).
- *  - ERROR rows — a transient parse/API failure was never retried.
+ *  - ERROR rows, a transient parse/API failure was never retried.
  *
  * Re-parses the stored PDF from disk and pushes it through the same
  * finalize pipeline as fresh ingestion. Safe to re-run because
@@ -391,12 +391,12 @@ async function rescueStuckInvoices(stats: ProcessStats): Promise<void> {
   for (const inv of stuck) {
     try {
       if (!inv.pdfUrl) {
-        // Stuck PENDING with no stored PDF — nothing to re-parse from.
+        // Stuck PENDING with no stored PDF, nothing to re-parse from.
         await db.invoice.update({
           where: { id: inv.id },
           data: {
             status: "ERROR",
-            errorMessage: `Stuck in ${inv.status} with no stored PDF — cannot retry. Re-ingest Gmail message ${inv.gmailMessageId} manually if needed.`,
+            errorMessage: `Stuck in ${inv.status} with no stored PDF, cannot retry. Re-ingest Gmail message ${inv.gmailMessageId} manually if needed.`,
           },
         })
         stats.errors.push(`rescue ${inv.id} (${inv.supplierName}): no stored PDF`)
@@ -430,7 +430,7 @@ async function rescueStuckInvoices(stats: ProcessStats): Promise<void> {
  * panel:
  * - Breadtop is genuinely shared spend → venue BOTH (the spend tracker
  *   splits BOTH 50/50 between the Burleigh and Currumbin buckets).
- * - Parallel Roasters invoices arrive as a pair — the LARGER is
+ * - Parallel Roasters invoices arrive as a pair, the LARGER is
  *   Burleigh's coffee order, the smaller Currumbin's. Only fires when
  *   exactly two unassigned invoices are waiting; other counts stay
  *   manual so we never guess.
@@ -455,9 +455,18 @@ async function applyStandingVenueRules(): Promise<string[]> {
       total: { not: null },
     },
     orderBy: { total: "desc" },
-    select: { id: true, total: true },
+    select: { id: true, total: true, invoiceDate: true },
   })
-  if (parallel.length === 2) {
+  // Only pair invoices dated within 7 days of each other, a stale rescued
+  // invoice must not pair with a current one. Missing dates stay manual.
+  const pairWindowMs = 7 * 24 * 60 * 60 * 1000
+  if (
+    parallel.length === 2 &&
+    parallel[0].invoiceDate != null &&
+    parallel[1].invoiceDate != null &&
+    Math.abs(parallel[0].invoiceDate.getTime() - parallel[1].invoiceDate.getTime()) <=
+      pairWindowMs
+  ) {
     await db.invoice.update({ where: { id: parallel[0].id }, data: { venue: "BURLEIGH" } })
     await db.invoice.update({ where: { id: parallel[1].id }, data: { venue: "BEACH_HOUSE" } })
     notes.push(
@@ -472,7 +481,7 @@ async function captureUnknownSenders(
   knownEmails: Set<string>,
   runStart: Date
 ): Promise<number> {
-  // Cheap, narrow query — PDFs whose subject smells like billing from
+  // Cheap, narrow query: PDFs whose subject smells like billing from
   // a sender we don't recognise. 30-day window so a missed-renamed
   // sender still gets found on the next nightly run.
   const since = Math.floor((runStart.getTime() - 30 * 24 * 60 * 60 * 1000) / 1000)
@@ -510,7 +519,7 @@ async function captureUnknownSenders(
       })
       logged++
     } catch {
-      // Non-fatal — unknown-sender capture is best-effort.
+      // Non-fatal, unknown-sender capture is best-effort.
     }
   }
   return logged
@@ -518,7 +527,7 @@ async function captureUnknownSenders(
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 })
   }
 
@@ -552,7 +561,7 @@ export async function GET(request: Request) {
       const query = `${fromQuery} has:attachment filename:pdf newer_than:14d`
       messageRefs = await searchMessages(accessToken, query, 500)
     } else {
-      // Incremental — small slack on after: to absorb second-precision
+      // Incremental, small slack on after: to absorb second-precision
       // rounding. gmailMessageId dedupe catches the resulting overlap.
       let afterClause = ""
       if (connection.lastScanAt) {
@@ -584,7 +593,7 @@ export async function GET(request: Request) {
       )
     }
 
-    // Best-effort unknown-sender capture on every run — fast query.
+    // Best-effort unknown-sender capture on every run, fast query.
     const knownSet = new Set(allEmails.map((e) => e.toLowerCase()))
     let unknownLogged = 0
     try {
@@ -594,7 +603,7 @@ export async function GET(request: Request) {
     }
 
     // Only advance the incremental watermark to runStart (NOT new Date()
-    // at the end of the loop — backfill runs can take 5–10 min and any
+    // at the end of the loop, backfill runs can take 5–10 min and any
     // supplier email that arrives during that window would otherwise be
     // jumped over). Sweep mode never touches the watermark; it's a
     // safety net.

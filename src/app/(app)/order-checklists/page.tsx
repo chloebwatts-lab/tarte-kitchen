@@ -153,7 +153,7 @@ export default async function OrderChecklistsPage({
         <div>
           <h1 className="font-serif text-2xl font-semibold tracking-tight">Order Checklists</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Digital order forms — pick a supplier, tick what you need, send.
+            Digital order forms, pick a supplier, tick what you need, send.
             Drafts auto-save so you can come back to them mid-shift.
           </p>
         </div>
@@ -187,7 +187,7 @@ export default async function OrderChecklistsPage({
           {notStarted.length > 0 && (
             <section>
               <h2 className="mb-3 text-sm font-semibold text-foreground">
-                Suppliers — no order today yet
+                Suppliers, no order today yet
               </h2>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {notStarted.map((s) => (

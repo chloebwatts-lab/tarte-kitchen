@@ -47,7 +47,7 @@ export default async function MaintenanceLabelsPage({
           <h1 className="text-2xl font-semibold">QR labels</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Print on A4, laminate (or use clear packing tape), stick at eye level on
-            each machine. Scanning opens that machine's fix page — no login, no app.
+            each machine. Scanning opens that machine's fix page, no login, no app.
           </p>
         </div>
         <div className="flex items-center gap-2">

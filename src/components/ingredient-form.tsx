@@ -527,7 +527,7 @@ export function IngredientForm({ ingredient, suppliers, onSuccess }: IngredientF
             </p>
           </div>
 
-          {/* Grams per unit — COUNT ingredients only */}
+          {/* Grams per unit: COUNT ingredients only */}
           {baseUnitType === "COUNT" && (
             <div className="space-y-2">
               <Label htmlFor="ing-gpu">
@@ -545,7 +545,7 @@ export function IngredientForm({ ingredient, suppliers, onSuccess }: IngredientF
               />
               <p className="text-[11px] text-muted-foreground">
                 Set this when recipes measure this ingredient by weight (g/kg). Enables correct
-                cost calculation — e.g. avocado 1&nbsp;ea&nbsp;≈&nbsp;200g means 180g costs
+                cost calculation, e.g. avocado 1&nbsp;ea&nbsp;≈&nbsp;200g means 180g costs
                 (180÷200)&nbsp;×&nbsp;price instead of 180&nbsp;×&nbsp;price.
               </p>
             </div>

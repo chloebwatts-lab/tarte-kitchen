@@ -31,13 +31,13 @@ export interface ExpectedSupplier {
   canonicalName: string
   nameAliases: string[]
   category: SupplierCategory
-  /// Typical days between invoices. Used to compute "overdue" — actual
+  /// Typical days between invoices. Used to compute "overdue", actual
   /// gap > 2× this triggers the amber/red flag.
   expectedIntervalDays: number
   /// If true, missing invoices block the spend tally from being credible
   /// (e.g. Bidfood, Pacific). Soft fail for the small ones.
   critical: boolean
-  /// Free-text note shown next to the row (e.g. "booze — folded into
+  /// Free-text note shown next to the row (e.g. "booze, folded into
   /// Drinks line in COGS xlsx; needs accounts@ added").
   note?: string
 }
@@ -64,7 +64,7 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     category: "meat",
     expectedIntervalDays: 3,
     critical: true,
-    note: "meats — not cleaning, not bakery",
+    note: "meats, not cleaning, not bakery",
   },
   {
     canonicalName: "Jensens",
@@ -72,7 +72,7 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
       "Jensens",
       "Jensen's",
       // Louise's COGS xlsx splits "Produce Oz" out as its own supplier
-      // line, but per Chris (2026-07-13) Produce Oz is BY Jensens — the
+      // line, but per Chris (2026-07-13) Produce Oz is BY Jensens, the
       // invoices arrive in the normal Jensens flow from
       // accounts@jensens.net.au. Aliasing it here folds the xlsx history
       // into Jensens' weekly estimate instead of flagging a phantom
@@ -138,7 +138,7 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     category: "fruit-veg",
     expectedIntervalDays: 3,
     critical: true,
-    note: "PDFs arrive as application/octet-stream — parser fixed 2026-05-17, flow should resume next cron run",
+    note: "PDFs arrive as application/octet-stream, parser fixed 2026-05-17, flow should resume next cron run",
   },
   {
     canonicalName: "The Provedores",
@@ -146,7 +146,7 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     category: "dairy-specialty",
     expectedIntervalDays: 7,
     critical: true,
-    note: "Same octet-stream bug as Pacific — fixed 2026-05-17",
+    note: "Same octet-stream bug as Pacific, fixed 2026-05-17",
   },
   {
     canonicalName: "Eustralis",
@@ -162,7 +162,7 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     category: "eggs",
     expectedIntervalDays: 7,
     critical: true,
-    note: "Weekly emails from renee@gceggs.com.au (invoices + activity statements) — sender mapped to supplier 2026-07-12 via scripts/add-gc-eggs-supplier-email.ts",
+    note: "Weekly emails from renee@gceggs.com.au (invoices + activity statements), sender mapped to supplier 2026-07-12 via scripts/add-gc-eggs-supplier-email.ts",
   },
   {
     canonicalName: "Joval Wines",
@@ -170,7 +170,7 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     category: "booze",
     expectedIntervalDays: 7,
     critical: true,
-    note: "Added 2026-05-17 — invoices from accountsreceivable@joval.com.au",
+    note: "Added 2026-05-17, invoices from accountsreceivable@joval.com.au",
   },
   {
     canonicalName: "Paramount Liquor",
@@ -178,7 +178,7 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     category: "booze",
     expectedIntervalDays: 14,
     critical: true,
-    note: "Forwarded via shawna@tarte.com.au — subject pattern 'Fwd: Invoice - …'. Added 2026-05-17.",
+    note: "Forwarded via shawna@tarte.com.au, subject pattern 'Fwd: Invoice - …'. Added 2026-05-17.",
   },
   {
     canonicalName: "Breadtop",
@@ -186,7 +186,7 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     category: "bread",
     expectedIntervalDays: 7,
     critical: false,
-    note: "Legal entity EAC BUSINESS GROUP PTY LTD, invoices via shared Xero sender as 'Ka Wai Chan' — hint-matched since 2026-07-13",
+    note: "Legal entity EAC BUSINESS GROUP PTY LTD, invoices via shared Xero sender as 'Ka Wai Chan', hint-matched since 2026-07-13",
   },
   {
     canonicalName: "Panya",
@@ -201,7 +201,7 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     category: "specialty",
     expectedIntervalDays: 7,
     critical: false,
-    note: "Weekly invoices from do_not_reply@madegroup.com — mapped 2026-07-12",
+    note: "Weekly invoices from do_not_reply@madegroup.com, mapped 2026-07-12",
   },
 
   // ---- Discovered in the unknown-sender queue audit 2026-07-12 ----
@@ -211,7 +211,7 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     category: "specialty",
     expectedIntervalDays: 7,
     critical: false,
-    note: "Coffee — invoices via Unleashed (noreply@unleashedsoftware.com)",
+    note: "Coffee, invoices via Unleashed (noreply@unleashedsoftware.com)",
   },
   {
     canonicalName: "Mediterranean Markets",
@@ -226,7 +226,7 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     category: "meat",
     expectedIntervalDays: 14,
     critical: false,
-    note: "Cured meats — appears in weekly payments files",
+    note: "Cured meats, appears in weekly payments files",
   },
   {
     canonicalName: "PE Foods",
@@ -234,7 +234,7 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     category: "unknown",
     expectedIntervalDays: 7,
     critical: false,
-    note: "accounts@pefoods.com.au — confirm what they supply",
+    note: "accounts@pefoods.com.au, confirm what they supply",
   },
   {
     canonicalName: "Cookers",
@@ -257,7 +257,7 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     category: "meat",
     expectedIntervalDays: 14,
     critical: false,
-    note: "Invoices via shared Xero domain — appears in Burleigh payments files",
+    note: "Invoices via shared Xero domain, appears in Burleigh payments files",
   },
   {
     canonicalName: "Gold Coast Premium Foods",
@@ -265,7 +265,7 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     category: "specialty",
     expectedIntervalDays: 14,
     critical: false,
-    note: "Invoices via shared Xero domain — mapped 2026-07-13",
+    note: "Invoices via shared Xero domain, mapped 2026-07-13",
   },
 ]
 

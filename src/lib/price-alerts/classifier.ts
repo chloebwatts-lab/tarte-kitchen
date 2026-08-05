@@ -1,7 +1,7 @@
 import type { IngredientCategory } from "@/generated/prisma/client"
 
 /// Categories that flow into the PRODUCE alert stream. These are inherently
-/// volatile — weekly invoice prices fluctuate by 10-30% as a normal part of
+/// volatile, weekly invoice prices fluctuate by 10-30% as a normal part of
 /// seasonality and market conditions, so a single-invoice spike isn't signal.
 /// PRODUCE alerts compare against a 4-week trailing median and require
 /// confirmation across ≥2 deliveries before flagging.
@@ -20,7 +20,7 @@ export function streamForCategory(
 }
 
 /// Stable-stream thresholds: any change ≥5% (either direction) is signal.
-/// Drops matter — Bidfood rebate refreshes go un-noticed otherwise.
+/// Drops matter: Bidfood rebate refreshes go un-noticed otherwise.
 export const STABLE_FLAG_THRESHOLD_PCT = 5
 
 /// Produce-stream thresholds: only flag if current invoice is ≥25% above

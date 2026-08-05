@@ -74,7 +74,7 @@ export default async function CommitmentPhotosPage({
           Paper sheets
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
-          Working on paper is fine — photograph the sheet and it&apos;s filed
+          Working on paper is fine. Photograph the sheet and it&apos;s filed
           against the week so nothing gets lost.
         </p>
       </div>

@@ -1,8 +1,10 @@
 export const dynamic = "force-dynamic"
 
+import { cookies } from "next/headers"
 import { getCountSheet } from "@/lib/actions/restock"
 import { RestockCountSheet } from "@/components/kitchen/RestockCountSheet"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
 import { STATION_LABEL, isKitchenStation } from "@/lib/stations"
 
@@ -20,7 +22,15 @@ export default async function RestockCountPage({
   const sp = await searchParams
   const venueParam = typeof sp.venue === "string" ? sp.venue : null
   const stationParam = typeof sp.station === "string" ? sp.station : null
-  const venue: Venue = isVenue(venueParam) ? venueParam : "BEACH_HOUSE"
+  // Explicit ?venue= wins; otherwise use the venue remembered by the
+  // picker's tk-venue cookie. Never silently default to a venue.
+  const cookieVenue = (await cookies()).get("tk-venue")?.value ?? null
+  const venue: Venue | null = isVenue(venueParam)
+    ? venueParam
+    : isVenue(cookieVenue)
+      ? cookieVenue
+      : null
+  if (!venue) return <KitchenVenuePicker />
   const station = isKitchenStation(stationParam) ? stationParam : "MAIN"
 
   const sheet = await getCountSheet({ venue, station })
@@ -42,13 +52,13 @@ export default async function RestockCountPage({
           className="tk-display leading-none text-[var(--tk-charcoal)]"
           style={{ fontSize: 40, fontWeight: 700, letterSpacing: "-0.025em" }}
         >
-          {STATION_LABEL[station]} — evening count
+          {STATION_LABEL[station]} evening count
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
-          Count your <strong>backup prep in the coolroom</strong> — not
+          Count your <strong>backup prep in the coolroom</strong>, not
           what&apos;s in the section, that&apos;s always topped up. Count in
           each item&apos;s usual container. Leave &ldquo;Need&rdquo; empty for
-          anything you&apos;re fine on. It saves as you go — send it to the
+          anything you&apos;re fine on. It saves as you go. Send it to the
           prep chef when you&apos;re done.
         </p>
         <p className="mt-2 text-[14px] text-[var(--tk-ink-soft)]">
@@ -59,7 +69,7 @@ export default async function RestockCountPage({
           >
             Try the paper-style sheet
           </a>{" "}
-          — write in the boxes like the old printed one. Both fill in the
+          and write in the boxes like the old printed one. Both fill in the
           same count.
         </p>
       </div>

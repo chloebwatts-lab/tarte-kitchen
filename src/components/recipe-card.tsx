@@ -48,7 +48,7 @@ export function RecipeCard({
 }: RecipeCardProps) {
   return (
     <div className="min-h-screen bg-white text-foreground">
-      {/* Floating controls — hidden on print */}
+      {/* Floating controls, hidden on print */}
       <div className="fixed right-4 top-4 z-10 flex gap-2 print:hidden">
         <button
           onClick={() => history.back()}
@@ -151,7 +151,7 @@ export function RecipeCard({
 
         {/* Footer */}
         <div className="mt-12 border-t border-border pt-3 text-[10px] text-muted-foreground print:fixed print:bottom-4 print:left-10 print:right-10">
-          Tarte Kitchen — generated {new Date().toLocaleDateString("en-AU")}
+          Tarte Kitchen, generated {new Date().toLocaleDateString("en-AU")}
         </div>
       </div>
 

@@ -79,7 +79,7 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
       ? (bucket.projectedEndOfWeek / bucket.forecastRevenue) * 100
       : null
   // Same, but against ACTUAL revenue pace from the Lightspeed EOD
-  // reports — the honest read when trade runs above/below forecast.
+  // reports, the honest read when trade runs above/below forecast.
   const liveCogsPct =
     bucket.projectedRevenueExGst && bucket.projectedRevenueExGst > 0
       ? (bucket.projectedEndOfWeek / bucket.projectedRevenueExGst) * 100
@@ -226,7 +226,7 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
         <div>
           <div className="mb-2 flex items-baseline justify-between">
             <span className="text-xs font-medium text-muted-foreground">
-              Live revenue — Lightspeed EOD reports (ex GST)
+              Live revenue: Lightspeed EOD reports (ex GST)
             </span>
             {bucket.lastRevenueDate && (
               <span className="text-[10px] text-muted-foreground">
@@ -276,7 +276,7 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
                   valueTone={cogsTone(liveCogsPct)}
                 />
               </div>
-              <div className="overflow-hidden rounded-md border border-border">
+              <div className="overflow-x-auto rounded-md border border-border">
                 <table className="w-full text-xs">
                   <thead className="bg-muted/30">
                     <tr className="text-left">
@@ -310,7 +310,7 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
                 </table>
               </div>
               <p className="mt-1 text-[10px] text-muted-foreground">
-                Lightspeed POS only — online orders and event revenue land on
+                Lightspeed POS only: online orders and event revenue land on
                 top of these figures, so true takings read slightly higher.
               </p>
             </>
@@ -373,7 +373,7 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
               No invoices yet this week.
             </p>
           ) : (
-            <div className="overflow-hidden rounded-md border border-border">
+            <div className="overflow-x-auto rounded-md border border-border">
               <table className="w-full text-xs">
                 <thead className="bg-muted/30">
                   <tr className="text-left">
@@ -489,7 +489,7 @@ function CoveragePanel({
         <CardTitle className="text-base">Supplier coverage</CardTitle>
         <p className="text-xs text-muted-foreground">
           Suppliers we expect to receive invoices from at accounts@. Items
-          in red haven't invoiced for &gt; 2× their expected cadence — chase
+          in red haven't invoiced for &gt; 2× their expected cadence, so chase
           them to add accounts@tarte.com.au to their billing list.
         </p>
       </CardHeader>
@@ -536,7 +536,7 @@ function CoverageSection({
       >
         {title}
       </div>
-      <div className="overflow-hidden rounded-md border border-border">
+      <div className="overflow-x-auto rounded-md border border-border">
         <table className="w-full text-xs">
           <thead className="bg-muted/30">
             <tr className="text-left">
@@ -633,15 +633,22 @@ function UnassignedPanel({
 }) {
   const [isPending, startTransition] = useTransition()
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   if (rows.length === 0) return null
 
   const handleAssign = (id: string, venue: Venue) => {
     setBusyId(id)
+    setError(null)
     startTransition(async () => {
-      await assignInvoiceVenue({ invoiceId: id, venue })
-      setBusyId(null)
-      onAssigned()
+      try {
+        await assignInvoiceVenue({ invoiceId: id, venue })
+        onAssigned()
+      } catch {
+        setError("Could not assign that invoice. Please try again.")
+      } finally {
+        setBusyId(null)
+      }
     })
   }
 
@@ -652,13 +659,17 @@ function UnassignedPanel({
           Unassigned invoices ({rows.length})
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          These invoices came through without a venue tag. Per Chris, no
-          shared orders exist — assign each one so it counts toward the
-          right bucket.
+          These invoices came through without a venue tag. Assign each one
+          so it counts toward the right bucket. Genuinely shared invoices
+          (like Breadtop) can be split 50/50 across both venues with the
+          Both button.
         </p>
       </CardHeader>
       <CardContent>
-        <div className="overflow-hidden rounded-md border border-border">
+        {error && (
+          <p className="mb-2 text-xs font-medium text-red-text">{error}</p>
+        )}
+        <div className="overflow-x-auto rounded-md border border-border">
           <table className="w-full text-xs">
             <thead className="bg-muted/30">
               <tr className="text-left">
@@ -682,23 +693,25 @@ function UnassignedPanel({
                   </td>
                   <td className="px-2 py-1.5">
                     <div className="flex gap-1">
-                      {(["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN"] as Venue[]).map(
-                        (v) => (
-                          <Button
-                            key={v}
-                            size="sm"
-                            variant="outline"
-                            disabled={isPending && busyId === r.id}
-                            onClick={() => handleAssign(r.id, v)}
-                          >
-                            {v === "BURLEIGH"
-                              ? "Bur"
-                              : v === "BEACH_HOUSE"
-                              ? "BH"
-                              : "TG"}
-                          </Button>
-                        )
-                      )}
+                      {(
+                        ["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN", "BOTH"] as Venue[]
+                      ).map((v) => (
+                        <Button
+                          key={v}
+                          size="sm"
+                          variant="outline"
+                          disabled={isPending && busyId === r.id}
+                          onClick={() => handleAssign(r.id, v)}
+                        >
+                          {v === "BURLEIGH"
+                            ? "Bur"
+                            : v === "BEACH_HOUSE"
+                            ? "BH"
+                            : v === "TEA_GARDEN"
+                            ? "TG"
+                            : "Both (50/50)"}
+                        </Button>
+                      ))}
                     </div>
                   </td>
                 </tr>
@@ -723,7 +736,7 @@ export function SpendDashboard({ data }: { data: CurrentWeekSpendSnapshot }) {
         Trading week <strong>{data.weekStartWed}</strong> → <strong>{data.weekEndTue}</strong>.{" "}
         Today is day {data.dayOfWeek} of 7 ({data.daysElapsedFull} full days
         elapsed). Projections weight the remaining days by each weekday's
-        typical share of the week (last 8 weeks) — a quiet Monday isn't
+        typical share of the week (last 8 weeks), so a quiet Monday isn't
         assumed to spend or take like a Saturday.
       </div>
 

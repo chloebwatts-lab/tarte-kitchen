@@ -1,6 +1,13 @@
 "use client"
 
-import { useState, useTransition, useMemo, useCallback } from "react"
+import {
+  useState,
+  useTransition,
+  useMemo,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react"
 import Link from "next/link"
 import { ArrowRight, CheckCircle2, ShieldCheck, Camera } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -14,6 +21,8 @@ import { KitchenSignOffRow } from "@/components/kitchen/KitchenSignOffRow"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 
 const MIN_CLEANING_PHOTOS = 3
+const STAFF_NAME_KEY = "tk-staff-name"
+const FIELD_SAVE_DEBOUNCE_MS = 500
 
 type Filter = "all" | "todo" | "done"
 
@@ -24,6 +33,12 @@ export function KitchenRunView({
 }) {
   const [items, setItems] = useState(initial.items)
   const [by, setBy] = useState<string>("")
+  const [nudgeName, setNudgeName] = useState(false)
+  // itemId -> what failed, so "tap to retry" can replay the right thing:
+  // a failed tick is re-toggled, a failed temp/note save is re-sent as-is.
+  const [saveErrors, setSaveErrors] = useState<
+    Record<string, "tick" | "field" | undefined>
+  >({})
   const [filter, setFilter] = useState<Filter>("all")
   const [isPending, startTransition] = useTransition()
   const [isSubmitting, startSubmitTransition] = useTransition()
@@ -31,6 +46,41 @@ export function KitchenRunView({
 
   const [photoCount, setPhotoCount] = useState(initial.photos.length)
   const handlePhotosChange = useCallback((n: number) => setPhotoCount(n), [])
+
+  // Latest values for the debounced field saves below; the timers fire after
+  // the closures that scheduled them went stale.
+  const itemsRef = useRef(items)
+  const byRef = useRef(by)
+  useEffect(() => {
+    itemsRef.current = items
+  }, [items])
+  useEffect(() => {
+    byRef.current = by
+  }, [by])
+  const fieldTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+
+  // Prefill "your name" from the last run on this iPad. Read after mount
+  // (same pattern as house-notes.tsx) so the server render matches the
+  // first client render and hydration stays clean.
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(STAFF_NAME_KEY)
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot sync from localStorage; a lazy initializer would mismatch the SSR markup
+      if (saved) setBy(saved)
+    } catch {
+      // localStorage unavailable (private mode), prefill is best-effort
+    }
+  }, [])
+
+  function changeBy(v: string) {
+    setBy(v)
+    if (v.trim()) setNudgeName(false)
+    try {
+      window.localStorage.setItem(STAFF_NAME_KEY, v)
+    } catch {
+      // best-effort only
+    }
+  }
 
   const completed = items.filter((i) => i.checkedAt).length
   const total = items.length
@@ -79,20 +129,41 @@ export function KitchenRunView({
     const current = items.find((i) => i.id === itemId)
     if (!current) return
     const checked = !current.checkedAt
+    const prevCheckedAt = current.checkedAt
+    const prevCheckedBy = current.checkedBy
+    if (checked && !by.trim()) setNudgeName(true)
+    setSaveErrors((prev) => ({ ...prev, [itemId]: undefined }))
     setItems((prev) =>
       prev.map((i) =>
         i.id === itemId
-          ? { ...i, checkedAt: checked ? new Date().toISOString() : null }
+          ? {
+              ...i,
+              checkedAt: checked ? new Date().toISOString() : null,
+              checkedBy: checked ? by || null : null,
+            }
           : i
       )
     )
     startTransition(async () => {
-      await tickChecklistItem({
-        runId: initial.id,
-        runItemId: itemId,
-        checked,
-        by: by || undefined,
-      })
+      try {
+        await tickChecklistItem({
+          runId: initial.id,
+          runItemId: itemId,
+          checked,
+          by: by || undefined,
+        })
+      } catch {
+        // Nothing reached the server; put the row back the way it was so
+        // the screen never claims a tick that was not saved.
+        setItems((prev) =>
+          prev.map((i) =>
+            i.id === itemId
+              ? { ...i, checkedAt: prevCheckedAt, checkedBy: prevCheckedBy }
+              : i
+          )
+        )
+        setSaveErrors((prev) => ({ ...prev, [itemId]: "tick" }))
+      }
     })
   }
 
@@ -103,15 +174,51 @@ export function KitchenRunView({
     setItems((prev) =>
       prev.map((i) => (i.id === itemId ? { ...i, ...patch } : i))
     )
+    // Debounced: one save per pause in typing, not one per keystroke.
+    const existing = fieldTimers.current.get(itemId)
+    if (existing) clearTimeout(existing)
+    fieldTimers.current.set(
+      itemId,
+      setTimeout(() => {
+        fieldTimers.current.delete(itemId)
+        const current = itemsRef.current.find((i) => i.id === itemId)
+        if (!current) return
+        startTransition(async () => {
+          try {
+            await tickChecklistItem({
+              runId: initial.id,
+              runItemId: itemId,
+              checked: !!current.checkedAt,
+              tempCelsius: current.tempCelsius,
+              note: current.note,
+              by: byRef.current || undefined,
+            })
+            setSaveErrors((prev) => ({ ...prev, [itemId]: undefined }))
+          } catch {
+            setSaveErrors((prev) => ({ ...prev, [itemId]: "field" }))
+          }
+        })
+      }, FIELD_SAVE_DEBOUNCE_MS)
+    )
+  }
+
+  function retryFieldSave(itemId: string) {
     const current = items.find((i) => i.id === itemId)
+    if (!current) return
+    setSaveErrors((prev) => ({ ...prev, [itemId]: undefined }))
     startTransition(async () => {
-      await tickChecklistItem({
-        runId: initial.id,
-        runItemId: itemId,
-        checked: !!current?.checkedAt,
-        ...patch,
-        by: by || undefined,
-      })
+      try {
+        await tickChecklistItem({
+          runId: initial.id,
+          runItemId: itemId,
+          checked: !!current.checkedAt,
+          tempCelsius: current.tempCelsius,
+          note: current.note,
+          by: by || undefined,
+        })
+      } catch {
+        setSaveErrors((prev) => ({ ...prev, [itemId]: "field" }))
+      }
     })
   }
 
@@ -129,7 +236,7 @@ export function KitchenRunView({
 
       {/* Title + progress */}
       <div className="flex flex-wrap items-end justify-between gap-6">
-        {/* min-w keeps the title column readable — below it, the progress
+        {/* min-w keeps the title column readable, below it, the progress
             meter wraps to its own row instead of crushing the heading */}
         <div className="min-w-[240px] max-w-full flex-1">
           <div className="tk-caps mb-1.5" style={{ color: "var(--tk-ink-mute)" }}>
@@ -209,44 +316,84 @@ export function KitchenRunView({
       </div>
 
       {/* Name */}
-      <div className="rounded-[14px] border border-[var(--tk-line)] bg-white p-3">
+      <div
+        className={cn(
+          "rounded-[14px] border bg-white p-3 transition-colors",
+          nudgeName ? "border-[var(--tk-warn)]" : "border-[var(--tk-line)]"
+        )}
+      >
         <label className="flex items-center gap-3 text-[14px]">
-          <span className="font-semibold text-[var(--tk-ink-soft)]">
+          <span
+            className={cn(
+              "font-semibold",
+              nudgeName ? "text-[var(--tk-warn)]" : "text-[var(--tk-ink-soft)]"
+            )}
+          >
             Your name
           </span>
           <input
             value={by}
-            onChange={(e) => setBy(e.target.value)}
+            onChange={(e) => changeBy(e.target.value)}
             placeholder="First name"
-            className="flex-1 rounded-[10px] border border-[var(--tk-line)] bg-white px-3 py-2 text-[17px] font-semibold focus:border-[var(--tk-charcoal)] focus:outline-none"
+            className={cn(
+              "flex-1 rounded-[10px] border bg-white px-3 py-2 text-[17px] font-semibold focus:border-[var(--tk-charcoal)] focus:outline-none",
+              nudgeName ? "border-[var(--tk-warn)]" : "border-[var(--tk-line)]"
+            )}
           />
         </label>
-        <p className="mt-1 text-[11px] text-[var(--tk-ink-mute)]">
-          Stamped on every tick for audit trail.
+        <p
+          className={cn(
+            "mt-1 text-[11px]",
+            nudgeName
+              ? "font-semibold text-[var(--tk-warn)]"
+              : "text-[var(--tk-ink-mute)]"
+          )}
+        >
+          {nudgeName
+            ? "Add your name so ticks are stamped for the audit trail."
+            : "Stamped on every tick for audit trail."}
         </p>
       </div>
 
       {/* Items */}
       <div className="space-y-2.5">
         {visibleItems.map((item) => (
-          <KitchenChecklistRow
-            key={item.id}
-            label={item.label}
-            instructions={item.instructions}
-            requireTemp={item.requireTemp}
-            requireNote={item.requireNote}
-            tempCelsius={item.tempCelsius}
-            note={item.note}
-            checkedAt={item.checkedAt}
-            checkedBy={item.checkedBy}
-            onToggle={() => toggle(item.id)}
-            onTempChange={(v) => updateField(item.id, { tempCelsius: v })}
-            onNoteChange={(v) => updateField(item.id, { note: v })}
-          />
+          <div key={item.id}>
+            <KitchenChecklistRow
+              label={item.label}
+              instructions={item.instructions}
+              requireTemp={item.requireTemp}
+              requireNote={item.requireNote}
+              tempCelsius={item.tempCelsius}
+              note={item.note}
+              checkedAt={item.checkedAt}
+              checkedBy={item.checkedBy}
+              onToggle={() => toggle(item.id)}
+              onTempChange={(v) => updateField(item.id, { tempCelsius: v })}
+              onNoteChange={(v) => updateField(item.id, { note: v })}
+            />
+            {saveErrors[item.id] && (
+              <button
+                type="button"
+                onClick={() =>
+                  saveErrors[item.id] === "tick"
+                    ? toggle(item.id)
+                    : retryFieldSave(item.id)
+                }
+                className="mt-1.5 w-full rounded-[10px] px-3 py-2 text-left text-[13px] font-semibold"
+                style={{
+                  background: "var(--tk-warn-soft)",
+                  color: "var(--tk-warn)",
+                }}
+              >
+                Couldn&apos;t save, tap to retry.
+              </button>
+            )}
+          </div>
         ))}
       </div>
 
-      {/* Final sign-off — every cleaning checklist needs MIN_CLEANING_PHOTOS
+      {/* Final sign-off, every cleaning checklist needs MIN_CLEANING_PHOTOS
           photos of the cleaned site before it can be marked complete. */}
       {isCleaning && filter !== "done" && (
         <KitchenSignOffRow satisfied={photosSatisfied}>
@@ -309,7 +456,7 @@ export function KitchenRunView({
           <CheckCircle2 className="h-8 w-8 shrink-0" />
           <div className="text-[16px] font-semibold">
             {submitted
-              ? `Submitted — ${completed} of ${total} items completed.`
+              ? `Submitted: ${completed} of ${total} items completed.`
               : "All checks complete. Ready to sign off."}
           </div>
         </div>

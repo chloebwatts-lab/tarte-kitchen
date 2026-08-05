@@ -31,7 +31,7 @@ export default async function SupplierRepliesPage({
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
               Emails from supplier-domain addresses in the last {daysBack} days.
               Quote replies typically come from the same domain as the supplier
-              we order from — anything outside that domain is filtered.
+              we order from. Anything outside that domain is filtered.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -105,8 +105,8 @@ function NoConnection() {
           href="/settings/integrations"
         >
           Settings → Integrations
-        </Link>{" "}
-        — once connected, supplier replies show up here automatically.
+        </Link>
+        . Once connected, supplier replies show up here automatically.
       </p>
     </div>
   )
@@ -118,7 +118,7 @@ function ErrorBanner({ message }: { message: string }) {
       <p className="font-medium">Gmail search failed</p>
       <p className="mt-1 font-mono text-xs leading-snug">{message}</p>
       <p className="mt-2 text-xs">
-        Common cause is an expired refresh token — reconnect at{" "}
+        Common cause is an expired refresh token. Reconnect at{" "}
         <Link className="underline" href="/settings/integrations">
           Settings → Integrations
         </Link>
@@ -153,7 +153,7 @@ function RepliesTable({
         {account ?? "—"} · {domainsSearched.length} supplier domain
         {domainsSearched.length === 1 ? "" : "s"}
       </div>
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             <tr>

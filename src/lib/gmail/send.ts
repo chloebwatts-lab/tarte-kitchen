@@ -5,10 +5,19 @@ import type { Venue } from "@/generated/prisma/client"
 const GMAIL_API = "https://www.googleapis.com/gmail/v1/users/me"
 
 /**
+ * Defensive header sanitiser: strips CR/LF so a value interpolated into a
+ * raw RFC 2822 header line can never inject additional headers. Callers
+ * should validate upstream; this is the last line of defence.
+ */
+function stripHeaderNewlines(value: string): string {
+  return value.replace(/[\r\n]+/g, " ")
+}
+
+/**
  * Send a plain-text email via the connected Gmail account.
  *
  * Delegates to getValidGmailAccessToken() so the refreshed access token
- * gets persisted back to the GmailConnection row — otherwise every send
+ * gets persisted back to the GmailConnection row, otherwise every send
  * would re-refresh unnecessarily and the connection's tokenExpiry would
  * never advance.
  *
@@ -22,15 +31,17 @@ export async function sendEmail(params: {
 }) {
   const connection = await getActiveGmailConnection()
   if (!connection) {
-    throw new Error("No Gmail connection — connect in Settings → Integrations")
+    throw new Error("No Gmail connection, connect in Settings → Integrations")
   }
 
   const accessToken = await getValidGmailAccessToken()
-  const toList = Array.isArray(params.to) ? params.to.join(", ") : params.to
+  const toList = stripHeaderNewlines(
+    Array.isArray(params.to) ? params.to.join(", ") : params.to
+  )
   const raw = [
     `To: ${toList}`,
     `From: ${connection.email}`,
-    `Subject: ${params.subject}`,
+    `Subject: ${stripHeaderNewlines(params.subject)}`,
     `MIME-Version: 1.0`,
     `Content-Type: text/plain; charset="UTF-8"`,
     ``,
@@ -61,7 +72,7 @@ export async function sendEmail(params: {
 /**
  * Send a multipart/alternative email with both an HTML body and a
  * plain-text fallback. Use for richly-formatted reports (weekly digest,
- * etc.) — clients that can't render HTML get the text version.
+ * etc.), clients that can't render HTML get the text version.
  */
 export async function sendHtmlEmail(params: {
   to: string | string[]
@@ -71,11 +82,13 @@ export async function sendHtmlEmail(params: {
 }) {
   const connection = await getActiveGmailConnection()
   if (!connection) {
-    throw new Error("No Gmail connection — connect in Settings → Integrations")
+    throw new Error("No Gmail connection, connect in Settings → Integrations")
   }
 
   const accessToken = await getValidGmailAccessToken()
-  const toList = Array.isArray(params.to) ? params.to.join(", ") : params.to
+  const toList = stripHeaderNewlines(
+    Array.isArray(params.to) ? params.to.join(", ") : params.to
+  )
   const boundary = `tarte_${Date.now().toString(36)}_${Math.random()
     .toString(36)
     .slice(2)}`
@@ -83,7 +96,7 @@ export async function sendHtmlEmail(params: {
   const raw = [
     `To: ${toList}`,
     `From: ${connection.email}`,
-    `Subject: ${params.subject}`,
+    `Subject: ${stripHeaderNewlines(params.subject)}`,
     `MIME-Version: 1.0`,
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
     ``,
@@ -149,7 +162,7 @@ export async function sendFoodSafetyEmail(params: {
   const breaches = tempItems.filter((i) => i.passed === false)
 
   const tableLines = tempItems.map((i) => {
-    const name = i.label.replace(/ — temperature check$/i, "").padEnd(32)
+    const name = i.label.replace(/(?: — |, )temperature check$/i, "").padEnd(32)
     const temp = i.tempCelsius !== null ? `${i.tempCelsius}°C`.padEnd(8) : "—".padEnd(8)
     const status = i.passed === true ? "PASS" : i.passed === false ? "FAIL ⚠" : "—"
     const note = i.note ? `  [${i.note}]` : ""
@@ -162,7 +175,7 @@ export async function sendFoodSafetyEmail(params: {
       : `RESULT: ${breaches.length} temperature breach${breaches.length !== 1 ? "es" : ""} recorded ⚠`
 
   const body = [
-    `Tarte Kitchen — HACCP Temperature Record`,
+    `Tarte Kitchen: HACCP Temperature Record`,
     ``,
     `Date:       ${params.runDate}`,
     `Venue:      ${venueLabel}`,
@@ -179,7 +192,7 @@ export async function sendFoodSafetyEmail(params: {
     ``,
     `─────────────────────────────────────────────────────────`,
     `Records: https://kitchen.tarte.com.au/checklists/food-safety`,
-    `— Tarte Kitchen`,
+    `Tarte Kitchen`,
   ]
     .filter((l) => l !== null)
     .join("\n")
@@ -216,7 +229,7 @@ export async function sendChecklistAlertEmail(params: {
     `Open in Tarte Kitchen:`,
     `https://kitchen.tarte.com.au/checklists`,
     ``,
-    `— Tarte Kitchen alerts`,
+    `Tarte Kitchen alerts`,
   ].join("\n")
   return sendEmail({
     to: params.to,
@@ -291,14 +304,14 @@ export async function sendChecklistCycleEmail(params: {
   const nLists = params.rows.length
 
   const body = [
-    `Tarte Kitchen — Checklists closing soon`,
+    `Tarte Kitchen: Checklists closing soon`,
     ``,
     `${totalOpen} item${plural(totalOpen)} still open across ${nLists} checklist${plural(nLists)} that roll over shortly.`,
     ``,
     ...blocks,
     `─────────────────────────────────────────────────`,
     `Tick them off: https://kitchen.tarte.com.au/checklists`,
-    `— Tarte Kitchen`,
+    `Tarte Kitchen`,
   ].join("\n")
 
   const subject = `[Tarte] Checklists closing soon - ${totalOpen} item${plural(totalOpen)} still open`
@@ -361,7 +374,7 @@ export async function sendDailySummaryEmail(params: {
       : `${params.totalIncomplete} of ${params.totalTemplates} checklists incomplete`
 
   const body = [
-    `Tarte Kitchen — Daily Checklist Summary`,
+    `Tarte Kitchen: Daily Checklist Summary`,
     ``,
     dateHuman,
     ``,
@@ -370,7 +383,7 @@ export async function sendDailySummaryEmail(params: {
     ``,
     `─────────────────────────────────────────────────`,
     `Full records: https://kitchen.tarte.com.au/checklists`,
-    `— Tarte Kitchen`,
+    `Tarte Kitchen`,
   ].join("\n")
 
   const subject =

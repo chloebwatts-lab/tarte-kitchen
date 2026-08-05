@@ -8,6 +8,7 @@ import {
   preparationLineCost as calcPrepLineCost,
 } from "@/lib/units"
 import type { BaseUnitType } from "@/lib/units"
+import { recalculateFromPreparation, recalculateDishesById } from "@/lib/actions/ingredients"
 import type { Preparation, PreparationItem, Ingredient } from "@/generated/prisma/client"
 
 type PrepItemWithRefs = PreparationItem & {
@@ -64,6 +65,7 @@ export async function getPreparations(filters?: {
             purchasePrice: Number(item.ingredient.purchasePrice),
             baseUnitsPerPurchase: Number(item.ingredient.baseUnitsPerPurchase),
             wastePercentage: Number(item.ingredient.wastePercentage),
+            gramsPerUnit: item.ingredient.gramsPerUnit != null ? Number(item.ingredient.gramsPerUnit) : null,
           }
         : null,
       subPreparationId: item.subPreparationId,
@@ -121,6 +123,7 @@ export async function getPreparation(id: string) {
             purchasePrice: Number(item.ingredient.purchasePrice),
             baseUnitsPerPurchase: Number(item.ingredient.baseUnitsPerPurchase),
             wastePercentage: Number(item.ingredient.wastePercentage),
+            gramsPerUnit: item.ingredient.gramsPerUnit != null ? Number(item.ingredient.gramsPerUnit) : null,
           }
         : null,
       subPreparationId: item.subPreparationId,
@@ -263,8 +266,6 @@ export async function updatePreparation(
     }>
   }
 ) {
-  await db.preparationItem.deleteMany({ where: { preparationId: id } })
-
   const ingredientIds = data.items.filter((i) => i.ingredientId).map((i) => i.ingredientId!)
   const prepIds = data.items.filter((i) => i.subPreparationId).map((i) => i.subPreparationId!)
 
@@ -328,24 +329,32 @@ export async function updatePreparation(
   const cPerGram = yieldGrams.gt(0) ? batchCost.div(yieldGrams) : new Decimal(0)
   const cPerServe = yieldQty.gt(0) ? batchCost.div(yieldQty) : new Decimal(0)
 
-  await db.preparation.update({
-    where: { id },
-    data: {
-      name: data.name,
-      category: data.category as "SAUCE",
-      method: data.method || null,
-      yieldQuantity: data.yieldQuantity,
-      yieldUnit: data.yieldUnit,
-      yieldWeightGrams: data.yieldWeightGrams,
-      batchCost: Number(batchCost.toDecimalPlaces(2)),
-      costPerGram: Number(cPerGram.toDecimalPlaces(4)),
-      costPerServe: Number(cPerServe.toDecimalPlaces(2)),
-    },
+  // One transaction: a failure after deleteMany used to permanently wipe
+  // the recipe's line items.
+  await db.$transaction(async (tx) => {
+    await tx.preparationItem.deleteMany({ where: { preparationId: id } })
+    await tx.preparation.update({
+      where: { id },
+      data: {
+        name: data.name,
+        category: data.category as "SAUCE",
+        method: data.method || null,
+        yieldQuantity: data.yieldQuantity,
+        yieldUnit: data.yieldUnit,
+        yieldWeightGrams: data.yieldWeightGrams,
+        batchCost: Number(batchCost.toDecimalPlaces(2)),
+        costPerGram: Number(cPerGram.toDecimalPlaces(4)),
+        costPerServe: Number(cPerServe.toDecimalPlaces(2)),
+      },
+    })
+    if (itemsWithCost.length > 0) {
+      await tx.preparationItem.createMany({ data: itemsWithCost })
+    }
   })
 
-  if (itemsWithCost.length > 0) {
-    await db.preparationItem.createMany({ data: itemsWithCost })
-  }
+  // Cascade: parent preps that contain this prep, and every dish that
+  // plates it, all depend on the new batchCost/yield fields.
+  await recalculateFromPreparation(id)
 
   revalidatePath("/preparations")
   revalidatePath("/dishes")
@@ -354,7 +363,7 @@ export async function updatePreparation(
 }
 
 /**
- * Lightweight update for yield fields — recalculates costPerGram/costPerServe
+ * Lightweight update for yield fields, recalculates costPerGram/costPerServe
  * and cascades to downstream dishes.
  */
 export async function updatePreparationQuick(
@@ -386,52 +395,10 @@ export async function updatePreparationQuick(
 
   await db.preparation.update({ where: { id }, data: updateData })
 
-  // Cascade to dishes using this preparation
-  const dishComps = await db.dishComponent.findMany({
-    where: { preparationId: id },
-    include: { dish: true },
-  })
-
-  for (const dc of dishComps) {
-    const q = new Decimal(String(dc.quantity))
-    const unitLower = dc.unit.toLowerCase()
-    let lineCost: Decimal
-
-    if (unitLower === "serve" || unitLower === "ea") {
-      lineCost = yieldQty > 0 ? q.div(yieldQty).mul(batchCost) : new Decimal(0)
-    } else if (unitLower === "dozen") {
-      lineCost = yieldQty > 0 ? q.mul(12).div(yieldQty).mul(batchCost) : new Decimal(0)
-    } else {
-      const mult: Record<string, number> = { g: 1, kg: 1000, ml: 1, l: 1000 }
-      const baseQty = q.mul(mult[unitLower] ?? 1)
-      lineCost = yieldGrams > 0 ? baseQty.div(yieldGrams).mul(batchCost) : new Decimal(0)
-    }
-
-    await db.dishComponent.update({
-      where: { id: dc.id },
-      data: { lineCost: Number(lineCost.toDecimalPlaces(4)) },
-    })
-  }
-
-  // Recalculate dish totals
-  const dishIds = [...new Set(dishComps.map((dc) => dc.dishId))]
-  for (const dishId of dishIds) {
-    const comps = await db.dishComponent.findMany({ where: { dishId } })
-    const total = comps.reduce((sum, c) => sum.plus(new Decimal(String(c.lineCost))), new Decimal(0))
-    const dish = await db.dish.findUnique({ where: { id: dishId } })
-    if (!dish) continue
-    const exGst = new Decimal(String(dish.sellingPrice)).div(1.1)
-    const fcPct = exGst.gt(0) ? total.div(exGst).mul(100) : new Decimal(0)
-    const gp = exGst.minus(total)
-    await db.dish.update({
-      where: { id: dishId },
-      data: {
-        totalCost: Number(total.toDecimalPlaces(2)),
-        foodCostPercentage: Number(fcPct.toDecimalPlaces(1)),
-        grossProfit: Number(gp.toDecimalPlaces(2)),
-      },
-    })
-  }
+  // Canonical cascade: recosts this prep's lines, parent preps that
+  // contain it, and every affected dish via the shared units.ts math.
+  // (The old hand-rolled version here skipped parent preps entirely.)
+  await recalculateFromPreparation(id)
 
   revalidatePath("/preparations")
   revalidatePath("/dishes")
@@ -440,8 +407,41 @@ export async function updatePreparationQuick(
 }
 
 export async function deletePreparation(id: string) {
+  // Capture referencing lines before delete: SetNull would leave orphan
+  // rows whose cached lineCost stays inside parent batch/dish totals.
+  const parentItems = await db.preparationItem.findMany({
+    where: { subPreparationId: id },
+    select: { id: true, preparationId: true },
+  })
+  const dishComps = await db.dishComponent.findMany({
+    where: { preparationId: id },
+    select: { id: true, dishId: true },
+  })
+
   await db.preparation.delete({ where: { id } })
+
+  if (parentItems.length > 0) {
+    await db.preparationItem.deleteMany({
+      where: { id: { in: parentItems.map((pi) => pi.id) } },
+    })
+  }
+  if (dishComps.length > 0) {
+    await db.dishComponent.deleteMany({
+      where: { id: { in: dishComps.map((dc) => dc.id) } },
+    })
+  }
+
+  const parentPrepIds = [...new Set(parentItems.map((pi) => pi.preparationId))]
+  for (const prepId of parentPrepIds) {
+    await recalculateFromPreparation(prepId)
+  }
+  const dishIds = [...new Set(dishComps.map((dc) => dc.dishId))]
+  if (dishIds.length > 0) {
+    await recalculateDishesById(dishIds)
+  }
+
   revalidatePath("/preparations")
+  revalidatePath("/dishes")
   revalidatePath("/dashboard")
   return true
 }

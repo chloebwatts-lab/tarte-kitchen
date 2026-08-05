@@ -1,5 +1,5 @@
 /**
- * Monday-anchored week helpers for the commitments module — the same
+ * Monday-anchored week helpers for the commitments module, the same
  * AEST + Monday cycle convention as weekly checklist runs (see
  * `cycleAnchor` in src/lib/actions/checklists.ts).
  */

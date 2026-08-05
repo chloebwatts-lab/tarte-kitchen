@@ -1,8 +1,10 @@
 export const dynamic = "force-dynamic"
 
+import { cookies } from "next/headers"
 import { getPrepSheet } from "@/lib/actions/prep-sheet"
 import { PrepWalkthrough } from "@/components/kitchen/PrepWalkthrough"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
@@ -18,7 +20,15 @@ export default async function KitchenPrepPage({
 }) {
   const sp = await searchParams
   const venueParam = typeof sp.venue === "string" ? sp.venue : null
-  const venue: Venue = isVenue(venueParam) ? venueParam : "BURLEIGH"
+  // Explicit ?venue= wins; otherwise use the venue remembered by the
+  // picker's tk-venue cookie. Never silently default to a venue.
+  const cookieVenue = (await cookies()).get("tk-venue")?.value ?? null
+  const venue: Venue | null = isVenue(venueParam)
+    ? venueParam
+    : isVenue(cookieVenue)
+      ? cookieVenue
+      : null
+  if (!venue) return <KitchenVenuePicker />
   const dateParam = typeof sp.date === "string" ? sp.date : undefined
 
   const sheet = await getPrepSheet({ venue, forDate: dateParam })

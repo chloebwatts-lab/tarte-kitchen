@@ -15,7 +15,7 @@ import { normalizeVenueSlug } from "@/lib/venues"
 export async function GET(request: Request) {
   // Verify cron secret
   const authHeader = request.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 })
   }
 
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
   const aestNow = new Date(now.getTime() + aestOffset)
   const datesToSync: { dateStr: string; dateObj: Date }[] = []
   if (days === 1) {
-    // Original behaviour — yesterday only.
+    // Original behaviour, yesterday only.
     const d = new Date(aestNow)
     d.setDate(d.getDate() - 1)
     const ds = d.toISOString().split("T")[0]
@@ -83,7 +83,7 @@ export async function GET(request: Request) {
         (location.venue as Venue)) as Venue
 
       // Source-of-truth rule: if a Lightspeed EOD email has already landed
-      // for this date/venue, the email numbers are authoritative — don't
+      // for this date/venue, the email numbers are authoritative, don't
       // overwrite them via the API fallback.
       const existingEmailSummary = await db.dailySalesSummary.findUnique({
         where: { date_venue: { date: dateObj, venue } },

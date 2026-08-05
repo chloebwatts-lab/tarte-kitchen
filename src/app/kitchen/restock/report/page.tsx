@@ -1,9 +1,11 @@
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
+import { cookies } from "next/headers"
 import { AlertTriangle, Check, ChevronLeft, ChevronRight, Star } from "lucide-react"
 import { getRestockReport } from "@/lib/actions/restock"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
 import { STATION_LABEL } from "@/lib/stations"
 
@@ -26,7 +28,15 @@ export default async function RestockReportPage({
 }) {
   const sp = await searchParams
   const venueParam = typeof sp.venue === "string" ? sp.venue : null
-  const venue: Venue = isVenue(venueParam) ? venueParam : "BEACH_HOUSE"
+  // Explicit ?venue= wins; otherwise use the venue remembered by the
+  // picker's tk-venue cookie. Never silently default to a venue.
+  const cookieVenue = (await cookies()).get("tk-venue")?.value ?? null
+  const venue: Venue | null = isVenue(venueParam)
+    ? venueParam
+    : isVenue(cookieVenue)
+      ? cookieVenue
+      : null
+  if (!venue) return <KitchenVenuePicker />
   const dateParam =
     typeof sp.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.date)
       ? sp.date
@@ -106,7 +116,7 @@ export default async function RestockReportPage({
       {report.totals.shortfalls.length > 0 && (
         <div className="rounded-[18px] border border-[var(--tk-line)] bg-white p-5">
           <div className="tk-caps mb-3" style={{ color: "#b3261e" }}>
-            Shortfalls — requested but not fully supplied
+            Shortfalls: requested but not fully supplied
           </div>
           <ul className="space-y-1.5">
             {report.totals.shortfalls.map((s, i) => (

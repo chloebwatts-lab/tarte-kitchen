@@ -99,7 +99,7 @@ export function MaintenanceContactsEditor({ contacts }: { contacts: Row[] }) {
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <input
               className="rounded-md border px-3 py-2 text-sm"
-              placeholder="Name (e.g. Josh — Cooltech)"
+              placeholder="Name (e.g. Josh: Cooltech)"
               value={editing.name}
               onChange={(e) => setEditing({ ...editing, name: e.target.value })}
             />
@@ -136,7 +136,7 @@ export function MaintenanceContactsEditor({ contacts }: { contacts: Row[] }) {
             <textarea
               className="rounded-md border px-3 py-2 text-sm md:col-span-2"
               rows={2}
-              placeholder="Notes — what they've fixed, pricing, when to use them"
+              placeholder="Notes, what they've fixed, pricing, when to use them"
               value={editing.notes ?? ""}
               onChange={(e) => setEditing({ ...editing, notes: e.target.value })}
             />

@@ -23,6 +23,7 @@ export interface StocktakeIngredient {
   baseUnitLabel: string
   purchaseUnit: string
   purchasePrice: number
+  purchaseQuantity: number
   baseUnitsPerPurchase: number
   currentCountedQty: number | null
   currentCountedUnit: string | null
@@ -57,22 +58,59 @@ function baseUnitLabel(t: "WEIGHT" | "VOLUME" | "COUNT") {
   return t === "WEIGHT" ? "g" : t === "VOLUME" ? "ml" : "ea"
 }
 
-function normaliseToBaseUnits(
+interface ConversionInfo {
+  baseUnitType: "WEIGHT" | "VOLUME" | "COUNT"
+  purchaseUnit: string
+  purchaseQuantity: number
+  baseUnitsPerPurchase: number
+}
+
+/**
+ * Convert a counted/invoiced quantity to the ingredient's base units
+ * (g / ml / ea). Returns null when the unit cannot be converted.
+ *
+ * Pack-named units ("carton", "box", "dozen", ...) convert via the
+ * ingredient's own purchase data: baseUnitsPerPurchase is the TOTAL base
+ * units across purchaseQuantity purchase units (see the Ingredient model
+ * comments and costPerBaseUnit in src/lib/units.ts), so one purchase unit
+ * holds baseUnitsPerPurchase / purchaseQuantity base units. Without this,
+ * counting "2 carton" of a 24-ea carton was valued as 2 base units.
+ */
+function tryNormaliseToBaseUnits(
   qty: number,
   unit: string,
-  baseType: "WEIGHT" | "VOLUME" | "COUNT"
-): number {
-  const u = unit.toLowerCase()
-  if (baseType === "WEIGHT") {
+  ing: ConversionInfo
+): number | null {
+  const u = unit.trim().toLowerCase()
+  if (ing.baseUnitType === "WEIGHT") {
     if (u === "g") return qty
     if (u === "kg") return qty * 1000
   }
-  if (baseType === "VOLUME") {
+  if (ing.baseUnitType === "VOLUME") {
     if (u === "ml") return qty
     if (u === "l") return qty * 1000
   }
   // COUNT-like units
-  return qty
+  if (ing.baseUnitType === "COUNT" && (u === "ea" || u === "each")) return qty
+  if (
+    u === ing.purchaseUnit.trim().toLowerCase() &&
+    ing.baseUnitsPerPurchase > 0 &&
+    ing.purchaseQuantity > 0
+  ) {
+    return qty * (ing.baseUnitsPerPurchase / ing.purchaseQuantity)
+  }
+  if (ing.baseUnitType === "COUNT" && u === "dozen") return qty * 12
+  return null
+}
+
+function normaliseToBaseUnits(
+  qty: number,
+  unit: string,
+  ing: ConversionInfo
+): number {
+  // The count screen constrains the unit choices, so an unrecognised unit
+  // falls back to the raw qty rather than dropping the line.
+  return tryNormaliseToBaseUnits(qty, unit, ing) ?? qty
 }
 
 export async function listStocktakes(): Promise<StocktakeListRow[]> {
@@ -96,7 +134,7 @@ export async function listStocktakes(): Promise<StocktakeListRow[]> {
 }
 
 /**
- * Build the "count screen" — for the given venue, every active ingredient
+ * Build the "count screen", for the given venue, every active ingredient
  * with current count state (if this stocktake is a draft).
  */
 export async function getIngredientsForCount(
@@ -139,6 +177,7 @@ export async function getIngredientsForCount(
       baseUnitLabel: baseUnitLabel(baseType),
       purchaseUnit: i.purchaseUnit,
       purchasePrice: Number(i.purchasePrice),
+      purchaseQuantity: Number(i.purchaseQuantity),
       baseUnitsPerPurchase: Number(i.baseUnitsPerPurchase),
       currentCountedQty: x ? Number(x.countedQty) : null,
       currentCountedUnit: x?.countedUnit ?? null,
@@ -240,6 +279,7 @@ export async function saveStocktakeCounts(params: {
       id: true,
       baseUnitType: true,
       purchasePrice: true,
+      purchaseUnit: true,
       purchaseQuantity: true,
       baseUnitsPerPurchase: true,
     },
@@ -265,7 +305,7 @@ export async function saveStocktakeCounts(params: {
     prev ? prev.items.map((i) => [i.ingredientId, Number(i.countedBaseQty)]) : []
   )
 
-  // Theoretical usage since prev date — subtract from prev stock to get expected
+  // Theoretical usage since prev date, subtract from prev stock to get expected
   let usageMap = new Map<string, number>()
   if (prev) {
     const usage = await db.theoreticalUsage.groupBy({
@@ -282,12 +322,52 @@ export async function saveStocktakeCounts(params: {
     )
   }
 
-  let runningTotal = 0
+  // Invoiced deliveries between the two counts, in base units. Without
+  // these, every delivery inflates positive variance (expected was too low).
+  // Status filter matches the spend code (src/lib/spend/current-week.ts).
+  // Lines whose unit cannot be converted to the ingredient's base unit are
+  // skipped; better to slightly understate receipts than corrupt expected.
+  const receiptsMap = new Map<string, number>()
+  if (prev) {
+    const receiptLines = await db.invoiceLineItem.findMany({
+      where: {
+        ingredientId: { in: params.counts.map((c) => c.ingredientId) },
+        quantity: { not: null },
+        invoice: {
+          venue: stocktake.venue,
+          invoiceDate: { gt: prev.date, lte: stocktake.date },
+          status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION"] },
+        },
+      },
+      select: { ingredientId: true, quantity: true, unit: true },
+    })
+    for (const line of receiptLines) {
+      if (!line.ingredientId || line.quantity == null || !line.unit) continue
+      const ing = ingMap.get(line.ingredientId)
+      if (!ing) continue
+      const base = tryNormaliseToBaseUnits(Number(line.quantity), line.unit, {
+        baseUnitType: ing.baseUnitType as "WEIGHT" | "VOLUME" | "COUNT",
+        purchaseUnit: ing.purchaseUnit,
+        purchaseQuantity: Number(ing.purchaseQuantity),
+        baseUnitsPerPurchase: Number(ing.baseUnitsPerPurchase),
+      })
+      if (base === null) continue
+      receiptsMap.set(
+        line.ingredientId,
+        (receiptsMap.get(line.ingredientId) ?? 0) + base
+      )
+    }
+  }
+
   for (const c of params.counts) {
     const ing = ingMap.get(c.ingredientId)
     if (!ing) continue
-    const baseType = ing.baseUnitType as "WEIGHT" | "VOLUME" | "COUNT"
-    const countedBase = normaliseToBaseUnits(c.qty, c.unit, baseType)
+    const countedBase = normaliseToBaseUnits(c.qty, c.unit, {
+      baseUnitType: ing.baseUnitType as "WEIGHT" | "VOLUME" | "COUNT",
+      purchaseUnit: ing.purchaseUnit,
+      purchaseQuantity: Number(ing.purchaseQuantity),
+      baseUnitsPerPurchase: Number(ing.baseUnitsPerPurchase),
+    })
     // Cost per base unit = (purchasePrice) / (purchaseQuantity * baseUnitsPerPurchase-per-purchase)
     // Ingredient stores baseUnitsPerPurchase as total across purchaseQuantity,
     // so unitCost = purchasePrice / baseUnitsPerPurchase.
@@ -300,8 +380,11 @@ export async function saveStocktakeCounts(params: {
 
     const prevStock = prevMap.get(c.ingredientId) ?? null
     const usageSince = usageMap.get(c.ingredientId) ?? 0
+    const receivedSince = receiptsMap.get(c.ingredientId) ?? 0
+    // No clamp to zero: a genuinely negative expected means we used more
+    // than we had on paper, and hiding that hides real overdraw.
     const expected =
-      prevStock !== null ? Math.max(prevStock - usageSince, 0) : null
+      prevStock !== null ? prevStock + receivedSince - usageSince : null
     const varianceBase = expected !== null ? countedBase - expected : null
     const varianceValue =
       varianceBase !== null ? varianceBase * unitCost : null
@@ -344,7 +427,6 @@ export async function saveStocktakeCounts(params: {
         note: c.note ?? null,
       },
     })
-    runningTotal += lineValue
   }
 
   // Recompute total value from all lines (not just the ones just saved)

@@ -39,6 +39,18 @@ const RANGE_OPTIONS = [
   { days: 90, label: "90d" },
 ]
 
+const MENU_CATEGORY_LABEL: Record<string, string> = {
+  BREAKFAST: "Breakfast",
+  LUNCH: "Lunch",
+  SIDES: "Sides",
+  DRINKS: "Drinks",
+  KIDS: "Kids",
+  DESSERT: "Dessert",
+  PASTRY: "Pastry",
+  SPECIAL: "Special",
+  OTHER: "Other",
+}
+
 interface QuadrantMeta {
   key: MenuQuadrant
   label: string
@@ -65,7 +77,7 @@ const QUADRANT_META: Record<MenuQuadrant, QuadrantMeta> = {
     textClass: "text-green-text dark:text-emerald-300",
     tagline: "High popularity · High margin",
     action:
-      "Protect recipe & quality. Feature prominently on menu. Hold pricing — don't risk demand.",
+      "Protect recipe & quality. Feature prominently on menu. Hold pricing, don't risk demand.",
     Icon: Star,
   },
   PLOWHORSE: {
@@ -332,7 +344,7 @@ export function MenuEngineeringDashboard({
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium">
-                Menu matrix — popularity vs margin
+                Menu matrix: popularity vs margin
               </CardTitle>
               <span className="text-xs text-muted-foreground">
                 {data.items.length} dish{data.items.length === 1 ? "" : "es"}
@@ -494,7 +506,7 @@ export function MenuEngineeringDashboard({
                     <Icon className="h-3.5 w-3.5" />
                     {meta.emoji} {meta.label}
                     <span className="font-normal text-muted-foreground">
-                      — {meta.tagline}
+                      · {meta.tagline}
                     </span>
                   </div>
                   <p className="mt-1.5 text-xs leading-relaxed text-foreground/80">
@@ -614,7 +626,8 @@ function ItemRow({ item }: { item: MenuEngineeringItem }) {
           {item.name}
         </Link>
         <div className="text-[10px] text-muted-foreground">
-          {item.venue} · {item.menuCategory}
+          {VENUE_SHORT_LABEL[item.venue as Venue] ?? item.venue} ·{" "}
+          {MENU_CATEGORY_LABEL[item.menuCategory] ?? item.menuCategory}
         </div>
       </td>
       <td className="py-2">

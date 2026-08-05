@@ -46,7 +46,7 @@ export function GbpConnection({ status, configured }: Props) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Star className="h-5 w-5" />
-            Google Business Profile — Reviews
+            Google Business Profile: Reviews
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -61,7 +61,7 @@ export function GbpConnection({ status, configured }: Props) {
             </Button>
           ) : (
             <div className="rounded-lg border border-amber-text/20 bg-amber-light p-3 text-sm text-amber-text">
-              Google OAuth credentials missing — add{" "}
+              Google OAuth credentials missing, add{" "}
               <code className="rounded bg-amber-text/10 px-1">GMAIL_CLIENT_ID</code>{" "}
               and{" "}
               <code className="rounded bg-amber-text/10 px-1">GMAIL_CLIENT_SECRET</code>{" "}
@@ -79,7 +79,7 @@ export function GbpConnection({ status, configured }: Props) {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Star className="h-5 w-5" />
-            Google Business Profile — Reviews
+            Google Business Profile: Reviews
           </CardTitle>
           <Badge className="border-green-text/20 bg-green-light text-green-text">
             <CheckCircle2 className="h-4 w-4 text-green-text" />

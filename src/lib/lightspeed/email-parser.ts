@@ -2,7 +2,7 @@
  * Parser for Lightspeed "End of day" / "Daily summary" emails that land in
  * the finance inbox (e.g. accounts@tarte.com.au).
  *
- * Deliberately tolerant — Lightspeed's CSV columns and HTML layout drift, and
+ * Deliberately tolerant: Lightspeed's CSV columns and HTML layout drift, and
  * different Lightspeed products (X-Series / Retail / K-Series) use different
  * shapes. We identify rows and figures by fuzzy column names rather than
  * positional indices, fail gracefully, and return an array of one EodReport
@@ -120,7 +120,7 @@ function parseCsv(text: string): string[][] {
 }
 
 /**
- * Fuzzy header matcher — returns the first column index whose label contains
+ * Fuzzy header matcher, returns the first column index whose label contains
  * any of the needles (case-insensitive). Returns -1 if none match.
  */
 function findCol(headers: string[], needles: string[]): number {
@@ -181,7 +181,7 @@ export function parseLightspeedCsv(buffer: Buffer): EodReport[] {
   const byLocation = new Map<string, EodReport>()
 
   if (colItemName !== -1 && colQty !== -1) {
-    // Itemised mode — group by location
+    // Itemised mode, group by location
     for (const r of data) {
       if (r.length <= colLocation) continue
       const loc = r[colLocation]?.trim()
@@ -262,7 +262,7 @@ export function parseLightspeedCsv(buffer: Buffer): EodReport[] {
 // ─── HTML parsing ───────────────────────────────────────────────────────────
 
 /**
- * Very small HTML table walker — no dependency. Extracts rows of <td> text
+ * Very small HTML table walker, no dependency. Extracts rows of <td> text
  * from every <table> in the document. Returns [tableRows, tableRows, ...].
  */
 function extractHtmlTables(html: string): string[][][] {
@@ -362,7 +362,7 @@ export function parseLightspeedHtml(html: string): EodReport[] {
         byLocation.set(loc, existing)
       }
     } else if (colItemName !== -1 && colQty !== -1) {
-      // Item table — try to find location context above (not reliable; use single 'default' bucket)
+      // Item table, try to find location context above (not reliable; use single 'default' bucket)
       const bucket = "__default__"
       const existing =
         byLocation.get(bucket) ??
@@ -486,14 +486,14 @@ export async function parseLightspeedReportMessage(
 
   for (const att of csvAttachments) {
     try {
-      // For now we only parse .csv — .xlsx would need a dependency. Skip .xlsx
+      // For now we only parse .csv, .xlsx would need a dependency. Skip .xlsx
       // but leave the hook so we can add it later.
       if (!att.filename.toLowerCase().endsWith(".csv")) continue
       const buffer = await getAttachmentFn(message.id, att.attachmentId)
       const parsed = parseLightspeedCsv(buffer)
       reports.push(...parsed)
     } catch {
-      // Continue — try next attachment or fall back to HTML
+      // Continue, try next attachment or fall back to HTML
     }
   }
 
@@ -503,7 +503,7 @@ export async function parseLightspeedReportMessage(
       try {
         reports.push(...parseLightspeedHtml(html))
       } catch {
-        // ignore — caller will log
+        // ignore, caller will log
       }
     }
   }

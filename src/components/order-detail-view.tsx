@@ -186,7 +186,7 @@ export function OrderDetailView({ initial }: { initial: OrderDetail }) {
         router.refresh()
       } catch (err) {
         setSendError(
-          err instanceof Error ? err.message : "Send failed — try again or copy/paste."
+          err instanceof Error ? err.message : "Send failed, try again or copy/paste."
         )
       }
     })

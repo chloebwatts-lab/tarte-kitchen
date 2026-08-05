@@ -193,7 +193,7 @@ export function FoodSafetyLog({ runs: initialRuns }: Props) {
 
                 {/* Expanded temperature table */}
                 {isExpanded && (
-                  <div className="border-t border-border">
+                  <div className="overflow-x-auto border-t border-border">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-muted/50 font-serif text-xs font-semibold text-muted-foreground uppercase tracking-[0.14em]">
@@ -211,7 +211,7 @@ export function FoodSafetyLog({ runs: initialRuns }: Props) {
                             className={item.passed === false ? "bg-red-light" : ""}
                           >
                             <td className="px-4 py-2.5 font-medium text-foreground">
-                              {item.label.replace(/ — temperature check$/i, "")}
+                              {item.label.replace(/(?: — |, )temperature check$/i, "")}
                             </td>
                             <td className="px-4 py-2.5 text-center">
                               {tempBadge(item.passed, item.tempCelsius, item.hotCheck)}

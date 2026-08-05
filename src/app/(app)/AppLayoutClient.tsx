@@ -29,6 +29,7 @@ const pageTitles: Record<string, string> = {
   "/labour/upload": "Upload payroll",
   "/spend": "Live Spend",
   "/cogs": "COGS",
+  "/commitments": "Commitments",
   "/analysis": "Analysis",
   "/price-alerts": "Price Alerts",
   "/council": "Council Folder",

@@ -27,12 +27,12 @@ export default async function IngredientsPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Ingredients</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight">Ingredients</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {ingredients.length} ingredient{ingredients.length !== 1 ? "s" : ""} in your kitchen
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" asChild>
             <Link href="/ingredients/allergens">
               <ShieldAlert className="mr-1.5 h-4 w-4" />

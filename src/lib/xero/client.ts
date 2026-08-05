@@ -1,3 +1,5 @@
+import { encrypt, decrypt } from "@/lib/encryption"
+
 const XERO_AUTH_URL = "https://login.xero.com/identity/connect/authorize"
 const XERO_TOKEN_URL = "https://identity.xero.com/connect/token"
 const XERO_CONNECTIONS_URL = "https://api.xero.com/connections"
@@ -78,6 +80,20 @@ export async function getXeroTenants(accessToken: string): Promise<
   return res.json()
 }
 
+/**
+ * Stored tokens are encrypted at rest (same pattern as the Gmail / GBP
+ * connections). Rows written before encryption landed hold plaintext, so
+ * a failed decrypt falls back to the stored value as-is; the row becomes
+ * encrypted on the next refresh.
+ */
+function decryptOrLegacy(stored: string): string {
+  try {
+    return decrypt(stored)
+  } catch {
+    return stored
+  }
+}
+
 export async function getValidXeroAccessToken(): Promise<{
   accessToken: string
   tenantId: string
@@ -87,16 +103,16 @@ export async function getValidXeroAccessToken(): Promise<{
   if (!conn) throw new Error("No Xero connection found")
 
   if (new Date(conn.tokenExpiresAt) > new Date()) {
-    return { accessToken: conn.accessToken, tenantId: conn.tenantId }
+    return { accessToken: decryptOrLegacy(conn.accessToken), tenantId: conn.tenantId }
   }
 
   // Refresh
-  const data = await refreshXeroToken(conn.refreshToken)
+  const data = await refreshXeroToken(decryptOrLegacy(conn.refreshToken))
   await (db as any).xeroConnection.update({
     where: { id: conn.id },
     data: {
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token,
+      accessToken: encrypt(data.access_token),
+      refreshToken: encrypt(data.refresh_token),
       tokenExpiresAt: new Date(Date.now() + data.expires_in * 1000),
     },
   })

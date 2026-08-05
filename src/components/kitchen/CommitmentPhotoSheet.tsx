@@ -13,7 +13,7 @@ import { PHOTO_KINDS, photoKindLabel } from "@/lib/commitments/shared"
 const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
 
-/** Same downscale trick as checklist evidence photos — a paper sheet
+/** Same downscale trick as checklist evidence photos: a paper sheet
  *  doesn't need 12MP to be readable. */
 const MAX_DIMENSION = 1600
 const JPEG_QUALITY = 0.8
@@ -64,7 +64,7 @@ export function CommitmentPhotoSheet({
   if (!CLOUD_NAME || !UPLOAD_PRESET) {
     return (
       <div className="rounded-[16px] border border-dashed border-[var(--tk-line)] bg-white p-6 text-center text-[14px] text-[var(--tk-ink-soft)]">
-        Photo uploads not configured — add Cloudinary env vars to enable.
+        Photo uploads not configured. Add Cloudinary env vars to enable.
       </div>
     )
   }
@@ -133,7 +133,7 @@ export function CommitmentPhotoSheet({
         </div>
       </div>
 
-      {/* Big camera button — iPad-first */}
+      {/* Big camera button, iPad-first */}
       <div>
         <input
           ref={inputRef}

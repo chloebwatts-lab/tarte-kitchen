@@ -34,14 +34,15 @@ export default async function KitchenPage({
 }) {
   const sp = await searchParams
   const venueParam = typeof sp.venue === "string" ? sp.venue : null
-  if (!venueParam) return <KitchenVenuePicker />
-
-  const venue: Venue =
+  // Missing or invalid venue always shows the picker (which is also how
+  // staff change the remembered tk-venue cookie). Never silently default.
+  const venue: Venue | null =
     venueParam === "BURLEIGH" ||
     venueParam === "BEACH_HOUSE" ||
     venueParam === "TEA_GARDEN"
       ? venueParam
-      : "BURLEIGH"
+      : null
+  if (!venue) return <KitchenVenuePicker />
 
   const categoryParam = typeof sp.category === "string" ? sp.category : null
   const category: Category | null =
@@ -363,7 +364,7 @@ function CategoryPicker({
         />
         <SecondaryTile
           title="Something broken?"
-          subtitle="Scan the machine's QR or find it here — quick fixes, who to call, warranty."
+          subtitle="Scan the machine's QR or find it here: quick fixes, who to call, warranty."
           icon={<Wrench className="h-6 w-6" strokeWidth={1.8} />}
           href={`/kitchen/fix?venue=${venue}`}
         />
@@ -445,7 +446,7 @@ function DepartmentPicker({
   const heading = category === "cleaning" ? "Pick your section" : "Temperature logs by area"
   const subhead =
     category === "cleaning"
-      ? "Barista, FOH, KP, Market, Takeaway — pick yours to see today's cleaning checklists."
+      ? "Barista, FOH, KP, Market, Takeaway. Pick yours to see today's cleaning checklists."
       : "Fridges, freezers and hot-hold readings grouped by area."
 
   return (

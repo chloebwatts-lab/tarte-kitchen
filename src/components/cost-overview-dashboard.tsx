@@ -18,6 +18,10 @@ interface Props {
   weeklyPnl: WeeklyPnlRow[]
   labourStats: LabourStats
   xeroConnected: boolean
+  /** Computed server-side from XeroStatus: token stale + no recent sync. */
+  xeroTokenExpired?: boolean
+  /** From XeroStatus: last successful payroll sync, for the banner text. */
+  xeroLastSyncedAt?: Date | null
 }
 
 function formatCurrency(n: number) {
@@ -54,9 +58,18 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   )
 }
 
-export function CostOverviewDashboard({ weeklyPnl, labourStats, xeroConnected }: Props) {
+export function CostOverviewDashboard({
+  weeklyPnl,
+  labourStats,
+  xeroConnected,
+  xeroTokenExpired,
+  xeroLastSyncedAt,
+}: Props) {
   const latest = weeklyPnl[weeklyPnl.length - 1]
   const prev = weeklyPnl[weeklyPnl.length - 2]
+
+  const tokenExpired = xeroConnected && Boolean(xeroTokenExpired)
+  const noLabourData = xeroConnected && labourStats.weeks.length === 0
 
   const latestLabour = latest?.labourCost ?? 0
   const latestWaste = latest?.wasteCost ?? 0
@@ -76,7 +89,7 @@ export function CostOverviewDashboard({ weeklyPnl, labourStats, xeroConnected }:
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Cost Overview</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Weekly labour and waste costs — last 13 weeks
+          Weekly labour and waste costs, last 13 weeks
         </p>
       </div>
 
@@ -85,7 +98,7 @@ export function CostOverviewDashboard({ weeklyPnl, labourStats, xeroConnected }:
         <div className="flex items-start gap-3 rounded-lg border border-amber-text/20 bg-amber-light px-4 py-3 text-sm text-amber-text">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
-            <span className="font-semibold">Labour data not available — </span>
+            <span className="font-semibold">Labour data not available, </span>
             connect Xero Payroll in{" "}
             <a href="/settings/integrations" className="underline underline-offset-2 font-medium">
               Settings → Integrations
@@ -95,12 +108,43 @@ export function CostOverviewDashboard({ weeklyPnl, labourStats, xeroConnected }:
         </div>
       )}
 
+      {/* Connected but the token is dead: the numbers below stop updating. */}
+      {tokenExpired && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-text/20 bg-amber-light px-4 py-3 text-sm text-amber-text">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <span className="font-semibold">Xero connection expired, </span>
+            reconnect in{" "}
+            <a href="/settings/integrations" className="underline underline-offset-2 font-medium">
+              Settings &gt; Integrations
+            </a>
+            . Labour figures below stopped updating
+            {xeroLastSyncedAt
+              ? ` on ${new Date(xeroLastSyncedAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}`
+              : ""}
+            .
+          </div>
+        </div>
+      )}
+
+      {/* Connected with a live token, but nothing synced yet. */}
+      {!tokenExpired && noLabourData && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-text/20 bg-amber-light px-4 py-3 text-sm text-amber-text">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <span className="font-semibold">No labour data synced yet. </span>
+            Xero is connected but no payroll weeks have come through, so the
+            labour figures below are empty.
+          </div>
+        </div>
+      )}
+
       {/* Summary cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              This Week — Labour
+              This Week: Labour
             </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -124,7 +168,7 @@ export function CostOverviewDashboard({ weeklyPnl, labourStats, xeroConnected }:
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              This Week — Waste
+              This Week: Waste
             </CardTitle>
             <TrendingDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -144,7 +188,7 @@ export function CostOverviewDashboard({ weeklyPnl, labourStats, xeroConnected }:
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              This Week — Total Costs
+              This Week: Total Costs
             </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>

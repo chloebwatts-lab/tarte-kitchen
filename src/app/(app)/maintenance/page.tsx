@@ -23,12 +23,12 @@ export default async function MaintenancePage() {
   ])
 
   return (
-    <div className="container max-w-5xl py-6">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold">Maintenance</h1>
+    <div className="space-y-6">
+      <header>
+        <h1 className="font-serif text-2xl font-semibold tracking-tight">Maintenance</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Staff report via the QR stickers → every machine's page lives at{" "}
-          <span className="font-mono">/kitchen/fix</span>. Click any row to open it.
+          Staff report faults by scanning the QR sticker on each machine.
+          Click any row to open that machine&apos;s page.
         </p>
       </header>
       <MaintenanceDashboard

@@ -1,6 +1,6 @@
 /**
  * Pure helpers for the Said + Done commitments module. Safe to import
- * from both server actions and client components — no db, no env.
+ * from both server actions and client components, no db, no env.
  *
  * All dates travel as YYYY-MM-DD strings (AEST calendar dates), same as
  * the checklist module's convention for `@db.Date` columns.
@@ -25,7 +25,7 @@ export function photoKindLabel(kind: string): string {
   return PHOTO_KINDS.find((k) => k.value === kind)?.label ?? "Other"
 }
 
-/** Effective due date — the renegotiated date wins once one is agreed. */
+/** Effective due date, the renegotiated date wins once one is agreed. */
 export function effectiveDueOn(c: {
   dueOn: string
   newDueOn: string | null

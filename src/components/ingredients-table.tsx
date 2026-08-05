@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useTransition, useRef, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Search, SlidersHorizontal, Pencil, Trash2, ChevronDown, ChevronRight, Loader2 } from "lucide-react"
+import { Search, SlidersHorizontal, Pencil, Trash2, ChevronDown, ChevronRight, ChevronUp, ArrowUpDown, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -21,6 +21,9 @@ interface Supplier {
   id: string
   name: string
 }
+
+type SortKey = "name" | "category" | "purchasePrice"
+type SortDir = "asc" | "desc"
 
 interface Ingredient {
   id: string
@@ -283,6 +286,8 @@ export function IngredientsTable({
 
   const [search, setSearch] = useState(initialSearch)
   const [activeCategory, setActiveCategory] = useState(initialCategory)
+  const [sortKey, setSortKey] = useState<SortKey>("name")
+  const [sortDir, setSortDir] = useState<SortDir>("asc")
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [bulkMode, setBulkMode] = useState(false)
   const [bulkPrices, setBulkPrices] = useState<Record<string, string>>({})
@@ -345,8 +350,52 @@ export function IngredientsTable({
       )
     }
 
+    result = [...result].sort((a, b) => {
+      let cmp = 0
+      switch (sortKey) {
+        case "name":
+          cmp = a.name.localeCompare(b.name)
+          break
+        case "category":
+          cmp = a.category.localeCompare(b.category)
+          break
+        case "purchasePrice":
+          cmp = a.purchasePrice - b.purchasePrice
+          break
+      }
+      return sortDir === "asc" ? cmp : -cmp
+    })
+
     return result
-  }, [ingredients, activeCategory, search])
+  }, [ingredients, activeCategory, search, sortKey, sortDir])
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"))
+    } else {
+      setSortKey(key)
+      setSortDir("asc")
+    }
+  }
+
+  const SortButton = ({ label, field }: { label: string; field: SortKey }) => (
+    <button
+      type="button"
+      className="flex items-center gap-1 font-medium text-muted-foreground hover:text-foreground"
+      onClick={() => toggleSort(field)}
+    >
+      {label}
+      {sortKey === field ? (
+        sortDir === "asc" ? (
+          <ChevronUp className="h-3 w-3" />
+        ) : (
+          <ChevronDown className="h-3 w-3" />
+        )
+      ) : (
+        <ArrowUpDown className="h-3 w-3 opacity-40" />
+      )}
+    </button>
+  )
 
   // Bulk price save
   const handleBulkPriceSave = useCallback(
@@ -501,10 +550,18 @@ export function IngredientsTable({
                   <thead>
                     <tr className="border-b bg-muted/30 text-left">
                       <th className="w-8 px-4 py-3" />
-                      <th className="px-4 py-3 font-medium text-muted-foreground">Name</th>
-                      <th className="px-4 py-3 font-medium text-muted-foreground">Category</th>
+                      <th className="px-4 py-3 font-medium text-muted-foreground">
+                        <SortButton label="Name" field="name" />
+                      </th>
+                      <th className="px-4 py-3 font-medium text-muted-foreground">
+                        <SortButton label="Category" field="category" />
+                      </th>
                       <th className="px-4 py-3 font-medium text-muted-foreground">Supplier</th>
-                      <th className="px-4 py-3 font-medium text-muted-foreground text-right">Price</th>
+                      <th className="px-4 py-3 font-medium text-muted-foreground text-right">
+                        <span className="flex justify-end">
+                          <SortButton label="Price" field="purchasePrice" />
+                        </span>
+                      </th>
                       <th className="px-4 py-3 font-medium text-muted-foreground text-right">Waste %</th>
                       <th className="px-4 py-3 font-medium text-muted-foreground text-right">
                         Cost / {activeCategory !== "ALL" ? "" : "unit"}
@@ -611,7 +668,16 @@ function TableRow({
           "border-b transition-colors hover:bg-muted/30 cursor-pointer",
           isExpanded && "bg-muted/20"
         )}
+        role="button"
+        tabIndex={0}
+        aria-expanded={isExpanded}
         onClick={onToggle}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            onToggle()
+          }
+        }}
       >
         <td className="px-4 py-3 text-muted-foreground">
           {isExpanded ? (
@@ -656,7 +722,8 @@ function TableRow({
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              aria-label="Delete ingredient"
+              className="h-9 w-9 text-muted-foreground hover:text-destructive"
               disabled={deletingId === ingredient.id}
               onClick={() => onDelete(ingredient.id)}
             >

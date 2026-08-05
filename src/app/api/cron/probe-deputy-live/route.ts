@@ -1,5 +1,5 @@
 /**
- * TEMPORARY probe — delete after the FOH-live build is wired up.
+ * TEMPORARY probe, delete after the FOH-live build is wired up.
  *
  * Pulls the current Tarte week's Timesheet rows + the full Employee
  * list so we can eyeball:
@@ -30,7 +30,7 @@ export const maxDuration = 60
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 })
   }
 
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  // Build enriched employee summaries — only ones with activity OR a
+  // Build enriched employee summaries, only ones with activity OR a
   // notable name pattern (so we can spot salary placeholders).
   const empMap = new Map<number, DeputyEmployee>(
     employees.map((e) => [e.Id, e])

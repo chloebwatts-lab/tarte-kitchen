@@ -18,7 +18,7 @@ export const STATION_SHORT_LABEL: Record<KitchenStation, string> = {
 }
 
 /**
- * Which stations exist at each venue. Iterate this instead of hardcoding —
+ * Which stations exist at each venue. Iterate this instead of hardcoding,
  * the restock flow renders one count sheet per station.
  */
 export const VENUE_STATIONS: Record<SingleVenue, KitchenStation[]> = {

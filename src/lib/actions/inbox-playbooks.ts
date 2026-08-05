@@ -31,7 +31,7 @@ export async function listInboxPlaybooks(): Promise<InboxPlaybook[]> {
             COALESCE(faq, '[]'::jsonb) AS faq
        FROM inbox_playbooks ORDER BY category`
   )
-  // Prisma returns Decimal for numeric — coerce
+  // Prisma returns Decimal for numeric, coerce
   return rows.map((r) => ({
     ...r,
     min_confidence: Number(r.min_confidence),

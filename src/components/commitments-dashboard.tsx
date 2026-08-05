@@ -81,7 +81,7 @@ function CellButton({
       </span>
     ) : (
       <span className="flex h-8 w-8 items-center justify-center rounded-full text-sm text-muted-foreground">
-        —
+       ,
       </span>
     )
   return (
@@ -168,7 +168,7 @@ export function CommitmentsDashboard({ board }: { board: CommitmentsBoard }) {
           <div>
             <h2 className="text-lg font-semibold">Standing commitments</h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              One tap per week — tap a cell to mark Y/N or add a note.{" "}
+              One tap per week, tap a cell to mark Y/N or add a note.{" "}
               <Sparkles className="inline h-3 w-3" /> = filled automatically
               from app data (a manual mark overrides it).
             </p>
@@ -238,7 +238,7 @@ export function CommitmentsDashboard({ board }: { board: CommitmentsBoard }) {
 
         {board.oneOffs.length === 0 ? (
           <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-            Nothing here yet — add the first promise from the meeting sheet.
+            Nothing here yet, add the first promise from the meeting sheet.
           </div>
         ) : (
           <div className="space-y-2">
@@ -277,7 +277,7 @@ export function CommitmentsDashboard({ board }: { board: CommitmentsBoard }) {
                               {formatDayMonth(o.dueOn)}
                             </s>{" "}
                             → <strong>{formatDayMonth(o.newDueOn)}</strong>
-                            {o.missedReason ? ` — ${o.missedReason}` : ""}
+                            {o.missedReason ? `: ${o.missedReason}` : ""}
                           </>
                         ) : (
                           <>Due {formatDayMonth(due)}</>
@@ -310,7 +310,7 @@ export function CommitmentsDashboard({ board }: { board: CommitmentsBoard }) {
                           size="sm"
                           variant="ghost"
                           onClick={() => setReschedule(o)}
-                          title="Missed — set new date + why"
+                          title="Missed, set new date + why"
                         >
                           <CalendarClock className="h-4 w-4" />
                         </Button>
@@ -359,7 +359,7 @@ export function CommitmentsDashboard({ board }: { board: CommitmentsBoard }) {
 
         {board.meetingActions.length === 0 ? (
           <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-            No meeting actions yet — add them during or straight after the
+            No meeting actions yet, add them during or straight after the
             next sit-down.
           </div>
         ) : (
@@ -957,7 +957,7 @@ function RescheduleDialog({
     <Dialog open={row !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Missed — set a new date</DialogTitle>
+          <DialogTitle>Missed, set a new date</DialogTitle>
           <DialogDescription>{row?.promise}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -977,7 +977,7 @@ function RescheduleDialog({
               id="rs-why"
               value={why}
               onChange={(e) => setWhy(e.target.value)}
-              placeholder="Honest one-liner — this shows on the sheet"
+              placeholder="Honest one-liner, this shows on the sheet"
               className="mt-1.5"
               rows={2}
             />

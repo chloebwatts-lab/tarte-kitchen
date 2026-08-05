@@ -14,12 +14,12 @@ import { sendChecklistCycleEmail } from "@/lib/gmail/send"
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 })
   }
 
   try {
-    // ?preview=1 — read-only: return what the nudge would list right now
+    // ?preview=1, read-only: return what the nudge would list right now
     // (ignores the day-of-cycle gate, sends nothing, writes nothing).
     if (new URL(request.url).searchParams.get("preview") === "1") {
       const rows = await previewCycleEndingChecklists()

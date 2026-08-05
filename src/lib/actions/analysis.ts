@@ -30,7 +30,7 @@ export interface AnalysisData {
     dropPct: number
   }[]
   menuMix: { menuCategory: string; revenue: number; pctOfTotal: number }[]
-  /** How much of the window's sold volume the theoretical numbers cover —
+  /** How much of the window's sold volume the theoretical numbers cover,
    * EMAIL-sourced items only match when a costed dish exists. */
   theoreticalCoverage: {
     matchedQtyPct: number | null
@@ -132,7 +132,7 @@ export async function getAnalysisData(params: {
     }))
     .sort((a, b) => a.date.localeCompare(b.date))
 
-  // Day-of-week heatmap — avg revenue per DoW
+  // Day-of-week heatmap, avg revenue per DoW
   const dowBuckets = new Map<number, number[]>()
   for (const [dateStr, v] of byDate) {
     const d = new Date(dateStr)
@@ -151,7 +151,7 @@ export async function getAnalysisData(params: {
     }
   })
 
-  // Best seller movers — compare last 7 days to the prior 7
+  // Best seller movers, compare last 7 days to the prior 7
   const last7Start = startOfAestDay(7)
   const prev7Start = startOfAestDay(14)
 
@@ -193,7 +193,7 @@ export async function getAnalysisData(params: {
     .sort((a, b) => b.deltaPct - a.deltaPct)
     .slice(0, 10)
 
-  // Underperformers — dishes whose 28-day qty dropped > 30% vs prior 28
+  // Underperformers, dishes whose 28-day qty dropped > 30% vs prior 28
   const recent28Start = startOfAestDay(28)
   const prev28Start = startOfAestDay(56)
 
@@ -234,7 +234,7 @@ export async function getAnalysisData(params: {
     .sort((a, b) => a.dropPct - b.dropPct)
     .slice(0, 10)
 
-  // Menu mix — revenue by MenuCategory (via Dish join)
+  // Menu mix, revenue by MenuCategory (via Dish join)
   const matchedSales = await db.dailySales.findMany({
     where: {
       ...venueFilter,
@@ -257,10 +257,10 @@ export async function getAnalysisData(params: {
     }))
     .sort((a, b) => b.revenue - a.revenue)
 
-  // Labour % — org-wide only (WeeklyLabourCost has no venue column)
+  // Labour %, org-wide only (WeeklyLabourCost has no venue column)
   // Coverage of the theoretical numbers: share of sold units that matched a
   // costed dish, plus the biggest uncosted sellers (the "cost these next"
-  // list — coffee variants dominate until the coffee menu is costed).
+  // list, coffee variants dominate until the coffee menu is costed).
   const [totalQtyAgg, matchedQtyAgg, uncostedTop] = await Promise.all([
     db.dailySales.aggregate({
       _sum: { quantitySold: true },
@@ -295,7 +295,7 @@ export async function getAnalysisData(params: {
   })
   let labourPct: AnalysisData["labourPct"] = null
   if (labourRows.length > 0) {
-    // Aggregate revenue per week (all venues — labour isn't venue-tagged)
+    // Aggregate revenue per week (all venues, labour isn't venue-tagged)
     const weeklyRevenue = new Map<string, number>()
     const allVenueSummaries =
       venue === "ALL"

@@ -111,7 +111,7 @@ export function AllergenVerificationTable({
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
               {filter === "needs-review"
-                ? "Nothing left to review — every ingredient is verified."
+                ? "Nothing left to review: every ingredient is verified."
                 : "No ingredients match."}
             </CardContent>
           </Card>
@@ -214,7 +214,10 @@ function VerificationRow({ row }: { row: AllergenVerificationRow }) {
             <div className="mt-0.5 text-xs text-muted-foreground">
               {row.supplierName ?? "No supplier"}
               {row.assessedAt &&
-                ` · assessed ${new Date(row.assessedAt).toLocaleDateString()}`}
+                ` · assessed ${new Date(row.assessedAt).toLocaleDateString(
+                  "en-AU",
+                  { timeZone: "Australia/Brisbane" }
+                )}`}
             </div>
           </div>
           <Button

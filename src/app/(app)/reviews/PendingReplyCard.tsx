@@ -95,7 +95,7 @@ export function PendingReplyCard(props: PendingReplyCardProps) {
         </p>
       )}
 
-      {/* Draft reply — view or edit */}
+      {/* Draft reply, view or edit */}
       <div className="mb-3 rounded-lg border border-border bg-muted/50 p-3">
         <div className="mb-1.5 flex items-center justify-between">
           <span className="font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -159,7 +159,7 @@ export function PendingReplyCard(props: PendingReplyCardProps) {
         </button>
         {!props.isGbpFormat && (
           <span className="ml-2 text-[11px] text-amber-text">
-            (Places-only review — approve will fall back to manual copy)
+            (Places-only review, approve will fall back to manual copy)
           </span>
         )}
       </div>

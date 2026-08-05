@@ -9,12 +9,12 @@ const BRISBANE_OFFSET_MS = 10 * 60 * 60 * 1000
 
 /**
  * Given any date, return a Date at Wed 00:00 UTC representing the AEST
- * Wednesday of the week containing it — matching the `weekStartWed` DATE
+ * Wednesday of the week containing it, matching the `weekStartWed` DATE
  * column convention in the DB (yyyy-mm-dd of the AEST Wednesday).
  *
  * The +10h shift projects the input into AEST's clock space, then we
  * snap to midnight and walk back to Wednesday. Result is a pure-UTC-
- * midnight Date whose yyyy-mm-dd is the AEST Wednesday — so DB lookups
+ * midnight Date whose yyyy-mm-dd is the AEST Wednesday, so DB lookups
  * for existing rows keyed to a Wed UTC midnight continue to work, and
  * shift bucketing now respects AEST week boundaries (critical for early-
  * Wednesday bakery shifts whose UTC timestamp falls on Tuesday).
@@ -43,7 +43,7 @@ export function currentTarteWeekRange(now = new Date()): { start: Date; end: Dat
 
 /**
  * The most recently completed Tarte trading week (Wed → Tue). Use this
- * for any "the week just ended" summary that runs after Tuesday close —
+ * for any "the week just ended" summary that runs after Tuesday close,
  * the Friday weekly digest is the canonical caller.
  *
  * Returns start = Wed 00:00 (UTC date labelled as the AEST Wed) and

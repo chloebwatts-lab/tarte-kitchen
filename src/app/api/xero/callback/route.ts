@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { exchangeXeroCode, getXeroTenants } from "@/lib/xero/client"
 import { db } from "@/lib/db"
+import { encrypt } from "@/lib/encryption"
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
@@ -27,8 +28,9 @@ export async function GET(request: NextRequest) {
 
     const existing = await (db as any).xeroConnection.findFirst()
     const data = {
-      accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token,
+      // Encrypted at rest, same as every other integration's tokens.
+      accessToken: encrypt(tokenData.access_token),
+      refreshToken: encrypt(tokenData.refresh_token),
       tokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
       tenantId: tenant.tenantId,
       organisationName: tenant.tenantName,
