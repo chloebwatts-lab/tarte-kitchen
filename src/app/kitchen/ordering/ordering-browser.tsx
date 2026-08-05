@@ -167,7 +167,7 @@ export function OrderingBrowser() {
         <div className="flex items-center gap-3 rounded-full border border-[var(--tk-line)] bg-white py-1.5 pl-5 pr-2 shadow-[0_6px_24px_rgba(60,62,63,0.08)]">
           <Search className="h-5 w-5 shrink-0 text-[var(--tk-ink-mute)]" strokeWidth={2} />
           <input
-            type="search"
+            type="text"
             inputMode="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -199,8 +199,7 @@ export function OrderingBrowser() {
         )}
         {q && (
           <div className="mt-2.5 px-2 text-[13px] font-semibold text-[var(--tk-ink-soft)]">
-            {total === 0 ? "No matches" : `${total} match${total === 1 ? "" : "es"}`} for
-            &ldquo;{q}&rdquo;
+            {`${total === 0 ? "No matches" : `${total} match${total === 1 ? "" : "es"}`} for “${q}”`}
           </div>
         )}
       </div>
