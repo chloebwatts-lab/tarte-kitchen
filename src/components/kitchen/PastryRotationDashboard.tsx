@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import { ChevronLeft, ChevronRight, Flame, Trash2, Zap } from "lucide-react"
 import { KitchenButton } from "@/components/kitchen/KitchenButton"
 import {
@@ -39,7 +40,10 @@ export function PastryRotationDashboard({
 }: {
   initial: PastryRotationDay
 }) {
-  const [day] = useState(initial)
+  // Render straight from props: router.refresh() re-renders the server
+  // component with fresh data, so holding a copy in state would pin the
+  // first load forever.
+  const day = initial
   const [openCell, setOpenCell] = useState<null | {
     product: PastryProductRecord
     bakeTime: PastryBakeTime
@@ -294,6 +298,7 @@ function ZeroFillForm({
   remainingByBake: Map<PastryBakeTime, number>
   onClose: () => void
 }) {
+  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [staffName, setStaffName] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -331,8 +336,10 @@ function ZeroFillForm({
           bakeTimes: BAKE_ORDER.filter((b) => selected.has(b)),
           staffName,
         })
+        // Closing unmounts the form; refresh pulls the new entries in
+        // without a full reload (which loses scroll mid-service).
         onClose()
-        window.location.reload()
+        router.refresh()
       } catch (e) {
         setError(e instanceof Error ? e.message : "Save failed")
       }
@@ -519,11 +526,20 @@ function CellForm({
   existing: PastryEntryRecord | null
   onClose: () => void
 }) {
+  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [prepared, setPrepared] = useState(existing?.prepared.toString() ?? "")
   const [sold, setSold] = useState(existing?.sold.toString() ?? "")
   const [discarded, setDiscarded] = useState(existing?.discarded.toString() ?? "")
-  const [staffName, setStaffName] = useState(existing?.staffName ?? "")
+  // Never prefill auto-generated names ("auto" + legacy seed initials):
+  // saving a correction under one of those makes the nightly auto-fill
+  // treat the row as replaceable and silently revert the human fix.
+  const AUTO_PREFILL_BLOCK = ["auto", "JP", "BM", "BB", "DE", "TZ"]
+  const [staffName, setStaffName] = useState(
+    existing?.staffName && !AUTO_PREFILL_BLOCK.includes(existing.staffName)
+      ? existing.staffName
+      : ""
+  )
   const [notes, setNotes] = useState(existing?.notes ?? "")
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -553,7 +569,7 @@ function CellForm({
           notes: notes || null,
         })
         onClose()
-        window.location.reload()
+        router.refresh()
       } catch (e) {
         setError(e instanceof Error ? e.message : "Save failed")
       }
@@ -570,7 +586,7 @@ function CellForm({
           productId: product.id,
         })
         onClose()
-        window.location.reload()
+        router.refresh()
       } catch (e) {
         setError(e instanceof Error ? e.message : "Delete failed")
       }

@@ -74,8 +74,11 @@ export function InspectionChecklistCard({
         </div>
       </button>
 
-      {open && (
-        <div className="border-t border-[var(--tk-line)] print:border-black">
+      {/* Rendered always, hidden by class when collapsed — so Print carries
+          the item-level temps/notes/sign-offs even for collapsed cards. */}
+      <div
+        className={`border-t border-[var(--tk-line)] print:border-black print:block ${open ? "" : "hidden"}`}
+      >
           <table className="w-full text-[13px]">
             <thead>
               <tr
@@ -123,7 +126,6 @@ export function InspectionChecklistCard({
             </tbody>
           </table>
         </div>
-      )}
     </div>
   )
 }

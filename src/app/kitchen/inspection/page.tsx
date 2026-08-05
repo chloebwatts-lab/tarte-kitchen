@@ -91,7 +91,7 @@ export default async function InspectionPage({
         photos: { select: { id: true, url: true } },
       },
       orderBy: [{ runDate: "desc" }, { createdAt: "desc" }],
-      take: 500,
+      take: 1500,
     }),
     // Licence + FSS evidence so the inspector sees them HERE, not only in
     // the council folder.
@@ -139,7 +139,7 @@ export default async function InspectionPage({
   }
   for (const c of coolingLogs) ensureDay(c.startedAt).cooling.push(c)
   for (const r of checklistRuns) ensureDay(r.runDate).runs.push(r)
-  for (const p of pastryRows) ensureDay(`${p.date}T00:00:00`).pastry.push(p)
+  for (const p of pastryRows) ensureDay(`${p.date}T00:00:00.000Z`).pastry.push(p)
   const orderedDays = Array.from(days.entries()).sort((a, b) =>
     b[0].localeCompare(a[0])
   )
@@ -156,8 +156,12 @@ export default async function InspectionPage({
     null
   )
   const pastryDiscarded = pastryRows.reduce((s, p) => s + p.discarded, 0)
+  // Count notes describing an ACTION taken, not routine all-clears ("No
+  // activity", "All labelled, FIFO OK" are fine and vastly outnumber real
+  // corrective notes — matching keywords beats maintaining a whitelist).
+  const CORRECTIVE = /discard|binned|reheat|re-?check|door|thermostat|compressor|seal|bait|maintenance|pulled|moved|adjusted|defrost|monitor|blast chiller|notified/i
   const flaggedItems = checklistRuns.reduce(
-    (s, r) => s + r.items.filter((i) => i.note && !/^(ok|in range|done|complete|checked|clear|frozen solid|within range|in date)/i.test(i.note)).length,
+    (s, r) => s + r.items.filter((i) => i.note && CORRECTIVE.test(i.note)).length,
     0
   )
   const checklistCurrent = latestChecklist ? dayKey(latestChecklist) === todayKey : false

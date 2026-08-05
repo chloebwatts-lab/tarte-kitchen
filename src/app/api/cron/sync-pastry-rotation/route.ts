@@ -4,6 +4,7 @@ export const maxDuration = 300
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import type { PastryBakeTime, Venue } from "@/generated/prisma/client"
+import { isAutoRow, isHumanRow, matchProduct, buildBakeRows } from "@/lib/pastry-rotation-sync"
 
 /**
  * Auto-fill the pastry rotation from what ACTUALLY happened (per Chloe,
@@ -20,7 +21,6 @@ import type { PastryBakeTime, Venue } from "@/generated/prisma/client"
  * and the day before (EOD emails land the following morning).
  */
 
-const AUTO_NAMES = new Set(["auto", "JP", "BM", "BB", "DE", "TZ"])
 const VENUES: Venue[] = ["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN"]
 // Last fully hand-entered day per venue — used only for the bake-time split.
 const SPLIT_TEMPLATE_DAY: Record<string, string> = {
@@ -30,56 +30,6 @@ const SPLIT_TEMPLATE_DAY: Record<string, string> = {
 }
 const DEFAULT_SPLIT = [0.6, 0.3, 0.1]
 const BAKES: PastryBakeTime[] = ["SIX_AM", "NINE_AM", "TWELVE_PM"]
-
-/** Map a POS / wastage item name to a PastryProduct name. Null = not a
- * tracked pastry (almond croissants, generic "Cruellers", sourdough…). */
-function matchProduct(raw: string): string | null {
-  const n = raw.toLowerCase().replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim()
-  if (/tarte?s?\b/.test(n)) {
-    if (/strawberry|berry/.test(n)) return "Strawberry tarte"
-    if (/blueberry/.test(n)) return "Blueberry tarte"
-    if (/raspberry/.test(n)) return "Raspberry tarte"
-    if (/rhubarb/.test(n)) return "Rhubarb tarte"
-    if (/passionfruit/.test(n)) return "Passionfruit tarte"
-  }
-  if (/muffin top/.test(n)) return "Muffin top"
-  if (/triple choc/.test(n)) return "Dark triple chocolate cookie"
-  if (/choc chip/.test(n)) return "Choc chip cookie"
-  if (/pistachio/.test(n) && /cookie/.test(n)) return "Pistachio cookie"
-  if (/crueller|cruller/.test(n)) {
-    if (/vanilla/.test(n)) return "Vanilla crueller"
-    if (/dul/.test(n)) return "Dulce crueller"
-    return null // cinnamon / generic — not tracked products
-  }
-  if (/croissant/.test(n)) {
-    if (/almond|chocolate|choc|ham|cheese/.test(n)) return null
-    return "Plain croissant"
-  }
-  if (/scroll/.test(n) && /cinnamon/.test(n)) return "Cinnamon scroll"
-  if (/^cinnamon scroll/.test(n)) return "Cinnamon scroll"
-  if (/kouign/.test(n)) return "Kouign amann"
-  if (/cheesecake/.test(n)) return "Cheesecake"
-  if (/lemon butter/.test(n)) return "Lemon butter cake"
-  if (/pecan/.test(n)) return "Pecan pie"
-  if (/friand/.test(n)) return "Friand"
-  return null
-}
-
-/** Largest-remainder split of a total across bake times. */
-function splitAcrossBakes(total: number, props: number[]): number[] {
-  const raw = props.map((p) => total * p)
-  const base = raw.map(Math.floor)
-  let rem = total - base.reduce((a, b) => a + b, 0)
-  const order = raw
-    .map((v, i) => ({ i, frac: v - Math.floor(v) }))
-    .sort((a, b) => b.frac - a.frac)
-  for (const o of order) {
-    if (rem <= 0) break
-    base[o.i]++
-    rem--
-  }
-  return base
-}
 
 function aestDateString(offsetDays: number): string {
   const d = new Date(Date.now() + 10 * 3600_000 - offsetDays * 86400_000)
@@ -170,15 +120,14 @@ export async function GET(request: NextRequest) {
         where: { venue, entryDate },
         select: { id: true, bakeTime: true, productId: true, staffName: true },
       })
+      // NULL staff names count as HUMAN: they are only producible by manual
+      // paths, and a row that is neither protected nor deletable would be
+      // overwritten by the upsert then destroyed on the following run.
       const humanCells = new Set(
-        existing
-          .filter((e) => e.staffName !== null && !AUTO_NAMES.has(e.staffName))
-          .map((e) => `${e.productId}|${e.bakeTime}`)
+        existing.filter((e) => isHumanRow(e.staffName)).map((e) => `${e.productId}|${e.bakeTime}`)
       )
       humanKept += humanCells.size
-      const autoIds = existing
-        .filter((e) => e.staffName !== null && AUTO_NAMES.has(e.staffName))
-        .map((e) => e.id)
+      const autoIds = existing.filter((e) => isAutoRow(e.staffName)).map((e) => e.id)
 
       const inserts: {
         venue: Venue
@@ -195,26 +144,20 @@ export async function GET(request: NextRequest) {
         const sold = soldByProduct.get(pid) ?? 0
         const discarded = wasteByProduct.get(pid) ?? 0
         const prepared = sold + discarded
-        if (prepared === 0) continue
+        if (prepared <= 0) continue // guards negative POS net-return days too
         const props = splitByVenueProduct.get(`${venue}|${pid}`) ?? DEFAULT_SPLIT
-        const prepSplit = splitAcrossBakes(prepared, props)
-        // Waste is discovered at close, so the entire discard sits on the
-        // last bake that actually produced; sold = prepared − discarded on
-        // that bake, prepared elsewhere. Keeps every row internally
-        // consistent (prepared = sold + discarded) with no rounding drift.
-        const lastIdx = prepSplit.reduce((last, v, i) => (v > 0 ? i : last), 0)
+        const rows = buildBakeRows(prepared, discarded, props)
         for (let bi = 0; bi < BAKES.length; bi++) {
-          if (prepSplit[bi] === 0) continue
+          if (rows[bi].prepared === 0) continue
           if (humanCells.has(`${pid}|${BAKES[bi]}`)) continue
-          const rowDiscard = bi === lastIdx ? Math.min(discarded, prepSplit[bi]) : 0
           inserts.push({
             venue,
             entryDate,
             bakeTime: BAKES[bi],
             productId: pid,
-            prepared: prepSplit[bi],
-            sold: prepSplit[bi] - rowDiscard,
-            discarded: rowDiscard,
+            prepared: rows[bi].prepared,
+            sold: rows[bi].sold,
+            discarded: rows[bi].discarded,
             staffName: "auto",
           })
         }

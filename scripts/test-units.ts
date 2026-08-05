@@ -55,4 +55,34 @@ eq("effective price agree", effectiveUnitPrice(7.1, 2, 14.2), 7.1)
 eq("effective price credit", effectiveUnitPrice(11.2, 12, -134.4), 11.2)
 eq("effective price zero total", effectiveUnitPrice(6.95, 11, 0), 6.95)
 
+// ── pastry auto-fill logic (2026-08-05 scan fixes) ──────────────────────
+import { matchProduct, buildBakeRows, isHumanRow, isAutoRow } from "../src/lib/pastry-rotation-sync"
+eq("berry: blueberry not strawberry", matchProduct("Tarte - Blueberry"), "Blueberry tarte")
+eq("berry: raspberry not strawberry", matchProduct("Tarte - Raspberry"), "Raspberry tarte")
+eq("berry: strawberry", matchProduct("Tarte - Strawberry"), "Strawberry tarte")
+eq("berry: generic berry -> strawberry", matchProduct("Tartes - Berry"), "Strawberry tarte")
+eq("croissant almond skipped", matchProduct("Croissant - Almond"), null)
+eq("croissant plain", matchProduct("Croissant - Plain"), "Plain croissant")
+eq("crueller cinnamon skipped", matchProduct("Crueller - Cinnamon"), null)
+eq("crueller dulche", matchProduct("Crueller - Dulche"), "Dulce crueller")
+eq("cheesecake variants", matchProduct("Ricotta Cheesecake - Slice GF"), "Cheesecake")
+eq("sourdough skipped", matchProduct("Sourdough Starter"), null)
+// heavy-waste day: sold 2, discarded 10 -> discard fills backwards, totals reconcile
+{
+  const rows = buildBakeRows(12, 10, [0.6, 0.3, 0.1])
+  eq("heavy waste prepared", rows.map(r => r.prepared), [7, 4, 1])
+  eq("heavy waste discarded total", rows.reduce((s, r) => s + r.discarded, 0), 10)
+  eq("heavy waste sold total", rows.reduce((s, r) => s + r.sold, 0), 2)
+  eq("heavy waste rows reconcile", rows.every(r => r.prepared === r.sold + r.discarded), true)
+}
+// normal sell-out day
+{
+  const rows = buildBakeRows(20, 0, [0.6, 0.3, 0.1])
+  eq("sellout sold", rows.map(r => r.sold), [12, 6, 2])
+}
+// null staffName is protected human
+eq("null staff is human", isHumanRow(null), true)
+eq("auto is auto", isAutoRow("auto"), true)
+eq("real name is human", isHumanRow("Georgia"), true)
+
 process.exit(fails ? 1 : 0)
