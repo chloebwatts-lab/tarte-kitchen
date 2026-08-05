@@ -269,7 +269,9 @@ async function insertCooling(client: import("pg").PoolClient, venue: string, dat
   const startTemp = round1(sLo + r() * (sHi - sLo))
   let twoHour = round1(15 + r() * 5.5)
   let sixHour = round1(2.6 + r() * 2.2)
-  const fridge = round1(1.2 + r() * 2.0)
+  // Food approaches fridge temp from ABOVE — the 6 h reading can never sit
+  // below the fridge readout (Chloe caught a 2.6° chicken in a 3° fridge).
+  const fridge = round1(Math.max(0.8, Math.min(1.2 + r() * 2.0, sixHour - 0.4)))
   let notes: string | null =
     ("fixedNote" in item && item.fixedNote)
       ? item.fixedNote

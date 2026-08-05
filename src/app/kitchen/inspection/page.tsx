@@ -670,13 +670,23 @@ function DayBlock({
       )}
 
       {pastry.length > 0 && (
-        <div>
-          <div
-            className="tk-caps mb-2"
-            style={{ color: "var(--tk-ink-mute)", fontSize: 11 }}
-          >
-            Pastry rotation
-          </div>
+        <details className="group/pastry print:[&[open]]:block">
+          <summary className="mb-2 flex cursor-pointer list-none flex-wrap items-baseline gap-x-3 [&::-webkit-details-marker]:hidden">
+            <span
+              className="tk-caps"
+              style={{ color: "var(--tk-ink-mute)", fontSize: 11 }}
+            >
+              Pastry rotation
+            </span>
+            <span className="text-[13px] tabular-nums text-[var(--tk-ink-soft)]">
+              {pastry.reduce((s, p) => s + p.prepared, 0)} baked ·{" "}
+              {pastry.reduce((s, p) => s + p.sold, 0)} sold ·{" "}
+              {pastry.reduce((s, p) => s + p.discarded, 0)} discarded
+              <span className="ml-2 text-[var(--tk-ink-mute)] group-open/pastry:hidden">
+                tap for line detail
+              </span>
+            </span>
+          </summary>
           <div className="overflow-hidden rounded-[12px] border border-[var(--tk-line)] bg-white print:border-black">
             <table className="w-full text-[13px]">
               <thead>
@@ -736,7 +746,7 @@ function DayBlock({
               </tbody>
             </table>
           </div>
-        </div>
+        </details>
       )}
     </section>
   )
