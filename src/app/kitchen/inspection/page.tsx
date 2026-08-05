@@ -12,6 +12,7 @@ import {
 } from "@/lib/actions/pastry-rotation"
 import { BAKE_LABEL } from "@/lib/pastry-rotation-constants"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { RefreshOnResume } from "@/components/kitchen/RefreshOnResume"
 import { InspectionPrintButton } from "@/components/kitchen/InspectionPrintButton"
 import { InspectionChecklistCard } from "@/components/kitchen/InspectionChecklistCard"
 import { VENUE_LABEL, SINGLE_VENUES } from "@/lib/venues"
@@ -26,8 +27,8 @@ function isVenue(v: string | null): v is SingleVenue {
 
 const RANGE_OPTIONS: { value: number; label: string }[] = [
   { value: 7, label: "7 days" },
+  { value: 14, label: "14 days" },
   { value: 30, label: "30 days" },
-  { value: 90, label: "90 days" },
 ]
 
 function formatAest(d: Date | string, opts: Intl.DateTimeFormatOptions = {}) {
@@ -38,7 +39,13 @@ function formatAest(d: Date | string, opts: Intl.DateTimeFormatOptions = {}) {
 }
 
 function dayKey(d: Date | string) {
-  return formatAest(d, { year: "numeric", month: "2-digit", day: "2-digit" })
+  // ISO yyyy-mm-dd (en-CA) so the descending sort is chronological. The
+  // previous dd/mm/yyyy key sorted as a STRING: "31/07" ranked above
+  // "05/08", so once the month ticked over every August day sank below
+  // late July — the whole view looked like it ended on the 31st.
+  return new Date(d).toLocaleDateString("en-CA", {
+    timeZone: "Australia/Brisbane",
+  })
 }
 
 export default async function InspectionPage({
@@ -56,10 +63,10 @@ export default async function InspectionPage({
   const rangeDays =
     typeof sp.days === "string" && /^\d+$/.test(sp.days)
       ? Math.min(365, Number(sp.days))
-      : 30
+      : 14
   const fromDate = new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000)
 
-  const [coolingLogs, pastryRows, checklistRuns] = await Promise.all([
+  const [coolingLogs, pastryRows, checklistRuns, councilDocs] = await Promise.all([
     listCoolingLogsForInspection({ venue: venueFilter, fromDate }),
     listPastryRotationForInspection({ venue: venueFilter, fromDate }),
     db.checklistRun.findMany({
@@ -85,6 +92,19 @@ export default async function InspectionPage({
       },
       orderBy: [{ runDate: "desc" }, { createdAt: "desc" }],
       take: 500,
+    }),
+    // Licence + FSS evidence so the inspector sees them HERE, not only in
+    // the council folder.
+    db.councilDocument.findMany({
+      where: {
+        type: { in: ["FOOD_BUSINESS_LICENCE", "FSS_CERTIFICATE", "FSS_NOTIFICATION"] },
+        ...(venueFilter !== "ALL" ? { venue: venueFilter as Venue } : {}),
+      },
+      select: {
+        id: true, venue: true, type: true, title: true, description: true,
+        issuedOn: true, expiresOn: true,
+      },
+      orderBy: [{ type: "asc" }, { title: "asc" }],
     }),
   ])
 
@@ -124,6 +144,26 @@ export default async function InspectionPage({
     b[0].localeCompare(a[0])
   )
 
+  // ── at-a-glance summary numbers ───────────────────────────────────────
+  const todayKey = dayKey(new Date())
+  const latestChecklist = checklistRuns[0]?.runDate ?? null
+  const latestCooling = coolingLogs.reduce<Date | null>(
+    (m, c) => (!m || new Date(c.startedAt) > m ? new Date(c.startedAt) : m),
+    null
+  )
+  const latestPastry = pastryRows.reduce<string | null>(
+    (m, p) => (!m || p.date > m ? p.date : m),
+    null
+  )
+  const pastryDiscarded = pastryRows.reduce((s, p) => s + p.discarded, 0)
+  const flaggedItems = checklistRuns.reduce(
+    (s, r) => s + r.items.filter((i) => i.note && !/^(ok|in range|done|complete|checked|clear|frozen solid|within range|in date)/i.test(i.note)).length,
+    0
+  )
+  const checklistCurrent = latestChecklist ? dayKey(latestChecklist) === todayKey : false
+  const licenceDocs = councilDocs.filter((d) => d.type === "FOOD_BUSINESS_LICENCE")
+  const fssDocs = councilDocs.filter((d) => d.type !== "FOOD_BUSINESS_LICENCE")
+
   const venueLabel =
     venueFilter === "ALL"
       ? "All venues"
@@ -134,6 +174,7 @@ export default async function InspectionPage({
     venueFilter === "ALL" ? "/kitchen" : `/kitchen?venue=${venueFilter}`
   return (
     <div className="space-y-6">
+      <RefreshOnResume />
       <div className="flex items-center justify-between gap-4 print:hidden">
         <div className="min-w-0 flex-1">
           <KitchenBreadcrumb
@@ -157,10 +198,108 @@ export default async function InspectionPage({
           Inspection view
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
-          Read-only record of food safety activity. Hand the iPad to the
-          inspector or hit print for a paper copy.
+          Read-only record of food safety activity. Hand the iPad or phone to
+          the inspector — the summary tells the story, each day expands for
+          detail.
         </p>
       </div>
+
+      {/* Documents & FSS — the folder the EHO asks for first */}
+      <Link
+        href={
+          venueFilter === "ALL" ? "/council" : `/council/${venueFilter}`
+        }
+        className="flex items-center justify-between gap-4 rounded-[16px] border border-[var(--tk-line)] bg-[var(--tk-charcoal)] px-5 py-4 text-white transition active:scale-[0.995] print:hidden"
+      >
+        <div>
+          <div className="text-[17px] font-semibold leading-tight">
+            Council documents folder
+          </div>
+          <div className="mt-0.5 text-[13px] leading-snug text-white/70">
+            Licence, FSS certificates, pest control, training, calibration —
+            all printable.
+          </div>
+        </div>
+        <span className="shrink-0 rounded-full bg-white/15 px-3.5 py-1.5 text-[13px] font-semibold">
+          Open →
+        </span>
+      </Link>
+
+      {/* At-a-glance summary */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <SummaryTile
+          label="Checklists"
+          value={String(checklistRuns.length)}
+          note={
+            latestChecklist
+              ? `latest ${formatAest(latestChecklist, { day: "numeric", month: "short" })}${checklistCurrent ? " · today" : ""}`
+              : "no records in range"
+          }
+          ok={checklistCurrent}
+        />
+        <SummaryTile
+          label="Cooling logs"
+          value={String(coolingLogs.length)}
+          note={
+            latestCooling
+              ? `latest ${formatAest(latestCooling, { day: "numeric", month: "short" })}`
+              : "no records in range"
+          }
+          ok={latestCooling !== null}
+        />
+        <SummaryTile
+          label="Pastry entries"
+          value={String(pastryRows.length)}
+          note={
+            latestPastry
+              ? `latest ${formatAest(`${latestPastry}T00:00:00`, { day: "numeric", month: "short" })} · ${pastryDiscarded} discarded`
+              : "no records in range"
+          }
+          ok={latestPastry !== null}
+        />
+        <SummaryTile
+          label="Corrective notes"
+          value={String(flaggedItems)}
+          note={`in last ${rangeDays} days`}
+          ok={true}
+        />
+      </div>
+
+      {/* Licence + FSS evidence inline */}
+      {(licenceDocs.length > 0 || fssDocs.length > 0) && (
+        <div className="rounded-[16px] border border-[var(--tk-line)] bg-white px-5 py-4">
+          <div
+            className="tk-caps mb-3"
+            style={{ color: "var(--tk-ink-mute)", fontSize: 11 }}
+          >
+            Licence &amp; Food Safety Supervisors
+          </div>
+          <ul className="space-y-2">
+            {[...licenceDocs, ...fssDocs].map((d) => (
+              <li key={d.id} className="flex flex-wrap items-baseline gap-x-2 text-[14px]">
+                <a
+                  href={`/api/council/document/${d.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-[var(--tk-charcoal)] underline decoration-[var(--tk-line)] underline-offset-2"
+                >
+                  {d.title}
+                </a>
+                {d.expiresOn && (
+                  <span className="text-[12px] text-[var(--tk-ink-soft)]">
+                    valid to {formatAest(d.expiresOn, { day: "numeric", month: "short", year: "numeric" })}
+                  </span>
+                )}
+                {venueFilter === "ALL" && (
+                  <span className="text-[12px] text-[var(--tk-ink-mute)]">
+                    {VENUE_LABEL[d.venue as SingleVenue] ?? d.venue}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2 print:hidden">
         <FilterGroup label="Venue">
@@ -207,17 +346,77 @@ export default async function InspectionPage({
           No records in this range.
         </div>
       ) : (
-        orderedDays.map(([key, d]) => (
-          <DayBlock
+        orderedDays.map(([key, d], idx) => (
+          <details
             key={key}
-            label={d.label}
-            cooling={d.cooling}
-            runs={d.runs}
-            pastry={d.pastry}
-            showVenue={venueFilter === "ALL"}
-          />
+            open={idx === 0}
+            className="group rounded-[16px] border border-[var(--tk-line)] bg-white print:border-0 print:[&[open]]:block"
+          >
+            <summary
+              className="flex cursor-pointer list-none flex-wrap items-baseline justify-between gap-2 px-5 py-4 [&::-webkit-details-marker]:hidden"
+            >
+              <span
+                className="tk-display leading-none text-[var(--tk-charcoal)]"
+                style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em" }}
+              >
+                {d.label}
+              </span>
+              <span className="text-[13px] tabular-nums text-[var(--tk-ink-soft)]">
+                {d.runs.length} checklists · {d.cooling.length} cooling ·{" "}
+                {d.pastry.length} pastry
+                <span className="ml-2 text-[var(--tk-ink-mute)] transition group-open:hidden">
+                  tap to expand
+                </span>
+              </span>
+            </summary>
+            <div className="border-t border-[var(--tk-line)] px-5 py-4">
+              <DayBlock
+                label=""
+                cooling={d.cooling}
+                runs={d.runs}
+                pastry={d.pastry}
+                showVenue={venueFilter === "ALL"}
+              />
+            </div>
+          </details>
         ))
       )}
+    </div>
+  )
+}
+
+function SummaryTile({
+  label,
+  value,
+  note,
+  ok,
+}: {
+  label: string
+  value: string
+  note: string
+  ok: boolean
+}) {
+  return (
+    <div className="rounded-[16px] border border-[var(--tk-line)] bg-white px-4 py-3">
+      <div
+        className="tk-caps"
+        style={{ color: "var(--tk-ink-mute)", fontSize: 11 }}
+      >
+        {label}
+      </div>
+      <div
+        className="tk-display mt-1 leading-none tabular-nums"
+        style={{
+          fontSize: 28,
+          fontWeight: 700,
+          color: ok ? "var(--tk-charcoal)" : "var(--tk-warn)",
+        }}
+      >
+        {value}
+      </div>
+      <div className="mt-1 text-[12px] leading-snug text-[var(--tk-ink-soft)]">
+        {note}
+      </div>
     </div>
   )
 }
@@ -299,12 +498,14 @@ function DayBlock({
 }) {
   return (
     <section className="space-y-3">
-      <div
-        className="tk-display border-b border-[var(--tk-line)] pb-2 leading-none text-[var(--tk-charcoal)] print:border-black"
-        style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}
-      >
-        {label}
-      </div>
+      {label !== "" && (
+        <div
+          className="tk-display border-b border-[var(--tk-line)] pb-2 leading-none text-[var(--tk-charcoal)] print:border-black"
+          style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}
+        >
+          {label}
+        </div>
+      )}
 
       {cooling.length > 0 && (
         <div>

@@ -17,6 +17,7 @@ import {
   ArrowLeft,
 } from "lucide-react"
 import { db } from "@/lib/db"
+import { isCouncilAuthed } from "@/lib/council-auth"
 import { CouncilDocumentType, Venue } from "@/generated/prisma/enums"
 import { SINGLE_VENUES, VENUE_LABEL } from "@/lib/venues"
 import { UploadDocumentDialog } from "@/components/council/upload-document-dialog"
@@ -186,6 +187,7 @@ export default async function CouncilVenuePage({
   if (!isSingleVenue(venueParam)) notFound()
   const venue: Venue = venueParam
 
+  const canManage = await isCouncilAuthed()
   const [docs, recentCooling, recentChecklists, dishesCount, trainingRecords] = await Promise.all([
     db.councilDocument.findMany({
       where: { venue },
@@ -230,7 +232,7 @@ export default async function CouncilVenuePage({
         <PrintButton />
       </div>
 
-      <header className="mb-6">
+      <header className="mb-4">
         <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-sage-soft px-3 py-1 text-xs font-medium text-sage-deep">
           <ShieldCheck className="h-3.5 w-3.5" />
           GCCC Inspection Folder
@@ -243,6 +245,42 @@ export default async function CouncilVenuePage({
           paper pack.
         </p>
       </header>
+
+      {/* Venue switcher + section jump nav — sticky so you can move between
+          sections without scrolling back up. */}
+      <nav className="sticky top-0 z-10 -mx-4 mb-6 border-b border-border bg-background/95 px-4 py-2 backdrop-blur print:hidden sm:-mx-6 sm:px-6">
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          {SINGLE_VENUES.map((v) => (
+            <Link
+              key={v}
+              href={`/council/${v}`}
+              className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
+                v === venue
+                  ? "bg-foreground text-background"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {VENUE_LABEL[v].replace(/\s*\(.*\)$/, "")}
+            </Link>
+          ))}
+          <span className="mx-1 shrink-0 self-center text-border">|</span>
+          {SECTION_ORDER.map((s) => (
+            <a
+              key={s.key}
+              href={`#${s.key}`}
+              className="shrink-0 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-foreground hover:text-background"
+            >
+              {s.title}
+            </a>
+          ))}
+          <a
+            href={`/kitchen/inspection?venue=${venue}`}
+            className="shrink-0 rounded-full bg-sage-soft px-3 py-1 text-xs font-semibold text-sage-deep"
+          >
+            Live records →
+          </a>
+        </div>
+      </nav>
 
       {/* Live data shortcuts */}
       <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 print:hidden">
@@ -281,7 +319,8 @@ export default async function CouncilVenuePage({
           return (
             <section
               key={s.key}
-              className="rounded-xl border border-border bg-card p-5 shadow-sm print:break-inside-avoid"
+              id={s.key}
+              className="scroll-mt-16 rounded-xl border border-border bg-card p-5 shadow-sm print:break-inside-avoid"
             >
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
@@ -299,7 +338,7 @@ export default async function CouncilVenuePage({
                   </div>
                 </div>
                 <div className="shrink-0 print:hidden">
-                  <UploadDocumentDialog venue={venue} types={s.types} />
+                  {canManage && <UploadDocumentDialog venue={venue} types={s.types} />}
                 </div>
               </div>
 
@@ -363,7 +402,7 @@ export default async function CouncilVenuePage({
                           </p>
                         </div>
                         <div className="shrink-0 print:hidden">
-                          <DeleteDocumentButton id={d.id} title={d.title} />
+                          {canManage && <DeleteDocumentButton id={d.id} title={d.title} />}
                         </div>
                       </li>
                     )
