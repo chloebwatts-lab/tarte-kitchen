@@ -35,10 +35,13 @@ export function matchProduct(raw: string): string | null {
   if (/crueller|cruller/.test(n)) {
     if (/vanilla/.test(n)) return "Vanilla crueller"
     if (/dul/.test(n)) return "Dulce crueller"
-    return null // cinnamon / generic, not tracked products
+    if (/cinnamon/.test(n)) return "Cinnamon crueller"
+    return null // generic "Cruellers" — flavour unknown, skip
   }
   if (/croissant/.test(n)) {
-    if (/almond|chocolate|choc|ham|cheese/.test(n)) return null
+    if (/almond/.test(n)) return "Almond croissant"
+    if (/chocolate|choc\b/.test(n)) return "Chocolate croissant"
+    if (/ham|cheese/.test(n)) return null
     return "Plain croissant"
   }
   if (/scroll/.test(n) && /cinnamon/.test(n)) return "Cinnamon scroll"
