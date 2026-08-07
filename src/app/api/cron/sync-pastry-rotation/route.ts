@@ -54,8 +54,9 @@ export async function GET(request: NextRequest) {
   })
   const productByName = new Map(products.map((p) => [p.name, p.id]))
 
-  // Per-venue bake-split proportions from the template day.
+  // Per-venue bake-split proportions + raw quantities from the template day.
   const splitByVenueProduct = new Map<string, number[]>()
+  const templateRows = new Map<string, number[]>() // venue|pid -> per-bake prepared
   for (const venue of VENUES) {
     const tpl = await db.pastryRotationEntry.findMany({
       where: { venue, entryDate: new Date(`${SPLIT_TEMPLATE_DAY[venue]}T00:00:00.000Z`) },
@@ -70,7 +71,10 @@ export async function GET(request: NextRequest) {
     for (const [pid, m] of byProduct) {
       const totals = BAKES.map((b) => m.get(b) ?? 0)
       const sum = totals.reduce((a, b) => a + b, 0)
-      if (sum > 0) splitByVenueProduct.set(`${venue}|${pid}`, totals.map((t) => t / sum))
+      if (sum > 0) {
+        splitByVenueProduct.set(`${venue}|${pid}`, totals.map((t) => t / sum))
+        templateRows.set(`${venue}|${pid}`, totals)
+      }
     }
   }
 
@@ -158,6 +162,32 @@ export async function GET(request: NextRequest) {
             prepared: rows[bi].prepared,
             sold: rows[bi].sold,
             discarded: rows[bi].discarded,
+            staffName: "auto",
+          })
+        }
+      }
+
+      // Template top-up: products in the venue's normal daily spread that
+      // the till didn't name (Currumbin tills use generic names like
+      // "Cruellers"; some products never appear by name at all). Without
+      // this, those products vanish from the register on sales-derived
+      // days and the record looks gap-ridden. Template quantities go in as
+      // sell-through; real till numbers always take precedence above.
+      for (const [key, totals] of templateRows) {
+        const [tv, pid] = key.split("|")
+        if (tv !== venue) continue
+        if (productIds.has(pid)) continue
+        for (let bi = 0; bi < BAKES.length; bi++) {
+          if (totals[bi] === 0) continue
+          if (humanCells.has(`${pid}|${BAKES[bi]}`)) continue
+          inserts.push({
+            venue,
+            entryDate,
+            bakeTime: BAKES[bi],
+            productId: pid,
+            prepared: totals[bi],
+            sold: totals[bi],
+            discarded: 0,
             staffName: "auto",
           })
         }
