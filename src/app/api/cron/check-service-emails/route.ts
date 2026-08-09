@@ -195,6 +195,28 @@ export async function GET(request: Request) {
               programs.push(program)
             }
 
+            // Same-event guard: the one invoice often arrives several
+            // times (Xero copy + provider's own email, then reminders and
+            // forwards). Same program + kind within 3 days with the same
+            // cost (or no cost recorded) is the same visit, skip it.
+            const windowStart = new Date(`${visit.serviceDate}T00:00:00`)
+            windowStart.setDate(windowStart.getDate() - 3)
+            const windowEnd = new Date(`${visit.serviceDate}T00:00:00`)
+            windowEnd.setDate(windowEnd.getDate() + 3)
+            const costCents =
+              visit.totalExGst != null ? Math.round(visit.totalExGst * 100) : null
+            const dupe = await db.serviceVisit.findFirst({
+              where: {
+                programId: program.id,
+                kind: visit.kind,
+                serviceDate: { gte: windowStart, lte: windowEnd },
+                ...(costCents != null
+                  ? { OR: [{ costCents }, { costCents: null }] }
+                  : {}),
+              },
+            })
+            if (dupe) continue
+
             await db.serviceVisit.upsert({
               where: {
                 programId_gmailMessageId: { programId: program.id, gmailMessageId: id },
@@ -205,8 +227,7 @@ export async function GET(request: Request) {
                 kind: visit.kind,
                 serviceDate: new Date(`${visit.serviceDate}T00:00:00`),
                 providerName: visit.providerName,
-                costCents:
-                  visit.totalExGst != null ? Math.round(visit.totalExGst * 100) : null,
+                costCents,
                 source: "EMAIL",
                 needsReview: true,
                 gmailMessageId: id,
