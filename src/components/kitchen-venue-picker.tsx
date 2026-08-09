@@ -75,7 +75,7 @@ export function KitchenVenuePicker() {
       {/* hero */}
       <div className="px-8 pt-8 pb-5 text-center md:px-12 md:pt-24 md:pb-6">
         <h1
-          className="tk-display mx-auto leading-none text-white"
+          className="tk-display tk-hero-keep mx-auto leading-none text-white"
           style={{
             fontSize: "clamp(44px, 9vw, 96px)",
             fontWeight: 600,

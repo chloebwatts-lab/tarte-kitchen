@@ -355,7 +355,7 @@ export function KitchenRunView({
         {visibleItems.map((item) => (
           <div key={item.id}>
             <KitchenChecklistRow
-              label={item.label}
+              label={stripContextPrefix(item.label)}
               instructions={item.instructions}
               requireTemp={item.requireTemp}
               requireNote={item.requireNote}

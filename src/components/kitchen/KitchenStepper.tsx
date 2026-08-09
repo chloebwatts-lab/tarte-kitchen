@@ -12,10 +12,21 @@ export function KitchenStepper({
       className="flex items-center gap-1.5 overflow-hidden whitespace-nowrap tk-caps md:gap-2.5"
       style={{ color: "var(--tk-ink-mute)", letterSpacing: "0.06em" }}
     >
+      {/* Phones: the full trail doesn't fit, so show where you are. */}
+      <span className="md:hidden">
+        Step {currentStep} of {STEPS.length}
+        {" · "}
+        <span style={{ color: "var(--tk-charcoal)" }}>
+          {STEPS[currentStep - 1].replace(/^\d+\.\s*/, "")}
+        </span>
+      </span>
       {STEPS.map((label, i) => {
         const active = i + 1 === currentStep
         return (
-          <span key={label} className="flex shrink-0 items-center gap-1.5 md:gap-2.5">
+          <span
+            key={label}
+            className="hidden shrink-0 items-center gap-1.5 md:flex md:gap-2.5"
+          >
             <span
               className={cn(active && "")}
               style={{ color: active ? "var(--tk-charcoal)" : undefined }}

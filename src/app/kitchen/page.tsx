@@ -167,7 +167,7 @@ function TemplateRow({
   return (
     <Link
       href={href}
-      className="group flex min-h-[88px] items-center gap-5 rounded-[16px] border border-[var(--tk-line)] bg-white px-5 py-4 transition active:scale-[0.997]"
+      className="group flex min-h-[76px] items-center gap-3.5 rounded-[16px] border border-[var(--tk-line)] bg-white px-4 py-4 transition active:scale-[0.997] sm:min-h-[88px] sm:gap-5 sm:px-5"
     >
       <ProgressRing pct={pct} color={ringColor} />
       <div className="min-w-0 flex-1">
@@ -193,7 +193,7 @@ function TemplateRow({
         </div>
         <div className="mt-1 text-[12px] text-[var(--tk-ink-soft)]">items</div>
       </div>
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--tk-bg)] text-[var(--tk-ink-soft)] transition group-hover:bg-[var(--tk-charcoal)] group-hover:text-white">
+      <div className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--tk-bg)] text-[var(--tk-ink-soft)] transition group-hover:bg-[var(--tk-charcoal)] group-hover:text-white sm:flex">
         <ArrowRight className="h-[18px] w-[18px]" />
       </div>
     </Link>
@@ -230,7 +230,7 @@ function DepartmentRow({
   return (
     <Link
       href={`/kitchen?venue=${venue}&category=${category}&department=${encodeURIComponent(name)}`}
-      className="group flex min-h-[88px] items-center gap-5 rounded-[16px] border border-[var(--tk-line)] bg-white px-5 py-4 transition active:scale-[0.997]"
+      className="group flex min-h-[76px] items-center gap-3.5 rounded-[16px] border border-[var(--tk-line)] bg-white px-4 py-4 transition active:scale-[0.997] sm:min-h-[88px] sm:gap-5 sm:px-5"
     >
       <ProgressRing pct={pct} color={ringColor} />
       <div className="min-w-0 flex-1">
@@ -256,7 +256,7 @@ function DepartmentRow({
         </div>
         <div className="mt-1 text-[12px] text-[var(--tk-ink-soft)]">done</div>
       </div>
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--tk-bg)] text-[var(--tk-ink-soft)] transition group-hover:bg-[var(--tk-charcoal)] group-hover:text-white">
+      <div className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--tk-bg)] text-[var(--tk-ink-soft)] transition group-hover:bg-[var(--tk-charcoal)] group-hover:text-white sm:flex">
         <ArrowRight className="h-[18px] w-[18px]" />
       </div>
     </Link>
