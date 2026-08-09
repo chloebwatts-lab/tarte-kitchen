@@ -92,7 +92,9 @@ export async function GET(request: Request) {
       const q1 = `from:(${providerEmails.join(" OR ")}) newer_than:${windowDays}d`
       for (const m of await searchMessages(accessToken, q1, 500)) candidates.set(m.id, m)
     }
-    const q2 = `(${SERVICE_SEARCH_PHRASES.join(" OR ")}) newer_than:${windowDays}d`
+    // -from:accounts@ keeps our own app's emails (checklist nudges,
+    // digests, which mention "deep clean" etc.) out of the sweep.
+    const q2 = `(${SERVICE_SEARCH_PHRASES.join(" OR ")}) -from:accounts@tarte.com.au newer_than:${windowDays}d`
     for (const m of await searchMessages(accessToken, q2, 500)) candidates.set(m.id, m)
 
     // Skip anything already classified.
