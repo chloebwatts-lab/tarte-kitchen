@@ -161,6 +161,11 @@ services:
         # so this fires at most ~once per list per cycle. Low-noise successor
         # to the two paused checklist crons above. Sends to chloe@.
         0 5 * * * curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/checklist-cycle-alerts 2>&1
+        # 07:30 AEST (21:30 UTC) — service-calendar email sweep: grease
+        # trap / pest / canopy / fire etc. invoices + booking emails in
+        # accounts@ → ServiceVisit rows (needsReview) on /services. Each
+        # message is Claude-classified at most once (ServiceEmailSeen).
+        30 21 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/check-service-emails 2>&1
         # 08:00 AEST (22:00 UTC) — pull Google reviews, Claude-tag, draft
         # replies + email Chloe once per day. Was hourly back when Places
         # API capped each fetch at 5 reviews/venue — but GBP returns ALL

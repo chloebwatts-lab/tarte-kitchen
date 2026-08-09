@@ -38,5 +38,6 @@ export const config = {
     "/labour/:path*",
     "/maintenance/:path*",
     "/commitments/:path*",
+    "/services/:path*",
   ],
 }

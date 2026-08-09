@@ -2076,3 +2076,109 @@ model CommitmentWeekPhoto {
 
   @@index([weekStart])
 }
+
+// ============================================================
+// SERVICE CALENDAR — recurring venue services (grease trap
+// pump-outs, pest control, canopy/flue cleans, fire equipment
+// inspections, deep cleans...). Programs define what happens and
+// how often per venue; visits record when it happened or when
+// it's booked. Visits are auto-detected from service invoices and
+// booking emails in accounts@ (cron check-service-emails) and
+// reviewed on the admin /services page. Staff view + mark-done at
+// /kitchen/services.
+// ============================================================
+
+enum ServiceVisitKind {
+  /// The service happened (invoice / service report / docket).
+  COMPLETED
+  /// A future (or missed) booking.
+  BOOKED
+}
+
+enum ServiceVisitSource {
+  /// Auto-detected from accounts@ Gmail by check-service-emails.
+  EMAIL
+  /// Entered on the admin page or marked done by staff.
+  MANUAL
+}
+
+/// One recurring service at one venue ("Pest control — Burleigh").
+/// Category slugs + default cadences live in
+/// src/lib/services/constants.ts.
+model ServiceProgram {
+  id    String @id @default(cuid())
+  venue Venue
+  /// Category slug: grease-trap | pest-control | exhaust-clean |
+  /// hood-filters | fire-safety | deep-clean | test-and-tag |
+  /// backflow | coffee-machine | air-con | first-aid | other
+  category String
+  /// Optional label override, mainly for `other` programs or a second
+  /// program of the same category at one venue.
+  label String?
+
+  providerName  String?
+  providerPhone String?
+  /// Sender addresses or domains that identify this provider in Gmail
+  /// ("info@allpest.com.au", "cleanawaste.com.au") — used by the
+  /// check-service-emails cron to target its search.
+  providerEmails String[] @default([])
+
+  /// Expected days between visits; drives "next due" when there is no
+  /// future booking. Null = ad-hoc, no due-date tracking.
+  intervalDays Int?
+  notes        String?
+  active       Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  visits ServiceVisit[]
+
+  @@index([venue, active])
+}
+
+/// One service happening: done or booked.
+model ServiceVisit {
+  id        String         @id @default(cuid())
+  programId String
+  program   ServiceProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  kind      ServiceVisitKind
+  /// Day the service happened (COMPLETED) or is scheduled (BOOKED).
+  serviceDate DateTime @db.Date
+
+  providerName String?
+  /// Ex-GST when the source document shows it, else as-written.
+  costCents Int?
+
+  source ServiceVisitSource @default(MANUAL)
+  /// Email-detected rows start true; cleared when Chloe confirms or
+  /// edits them on /services. Unconfirmed rows still show on the staff
+  /// calendar (marked), being roughly right beats being blank.
+  needsReview Boolean @default(false)
+  /// Gmail message this row was detected from. Unique per program so a
+  /// re-scan of the same email can't duplicate the visit, but one email
+  /// covering both venues can create one visit per venue.
+  gmailMessageId String?
+  emailSubject   String?
+
+  /// Typed staff name for kiosk mark-done rows.
+  recordedBy String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([programId, gmailMessageId])
+  @@index([programId, serviceDate])
+  @@index([needsReview])
+}
+
+/// Messages the service-email sweep has already classified, including
+/// "not a service email" verdicts, so each Gmail message costs one
+/// Claude call ever, not one per sweep.
+model ServiceEmailSeen {
+  id             String   @id @default(cuid())
+  gmailMessageId String   @unique
+  /// created | no-service | error
+  outcome String
+  detail  String?
+  createdAt DateTime @default(now())
+}

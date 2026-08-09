@@ -31,6 +31,7 @@ import {
   PackageOpen,
   Wrench,
   Handshake,
+  CalendarCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -67,6 +68,7 @@ const navGroups: NavGroup[] = [
       { label: "Stocktake", href: "/stocktake", icon: Boxes },
       { label: "Wastage", href: "/wastage", icon: Trash2 },
       { label: "Maintenance", href: "/maintenance", icon: Wrench },
+      { label: "Services", href: "/services", icon: CalendarCheck },
       { label: "Commitments", href: "/commitments", icon: Handshake },
     ],
   },

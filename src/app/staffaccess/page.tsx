@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import Link from "next/link"
 import {
   ArrowRight,
+  CalendarCheck,
   ClipboardCheck,
   ClipboardList,
   Croissant,
@@ -26,6 +27,7 @@ const TOOLS: Array<{
 }> = [
   { title: "Checklists", sub: "Cleaning & food safety, per venue", href: "/kitchen", icon: ClipboardCheck },
   { title: "Something broken?", sub: "Quick fixes, who to call, warranty", href: "/kitchen/fix", icon: Wrench },
+  { title: "Service calendar", sub: "Grease trap, pest, fire checks: done & due", href: "/kitchen/services", icon: CalendarCheck },
   { title: "Wastage log", sub: "Log anything binned, as it happens", href: "/log", icon: Trash2 },
   { title: "Restock & prep counts", sub: "Evening counts, morning restock run", href: "/kitchen/restock", icon: PackageOpen },
   { title: "Prep walk-through", sub: "Tomorrow's prep, one tap at a time", href: "/kitchen/prep", icon: ClipboardList },

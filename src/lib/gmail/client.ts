@@ -170,6 +170,45 @@ export function extractPdfAttachments(message: GmailMessage): PdfAttachmentInfo[
   return attachments
 }
 
+function decodeBody(data: string): string {
+  return Buffer.from(data.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8")
+}
+
+/**
+ * Plain-text body of a message: prefers text/plain parts, falls back to
+ * text/html with tags stripped. Used by the service-email sweep, booking
+ * confirmations usually carry their detail in the body, not a PDF.
+ */
+export function extractPlainTextBody(message: GmailMessage): string {
+  const plain: string[] = []
+  const html: string[] = []
+
+  function walk(part: GmailMessagePart) {
+    if (part.body?.data) {
+      if (part.mimeType === "text/plain") plain.push(decodeBody(part.body.data))
+      else if (part.mimeType === "text/html") html.push(decodeBody(part.body.data))
+    }
+    for (const p of part.parts ?? []) walk(p)
+  }
+  walk(message.payload)
+
+  if (plain.length) return plain.join("\n").trim()
+  const stripped = html
+    .join("\n")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<br\s*\/?>(\n)?/gi, "\n")
+    .replace(/<\/(p|div|tr|li|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+  return stripped.trim()
+}
+
 export function extractSenderEmail(message: GmailMessage): string | null {
   const from = getHeader(message, "From")
   if (!from) return null
