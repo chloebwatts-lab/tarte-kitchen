@@ -39,6 +39,11 @@ services:
       GMAIL_CLIENT_ID: ${GMAIL_CLIENT_ID}
       GMAIL_CLIENT_SECRET: ${GMAIL_CLIENT_SECRET}
       GMAIL_REDIRECT_URI: ${GMAIL_REDIRECT_URI}
+      # tarte-inbox's Google OAuth client — lets check-service-emails
+      # refresh the hello@ token it reads from inbox_oauth_tokens.
+      # Values copied on-droplet from /root/tarte-inbox/.env.
+      INBOX_GMAIL_CLIENT_ID: ${INBOX_GMAIL_CLIENT_ID:-}
+      INBOX_GMAIL_CLIENT_SECRET: ${INBOX_GMAIL_CLIENT_SECRET:-}
       # GBP OAuth (tarte-seo-engine project — quota-approved for My Business API)
       GBP_CLIENT_ID: ${GBP_CLIENT_ID}
       GBP_CLIENT_SECRET: ${GBP_CLIENT_SECRET}
