@@ -39,21 +39,20 @@ export function KitchenCategoryCard({
     <Link
       href={href}
       className={cn(
-        "relative flex min-h-[320px] flex-col justify-between overflow-hidden rounded-[24px] p-8 transition active:scale-[0.995]"
+        "relative flex min-h-[190px] flex-col justify-between overflow-hidden rounded-[20px] p-5 transition active:scale-[0.995] md:min-h-[320px] md:rounded-[24px] md:p-8"
       )}
       style={{ background: bg, color: fg }}
     >
       <div>
         <div
-          className="mb-6 flex h-16 w-16 items-center justify-center rounded-[20px]"
+          className="mb-4 flex h-11 w-11 items-center justify-center rounded-[14px] md:mb-6 md:h-16 md:w-16 md:rounded-[20px]"
           style={{ background: iconBg, color: fg }}
         >
           {icon}
         </div>
         <div
-          className="tk-display leading-none"
+          className="tk-display text-[26px] leading-none md:text-[40px]"
           style={{
-            fontSize: 40,
             fontWeight: 700,
             letterSpacing: "-0.03em",
             color: fg,
@@ -62,21 +61,20 @@ export function KitchenCategoryCard({
           {title}
         </div>
         <p
-          className="mt-3 max-w-sm leading-snug"
-          style={{ fontSize: 17, color: fgSoft }}
+          className="mt-2 max-w-sm text-[14px] leading-snug md:mt-3 md:text-[17px]"
+          style={{ color: fgSoft }}
         >
           {subtitle}
         </p>
       </div>
 
-      <div className="mt-5 flex items-end justify-between">
-        <div className="flex gap-7">
+      <div className="mt-4 flex items-end justify-between md:mt-5">
+        <div className="flex gap-5 md:gap-7">
           {stats.map((s) => (
             <div key={s.label}>
               <div
-                className="tk-display leading-none"
+                className="tk-display text-[22px] leading-none md:text-[30px]"
                 style={{
-                  fontSize: 30,
                   fontWeight: 700,
                   letterSpacing: "-0.02em",
                   color: fg,
@@ -91,10 +89,10 @@ export function KitchenCategoryCard({
           ))}
         </div>
         <div
-          className="flex h-[52px] w-[52px] items-center justify-center rounded-full"
+          className="flex h-11 w-11 items-center justify-center rounded-full md:h-[52px] md:w-[52px]"
           style={{ background: arrowBg, color: arrowFg }}
         >
-          <ArrowRight className="h-[22px] w-[22px]" />
+          <ArrowRight className="h-[20px] w-[20px] md:h-[22px] md:w-[22px]" />
         </div>
       </div>
     </Link>

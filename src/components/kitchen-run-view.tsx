@@ -11,7 +11,8 @@ import {
 import Link from "next/link"
 import { ArrowRight, CheckCircle2, ShieldCheck, Camera } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { VENUE_SHORT_LABEL, VENUE_LABEL } from "@/lib/venues"
+import { VENUE_SHORT_LABEL } from "@/lib/venues"
+import { stripContextPrefix } from "@/lib/display"
 import type { ChecklistRunDetail } from "@/lib/actions/checklists"
 import { tickChecklistItem, forceCompleteRun } from "@/lib/actions/checklists"
 import type { Venue } from "@/generated/prisma/client"
@@ -93,17 +94,15 @@ export function KitchenRunView({
 
   const venueLabel =
     VENUE_SHORT_LABEL[initial.venue as Venue] ?? initial.venue
-  const venueFull = VENUE_LABEL[initial.venue as Venue] ?? initial.venue
   const category = initial.isFoodSafety ? "Food safety" : "Cleaning"
   const categoryParam = initial.isFoodSafety ? "compliance" : "cleaning"
   const listHref = initial.area
     ? `/kitchen?venue=${initial.venue}&category=${categoryParam}&department=${encodeURIComponent(initial.area)}`
     : `/kitchen?venue=${initial.venue}&category=${categoryParam}`
 
-  const venueShort = venueFull.replace(/\s*\(.*\)$/, "")
   const breadcrumbs = [
     { label: "Venues", href: "/kitchen" },
-    { label: venueShort, href: `/kitchen?venue=${initial.venue}` },
+    { label: venueLabel, href: `/kitchen?venue=${initial.venue}` },
     {
       label: category,
       href: `/kitchen?venue=${initial.venue}&category=${categoryParam}`,
@@ -116,7 +115,7 @@ export function KitchenRunView({
           },
         ]
       : []),
-    { label: initial.templateName },
+    { label: stripContextPrefix(initial.templateName, initial.area) },
   ]
 
   const visibleItems = useMemo(() => {
@@ -239,15 +238,11 @@ export function KitchenRunView({
         {/* min-w keeps the title column readable, below it, the progress
             meter wraps to its own row instead of crushing the heading */}
         <div className="min-w-[240px] max-w-full flex-1">
-          <div className="tk-caps mb-1.5" style={{ color: "var(--tk-ink-mute)" }}>
-            {venueFull.replace(/\s*\(.*\)$/, "")} · {category}
-            {initial.area && ` · ${initial.area}`}
-          </div>
           <h1
-            className="tk-display leading-none text-[var(--tk-charcoal)]"
-            style={{ fontSize: 34, fontWeight: 700, letterSpacing: "-0.025em" }}
+            className="tk-display text-[26px] leading-[1.05] text-[var(--tk-charcoal)] md:text-[34px] md:leading-none"
+            style={{ fontWeight: 700, letterSpacing: "-0.025em" }}
           >
-            {initial.templateName}
+            {stripContextPrefix(initial.templateName, initial.area)}
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-[var(--tk-ink-soft)]">
             <span className="font-semibold">{venueLabel}</span>
@@ -277,7 +272,7 @@ export function KitchenRunView({
               / {total} done
             </div>
           </div>
-          <div className="mt-2 h-1.5 w-[240px] overflow-hidden rounded-full bg-[var(--tk-line)]">
+          <div className="mt-2 h-1.5 w-full max-w-[240px] overflow-hidden rounded-full bg-[var(--tk-line)]">
             <div
               className="h-full rounded-full transition-all"
               style={{

@@ -9,13 +9,13 @@ export function KitchenStepper({
 }) {
   return (
     <div
-      className="flex items-center gap-2.5 tk-caps"
-      style={{ color: "var(--tk-ink-mute)", letterSpacing: "0.08em" }}
+      className="flex items-center gap-1.5 overflow-hidden whitespace-nowrap tk-caps md:gap-2.5"
+      style={{ color: "var(--tk-ink-mute)", letterSpacing: "0.06em" }}
     >
       {STEPS.map((label, i) => {
         const active = i + 1 === currentStep
         return (
-          <span key={label} className="flex items-center gap-2.5">
+          <span key={label} className="flex shrink-0 items-center gap-1.5 md:gap-2.5">
             <span
               className={cn(active && "")}
               style={{ color: active ? "var(--tk-charcoal)" : undefined }}

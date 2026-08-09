@@ -1,5 +1,6 @@
 "use client"
 
+import { useSyncExternalStore } from "react"
 import Link from "next/link"
 import { ArrowRight, Clock, LayoutGrid } from "lucide-react"
 import { SINGLE_VENUES, VENUE_LABEL } from "@/lib/venues"
@@ -35,6 +36,16 @@ function formatNow() {
 }
 
 export function KitchenVenuePicker() {
+  // Highlight the venue this device last used (tk-venue cookie) so the
+  // common case is a one-glance, one-tap re-entry. Never auto-redirects:
+  // picking stays explicit. Server snapshot is null, so the chip only
+  // appears after hydration.
+  const usual = useSyncExternalStore(
+    () => () => {},
+    () => document.cookie.match(/(?:^|;\s*)tk-venue=([A-Z_]+)/)?.[1] ?? null,
+    () => null
+  )
+
   return (
     <div
       className="relative -mx-6 -my-5 min-h-[calc(100vh-0px)] overflow-hidden rounded-[14px] md:-mx-10 md:-my-8"
@@ -62,11 +73,11 @@ export function KitchenVenuePicker() {
       </div>
 
       {/* hero */}
-      <div className="px-8 pt-16 pb-6 text-center md:px-12 md:pt-24">
+      <div className="px-8 pt-8 pb-5 text-center md:px-12 md:pt-24 md:pb-6">
         <h1
           className="tk-display mx-auto leading-none text-white"
           style={{
-            fontSize: "clamp(64px, 10vw, 96px)",
+            fontSize: "clamp(44px, 9vw, 96px)",
             fontWeight: 600,
             letterSpacing: "-0.035em",
           }}
@@ -74,7 +85,7 @@ export function KitchenVenuePicker() {
           Checklists
         </h1>
         <p
-          className="mx-auto mt-5 max-w-xl text-[20px] leading-snug"
+          className="mx-auto mt-3 max-w-xl text-[16px] leading-snug md:mt-5 md:text-[20px]"
           style={{ color: "rgba(255,255,255,0.85)" }}
         >
           Cleaning and food temperature logs, all in one place. Pick a venue to
@@ -90,19 +101,32 @@ export function KitchenVenuePicker() {
               key={v}
               href={`/kitchen?venue=${v}`}
               onClick={() => rememberVenue(v)}
-              className="group flex min-h-[180px] flex-col justify-between rounded-[20px] bg-white/95 p-6 text-left transition active:scale-[0.99]"
+              className="group flex min-h-[128px] flex-col justify-between rounded-[20px] bg-white/95 p-5 text-left transition active:scale-[0.99] md:min-h-[180px] md:p-6"
               style={{ color: "var(--tk-charcoal)" }}
             >
               <div>
-                <div
-                  className="tk-display leading-tight"
-                  style={{
-                    fontSize: 26,
-                    fontWeight: 700,
-                    letterSpacing: "-0.02em",
-                  }}
-                >
-                  {VENUE_LABEL[v].replace(/\s*\(.*\)$/, "")}
+                <div className="flex items-start justify-between gap-2">
+                  <div
+                    className="tk-display leading-tight"
+                    style={{
+                      fontSize: 26,
+                      fontWeight: 700,
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
+                    {VENUE_LABEL[v].replace(/\s*\(.*\)$/, "")}
+                  </div>
+                  {usual === v && (
+                    <span
+                      className="tk-caps mt-1 shrink-0 rounded-full px-2.5 py-1"
+                      style={{
+                        background: "var(--tk-sage-soft)",
+                        color: "var(--tk-sage)",
+                      }}
+                    >
+                      Usual
+                    </span>
+                  )}
                 </div>
                 <div
                   className="mt-1 text-[14px]"

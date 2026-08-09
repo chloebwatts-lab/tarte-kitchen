@@ -7,7 +7,8 @@ import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { KitchenStepper } from "@/components/kitchen/KitchenStepper"
 import { KitchenCategoryCard } from "@/components/kitchen/KitchenCategoryCard"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
-import { VENUE_LABEL } from "@/lib/venues"
+import { VENUE_SHORT_LABEL } from "@/lib/venues"
+import { stripContextPrefix } from "@/lib/display"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
 type Category = "cleaning" | "compliance"
@@ -134,10 +135,13 @@ function TemplateRow({
   t,
   venue,
   accent,
+  department,
 }: {
   t: ChecklistTemplateSummary
   venue: string
   accent: "sage" | "gold"
+  /** Section shown on the surrounding page; stripped from the name. */
+  department?: string
 }) {
   const total = t.todayRun?.totalItems ?? t.itemCount
   const done = t.todayRun?.completedItems ?? 0
@@ -171,7 +175,7 @@ function TemplateRow({
           className="text-[18px] font-semibold leading-snug text-[var(--tk-charcoal)]"
           style={{ letterSpacing: "-0.01em" }}
         >
-          {t.name}
+          {stripContextPrefix(t.name, department)}
         </div>
         <div className="mt-0.5 text-[14px] text-[var(--tk-ink-soft)]">
           {t.shift.toLowerCase()} shift
@@ -266,35 +270,29 @@ function CategoryPicker({
   templates: ChecklistTemplateSummary[]
   venue: Venue
 }) {
-  const venueLabel = VENUE_LABEL[venue].replace(/\s*\(.*\)$/, "")
   const cleaning = templates.filter((t) => !isCompliance(t))
   const compliance = templates.filter(isCompliance)
   const cleaningDue = cleaning.filter((t) => t.todayRun?.status !== "COMPLETED").length
   const complianceDue = compliance.filter((t) => t.todayRun?.status !== "COMPLETED").length
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 md:space-y-8">
       <KitchenBreadcrumb
         crumbs={[
           { label: "Venues", href: "/kitchen" },
-          { label: venueLabel },
+          { label: VENUE_SHORT_LABEL[venue] },
         ]}
       />
       <KitchenStepper currentStep={2} />
 
-      <div>
-        <div className="tk-caps mb-2" style={{ color: "var(--tk-ink-mute)" }}>
-          {venueLabel}
-        </div>
-        <h1
-          className="tk-display leading-[1.05] text-[var(--tk-charcoal)]"
-          style={{ fontSize: 44, fontWeight: 600, letterSpacing: "-0.03em" }}
-        >
-          What are you logging today?
-        </h1>
-      </div>
+      <h1
+        className="tk-display text-[30px] leading-[1.05] text-[var(--tk-charcoal)] md:text-[44px]"
+        style={{ fontWeight: 600, letterSpacing: "-0.03em" }}
+      >
+        What are you logging today?
+      </h1>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2 md:gap-4">
         <KitchenCategoryCard
           tone="sage"
           title="Cleaning"
@@ -319,7 +317,7 @@ function CategoryPicker({
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
         <SecondaryTile
           title="Staff training"
           subtitle="Food handler records, one per staff member."
@@ -396,29 +394,32 @@ function SecondaryTile({
   icon: React.ReactNode
   href: string
 }) {
+  // Phones get a compact two-column tile (icon + title, like the
+  // maintenance category grid); the fuller row with subtitle and arrow
+  // starts at sm.
   return (
     <Link
       href={href}
-      className="group flex items-center gap-4 rounded-[18px] border border-[var(--tk-line)] bg-white px-5 py-4 transition active:scale-[0.997]"
+      className="group flex flex-col items-start gap-3 rounded-[18px] border border-[var(--tk-line)] bg-white px-4 py-4 transition active:scale-[0.997] sm:flex-row sm:items-center sm:gap-4 sm:px-5"
     >
       <div
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px]"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] sm:h-12 sm:w-12 sm:rounded-[14px]"
         style={{ background: "var(--tk-sage-soft)", color: "var(--tk-sage)" }}
       >
         {icon}
       </div>
       <div className="min-w-0 flex-1">
         <div
-          className="text-[17px] font-semibold leading-tight text-[var(--tk-charcoal)]"
+          className="text-[15px] font-semibold leading-tight text-[var(--tk-charcoal)] sm:text-[17px]"
           style={{ letterSpacing: "-0.01em" }}
         >
           {title}
         </div>
-        <div className="mt-0.5 text-[13px] leading-snug text-[var(--tk-ink-soft)]">
+        <div className="mt-0.5 hidden text-[13px] leading-snug text-[var(--tk-ink-soft)] sm:block">
           {subtitle}
         </div>
       </div>
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--tk-bg)] text-[var(--tk-ink-soft)] transition group-hover:bg-[var(--tk-charcoal)] group-hover:text-white">
+      <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--tk-bg)] text-[var(--tk-ink-soft)] transition group-hover:bg-[var(--tk-charcoal)] group-hover:text-white sm:flex">
         <ArrowRight className="h-[16px] w-[16px]" />
       </div>
     </Link>
@@ -434,7 +435,6 @@ function DepartmentPicker({
   venue: Venue
   category: Category
 }) {
-  const venueLabel = VENUE_LABEL[venue].replace(/\s*\(.*\)$/, "")
   const accent: "sage" | "gold" = category === "cleaning" ? "sage" : "gold"
 
   // Group by area (department). Null area = "General".
@@ -456,11 +456,11 @@ function DepartmentPicker({
       : "Fridges, freezers and hot-hold readings grouped by area."
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 md:space-y-8">
       <KitchenBreadcrumb
         crumbs={[
           { label: "Venues", href: "/kitchen" },
-          { label: venueLabel, href: `/kitchen?venue=${venue}` },
+          { label: VENUE_SHORT_LABEL[venue], href: `/kitchen?venue=${venue}` },
           { label: category === "cleaning" ? "Cleaning" : "Food Temp Logs" },
         ]}
       />
@@ -468,16 +468,13 @@ function DepartmentPicker({
 
       <div className="flex items-end justify-between gap-4">
         <div>
-          <div className="tk-caps mb-2" style={{ color: "var(--tk-ink-mute)" }}>
-            {venueLabel} · {category === "cleaning" ? "Cleaning" : "Food Temp"}
-          </div>
           <h1
-            className="tk-display leading-[1.05] text-[var(--tk-charcoal)]"
-            style={{ fontSize: 44, fontWeight: 600, letterSpacing: "-0.03em" }}
+            className="tk-display text-[30px] leading-[1.05] text-[var(--tk-charcoal)] md:text-[44px]"
+            style={{ fontWeight: 600, letterSpacing: "-0.03em" }}
           >
             {heading}
           </h1>
-          <p className="mt-2 max-w-xl text-[15px] text-[var(--tk-ink-soft)]">
+          <p className="mt-2 max-w-xl text-[14px] text-[var(--tk-ink-soft)] md:text-[15px]">
             {subhead}
           </p>
         </div>
@@ -531,7 +528,6 @@ function TemplateList({
   category: Category
   department: string
 }) {
-  const venueLabel = VENUE_LABEL[venue].replace(/\s*\(.*\)$/, "")
   const filtered = templates.filter((t) => (t.area ?? "General") === department)
 
   const accent: "sage" | "gold" = category === "cleaning" ? "sage" : "gold"
@@ -542,11 +538,11 @@ function TemplateList({
   const ordered = [...running, ...notStarted, ...done]
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 md:space-y-8">
       <KitchenBreadcrumb
         crumbs={[
           { label: "Venues", href: "/kitchen" },
-          { label: venueLabel, href: `/kitchen?venue=${venue}` },
+          { label: VENUE_SHORT_LABEL[venue], href: `/kitchen?venue=${venue}` },
           {
             label: category === "cleaning" ? "Cleaning" : "Food Temp Logs",
             href: `/kitchen?venue=${venue}&category=${category}`,
@@ -558,16 +554,13 @@ function TemplateList({
 
       <div className="flex items-end justify-between gap-4">
         <div>
-          <div className="tk-caps mb-2" style={{ color: "var(--tk-ink-mute)" }}>
-            {venueLabel} · {category === "cleaning" ? "Cleaning" : "Food Temp"} · {department}
-          </div>
           <h1
-            className="tk-display leading-[1.05] text-[var(--tk-charcoal)]"
-            style={{ fontSize: 44, fontWeight: 600, letterSpacing: "-0.03em" }}
+            className="tk-display text-[30px] leading-[1.05] text-[var(--tk-charcoal)] md:text-[44px]"
+            style={{ fontWeight: 600, letterSpacing: "-0.03em" }}
           >
             {department}
           </h1>
-          <p className="mt-2 max-w-xl text-[15px] text-[var(--tk-ink-soft)]">
+          <p className="mt-2 max-w-xl text-[14px] text-[var(--tk-ink-soft)] md:text-[15px]">
             Pick a checklist to open.
           </p>
         </div>
@@ -580,7 +573,13 @@ function TemplateList({
       ) : (
         <div className="space-y-2.5">
           {ordered.map((t) => (
-            <TemplateRow key={t.id} t={t} venue={venue} accent={accent} />
+            <TemplateRow
+              key={t.id}
+              t={t}
+              venue={venue}
+              accent={accent}
+              department={department}
+            />
           ))}
         </div>
       )}
