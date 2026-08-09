@@ -49,6 +49,12 @@ import {
 const DEFAULT_WINDOW_DAYS = 30
 const DEFAULT_BATCH_LIMIT = 25
 
+/** Shared invoicing-platform relay addresses. Never learned as provider
+ * emails: from:(messaging-service@post.xero.com) would match every
+ * Xero-sent supplier invoice, not just the service provider's. */
+const GENERIC_SENDER_RE =
+  /messaging-service@|@post\.xero\.com|notification\.intuit\.com|@post\.servicem8\.com/i
+
 function dateStr(d: Date): string {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, "0")
@@ -342,6 +348,7 @@ export async function GET(request: Request) {
               if (
                 senderEmail &&
                 !senderEmail.endsWith("@tarte.com.au") &&
+                !GENERIC_SENDER_RE.test(senderEmail) &&
                 !program.providerEmails.includes(senderEmail)
               ) {
                 await db.serviceProgram.update({
