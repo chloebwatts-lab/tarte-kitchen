@@ -59,10 +59,15 @@
 
 /* Phones: staff page heroes drop to one consistent compact size so the
    first tappable control stays near the top of the screen. Pages set
-   their iPad size inline (fontSize: 40-44); !important wins over inline
-   on small screens only. Opt out with .tk-hero-keep. */
+   their iPad size inline (fontSize: 40-44) on h1s or divs; !important
+   wins over inline on small screens only. The [style*=] matchers rely
+   on React serialising "font-size: 44px" with that exact spacing; if
+   that ever changes the heroes just render at iPad size (cosmetic).
+   Opt out with .tk-hero-keep. */
 @media (max-width: 767px) {
-  .tk-root h1.tk-display:not(.tk-hero-keep) {
+  .tk-root h1.tk-display:not(.tk-hero-keep),
+  .tk-root .tk-display[style*="font-size: 44px"]:not(.tk-hero-keep),
+  .tk-root .tk-display[style*="font-size: 40px"]:not(.tk-hero-keep) {
     font-size: clamp(26px, 8vw, 34px) !important;
     line-height: 1.05 !important;
   }
