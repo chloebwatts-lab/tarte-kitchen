@@ -52,7 +52,9 @@ ${input.programHints || "(none recorded yet)"}
 
 What counts as a service email: invoices, service reports/dockets, work orders, booking confirmations or scheduling emails for things like grease trap pump-outs, pest control, canopy/flue/exhaust cleans, filter exchanges, fire equipment testing, contracted deep cleans, test & tag, backflow testing, scheduled coffee machine or air-con servicing. Forwarded emails (Fwd:) count, read the forwarded content.
 
-What does NOT count (isService=false): food/beverage supplier invoices, one-off equipment REPAIRS or breakdown callouts, utility bills, rent, insurance, accounting, marketing, linen/laundry deliveries, our own app's automated emails, newsletters, payment reminders about non-service invoices.
+What does NOT count (isService=false): food/beverage supplier invoices, one-off equipment REPAIRS or breakdown callouts, utility bills, rent, insurance, accounting, marketing, linen/laundry deliveries, our own app's automated emails, newsletters, payment reminders about non-service invoices, and general waste/recycling BIN collections.
+
+Waste contractors (JJ's Waste / JJ Richards etc.): their monthly invoice covers bin collections AND sometimes grease trap ("grease arrestor" / "liquid waste") services. Only a grease arrestor / grease trap / liquid waste line counts, as "grease-trap" with that line's service date and that line's cost only. An invoice with only general waste/recycling bins is isService=false. JJ's Waste customer number 01015432 = BEACH_HOUSE, customer number 01013429 = BURLEIGH.
 
 kind rules:
 - "COMPLETED": the service has happened (tax invoice for work done, service report, docket). Use the SERVICE date if shown, else the invoice date.

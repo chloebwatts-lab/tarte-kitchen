@@ -118,6 +118,9 @@ export function serviceCategoryLabel(category: string, label?: string | null): s
 /** Gmail full-text probes for the generic (unknown-sender) sweep. */
 export const SERVICE_SEARCH_PHRASES = [
   '"grease trap"',
+  '"grease arrestor"',
+  '"pump out"',
+  '"pump-out"',
   '"pest control"',
   '"pest treatment"',
   '"deep clean"',
