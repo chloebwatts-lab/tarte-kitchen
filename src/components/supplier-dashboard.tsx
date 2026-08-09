@@ -2,7 +2,11 @@
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { SupplierPriceAlerts } from "@/components/supplier-price-alerts"
+import {
+  SupplierPriceAlerts,
+  groupPriceAlerts,
+  groupUnitAlerts,
+} from "@/components/supplier-price-alerts"
 import { SupplierInvoices } from "@/components/supplier-invoices"
 import { SuppliersContent } from "@/components/suppliers-content"
 import { SupplierPriceHistory } from "@/components/supplier-price-history"
@@ -92,8 +96,11 @@ export function SupplierDashboard({
   alertCount,
   ingredients,
 }: Props) {
-  const unacknowledgedCount =
-    alerts.filter((a) => !a.acknowledged).length + unitChangedAlerts.length
+  const openAlerts = alerts.filter((a) => !a.acknowledged)
+  const priceQuestions = groupPriceAlerts(openAlerts).length
+  const unitQuestions = groupUnitAlerts(unitChangedAlerts).length
+  const unacknowledgedCount = openAlerts.length + unitChangedAlerts.length
+  const questionCount = priceQuestions + unitQuestions
 
   return (
     <div className="space-y-6">
@@ -112,26 +119,29 @@ export function SupplierDashboard({
         </a>
       </div>
 
-      {unacknowledgedCount > 0 && (
+      {questionCount > 0 && (
         <div className="rounded-lg border border-amber-text/20 bg-amber-light p-4">
           <div className="flex items-center gap-2">
             <span className="text-amber-text font-medium">
-              {unacknowledgedCount} unreviewed price change{unacknowledgedCount !== 1 ? "s" : ""} detected
+              Needs your attention: {priceQuestions > 0 && `${priceQuestions} price change${priceQuestions !== 1 ? "s" : ""}`}
+              {priceQuestions > 0 && unitQuestions > 0 && " · "}
+              {unitQuestions > 0 && `${unitQuestions} unit question${unitQuestions !== 1 ? "s" : ""}`}
             </span>
           </div>
           <p className="mt-1 text-sm text-amber-text">
-            Review changes in the Price Alerts tab below
+            {unacknowledgedCount} invoice lines in total; repeat deliveries are
+            grouped so each item asks once. Review in the Price Alerts tab below.
           </p>
         </div>
       )}
 
-      <Tabs defaultValue={unacknowledgedCount > 0 ? "alerts" : "suppliers"}>
+      <Tabs defaultValue={questionCount > 0 ? "alerts" : "suppliers"}>
         <TabsList>
           <TabsTrigger value="alerts" className="gap-2">
             Price Alerts
-            {unacknowledgedCount > 0 && (
+            {questionCount > 0 && (
               <Badge variant="red" className="ml-1 h-5 min-w-[20px] px-1.5 text-[10px]">
-                {unacknowledgedCount}
+                {questionCount}
               </Badge>
             )}
           </TabsTrigger>

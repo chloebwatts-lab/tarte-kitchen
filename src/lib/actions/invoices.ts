@@ -800,6 +800,33 @@ export async function confirmConversion(lineItemId: string, storedUnitsPerInvoic
   return { ok: true, priceChanged: evaluation.priceChanged }
 }
 
+/**
+ * One answer, every matching line. Repeat deliveries queue one
+ * unit-changed row per invoice even though the conversion question is
+ * identical, so the UI groups them and confirms the whole group here.
+ */
+export async function confirmConversionGroup(
+  lineItemIds: string[],
+  storedUnitsPerInvoiceUnit: number
+) {
+  const failed: string[] = []
+  for (const id of lineItemIds) {
+    try {
+      await confirmConversion(id, storedUnitsPerInvoiceUnit)
+    } catch {
+      failed.push(id)
+    }
+  }
+  return { ok: failed.length === 0, confirmed: lineItemIds.length - failed.length, failed }
+}
+
+/** Acknowledge a batch of line-item alerts (handled without applying). */
+export async function acknowledgeAlertGroup(lineItemIds: string[]) {
+  for (const id of lineItemIds) {
+    await acknowledgeAlert(id)
+  }
+}
+
 export async function getUnacknowledgedAlertCount(): Promise<number> {
   return db.invoiceLineItem.count({
     where: {

@@ -16,11 +16,11 @@ import {
   X,
 } from "lucide-react"
 import {
-  acknowledgeAlert,
+  acknowledgeAlertGroup,
   acknowledgeAllAlerts,
   applyAndAcknowledgeAlert,
   applyAllPriceChanges,
-  confirmConversion,
+  confirmConversionGroup,
   rejectAndIgnoreMapping,
 } from "@/lib/actions/invoices"
 
@@ -62,6 +62,33 @@ interface UnitChangedAlert {
   suggestedConversionFactor: number | null
 }
 
+/**
+ * Repeat deliveries create one queued line per invoice for what is a
+ * single question ("1 carton = how many kg?" / "sourdough went up").
+ * Group by the thing being asked so each question shows once, and
+ * answering clears every line it covers.
+ */
+export function groupUnitAlerts(alerts: UnitChangedAlert[]) {
+  const map = new Map<string, UnitChangedAlert[]>()
+  for (const a of alerts) {
+    const key = [a.supplierId ?? a.supplierName, a.description, a.invoiceUnit, a.storedUnit].join("|")
+    map.set(key, [...(map.get(key) ?? []), a])
+  }
+  return Array.from(map.values())
+}
+
+export function groupPriceAlerts(alerts: PriceAlert[]) {
+  const map = new Map<string, PriceAlert[]>()
+  for (const a of alerts) {
+    const key = [a.ingredientId ?? a.description, a.supplierId ?? a.supplierName].join("|")
+    map.set(key, [...(map.get(key) ?? []), a])
+  }
+  // Newest line first within each group; the newest is the one applied.
+  return Array.from(map.values()).map((g) =>
+    [...g].sort((x, y) => (y.createdAt > x.createdAt ? 1 : -1))
+  )
+}
+
 export function SupplierPriceAlerts({
   alerts,
   unitChangedAlerts = [],
@@ -75,19 +102,26 @@ export function SupplierPriceAlerts({
 
   const unacknowledged = alerts.filter((a) => !a.acknowledged)
   const acknowledged = alerts.filter((a) => a.acknowledged)
+  const priceGroups = groupPriceAlerts(unacknowledged)
+  const unitGroups = groupUnitAlerts(unitChangedAlerts)
 
-  function handleAcknowledge(id: string) {
+  function handleAcknowledgeGroup(ids: string[]) {
     startTransition(async () => {
-      await acknowledgeAlert(id)
+      await acknowledgeAlertGroup(ids)
       router.refresh()
     })
   }
 
-  function handleApplyAndAcknowledge(id: string) {
+  function handleApplyAndAcknowledge(group: PriceAlert[]) {
     setActionError(null)
     startTransition(async () => {
       try {
-        await applyAndAcknowledgeAlert(id)
+        // Newest line carries the current price; older siblings are the
+        // same story on earlier invoices, mark them handled.
+        await applyAndAcknowledgeAlert(group[0].id)
+        if (group.length > 1) {
+          await acknowledgeAlertGroup(group.slice(1).map((a) => a.id))
+        }
       } catch (e) {
         // The apply path REFUSES when the line is no longer like-for-like
         // (unit changed, mapping since ignored). Silence here previously
@@ -98,7 +132,8 @@ export function SupplierPriceAlerts({
     })
   }
 
-  function handleReject(id: string, ingredientName: string, supplierName: string) {
+  function handleReject(group: PriceAlert[]) {
+    const { ingredientName, supplierName } = group[0]
     if (
       !confirm(
         `Reject this match? "${ingredientName}" (${supplierName}) won't be linked to this invoice description again, future invoices will re-run through the matcher.`
@@ -107,7 +142,10 @@ export function SupplierPriceAlerts({
       return
     }
     startTransition(async () => {
-      await rejectAndIgnoreMapping(id)
+      await rejectAndIgnoreMapping(group[0].id)
+      if (group.length > 1) {
+        await acknowledgeAlertGroup(group.slice(1).map((a) => a.id))
+      }
       router.refresh()
     })
   }
@@ -153,21 +191,25 @@ export function SupplierPriceAlerts({
           {actionError}
         </div>
       )}
-      {unitChangedAlerts.length > 0 && (
+      {unitGroups.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Ruler className="h-4 w-4 text-amber-text" />
             <p className="text-sm font-medium text-amber-text">
-              Pack / unit changed, needs remap ({unitChangedAlerts.length})
+              Pack / unit changed, needs remap ({unitGroups.length}
+              {unitChangedAlerts.length !== unitGroups.length &&
+                ` question${unitGroups.length === 1 ? "" : "s"} covering ${unitChangedAlerts.length} invoice lines`}
+              )
             </p>
           </div>
           <p className="text-xs text-muted-foreground">
-            These lines came in with a different unit to what's stored, so the
-            price isn't comparable like-for-like. Confirm how many stored units
-            are in one invoice unit and the price flows through normally.
+            These lines came in with a different unit to what&apos;s stored, so the
+            price isn&apos;t comparable like-for-like. Confirm how many stored units
+            are in one invoice unit and the price flows through normally. One
+            answer clears every invoice line of that item.
           </p>
-          {unitChangedAlerts.map((alert) => (
-            <UnitChangedRow key={alert.id} alert={alert} isPending={isPending} />
+          {unitGroups.map((group) => (
+            <UnitChangedRow key={group[0].id} group={group} isPending={isPending} />
           ))}
         </div>
       )}
@@ -175,7 +217,9 @@ export function SupplierPriceAlerts({
       {unacknowledged.length > 0 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            {unacknowledged.length} unreviewed change{unacknowledged.length !== 1 ? "s" : ""}
+            {priceGroups.length} unreviewed change{priceGroups.length !== 1 ? "s" : ""}
+            {unacknowledged.length !== priceGroups.length &&
+              ` across ${unacknowledged.length} invoice lines`}
           </p>
           <div className="flex gap-2">
             <Button
@@ -199,18 +243,17 @@ export function SupplierPriceAlerts({
         </div>
       )}
 
-      {/* Unacknowledged alerts */}
-      {unacknowledged.length > 0 && (
+      {/* Unacknowledged alerts, one row per ingredient x supplier */}
+      {priceGroups.length > 0 && (
         <div className="space-y-2">
-          {unacknowledged.map((alert) => (
+          {priceGroups.map((group) => (
             <AlertRow
-              key={alert.id}
-              alert={alert}
-              onAcknowledge={() => handleAcknowledge(alert.id)}
-              onApply={() => handleApplyAndAcknowledge(alert.id)}
-              onReject={() =>
-                handleReject(alert.id, alert.ingredientName, alert.supplierName)
-              }
+              key={group[0].id}
+              alert={group[0]}
+              lineCount={group.length}
+              onAcknowledge={() => handleAcknowledgeGroup(group.map((a) => a.id))}
+              onApply={() => handleApplyAndAcknowledge(group)}
+              onReject={() => handleReject(group)}
               isPending={isPending}
             />
           ))}
@@ -239,6 +282,7 @@ export function SupplierPriceAlerts({
 
 function AlertRow({
   alert,
+  lineCount = 1,
   onAcknowledge,
   onApply,
   onReject,
@@ -246,6 +290,8 @@ function AlertRow({
   dimmed,
 }: {
   alert: PriceAlert
+  /** How many invoice lines this row covers (grouped display). */
+  lineCount?: number
   onAcknowledge?: () => void
   onApply?: () => void
   onReject?: () => void
@@ -270,6 +316,11 @@ function AlertRow({
           <Badge variant="secondary" className="text-[10px] shrink-0">
             {alert.supplierName}
           </Badge>
+          {lineCount > 1 && (
+            <Badge variant="amber" className="text-[10px] shrink-0">
+              x{lineCount} invoices
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
           <span>
@@ -347,12 +398,14 @@ function AlertRow({
 }
 
 function UnitChangedRow({
-  alert,
+  group,
   isPending,
 }: {
-  alert: UnitChangedAlert
+  /** Same supplier + description + unit pair; newest first. */
+  group: UnitChangedAlert[]
   isPending: boolean
 }) {
+  const alert = group[0]
   const router = useRouter()
   const [localPending, startLocal] = useTransition()
   // The input is the HUMAN semantics ("1 carton = N kg"); the engine stores
@@ -378,7 +431,15 @@ function UnitChangedRow({
     }
     startLocal(async () => {
       try {
-        await confirmConversion(alert.id, parsed)
+        const result = await confirmConversionGroup(
+          group.map((a) => a.id),
+          parsed
+        )
+        if (result.failed.length > 0) {
+          setError(
+            `${result.confirmed} line${result.confirmed === 1 ? "" : "s"} confirmed, ${result.failed.length} refused`
+          )
+        }
         router.refresh()
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
@@ -396,8 +457,14 @@ function UnitChangedRow({
         <Badge variant="secondary" className="text-[10px]">
           {alert.supplierName}
         </Badge>
-        {alert.invoiceNumber && (
-          <span className="text-xs text-muted-foreground">#{alert.invoiceNumber}</span>
+        {group.length > 1 ? (
+          <Badge variant="amber" className="text-[10px]">
+            x{group.length} invoices
+          </Badge>
+        ) : (
+          alert.invoiceNumber && (
+            <span className="text-xs text-muted-foreground">#{alert.invoiceNumber}</span>
+          )
         )}
       </div>
       <div className="text-xs text-muted-foreground">

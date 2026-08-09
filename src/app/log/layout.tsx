@@ -1,6 +1,7 @@
 import "../kitchen/kitchen.css"
 import Link from "next/link"
 import { LayoutGrid } from "lucide-react"
+import { RefreshOnResume } from "@/components/kitchen/RefreshOnResume"
 
 export default function LogLayout({
   children,
@@ -14,6 +15,8 @@ export default function LogLayout({
       className="tk-root min-h-screen"
       style={{ background: "var(--tk-bg)" }}
     >
+      {/* Home-screen iPads resume days-old pages; refetch on resume. */}
+      <RefreshOnResume />
       <div className="mx-auto max-w-[1194px] px-6 py-5 md:px-10 md:py-8">
         <div className="mb-4 flex justify-end">
           <Link
