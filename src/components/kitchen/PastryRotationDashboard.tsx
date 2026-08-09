@@ -177,18 +177,26 @@ export function PastryRotationDashboard({
           them in the admin app.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-[16px] border border-[var(--tk-line)] bg-white">
+        // overflow-x-auto, NOT hidden: at phone width the table is wider
+        // than the screen and hidden made the last bake + day total
+        // unreachable. Product column stays sticky for context.
+        <div className="overflow-x-auto rounded-[16px] border border-[var(--tk-line)] bg-white">
           <table className="w-full">
             <thead>
               <tr
                 className="text-left text-[11px] uppercase tracking-wider text-[var(--tk-ink-mute)]"
                 style={{ background: "var(--tk-bg)" }}
               >
-                <th className="px-4 py-3 font-semibold">Product</th>
+                <th
+                  className="sticky left-0 z-10 px-4 py-3 font-semibold"
+                  style={{ background: "var(--tk-bg)" }}
+                >
+                  Product
+                </th>
                 {BAKE_ORDER.map((b) => (
                   <th
                     key={b}
-                    className="px-3 py-3 text-center font-semibold"
+                    className="min-w-[96px] px-3 py-3 text-center font-semibold"
                   >
                     <div className="inline-flex items-center gap-1.5">
                       <Flame className="h-3.5 w-3.5" />
@@ -217,7 +225,7 @@ export function PastryRotationDashboard({
                     key={p.id}
                     className="border-t border-[var(--tk-line)]"
                   >
-                    <td className="px-4 py-3 font-semibold text-[var(--tk-charcoal)]">
+                    <td className="sticky left-0 z-10 bg-white px-4 py-3 font-semibold text-[var(--tk-charcoal)]">
                       {p.name}
                     </td>
                     {BAKE_ORDER.map((b) => {
@@ -482,13 +490,20 @@ function CellButton({
     )
   }
   const hasWaste = entry.discarded > 0
+  // Rows written by the nightly auto-fill (staffName "auto") look softer:
+  // dashed edge + label, so staff read them as "prefilled, tap to correct"
+  // rather than someone's confirmed count.
+  const isAuto = entry.staffName === "auto"
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex h-[72px] w-full flex-col items-center justify-center rounded-[12px] px-2 text-[var(--tk-charcoal)] transition active:scale-[0.98]"
+      className={`flex h-[72px] w-full flex-col items-center justify-center rounded-[12px] px-2 text-[var(--tk-charcoal)] transition active:scale-[0.98] ${
+        isAuto ? "border border-dashed border-[var(--tk-ink-mute)]" : ""
+      }`}
       style={{
         background: hasWaste ? "var(--tk-warn-soft)" : "var(--tk-sage-soft)",
+        ...(isAuto ? { opacity: 0.85 } : {}),
       }}
     >
       <div
@@ -507,6 +522,14 @@ function CellButton({
           </span>
         )}
       </div>
+      {isAuto && (
+        <div
+          className="mt-0.5 text-[9px] font-semibold uppercase text-[var(--tk-ink-mute)]"
+          style={{ letterSpacing: "0.12em" }}
+        >
+          auto
+        </div>
+      )}
     </button>
   )
 }
@@ -611,6 +634,16 @@ function CellForm({
         <div className="mb-4 text-[13px] text-[var(--tk-ink-soft)]">
           {BAKE_LABEL[bakeTime]} · {date}
         </div>
+
+        {existing?.staffName === "auto" && (
+          <div
+            className="mb-4 rounded-[10px] px-3 py-2 text-[12px]"
+            style={{ background: "var(--tk-gold-soft)", color: "#8a6d1f" }}
+          >
+            Prefilled overnight from POS sales. Fix any number and add your
+            name; your count sticks and won&apos;t be overwritten.
+          </div>
+        )}
 
         <div className="grid grid-cols-3 gap-2.5">
           <NumberField label="Prepared" value={prepared} onChange={setPrepared} />
