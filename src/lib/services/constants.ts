@@ -85,6 +85,20 @@ export const SERVICE_CATEGORIES: ServiceCategoryDef[] = [
     seed: true,
   },
   {
+    key: "gas-safety",
+    label: "Gas safety check",
+    blurb: "Licensed gas fitter checks appliances and lines. Insurers ask for this.",
+    defaultIntervalDays: 365,
+    seed: false,
+  },
+  {
+    key: "evacuation-drill",
+    label: "Fire evacuation drill",
+    blurb: "Annual evacuation practice + staff instructions (QFES requirement).",
+    defaultIntervalDays: 365,
+    seed: false,
+  },
+  {
     key: "air-con",
     label: "Air-con service",
     blurb: "Filter clean and service of air-conditioning units.",
