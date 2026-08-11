@@ -47,7 +47,7 @@ certificate or report from appropriately qualified professionals that:
 
 ## Before sending
 
-- Fill in placeholders: date, month works completed, QBCC licence number,
+- Fill in placeholders: date, QBCC licence number,
   address/contact, and confirm Troy's full name/company for the file (the
   letter refers to him by role, so his surname is not strictly required).
 - Have Michael Adamson (ALG) review, and deliver via ALG — ALG's 15 July 2026
@@ -73,7 +73,7 @@ To whom it may concern
 
 I am a licensed builder (QBCC Licence No. [insert]).
 
-In [July/August] 2026 I carried out the following work at the above premises:
+On 25 and 26 July 2026 I carried out the following work at the above premises:
 
 1. removed the door installed in the first-floor wall and reinstated the
    wall with 70 mm timber framing and wall linings chosen to match the
