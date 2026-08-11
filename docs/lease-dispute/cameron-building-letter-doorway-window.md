@@ -1,4 +1,4 @@
-# Builder's letter — rectification of first-floor door and ground-floor window (DRAFT v2)
+# Builder's letter — rectification of first-floor door and ground-floor window (DRAFT v4)
 
 Draft letter for Lockie Cameron (Cameron Building & Design) responding to the
 Form 7 Notices to Remedy Breach dated 15 June 2026 (Property Law Act 2023 (Qld)
@@ -12,8 +12,7 @@ door and reinstating the wall; (b) removing the ground-floor pass-through
 window and reinstating the wall; (c) making good damage; and (d) evidence by
 certificate or report from appropriately qualified professionals that:
 
-- (i) the structure of the leased premises has not been adversely affected by
-  the lessee's interference or the rectification works;
+- (i) the structure of the leased premises has not been adversely affected;
 - (ii) the alterations carried out pursuant to the notice are structurally
   sound;
 - (iii) the wall (in each case) complies in all respects with relevant
@@ -23,30 +22,38 @@ certificate or report from appropriately qualified professionals that:
 
 ## Drafting decisions
 
-- The letter only describes the **rectification** works (removal and
-  reinstatement) — the notice's evidence requirements attach to those works,
-  so Lockie says nothing about the original alterations. No admissions.
-- Covers (i), (ii) and (iv) in one hedged sentence: licensed builder,
-  workmanlike manner, like-for-like reinstatement and structural soundness
-  stated **to the best of his professional knowledge and belief**, with no
-  laboratory testing claim made anywhere.
-- (iii) fire safety is expressly left to Troy's separate assessment — the
-  letter defers to it and makes no fire-compliance statement. Per Chloe: the
-  fire info is as per the audio message and up to Troy's assessment.
-- The notice asks for a "certificate **or report**" — the letter is framed as a
-  **report** of the work performed (the notice's own word), rather than
-  disclaiming certificate status, so QBM can't argue the document fails to
-  satisfy item (d) on its face. The earlier "not a certificate under any
-  legislation" line was removed for that reason.
+- The letter only describes the **rectification** works — nothing about the
+  original alterations, so no admissions.
+- Work descriptions match what the builder stated during the lessor's
+  5 August 2026 inspection: first-floor doorway closed with 70 mm timber
+  framing and linings to match existing; ground-floor wall reinstated with
+  140 mm hollow block, same as original.
+- Covers notice items (i), (ii) and (iv): licensed builder, workmanlike
+  manner, like-for-like and structurally sound stated **to the best of his
+  professional knowledge and belief**. No laboratory-testing claim either way.
+- Item (iii) fire safety is left entirely to the fire safety certifier
+  (Troy — surname/company to be added) who inspected on 5 August 2026 for the
+  lessor and is preparing a written report; the letter defers to it and makes
+  no fire statement of Lockie's own.
+- Notes that work photos went directly from the builder to the certifier with
+  the lessor copied — supports the evidence trail without adding claims.
+- Framed as a **report** of the work (the notice's own word in item (d)), not
+  a certificate — the earlier "not a certificate under any legislation"
+  disclaimer was removed so QBM cannot argue the document fails item (d) on
+  its face.
 
 ## Before sending
 
 - Fill in placeholders: date, month works completed, QBCC licence number,
-  address/contact, Troy's full name and company.
-- Confirm the fire sentence matches what was agreed in the audio message
-  (not available to this draft).
+  address/contact, and confirm Troy's full name/company for the file (the
+  letter refers to him by role, so his surname is not strictly required).
 - Have Michael Adamson (ALG) review, and deliver via ALG — ALG's 15 July 2026
   letter directed all communications through solicitors.
+- Lockie has separately offered a statutory declaration that the work was
+  done correctly; Michael to advise whether to prepare it alongside this
+  letter.
+- The 5 Aug 2026 recordings/transcripts and their analysis are held outside
+  this repository and go to Michael only.
 
 ---
 
@@ -63,21 +70,25 @@ To whom it may concern
 
 I am a licensed builder (QBCC Licence No. [insert]).
 
-In [month] 2026 I carried out the following work at the above premises:
+In [July/August] 2026 I carried out the following work at the above premises:
 
 1. removed the door installed in the first-floor wall and reinstated the
-   wall; and
+   wall, framing the opening with 70 mm timber to match the existing 70 mm
+   timber frame and lining it to match the existing wall linings; and
 2. removed the pass-through window in the ground-floor wall and reinstated
-   the wall.
+   the wall with 140 mm hollow block, the same as the original 140 mm hollow
+   block construction.
 
 I confirm that this work was carried out by me, a licensed builder, in a
 proper and workmanlike manner, and that to the best of my professional
-knowledge and belief both walls were reinstated using materials of the same
-type and standard as the surrounding wall construction (like for like) and
-are structurally sound.
+knowledge and belief both walls were reinstated with materials of the same
+type and standard as the original construction (like for like) and are
+structurally sound. Photographs taken during the works were provided directly
+to the fire safety certifier who inspected the premises on 5 August 2026,
+with the Lessor copied.
 
-Fire safety compliance of the walls is being assessed separately by
-[Troy — name / company], and I defer to that assessment.
+Fire safety of the walls is the subject of that certifier's separate
+assessment and report, and I defer to it.
 
 This letter is provided as a report of the work described above.
 
