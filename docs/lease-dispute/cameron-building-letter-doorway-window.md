@@ -1,4 +1,4 @@
-# Builder's letter — rectification of first-floor door and ground-floor window (DRAFT v4)
+# Builder's letter — rectification of first-floor door and ground-floor window (DRAFT v5)
 
 Draft letter for Lockie Cameron (Cameron Building & Design) responding to the
 Form 7 Notices to Remedy Breach dated 15 June 2026 (Property Law Act 2023 (Qld)
@@ -24,10 +24,13 @@ certificate or report from appropriately qualified professionals that:
 
 - The letter only describes the **rectification** works — nothing about the
   original alterations, so no admissions.
-- Work descriptions match what the builder stated during the lessor's
-  5 August 2026 inspection: first-floor doorway closed with 70 mm timber
-  framing and linings to match existing; ground-floor wall reinstated with
-  140 mm hollow block, same as original.
+- Work descriptions only state what the builder certainly knows — the
+  materials he himself installed (70 mm timber framing upstairs, 140 mm
+  hollow block downstairs). Any claim of equivalence to the original
+  construction sits solely under "to the best of my professional knowledge
+  and belief" ("chosen to match" / "consistent with"), because the original
+  materials were never tested. No exact-match ("same as it was") claim is
+  made anywhere.
 - Covers notice items (i), (ii) and (iv): licensed builder, workmanlike
   manner, like-for-like and structurally sound stated **to the best of his
   professional knowledge and belief**. No laboratory-testing claim either way.
@@ -73,17 +76,15 @@ I am a licensed builder (QBCC Licence No. [insert]).
 In [July/August] 2026 I carried out the following work at the above premises:
 
 1. removed the door installed in the first-floor wall and reinstated the
-   wall, framing the opening with 70 mm timber to match the existing 70 mm
-   timber frame and lining it to match the existing wall linings; and
+   wall with 70 mm timber framing and wall linings chosen to match the
+   existing construction; and
 2. removed the pass-through window in the ground-floor wall and reinstated
-   the wall with 140 mm hollow block, the same as the original 140 mm hollow
-   block construction.
+   the wall with 140 mm hollow block.
 
 I confirm that this work was carried out by me, a licensed builder, in a
-proper and workmanlike manner, and that to the best of my professional
-knowledge and belief both walls were reinstated with materials of the same
-type and standard as the original construction (like for like) and are
-structurally sound. Photographs taken during the works were provided directly
+proper and workmanlike manner. To the best of my professional knowledge and
+belief, the replacement materials are consistent with the original
+construction (like for like) and both walls are structurally sound. Photographs taken during the works were provided directly
 to the fire safety certifier who inspected the premises on 5 August 2026,
 with the Lessor copied.
 
