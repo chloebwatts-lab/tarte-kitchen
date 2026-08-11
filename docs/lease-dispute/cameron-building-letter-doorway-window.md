@@ -1,29 +1,48 @@
-# Builder's letter — first-floor doorway and ground-floor window (DRAFT)
+# Builder's letter — rectification of first-floor door and ground-floor window (DRAFT v2)
 
 Draft letter for Lockie Cameron (Cameron Building & Design) responding to the
-landlord's requirement, under the Form 7 Notices to Remedy Breach dated
-15 June 2026, for a letter from the builder about the first-floor doorway and
-the ground-floor window opening (servery pass-through) at 2-4 Thrower Drive,
-Currumbin.
+Form 7 Notices to Remedy Breach dated 15 June 2026 (Property Law Act 2023 (Qld)
+s 153) served by QBM Lawyers for DW Investments (Qld) Pty Ltd, re Shop 2,
+2-4 Thrower Drive, Currumbin.
 
-Deliberately kept short and in plain English. It confirms the work was done by
-a licensed builder in a workmanlike manner and that replacement materials were
-like-for-like **to the best of his professional knowledge and belief**, while
-stating plainly that the original materials were not laboratory tested and
-that the letter is not a statutory certificate. It makes no comment on lease
-or approval matters, so it contains no admissions on the breach question.
+## What the notice actually requires (checked against the served Form 7)
 
-Before sending:
+The notice requires, within 42 days of service: (a) removing the first-floor
+door and reinstating the wall; (b) removing the ground-floor pass-through
+window and reinstating the wall; (c) making good damage; and (d) evidence by
+certificate or report from appropriately qualified professionals that:
 
-- Check the wording of each Form 7 Notice (served 15 June 2026 by QBM Lawyers)
-  against this letter — the accounts@ mailbox and the shared Drive do not hold
-  a copy of the notices themselves, so the exact requirement could not be
-  verified when drafting.
-- Have Michael Adamson (Adamson Legal Group) review it, and deliver it via ALG
-  rather than to Lily directly — ALG's 15 July 2026 letter directed all
-  communications through the solicitors.
-- Fill in the bracketed placeholders: date, QBCC licence number, address and
-  contact details.
+- (i) the structure of the leased premises has not been adversely affected by
+  the lessee's interference or the rectification works;
+- (ii) the alterations carried out pursuant to the notice are structurally
+  sound;
+- (iii) the wall (in each case) complies in all respects with relevant
+  building codes for the purposes of fire safety; and
+- (iv) the construction works pursuant to the notice were carried out by
+  appropriately qualified persons.
+
+## Drafting decisions
+
+- The letter only describes the **rectification** works (removal and
+  reinstatement) — the notice's evidence requirements attach to those works,
+  so Lockie says nothing about the original alterations. No admissions.
+- Covers (i), (ii) and (iv) in one hedged sentence: licensed builder,
+  workmanlike manner, like-for-like reinstatement and structural soundness
+  stated **to the best of his professional knowledge and belief**, with no
+  laboratory testing claim made anywhere.
+- (iii) fire safety is expressly left to Troy's separate assessment — the
+  letter defers to it and makes no fire-compliance statement. Per Chloe: the
+  fire info is as per the audio message and up to Troy's assessment.
+- Expressly not a certificate under any legislation.
+
+## Before sending
+
+- Fill in placeholders: date, month works completed, QBCC licence number,
+  address/contact, Troy's full name and company.
+- Confirm the fire sentence matches what was agreed in the audio message
+  (not available to this draft).
+- Have Michael Adamson (ALG) review, and deliver via ALG — ALG's 15 July 2026
+  letter directed all communications through solicitors.
 
 ---
 
@@ -36,39 +55,28 @@ QBCC Licence No. [insert licence number]
 
 To whom it may concern
 
-**Re: Building work at 2-4 Thrower Drive, Currumbin QLD 4223 — first-floor
-doorway and ground-floor window opening**
+**Re: Shop 2, 2-4 Thrower Drive, Currumbin QLD 4223 — rectification works**
 
-I am a licensed builder and the principal of Cameron Building & Design (QBCC
-Licence No. [insert]). I carried out building work at the above premises at
-the request of the tenant.
+I am a licensed builder (QBCC Licence No. [insert]).
 
-That work included forming the doorway on the first floor and the window
-opening (servery pass-through) on the ground floor.
+In [month] 2026 I carried out the following work at the above premises:
 
-I can confirm the following about that work:
+1. removed the door installed in the first-floor wall and reinstated the
+   wall; and
+2. removed the pass-through window in the ground-floor wall and reinstated
+   the wall.
 
-1. The work was carried out by me, as a licensed builder, in a proper and
-   workmanlike manner.
-2. Structural support (framing and lintels) was installed above and around
-   each opening when the openings were formed.
-3. Where existing wall material was removed to form the openings, the
-   surrounding wall was made good. The replacement materials were selected to
-   match the existing wall construction and, to the best of my professional
-   knowledge and belief, they are of the same type and standard as the
-   materials that were removed (like for like).
+I confirm that this work was carried out by me, a licensed builder, in a
+proper and workmanlike manner, and that to the best of my professional
+knowledge and belief both walls were reinstated using materials of the same
+type and standard as the surrounding wall construction (like for like) and
+are structurally sound.
 
-My statement in point 3 is based on my visual assessment of the existing wall
-construction and my experience as a licensed builder. The original wall
-materials were not sent for laboratory testing, so I am not in a position to
-certify their composition by test results.
+Fire safety compliance of the walls is being assessed separately by
+[Troy — name / company], and I defer to that assessment.
 
-This letter is a factual description of the work I performed. It is not a
-certificate under the Building Act 1975 (Qld) or any other legislation, and I
-make no comment on lease or approval matters between the building owner and
-the tenant.
-
-Please contact me on the details above if you require anything further.
+This letter describes the work I performed. It is not a certificate under any
+legislation.
 
 Yours faithfully
 
