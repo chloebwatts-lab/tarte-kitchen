@@ -32,8 +32,10 @@ certificate or report from appropriately qualified professionals that:
   materials were never tested. No exact-match ("same as it was") claim is
   made anywhere.
 - Covers notice items (i), (ii) and (iv): licensed builder, workmanlike
-  manner, like-for-like and structurally sound stated **to the best of his
-  professional knowledge and belief**. No laboratory-testing claim either way.
+  manner, materials consistent with the original construction and structurally
+  sound, all stated **to the best of his professional knowledge and belief**.
+  The phrase "like for like" was removed entirely at Lockie's request; the
+  letter never asserts equivalence beyond "consistent with", hedged.
 - Item (iii) fire safety is left entirely to the fire safety certifier
   (Troy — surname/company to be added) who inspected on 5 August 2026 for the
   lessor and is preparing a written report; the letter defers to it and makes
@@ -84,7 +86,7 @@ On 25 and 26 July 2026 I carried out the following work at the above premises:
 I confirm that this work was carried out by me, a licensed builder, in a
 proper and workmanlike manner. To the best of my professional knowledge and
 belief, the replacement materials are consistent with the original
-construction (like for like) and both walls are structurally sound. Photographs taken during the works were provided directly
+construction and both walls are structurally sound. Photographs taken during the works were provided directly
 to the fire safety certifier who inspected the premises on 5 August 2026,
 with the Lessor copied.
 
