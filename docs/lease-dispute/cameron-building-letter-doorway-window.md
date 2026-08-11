@@ -1,4 +1,4 @@
-# Builder's letter — rectification of first-floor door and ground-floor window (DRAFT v5)
+# Builder's letter — rectification of first-floor door and ground-floor window (DRAFT v6)
 
 Draft letter for Lockie Cameron (Cameron Building & Design) responding to the
 Form 7 Notices to Remedy Breach dated 15 June 2026 (Property Law Act 2023 (Qld)
@@ -31,11 +31,12 @@ certificate or report from appropriately qualified professionals that:
   and belief" ("chosen to match" / "consistent with"), because the original
   materials were never tested. No exact-match ("same as it was") claim is
   made anywhere.
-- Covers notice items (i), (ii) and (iv): licensed builder, workmanlike
-  manner, materials consistent with the original construction and structurally
-  sound, all stated **to the best of his professional knowledge and belief**.
-  The phrase "like for like" was removed entirely at Lockie's request; the
-  letter never asserts equivalence beyond "consistent with", hedged.
+- The confirmations now track the Form 7's own words for items (i), (ii)
+  and (iv), each stated **to the best of his professional knowledge and
+  belief**: structure not adversely affected, works structurally sound,
+  works carried out by appropriately qualified persons. The notice never
+  asks the builder to certify materials match, so there is no like-for-like
+  or equivalence statement anywhere in the letter.
 - Item (iii) fire safety is left entirely to the fire safety certifier
   (Troy — surname/company to be added) who inspected on 5 August 2026 for the
   lessor and is preparing a written report; the letter defers to it and makes
@@ -83,14 +84,19 @@ On 25 and 26 July 2026 I carried out the following work at the above premises:
 2. removed the pass-through window in the ground-floor wall and reinstated
    the wall with 140 mm hollow block.
 
-I confirm that this work was carried out by me, a licensed builder, in a
-proper and workmanlike manner. To the best of my professional knowledge and
-belief, the replacement materials are consistent with the original
-construction and both walls are structurally sound. Photographs taken during the works were provided directly
-to the fire safety certifier who inspected the premises on 5 August 2026,
-with the Lessor copied.
+Referring to the Notice to Remedy Breach dated 15 June 2026, I confirm
+that, to the best of my professional knowledge and belief:
 
-Fire safety of the walls is the subject of that certifier's separate
+(a) the structure of the leased premises has not been adversely affected;
+
+(b) the works described above are structurally sound; and
+
+(c) the works described above were carried out by appropriately qualified
+    persons, being myself as a licensed builder.
+
+Photographs taken during the works were provided directly to the fire safety
+certifier who inspected the premises on 5 August 2026, with the Lessor
+copied. Fire safety of the walls is the subject of that certifier's separate
 assessment and report, and I defer to it.
 
 This letter is provided as a report of the work described above.
