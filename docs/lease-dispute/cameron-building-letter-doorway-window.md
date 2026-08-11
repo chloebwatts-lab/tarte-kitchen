@@ -24,9 +24,10 @@ certificate or report from appropriately qualified professionals that:
 
 - The letter only describes the **rectification** works — nothing about the
   original alterations, so no admissions.
-- Work descriptions only state what the builder certainly knows — the
-  materials he himself installed (70 mm timber framing upstairs, 140 mm
-  hollow block downstairs). Any claim of equivalence to the original
+- Work descriptions are reinstatement only ("closed up the ... opening"),
+  so nothing reads as if the builder created the openings or removed the
+  original blocks. They state only the materials he himself installed
+  (70 mm timber framing upstairs, 140 mm hollow block downstairs). Any claim of equivalence to the original
   construction sits solely under "to the best of my professional knowledge
   and belief" ("chosen to match" / "consistent with"), because the original
   materials were never tested. No exact-match ("same as it was") claim is
@@ -78,11 +79,11 @@ I am a licensed builder (QBCC Licence No. [insert]).
 
 On 25 and 26 July 2026 I carried out the following work at the above premises:
 
-1. removed the door installed in the first-floor wall and reinstated the
+1. closed up the doorway opening in the first-floor wall, reinstating the
    wall with 70 mm timber framing and wall linings chosen to match the
    existing construction; and
-2. removed the pass-through window in the ground-floor wall and reinstated
-   the wall with 140 mm hollow block.
+2. closed up the pass-through window opening in the ground-floor wall,
+   reinstating the wall with 140 mm hollow block.
 
 Referring to the Notice to Remedy Breach dated 15 June 2026, I confirm
 that, to the best of my professional knowledge and belief:
