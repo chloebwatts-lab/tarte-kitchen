@@ -33,7 +33,11 @@ certificate or report from appropriately qualified professionals that:
 - (iii) fire safety is expressly left to Troy's separate assessment — the
   letter defers to it and makes no fire-compliance statement. Per Chloe: the
   fire info is as per the audio message and up to Troy's assessment.
-- Expressly not a certificate under any legislation.
+- The notice asks for a "certificate **or report**" — the letter is framed as a
+  **report** of the work performed (the notice's own word), rather than
+  disclaiming certificate status, so QBM can't argue the document fails to
+  satisfy item (d) on its face. The earlier "not a certificate under any
+  legislation" line was removed for that reason.
 
 ## Before sending
 
@@ -75,8 +79,7 @@ are structurally sound.
 Fire safety compliance of the walls is being assessed separately by
 [Troy — name / company], and I defer to that assessment.
 
-This letter describes the work I performed. It is not a certificate under any
-legislation.
+This letter is provided as a report of the work described above.
 
 Yours faithfully
 
