@@ -152,6 +152,14 @@ function checkNote(label: string, r: () => number): string {
 // ── date helpers ────────────────────────────────────────────────────────────
 function buildDates(): string[] {
   const dates: string[] = []
+  // Hard ceiling: never seed at or past today's AEST date. Future-dated
+  // "completed" records surface as pre-signed checklists on the day (staff
+  // skip the real check) and read as fabricated in the inspection view.
+  // A 2026-08-12 run of this script with --to in the future did exactly
+  // that; the 26 future runs + 6 future cooling logs had to be deleted.
+  const todayAest = new Date().toLocaleDateString("en-CA", {
+    timeZone: "Australia/Brisbane",
+  })
   if (argFrom && argTo) {
     const start = new Date(`${argFrom}T00:00:00Z`)
     const end = new Date(`${argTo}T00:00:00Z`)
@@ -160,7 +168,13 @@ function buildDates(): string[] {
     const now = new Date()
     for (let i = WEEKS * 7; i >= 1; i--) dates.push(new Date(now.getTime() - i * 86400000).toISOString().slice(0, 10))
   }
-  return dates
+  const capped = dates.filter((d) => d < todayAest)
+  if (capped.length < dates.length) {
+    console.warn(
+      `⚠ dropped ${dates.length - capped.length} date(s) >= today (${todayAest}); example records must stay in the past`
+    )
+  }
+  return capped
 }
 function isoWeek(dateStr: string): string {
   const d = new Date(`${dateStr}T00:00:00Z`)
