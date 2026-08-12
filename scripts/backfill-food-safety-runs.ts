@@ -63,8 +63,10 @@ const COOLING_BY_VENUE: Record<string, { daily: CoolItem[]; pool: CoolItem[] }> 
     pool: [I.poachedChicken, I.poachedChicken, I.poachedChicken, I.brisket, I.brisket, I.brisket, I.porkFilling, I.baconJam, I.stock, I.mushrooms, I.confitTomatoes],
   },
   BEACH_HOUSE: {
-    daily: [I.lobster],
-    pool: [I.mushrooms, I.confitTomatoes, I.poachedChicken, I.brisket],
+    // Chloe 2026-08-12: chicken is poached DAILY at Beach House, same as
+    // the lobster slurry batch — both are guaranteed daily entries.
+    daily: [I.lobster, I.poachedChicken],
+    pool: [I.mushrooms, I.confitTomatoes, I.brisket],
   },
 }
 
