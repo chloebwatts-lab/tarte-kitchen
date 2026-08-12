@@ -25,6 +25,7 @@ import { RefreshOnResume } from "@/components/kitchen/RefreshOnResume"
 import { InspectionPrintButton } from "@/components/kitchen/InspectionPrintButton"
 import { InspectionChecklistCard } from "@/components/kitchen/InspectionChecklistCard"
 import { VENUE_LABEL, VENUE_SHORT_LABEL, SINGLE_VENUES } from "@/lib/venues"
+import { stripContextPrefix } from "@/lib/display"
 import { Venue } from "@/generated/prisma/client"
 
 type SingleVenue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
@@ -833,17 +834,17 @@ function CorrectiveRegister({
                 <span className="font-semibold text-[var(--tk-charcoal)]">
                   {formatAest(e.date, { weekday: "short", day: "numeric", month: "short" })}
                 </span>
-                <span>· {e.source}</span>
+                <span>· {stripContextPrefix(e.source)}</span>
                 {showVenue && (
                   <span>· {VENUE_SHORT_LABEL[e.venue as SingleVenue] ?? e.venue}</span>
                 )}
                 {e.by && <span>· by {e.by}</span>}
               </div>
               <div className="mt-1 text-[14px] font-semibold leading-snug text-[var(--tk-charcoal)]">
-                {e.found}
+                {stripContextPrefix(e.found)}
               </div>
               <div className="mt-0.5 text-[14px] leading-snug text-[var(--tk-ink)]">
-                {e.action}
+                {stripContextPrefix(e.action)}
               </div>
             </div>
           ))}
