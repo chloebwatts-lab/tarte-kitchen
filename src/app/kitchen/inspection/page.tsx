@@ -139,6 +139,11 @@ export default async function InspectionPage({
   const viewParam = typeof sp.view === "string" ? sp.view : null
   const section: SectionKey | null = isSection(viewParam) ? viewParam : null
   const fromDate = daysAgo(rangeDays)
+  // Never show days after today (AEST): the seeded example registers have
+  // been run with future dates before, and future-dated "completed" rows
+  // in an evidence view read as fabricated. runDate/entryDate columns
+  // store UTC midnight of the AEST day, so bound at AEST-today 23:59 UTC.
+  const todayEnd = new Date(`${dayKey(daysAgo(0))}T23:59:59.999Z`)
 
   const venueWhere =
     venueFilter !== "ALL"
@@ -184,6 +189,7 @@ export default async function InspectionPage({
           venueFilter={venueFilter}
           rangeDays={rangeDays}
           fromDate={fromDate}
+          todayEnd={todayEnd}
           venueWhere={venueWhere}
           venueLabel={venueLabel}
         />
@@ -193,6 +199,7 @@ export default async function InspectionPage({
           venueFilter={venueFilter}
           rangeDays={rangeDays}
           fromDate={fromDate}
+          todayEnd={todayEnd}
           venueWhere={venueWhere}
           landingHref={landingHref}
         />
@@ -207,12 +214,14 @@ async function InspectionHome({
   venueFilter,
   rangeDays,
   fromDate,
+  todayEnd,
   venueWhere,
   venueLabel,
 }: {
   venueFilter: VenueFilter
   rangeDays: number
   fromDate: Date
+  todayEnd: Date
   venueWhere: Record<string, unknown>
   venueLabel: string
 }) {
@@ -220,7 +229,7 @@ async function InspectionHome({
   const [runMeta, coolingMeta, pastryAgg, noteRows, councilDocs] =
     await Promise.all([
       db.checklistRun.findMany({
-        where: { runDate: { gte: fromDate }, ...venueWhere },
+        where: { runDate: { gte: fromDate, lte: todayEnd }, ...venueWhere },
         select: {
           runDate: true,
           template: { select: { isFoodSafety: true, area: true } },
@@ -229,12 +238,12 @@ async function InspectionHome({
         take: 2000,
       }),
       db.coolingLog.findMany({
-        where: { startedAt: { gte: fromDate }, ...venueWhere },
+        where: { startedAt: { gte: fromDate, lte: daysAgo(0) }, ...venueWhere },
         select: { startedAt: true, twoHourTempC: true, sixHourTempC: true },
         orderBy: { startedAt: "desc" },
       }),
       db.pastryRotationEntry.aggregate({
-        where: { entryDate: { gte: fromDate }, ...venueWhere },
+        where: { entryDate: { gte: fromDate, lte: todayEnd }, ...venueWhere },
         _count: true,
         _max: { entryDate: true },
         _sum: { discarded: true },
@@ -242,7 +251,7 @@ async function InspectionHome({
       db.checklistRunItem.findMany({
         where: {
           note: { not: null },
-          run: { runDate: { gte: fromDate }, ...venueWhere },
+          run: { runDate: { gte: fromDate, lte: todayEnd }, ...venueWhere },
         },
         select: { note: true, run: { select: { runDate: true } } },
       }),
@@ -506,6 +515,7 @@ async function InspectionSection({
   venueFilter,
   rangeDays,
   fromDate,
+  todayEnd,
   venueWhere,
   landingHref,
 }: {
@@ -513,6 +523,7 @@ async function InspectionSection({
   venueFilter: VenueFilter
   rangeDays: number
   fromDate: Date
+  todayEnd: Date
   venueWhere: Record<string, unknown>
   landingHref: string
 }) {
@@ -530,7 +541,7 @@ async function InspectionSection({
     needRuns
       ? db.checklistRun.findMany({
           where: {
-            runDate: { gte: fromDate },
+            runDate: { gte: fromDate, lte: todayEnd },
             ...venueWhere,
             template:
               section === "cleaning" ? CLEANING_TEMPLATE : FOOD_TEMP_TEMPLATE,
@@ -557,7 +568,7 @@ async function InspectionSection({
       ? db.checklistRunItem.findMany({
           where: {
             note: { not: null },
-            run: { runDate: { gte: fromDate }, ...venueWhere },
+            run: { runDate: { gte: fromDate, lte: todayEnd }, ...venueWhere },
           },
           select: {
             id: true,
