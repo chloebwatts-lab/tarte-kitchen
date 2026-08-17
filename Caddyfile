@@ -21,6 +21,11 @@
 		not path /log /log/*
 		not path /kitchen /kitchen/*
 		not path /staffaccess /staffaccess/*
+		# The staff areas above now sit behind their own password inside the
+		# app (STAFF_PASSWORD, see src/lib/staff-auth.ts). Its login page has
+		# to be reachable without the admin basic-auth prompt, or staff get
+		# asked for the office password before they can reach theirs.
+		not path /staff-login /staff-login/*
 		not path /maintenance-assets/*
 		not path /council /council/*
 		not path /api/council/*

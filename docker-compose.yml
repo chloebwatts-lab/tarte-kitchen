@@ -32,6 +32,10 @@ services:
       # Council inspection folder password (/council/login). Read at runtime by
       # council-auth.ts — throws & 500s every /council route if unset.
       COUNCIL_PASSWORD: ${COUNCIL_PASSWORD}
+      # Staff tools password (/kitchen, /staffaccess, /log). Read at runtime
+      # by staff-auth.ts, which fails closed: unset means nobody gets in.
+      STAFF_USERNAME: ${STAFF_USERNAME:-tarte}
+      STAFF_PASSWORD: ${STAFF_PASSWORD}
       # Secrets used at runtime — sourced from the droplet's .env via docker compose
       TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY}
       CRON_SECRET: ${CRON_SECRET}
