@@ -160,6 +160,7 @@ interface ProcessStats {
   duplicates: number
   statements: number
   orderConfirmations: number
+  creditNotes: number
   rescued: number
   errors: string[]
 }
@@ -244,8 +245,13 @@ async function finalizeParsedInvoice(
     }
   }
 
+  // Credit notes fall through to the normal processor deliberately: unlike
+  // statements and order confirmations they DO belong in spend (negatively),
+  // so they need their line items matched and stored like any other document.
+  // processInvoice sets status CREDIT_NOTE and suppresses price alerts.
   await processInvoice(invoiceId, supplier.id, parsed)
-  stats.invoicesIngested++
+  if (parsed.documentType === "CREDIT_NOTE") stats.creditNotes++
+  else stats.invoicesIngested++
 }
 
 async function processMessages(
@@ -259,6 +265,7 @@ async function processMessages(
     duplicates: 0,
     statements: 0,
     orderConfirmations: 0,
+    creditNotes: 0,
     rescued: 0,
     errors: [],
   }
@@ -642,6 +649,7 @@ export async function GET(request: Request) {
       duplicates: stats.duplicates,
       statements: stats.statements,
       orderConfirmations: stats.orderConfirmations,
+      creditNotes: stats.creditNotes,
       rescued: stats.rescued,
       unknownSendersLogged: unknownLogged,
       supplierEmailsConfigured: allEmails.length,

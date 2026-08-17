@@ -27,6 +27,14 @@ export async function processInvoice(
   let unmatchedItems = 0
   let priceChanges = 0
 
+  // A credit note still gets its lines matched and stored (so COGS and
+  // supplier variance net the returned goods off), but it must never raise a
+  // price alert: its amounts are negative and its unitPrice is the ORIGINAL
+  // invoice's rate, so comparing it to the current ingredient price would
+  // either re-alert on a price we already accepted or, worse, write a
+  // negative purchase price through applyPriceChanges.
+  const isCreditNote = parsedData.documentType === "CREDIT_NOTE"
+
   // Venue resolution, most-reliable signal first:
   //   1. delivery (ship-to) address text
   //   2. bill-to / account block (who's charged, names the venue when
@@ -112,7 +120,7 @@ export async function processInvoice(
         mappingConversion = mapping?.conversionFactor ? Number(mapping.conversionFactor) : null
         mappingInvoiceUnit = mapping?.invoiceUnit ?? null
       }
-      if (ing) {
+      if (ing && !isCreditNote) {
         const evaluation = evaluatePriceChange(
           {
             purchaseUnit: ing.purchaseUnit,
@@ -175,9 +183,18 @@ export async function processInvoice(
   // (lineItemsTruncated) or a parse that found nothing. Marking those
   // MATCHED used to make them look done while all line detail was silently
   // missing, surface them as EXTRACTED (needs review) with a note instead.
-  let status: InvoiceStatus = unmatchedItems > 0 ? "EXTRACTED" : "MATCHED"
+  // CREDIT_NOTE overrides the matched/unmatched split: the distinction only
+  // drives the "needs mapping review" queue, and a credit's lines are always
+  // a subset of an invoice we already ingested. It stays IN the spend
+  // aggregations (unlike STATEMENT / DUPLICATE / ORDER_CONFIRMATION) because
+  // its negative amounts are what nets the reversal off.
+  let status: InvoiceStatus = isCreditNote
+    ? "CREDIT_NOTE"
+    : unmatchedItems > 0
+      ? "EXTRACTED"
+      : "MATCHED"
   let errorMessage: string | null = null
-  if (parsedData.lineItems.length === 0) {
+  if (parsedData.lineItems.length === 0 && !isCreditNote) {
     status = "EXTRACTED"
     errorMessage = parsedData.lineItemsTruncated
       ? `Line items not extracted, document too long for the extraction budget (${
@@ -263,6 +280,13 @@ export async function applyPriceChanges(invoiceId: string): Promise<number> {
       purchasePrice:
         Number(item.normalisedUnitPrice) * qtyById.get(item.ingredientId!)!,
     }))
+    // Belt-and-braces: a credit note's negative amounts must never become an
+    // ingredient's purchase price. processInvoice already refuses to set
+    // priceChanged on a credit note, but rows written before 2026-08-17 (when
+    // credits were ingested as ordinary invoices) can still carry the flag.
+    .filter((u) => u.purchasePrice > 0)
+
+  if (updates.length === 0) return 0
 
   await bulkUpdatePrices(updates)
 

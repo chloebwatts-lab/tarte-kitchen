@@ -855,6 +855,22 @@ enum InvoiceStatus {
   /// must be excluded from spend AND from the content-dedupe candidate set —
   /// otherwise the real invoice gets marked DUPLICATE of it.
   ORDER_CONFIRMATION
+  /// Supplier credit note / adjustment note (returned goods, a short
+  /// delivery, or a wrongly-raised invoice being reversed). Unlike the
+  /// other non-invoice statuses this one IS counted in spend, because a
+  /// credit REDUCES what we owe: its subtotal/gst/total and every line
+  /// total are stored NEGATIVE by the parser so the aggregations net it
+  /// off automatically.
+  ///
+  /// Suppliers split on how they print these. Jensens and The Provedores
+  /// send a negative total, which always parsed correctly. Global Food &
+  /// Wine, Cheese Time, Pixel Bread and Bidfood print "TOTAL $1,734.00"
+  /// with no minus sign and the words "Credit Note" only in the page
+  /// title, so before 2026-08-17 they were ingested as ordinary positive
+  /// invoices and INFLATED spend by twice their value. Found when the
+  /// live spend page showed Global Food & Wine at $5,377 for the week of
+  /// 12 Aug 2026 against a true net of $1,559.18.
+  CREDIT_NOTE
 }
 
 model Invoice {
