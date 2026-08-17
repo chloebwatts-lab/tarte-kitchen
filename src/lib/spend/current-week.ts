@@ -142,7 +142,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     db.invoice.findMany({
       where: {
         invoiceDate: { gte: start, lt: end },
-        status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION"] },
+        status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION", "REJECTED"] },
       },
       select: {
         id: true,
@@ -171,7 +171,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       where: {
         invoiceDate: { gte: start, lt: end },
         venue: null,
-        status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION"] },
+        status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION", "REJECTED"] },
       },
       select: {
         id: true,
@@ -186,7 +186,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     db.invoice.groupBy({
       by: ["supplierName"],
       _max: { invoiceDate: true },
-      where: { status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION"] } },
+      where: { status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION", "REJECTED"] } },
     }),
     // Lightspeed EOD revenue for the week. `date` is a @db.Date stored at
     // UTC midnight of the AEST calendar day, so it sits inside [start, end).
@@ -203,7 +203,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     db.invoice.findMany({
       where: {
         invoiceDate: { gte: earliest8wkStart, lt: start },
-        status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION"] },
+        status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION", "REJECTED"] },
         venue: { not: null },
       },
       select: { invoiceDate: true, venue: true, total: true, subtotal: true, gst: true },

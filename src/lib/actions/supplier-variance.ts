@@ -100,7 +100,7 @@ export async function getSupplierVariance(params?: {
       where: {
         invoiceDate: { gte: since },
         supplierId: { not: null },
-        status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION"] },
+        status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION", "REJECTED"] },
       },
       include: {
         supplier: true,

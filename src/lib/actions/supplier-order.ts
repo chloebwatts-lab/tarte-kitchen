@@ -81,7 +81,7 @@ export async function getSupplierOrderForm(
         ingredientId: { in: ingredientIdsForLastInv },
         invoice: {
           invoiceDate: { gte: cutoff },
-          status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION"] },
+          status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION", "REJECTED"] },
           supplierId,
           venue,
         },

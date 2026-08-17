@@ -336,7 +336,7 @@ export async function saveStocktakeCounts(params: {
         invoice: {
           venue: stocktake.venue,
           invoiceDate: { gt: prev.date, lte: stocktake.date },
-          status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION"] },
+          status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION", "REJECTED"] },
         },
       },
       select: { ingredientId: true, quantity: true, unit: true },

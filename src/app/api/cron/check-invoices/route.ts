@@ -17,7 +17,11 @@ import {
 import { saveInvoicePdf } from "@/lib/invoices/storage"
 import { parseInvoicePdf } from "@/lib/invoices/parser"
 import { processInvoice } from "@/lib/invoices/processor"
-import Fuse from "fuse.js"
+import {
+  disambiguateSupplier,
+  IGNORED_SENDER_PROBES,
+  type SupplierRef,
+} from "@/lib/invoices/supplier-match"
 import { readFile } from "fs/promises"
 import path from "path"
 
@@ -41,11 +45,6 @@ import path from "path"
  * Every run writes an `InvoiceSyncRun` audit row so the dashboard can
  * red-flag a 0-invoice streak or repeated errors within 24 h.
  */
-
-interface SupplierRef {
-  id: string
-  name: string
-}
 
 async function buildSupplierEmailMap(): Promise<{
   emailMap: Map<string, SupplierRef[]>
@@ -82,86 +81,19 @@ async function buildSupplierEmailMap(): Promise<{
   return { emailMap, allEmails: Array.from(emailMap.keys()) }
 }
 
-// Some Xero-domain suppliers can't be matched from their invoices at all:
-// Breadtop's legal entity is EAC BUSINESS GROUP PTY LTD, its Xero display
-// name is the director ("Ka Wai Chan"), and its PDFs parse with the
-// CUSTOMER (Tarte trust) as the supplier. Explicit probe→supplier hints
-// break the tie (checked before token/fuzzy matching; only ever selects
-// from the candidates already mapped to the sending address).
-const SENDER_PROBE_HINTS: Array<{ probe: string; supplier: string }> = [
-  { probe: "ka wai chan", supplier: "Breadtop" },
-  { probe: "eac business group", supplier: "Breadtop" },
-  // Coastal Fresh also sends via Xero's relay ("Accounts Receivable -
-  // Coastal Fresh" from messaging-service@post.xero.com). The token
-  // fast-path ties between "Coastal Fresh" and "Gold Coast Premium Foods"
-  // ("coast" hits both), and Fuse then rejects the long display name, so
-  // these invoices were never ingested. Their legal entity is The Dave's
-  // Wholesale Trust.
-  { probe: "coastal fresh", supplier: "Coastal Fresh" },
-  { probe: "dave's wholesale", supplier: "Coastal Fresh" },
-]
-
-// Known NON-FOOD senders on the shared Xero address. Deliberately not
-// ingested (overheads would distort the COGS spend tracker), skip them
-// silently instead of logging a "could not match" error on every sweep.
-const IGNORED_SENDER_PROBES = [
-  "here to help clean",
-  "drive accountants",
-]
-
-function disambiguateSupplier(
-  candidates: SupplierRef[],
-  parsedSupplierName: string | null,
-  senderDisplayName: string | null
-): SupplierRef | null {
-  if (candidates.length === 1) return candidates[0]
-  const probes = [parsedSupplierName, senderDisplayName].filter(
-    (s): s is string => !!s
-  )
-
-  const probeStrAll = probes.join(" ").toLowerCase()
-  for (const hint of SENDER_PROBE_HINTS) {
-    if (probeStrAll.includes(hint.probe)) {
-      const hit = candidates.find(
-        (c) => c.name.toLowerCase() === hint.supplier.toLowerCase()
-      )
-      if (hit) return hit
-    }
-  }
-
-  // Token-overlap fast path. Fuse's char-level threshold rejects
-  // "Pixel Bakehouse Pty Ltd" → "Pixel Bread" even though "Pixel"
-  // matches cleanly, so we pre-check for distinctive shared tokens
-  // (≥4 chars, skips "the"/"of"). If exactly one candidate has any
-  // such token in either probe, pick it.
-  if (probes.length > 0) {
-    const probeStr = probes.join(" ").toLowerCase()
-    const hits = candidates.filter((c) =>
-      c.name
-        .toLowerCase()
-        .split(/\s+/)
-        .filter((t) => t.length >= 4)
-        .some((t) => probeStr.includes(t))
-    )
-    if (hits.length === 1) return hits[0]
-  }
-
-  for (const probe of probes) {
-    const fuse = new Fuse(candidates, { keys: ["name"], threshold: 0.4, includeScore: true })
-    const results = fuse.search(probe)
-    if (results.length > 0) return results[0].item
-  }
-  return null
-}
-
 interface ProcessStats {
   messagesFound: number
   invoicesIngested: number
   duplicates: number
+  /** Subset of `duplicates` caught only by the supplier-agnostic check —
+   * each one means a mis-attribution somewhere, so it's surfaced separately. */
+  crossSupplierDuplicates: number
   statements: number
   orderConfirmations: number
   creditNotes: number
   rescued: number
+  /** PDFs we refused to attribute; parked in UnknownInvoiceSender for review. */
+  unmatched: number
   errors: string[]
 }
 
@@ -220,7 +152,7 @@ async function finalizeParsedInvoice(
       where: {
         id: { not: invoiceId },
         supplierId: supplier.id,
-        status: { notIn: ["ERROR", "DUPLICATE", "STATEMENT", "ORDER_CONFIRMATION"] },
+        status: { notIn: ["ERROR", "DUPLICATE", "STATEMENT", "ORDER_CONFIRMATION", "REJECTED"] },
         ...(parsed.invoiceNumber
           ? { invoiceNumber: parsed.invoiceNumber }
           : {
@@ -243,6 +175,46 @@ async function finalizeParsedInvoice(
       stats.duplicates++
       return
     }
+
+    // Supplier-AGNOSTIC fallback. The check above is scoped to supplierId, so
+    // a document filed under two different suppliers never matches itself —
+    // that's how CN306 (Pixel Bakehouse, mis-filed once as Cheese Time) landed
+    // in spend twice. Requires invoiceNumber AND date AND magnitude to agree,
+    // which over the whole 3,221-row history matched exactly one pair: that
+    // one, a true duplicate. Bare invoiceNumber would be far too loose —
+    // "CN306", "7168" and "3564" all recur across unrelated suppliers.
+    //
+    // Compares |total|: credit notes are stored negative, so the mis-filed
+    // copy and the correctly-filed one can differ in sign alone.
+    if (parsed.invoiceNumber && parsed.invoiceDate && parsed.total != null) {
+      const crossDup = await db.invoice.findFirst({
+        where: {
+          id: { not: invoiceId },
+          supplierId: { not: supplier.id },
+          invoiceNumber: parsed.invoiceNumber,
+          invoiceDate: new Date(parsed.invoiceDate),
+          total: { in: [parsed.total, -parsed.total] },
+          status: { notIn: ["ERROR", "DUPLICATE", "STATEMENT", "ORDER_CONFIRMATION", "REJECTED"] },
+        },
+        select: { id: true, invoiceNumber: true, supplierName: true },
+      })
+      if (crossDup) {
+        await db.invoice.update({
+          where: { id: invoiceId },
+          data: {
+            status: "DUPLICATE",
+            ...parsedMeta,
+            // Flagged distinctly: a cross-supplier duplicate always means one
+            // of the two copies is mis-attributed, so it wants a human look
+            // rather than silently vanishing like an ordinary forward.
+            errorMessage: `Cross-supplier duplicate of invoice ${crossDup.id} (${crossDup.invoiceNumber}) filed under "${crossDup.supplierName}" — one of the two is mis-attributed, review both`,
+          },
+        })
+        stats.duplicates++
+        stats.crossSupplierDuplicates++
+        return
+      }
+    }
   }
 
   // Credit notes fall through to the normal processor deliberately: unlike
@@ -263,10 +235,12 @@ async function processMessages(
     messagesFound: messageRefs.length,
     invoicesIngested: 0,
     duplicates: 0,
+    crossSupplierDuplicates: 0,
     statements: 0,
     orderConfirmations: 0,
     creditNotes: 0,
     rescued: 0,
+    unmatched: 0,
     errors: [],
   }
 
@@ -314,12 +288,33 @@ async function processMessages(
           continue
         }
 
-        const supplier = disambiguateSupplier(candidates, parsed.supplierName, senderName)
+        const { supplier, reason } = disambiguateSupplier(
+          candidates,
+          parsed.supplierName,
+          senderName
+        )
         if (!supplier) {
           const probeStr = `${parsed.supplierName ?? ""} ${senderName ?? ""}`.toLowerCase()
           if (IGNORED_SENDER_PROBES.some((p) => probeStr.includes(p))) continue
+          // Park it in the review queue rather than only logging. An
+          // unmatched PDF used to be dropped on the floor every sweep with
+          // nothing durable to action; these are precisely the documents a
+          // human needs to map to a supplier (or mark "not an invoice").
+          await db.unknownInvoiceSender
+            .upsert({
+              where: { gmailMessageId: messageKey },
+              create: {
+                senderEmail,
+                senderName,
+                subject: `${getHeader(message, "Subject") ?? "(no subject)"} — unmatched: ${reason}`,
+                gmailMessageId: messageKey,
+              },
+              update: { lastSeenAt: new Date(), occurrences: { increment: 1 } },
+            })
+            .catch(() => {})
+          stats.unmatched++
           stats.errors.push(
-            `Message ${ref.id}: could not match sender "${senderEmail}" (display: "${senderName}", invoice: "${parsed.supplierName}") to any of: ${candidates.map((c) => c.name).join(", ")}`
+            `Message ${ref.id}: could not match sender "${senderEmail}" (display: "${senderName}", invoice: "${parsed.supplierName}") — ${reason}; candidates: ${candidates.map((c) => c.name).join(", ")}`
           )
           continue
         }
@@ -445,7 +440,7 @@ async function rescueStuckInvoices(stats: ProcessStats): Promise<void> {
 async function applyStandingVenueRules(): Promise<string[]> {
   const notes: string[] = []
   const activeStatuses = {
-    notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION"] as InvoiceStatus[],
+    notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION", "REJECTED"] as InvoiceStatus[],
   }
 
   const breadtop = await db.invoice.updateMany({
@@ -647,9 +642,11 @@ export async function GET(request: Request) {
       messagesFound: stats.messagesFound,
       invoicesIngested: stats.invoicesIngested,
       duplicates: stats.duplicates,
+      crossSupplierDuplicates: stats.crossSupplierDuplicates,
       statements: stats.statements,
       orderConfirmations: stats.orderConfirmations,
       creditNotes: stats.creditNotes,
+      unmatched: stats.unmatched,
       rescued: stats.rescued,
       unknownSendersLogged: unknownLogged,
       supplierEmailsConfigured: allEmails.length,

@@ -234,7 +234,7 @@ export async function refreshAutoParsFromInvoices(opts?: {
       quantity: { not: null },
       invoice: {
         invoiceDate: { gte: cutoff },
-        status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION"] },
+        status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION", "REJECTED"] },
         venue: { not: null },
       },
     },
