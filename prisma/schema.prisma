@@ -66,12 +66,19 @@ model ApprovedSupplierItem {
   sortOrder    Int       @default(0)
   ingredientId String?
   ingredient   Ingredient? @relation(fields: [ingredientId], references: [id])
+  /// Which department orders this item. Null = fall back to the
+  /// category-based default in `src/lib/departments.ts`, so a brand-new
+  /// item still lands on somebody's form instead of disappearing.
+  dept         OrderDept?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+
+  deptOrderLines DeptOrderLine[]
 
   @@unique([supplierId, name])
   @@index([supplierId])
   @@index([ingredientId])
+  @@index([dept])
 }
 
 model SupplierEmail {
@@ -1210,6 +1217,9 @@ model PurchaseOrder {
   updatedAt    DateTime            @updatedAt
 
   lines PurchaseOrderLine[]
+  /// Department request lines this order was assembled from (empty for
+  /// orders raised directly in admin).
+  deptOrderLines DeptOrderLine[]
 
   @@index([supplierId, status])
   @@index([venue, orderDate])
@@ -2197,4 +2207,83 @@ model ServiceEmailSeen {
   outcome String
   detail  String?
   createdAt DateTime @default(now())
+}
+
+// ─── Department ordering ────────────────────────────────────────────────────
+// Each department fills its own order form through the day. At close, the
+// department head approves their lines; approved lines from every department
+// are regrouped BY SUPPLIER into the existing PurchaseOrder flow, so a
+// supplier receives one combined order, not one email per department.
+
+enum OrderDept {
+  KITCHEN
+  PASTRY
+  COFFEE_BAR
+  FRONT_OF_HOUSE
+}
+
+enum DeptOrderStatus {
+  OPEN
+  APPROVED
+}
+
+/// Per-venue head of a department. Names live in the DB (not code) because
+/// roles change more often than deploys do.
+model DeptOrderOwner {
+  id        String    @id @default(cuid())
+  venue     Venue
+  dept      OrderDept
+  ownerName String?
+  /// False hides the department from this venue's staff-tools list, for
+  /// venues that don't run it (Tea Garden has no pastry section of its own).
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([venue, dept])
+}
+
+/// One department's order request for one day at one venue. Created lazily
+/// the first time someone enters a quantity.
+model DeptOrderRequest {
+  id          String          @id @default(cuid())
+  venue       Venue
+  dept        OrderDept
+  requestDate DateTime        @db.Date
+  status      DeptOrderStatus @default(OPEN)
+  approvedBy  String?
+  approvedAt  DateTime?
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  lines DeptOrderLine[]
+
+  @@unique([venue, dept, requestDate])
+  @@index([venue, requestDate])
+}
+
+model DeptOrderLine {
+  id             String               @id @default(cuid())
+  requestId      String
+  request        DeptOrderRequest     @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  approvedItemId String
+  item           ApprovedSupplierItem @relation(fields: [approvedItemId], references: [id], onDelete: Cascade)
+  /// Packs wanted, in the approved item's pack size. 0 never persists, the
+  /// line is deleted instead so "requested" always means "> 0".
+  quantity       Decimal              @db.Decimal(10, 2)
+  note           String?
+  /// Typed staff name, so the department head can see who asked for what.
+  enteredBy      String?
+  /// Set once this line has been rolled into a supplier PO. Locks the line
+  /// against further edits so nothing gets ordered twice.
+  purchaseOrderId String?
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  orderedAt       DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@unique([requestId, approvedItemId])
+  @@index([approvedItemId])
+  @@index([purchaseOrderId])
 }

@@ -31,6 +31,7 @@ export const config = {
     "/cogs/:path*",
     "/orders/:path*",
     "/order-checklists/:path*",
+    "/order-departments/:path*",
     "/par-levels/:path*",
     "/price-alerts/:path*",
     "/restock/:path*",

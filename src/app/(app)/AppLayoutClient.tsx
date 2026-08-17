@@ -24,6 +24,7 @@ const pageTitles: Record<string, string> = {
   "/checklists": "Checklists",
   "/orders": "Orders",
   "/order-checklists": "Order Checklists",
+  "/order-departments": "Ordering Departments",
   "/par-levels": "Par Levels",
   "/labour": "Labour",
   "/labour/upload": "Upload payroll",

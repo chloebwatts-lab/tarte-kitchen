@@ -79,6 +79,7 @@ const navGroups: NavGroup[] = [
       { label: "Price Alerts", href: "/price-alerts", icon: TrendingUp },
       { label: "Orders", href: "/orders", icon: ShoppingCart },
       { label: "Order Checklists", href: "/order-checklists", icon: ClipboardCheck },
+      { label: "Departments", href: "/order-departments", icon: Users },
       { label: "Par Levels", href: "/par-levels", icon: Gauge },
     ],
   },
