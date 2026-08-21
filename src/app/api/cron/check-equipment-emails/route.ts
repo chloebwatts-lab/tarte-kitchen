@@ -54,6 +54,22 @@ const EQUIPMENT_SUPPLIER_DOMAINS = [
   "vevor.com.au",
 ]
 
+/**
+ * High-volume food/produce/consumables senders whose invoice PDFs constantly
+ * mention fridge/freezer words ("keep refrigerated") without ever selling us
+ * a machine. Excluded from the keyword sweep only — the supplier-domain
+ * query is unaffected, and a genuine equipment invoice relayed via Xero
+ * still matches.
+ */
+const FOOD_SUPPLIER_EXCLUSIONS = [
+  "pacificfruitandveg.com.au",
+  "bidfood.com.au",
+  "theprovedores.com.au",
+  "fresho.com",
+  "jjrichards.com.au",
+  "alsco.com.au",
+]
+
 const EQUIPMENT_KEYWORD_QUERY =
   '{"tax invoice" invoice receipt "order confirmation" "your order" payment} ' +
   '{fridge freezer dishwasher fryer oven cooktop griddle "ice machine" "ice maker" ' +
@@ -153,8 +169,15 @@ export async function GET(request: Request) {
       const q1 = `from:(${EQUIPMENT_SUPPLIER_DOMAINS.join(" OR ")}) newer_than:${windowDays}d`
       for (const m of await searchMessages(mailbox.token, q1, 500)) candidates.set(m.id, true)
       // -from:accounts@ keeps our own app's emails (digests mention fridges,
-      // fryers etc. constantly) out of the sweep.
-      const q2 = `${EQUIPMENT_KEYWORD_QUERY} -from:accounts@tarte.com.au newer_than:${windowDays}d`
+      // fryers etc. constantly) out of the sweep. Audit runs additionally
+      // require an attachment: over a wide window the attachment-less
+      // matches are overwhelmingly marketing/noise, and real equipment
+      // invoices carry PDFs (the supplier-domain query q1 still catches
+      // attachment-less order emails from known suppliers).
+      const q2 =
+        `${EQUIPMENT_KEYWORD_QUERY} ` +
+        `-from:(accounts@tarte.com.au OR ${FOOD_SUPPLIER_EXCLUSIONS.join(" OR ")}) ` +
+        `${auditMode ? "has:attachment " : ""}newer_than:${windowDays}d`
       for (const m of await searchMessages(mailbox.token, q2, 500)) candidates.set(m.id, true)
 
       const ids = Array.from(candidates.keys())
