@@ -48,12 +48,17 @@ const BASE_URL = "https://kitchen.tarte.com.au"
 const EQUIPMENT_SUPPLIER_DOMAINS = [
   "commercialkitchencompany.com.au",
   "nisbets.com.au",
+  // Chloe buys odd machines here (chocolate temperer, juicer, vac sealer);
+  // order emails come from notice@sys.vevor.com — domain match covers both.
+  "vevor.com",
+  "vevor.com.au",
 ]
 
 const EQUIPMENT_KEYWORD_QUERY =
-  '{"tax invoice" invoice receipt "order confirmation"} ' +
+  '{"tax invoice" invoice receipt "order confirmation" "your order" payment} ' +
   '{fridge freezer dishwasher fryer oven cooktop griddle "ice machine" "ice maker" ' +
-  '"coffee machine" grinder mixer blender juicer "cool room" "coolroom" "display fridge" "bain marie"}'
+  '"coffee machine" grinder mixer blender juicer "cool room" "coolroom" "display fridge" "bain marie" ' +
+  '"vacuum sealer" "vac sealer" cryovac "meat slicer" "food processor" salamander}'
 
 function dateStr(d: Date): string {
   const y = d.getFullYear()
