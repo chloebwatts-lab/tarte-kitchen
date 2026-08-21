@@ -1,20 +1,24 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useTransition } from "react"
 import Link from "next/link"
 import {
   AlertTriangle,
   ArrowUpRight,
   CalendarClock,
   Camera,
+  Check,
   ClipboardList,
+  Mail,
   Printer,
   Search,
   ShieldCheck,
   ShieldQuestion,
+  Sparkles,
   Users,
   Wrench,
 } from "lucide-react"
+import { confirmMaintenanceAsset } from "@/lib/actions/maintenance"
 
 export interface MDAsset {
   id: string
@@ -28,6 +32,12 @@ export interface MDAsset {
   model: string | null
   serial: string | null
   photoUrl: string | null
+  needsReview: boolean
+  source: string
+  sourceEmailSubject: string | null
+  addedBy: string | null
+  supplier: string | null
+  createdAt: string
   purchaseDate: string | null
   warrantyMonths: number | null
   warrantyProvider: string | null
@@ -132,6 +142,17 @@ export function MaintenanceDashboard({
   const [venue, setVenue] = useState<(typeof VENUE_TABS)[number]["key"]>("BURLEIGH")
   const [q, setQ] = useState("")
   const [showRetired, setShowRetired] = useState(false)
+  const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set())
+  const [, startTransition] = useTransition()
+
+  const pendingReview = assets.filter((a) => a.needsReview && !confirmedIds.has(a.id))
+
+  function confirmAsset(id: string) {
+    setConfirmedIds((prev) => new Set(prev).add(id))
+    startTransition(() => {
+      void confirmMaintenanceAsset(id)
+    })
+  }
 
   const active = assets.filter((a) => a.status === "ACTIVE")
   const safety = openIssues.filter((i) => i.isSafety)
@@ -203,6 +224,60 @@ export function MaintenanceDashboard({
           icon={<Camera className="h-4 w-4" />}
         />
       </div>
+
+      {/* ── New machines to check ── */}
+      {pendingReview.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <Sparkles className="h-3.5 w-3.5" /> New machines, check the details
+          </h2>
+          {pendingReview.map((a) => (
+            <div
+              key={a.id}
+              className="flex flex-wrap items-center gap-3 rounded-xl border border-sky-200 bg-sky-50/60 p-3"
+            >
+              <Thumb src={a.photoUrl} size={44} />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-semibold">
+                  <span className="font-mono">{a.slug}</span> · {a.name}
+                </div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {a.venue === "BURLEIGH" ? "Burleigh" : "Beach House"} · {a.location}
+                  {a.supplier ? ` · from ${a.supplier}` : ""}
+                  {a.source === "email" && a.sourceEmailSubject ? (
+                    <span className="inline-flex items-center gap-1">
+                      {" · "}
+                      <Mail className="inline h-3 w-3" /> {a.sourceEmailSubject}
+                    </span>
+                  ) : a.addedBy ? (
+                    ` · added by ${a.addedBy}`
+                  ) : null}
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Link
+                  href={`/kitchen/fix/label/${a.slug}`}
+                  className="inline-flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-xs font-medium hover:bg-muted"
+                >
+                  <Printer className="h-3.5 w-3.5" /> QR label
+                </Link>
+                <Link
+                  href={`/kitchen/fix/${a.slug}`}
+                  className="inline-flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-xs font-medium hover:bg-muted"
+                >
+                  <Wrench className="h-3.5 w-3.5" /> Open
+                </Link>
+                <button
+                  onClick={() => confirmAsset(a.id)}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-2.5 py-1.5 text-xs font-medium text-background"
+                >
+                  <Check className="h-3.5 w-3.5" /> Looks right
+                </button>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
 
       {/* ── Needs attention ── */}
       {(safety.length > 0 || expiring.length > 0 || staleIssues.length > 0) && (

@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
-import { ArrowRight, ClipboardCheck, QrCode, Wrench } from "lucide-react"
+import { ArrowRight, ClipboardCheck, PlusCircle, QrCode, Wrench } from "lucide-react"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
 import { FixAssetList } from "@/components/kitchen/FixAssetList"
@@ -76,6 +76,15 @@ function VenueLanding() {
           Fastest way: open your phone camera and scan the QR sticker on the machine.
           It goes straight to that machine&apos;s page.
         </div>
+        <div className="mt-4 text-center">
+          <Link
+            href="/kitchen/fix/new"
+            className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-semibold text-white"
+            style={{ background: "rgba(255,255,255,0.15)" }}
+          >
+            <PlusCircle className="h-4 w-4" /> New machine with no sticker? Add it here
+          </Link>
+        </div>
       </div>
     </div>
   )
@@ -123,20 +132,28 @@ export default async function FixHubPage({
           </div>
           <div className="mt-1 text-[14px] text-[var(--tk-ink-soft)]">{here.sub}</div>
         </div>
-        <div className="flex rounded-2xl border border-[var(--tk-line)] bg-[var(--tk-card)] p-1">
-          {VENUES.map((v) => (
-            <Link
-              key={v.key}
-              href={`/kitchen/fix?venue=${v.key}`}
-              className={`rounded-xl px-5 py-3 text-[16px] font-bold transition ${
-                v.key === venue
-                  ? "bg-[var(--tk-charcoal)] text-white"
-                  : "text-[var(--tk-ink-soft)] hover:text-[var(--tk-charcoal)]"
-              }`}
-            >
-              {v.title}
-            </Link>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href={`/kitchen/fix/new?venue=${venue}`}
+            className="inline-flex items-center gap-2 rounded-2xl border border-[var(--tk-line)] bg-[var(--tk-card)] px-4 py-3.5 text-[15px] font-bold text-[var(--tk-ink)] transition hover:border-[var(--tk-sage)]"
+          >
+            <PlusCircle className="h-4 w-4" /> Add machine
+          </Link>
+          <div className="flex rounded-2xl border border-[var(--tk-line)] bg-[var(--tk-card)] p-1">
+            {VENUES.map((v) => (
+              <Link
+                key={v.key}
+                href={`/kitchen/fix?venue=${v.key}`}
+                className={`rounded-xl px-5 py-3 text-[16px] font-bold transition ${
+                  v.key === venue
+                    ? "bg-[var(--tk-charcoal)] text-white"
+                    : "text-[var(--tk-ink-soft)] hover:text-[var(--tk-charcoal)]"
+                }`}
+              >
+                {v.title}
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
 

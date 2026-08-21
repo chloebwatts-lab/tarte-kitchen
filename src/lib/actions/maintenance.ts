@@ -4,11 +4,13 @@ import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { Venue } from "@/generated/prisma/client"
 import {
+  ASSET_CATEGORIES,
   CATEGORY_SPECIALTIES,
   CATEGORY_SYMPTOMS,
   type AssetCategory,
   warrantyEndDate,
 } from "@/lib/maintenance/constants"
+import { nextAssetSlug } from "@/lib/maintenance/slug"
 
 // ── Staff (kiosk, no auth) ──────────────────────────────────────────────────
 
@@ -150,7 +152,75 @@ export async function markIssueFixed(input: MarkFixedInput) {
   revalidatePath("/maintenance")
 }
 
+/** Existing sub-locations at a venue, for the quick-add page's picker. */
+export async function getVenueLocations(venue: Venue): Promise<string[]> {
+  const rows = await db.maintenanceAsset.findMany({
+    where: { venue, status: "ACTIVE" },
+    select: { location: true },
+    distinct: ["location"],
+    orderBy: { location: "asc" },
+  })
+  return rows.map((r) => r.location).filter((l) => l !== "To confirm")
+}
+
+export interface CreateAssetInput {
+  venue: Venue
+  name: string
+  location: string
+  category: string
+  aliases?: string[]
+  manufacturer?: string | null
+  model?: string | null
+  serial?: string | null
+  photoUrl?: string | null
+  photoPublicId?: string | null
+  addedBy: string
+}
+
+/**
+ * Staff quick-add (kitchen page, behind the shared staff login). Allocates
+ * the next QR slug for the venue so the label is printable immediately.
+ */
+export async function createMaintenanceAsset(input: CreateAssetInput): Promise<{ slug: string }> {
+  if (!input.name.trim()) throw new Error("What is the machine called?")
+  if (!input.location.trim()) throw new Error("Where does it live?")
+  if (!input.addedBy.trim()) throw new Error("Name is required")
+  const venue: Venue = input.venue === "BURLEIGH" ? "BURLEIGH" : "BEACH_HOUSE"
+  const category = (ASSET_CATEGORIES as readonly string[]).includes(input.category)
+    ? input.category
+    : "other"
+
+  const slug = await nextAssetSlug(venue)
+  await db.maintenanceAsset.create({
+    data: {
+      slug,
+      venue,
+      name: input.name.trim(),
+      location: input.location.trim(),
+      category,
+      aliases: (input.aliases ?? []).map((a) => a.trim()).filter(Boolean),
+      manufacturer: input.manufacturer?.trim() || null,
+      model: input.model?.trim() || null,
+      serial: input.serial?.trim() || null,
+      photoUrl: input.photoUrl || null,
+      photoPublicId: input.photoPublicId || null,
+      source: "staff",
+      addedBy: input.addedBy.trim(),
+    },
+  })
+  revalidatePath("/kitchen/fix")
+  revalidatePath("/maintenance")
+  revalidatePath("/maintenance/labels")
+  return { slug }
+}
+
 // ── Admin ───────────────────────────────────────────────────────────────────
+
+/** Clears the "check details" flag on an email-created asset. */
+export async function confirmMaintenanceAsset(id: string) {
+  await db.maintenanceAsset.update({ where: { id }, data: { needsReview: false } })
+  revalidatePath("/maintenance")
+}
 
 export async function getMaintenanceOverview() {
   const [openIssues, assets, contacts] = await Promise.all([

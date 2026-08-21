@@ -175,6 +175,12 @@ services:
         # accounts@ → ServiceVisit rows (needsReview) on /services. Each
         # message is Claude-classified at most once (ServiceEmailSeen).
         30 21 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/check-service-emails 2>&1
+        # 07:40 AEST (21:40 UTC) — equipment-purchase email sweep: invoices /
+        # order confirmations for new machines in accounts@ + hello@ →
+        # MaintenanceAsset rows (needsReview) with a QR slug ready to print.
+        # Emails chloe@ only when something was created. Each message is
+        # Claude-classified at most once (EquipmentEmailSeen).
+        40 21 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/check-equipment-emails 2>&1
         # 08:00 AEST (22:00 UTC) — pull Google reviews, Claude-tag, draft
         # replies + email Chloe once per day. Was hourly back when Places
         # API capped each fetch at 5 reviews/venue — but GBP returns ALL

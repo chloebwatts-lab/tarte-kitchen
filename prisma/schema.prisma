@@ -1917,6 +1917,19 @@ model MaintenanceAsset {
   category String                 @default("other")
   status   MaintenanceAssetStatus @default(ACTIVE)
 
+  /// Where this row came from: "manual" (scripts/migration), "staff"
+  /// (kitchen quick-add page), "email" (purchase-invoice sweep).
+  source String @default("manual")
+  /// Email-created assets land with needsReview=true until Chloe confirms
+  /// the details on /maintenance. The QR + fix page work regardless.
+  needsReview Boolean @default(false)
+  /// Gmail message id ("hello:" prefix for the hello@ mailbox) + subject of
+  /// the purchase email this asset was auto-created from. Traceability only.
+  gmailMessageId     String?
+  sourceEmailSubject String?
+  /// Who added it via the staff quick-add page.
+  addedBy String?
+
   manufacturer String?
   model        String?
   serial       String?
@@ -2206,6 +2219,18 @@ model ServiceEmailSeen {
   /// created | no-service | error
   outcome String
   detail  String?
+  createdAt DateTime @default(now())
+}
+
+/// Every-message-once guard for the equipment-purchase email sweep
+/// (check-equipment-emails), mirroring ServiceEmailSeen. hello@ ids are
+/// stored prefixed "hello:".
+model EquipmentEmailSeen {
+  id             String   @id @default(cuid())
+  gmailMessageId String   @unique
+  /// created | no-equipment | duplicate | error
+  outcome   String
+  detail    String?
   createdAt DateTime @default(now())
 }
 

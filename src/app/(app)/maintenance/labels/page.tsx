@@ -17,11 +17,17 @@ export default async function MaintenanceLabelsPage({
   const sp = await searchParams
   const venue =
     sp.venue === "BURLEIGH" || sp.venue === "BEACH_HOUSE" ? sp.venue : undefined
+  const slug = typeof sp.slug === "string" ? sp.slug.toUpperCase() : undefined
 
   const assets = await db.maintenanceAsset.findMany({
-    where: { status: "ACTIVE", ...(venue ? { venue } : {}) },
+    where: { status: "ACTIVE", ...(venue ? { venue } : {}), ...(slug ? { slug } : {}) },
     orderBy: [{ venue: "asc" }, { location: "asc" }, { name: "asc" }],
   })
+
+  // Auto-created (email sweep) and staff-added machines get a NEW flash for
+  // a month so the next label print run can't miss them.
+  // eslint-disable-next-line react-hooks/purity -- server component, evaluated per request
+  const newCutoff = Date.now() - 30 * 86400000
 
   const labels = await Promise.all(
     assets.map(async (a) => ({
@@ -77,8 +83,13 @@ export default async function MaintenanceLabelsPage({
         {labels.map((a) => (
           <div
             key={a.id}
-            className="flex break-inside-avoid flex-col items-center rounded-xl border-2 border-dashed border-gray-300 p-4 text-center"
+            className="relative flex break-inside-avoid flex-col items-center rounded-xl border-2 border-dashed border-gray-300 p-4 text-center"
           >
+            {a.createdAt.getTime() > newCutoff && (
+              <span className="absolute right-2 top-2 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-700 print:hidden">
+                new
+              </span>
+            )}
             <div className="text-[15px] font-bold uppercase tracking-wide">
               Broken? Scan me
             </div>
