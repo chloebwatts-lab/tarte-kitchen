@@ -17,8 +17,9 @@ import {
   Sparkles,
   Users,
   Wrench,
+  X,
 } from "lucide-react"
-import { confirmMaintenanceAsset } from "@/lib/actions/maintenance"
+import { confirmMaintenanceAsset, removeMaintenanceAsset } from "@/lib/actions/maintenance"
 
 export interface MDAsset {
   id: string
@@ -154,6 +155,15 @@ export function MaintenanceDashboard({
     })
   }
 
+  function removeAsset(a: MDAsset) {
+    if (!window.confirm(`Remove ${a.slug} "${a.name}" from the register? Use this only when it isn't actually a machine.`))
+      return
+    setConfirmedIds((prev) => new Set(prev).add(a.id))
+    startTransition(() => {
+      void removeMaintenanceAsset(a.id)
+    })
+  }
+
   const active = assets.filter((a) => a.status === "ACTIVE")
   const safety = openIssues.filter((i) => i.isSafety)
   const expiring = active
@@ -272,6 +282,13 @@ export function MaintenanceDashboard({
                   className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-2.5 py-1.5 text-xs font-medium text-background"
                 >
                   <Check className="h-3.5 w-3.5" /> Looks right
+                </button>
+                <button
+                  onClick={() => removeAsset(a)}
+                  title="Not actually a machine — remove it"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-background px-2.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
+                >
+                  <X className="h-3.5 w-3.5" /> Not a machine
                 </button>
               </div>
             </div>

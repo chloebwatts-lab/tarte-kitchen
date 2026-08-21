@@ -222,6 +222,27 @@ export async function confirmMaintenanceAsset(id: string) {
   revalidatePath("/maintenance")
 }
 
+/**
+ * Rejects an auto-created asset that isn't really a machine (the sweep
+ * occasionally over-reads an invoice). Deliberately narrow: only rows still
+ * flagged needsReview and with no issue history can be removed — everything
+ * else goes through retirement, never deletion.
+ */
+export async function removeMaintenanceAsset(id: string) {
+  const asset = await db.maintenanceAsset.findUnique({
+    where: { id },
+    include: { _count: { select: { issues: true } } },
+  })
+  if (!asset) return
+  if (!asset.needsReview || asset._count.issues > 0) {
+    throw new Error("Only unreviewed machines with no history can be removed")
+  }
+  await db.maintenanceAsset.delete({ where: { id } })
+  revalidatePath("/maintenance")
+  revalidatePath("/maintenance/labels")
+  revalidatePath("/kitchen/fix")
+}
+
 export async function getMaintenanceOverview() {
   const [openIssues, assets, contacts] = await Promise.all([
     db.maintenanceIssue.findMany({
