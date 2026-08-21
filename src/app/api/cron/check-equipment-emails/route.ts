@@ -86,8 +86,17 @@ export async function GET(request: Request) {
   const url = new URL(request.url)
   const windowDays = Math.min(
     Math.max(parseInt(url.searchParams.get("days") ?? "", 10) || DEFAULT_WINDOW_DAYS, 1),
-    365
+    730
   )
+  /**
+   * mode=audit: classify candidates but CREATE NOTHING — each message is
+   * recorded in EquipmentEmailSeen as outcome "audit" with the extracted
+   * items as JSON in detail. Used for historic register reconciliation
+   * (safe over wide windows where the live create-path would duplicate
+   * machines whose original invoices predate the register). A message
+   * audited once is seen forever, so the daily sweep won't reprocess it.
+   */
+  const auditMode = url.searchParams.get("mode") === "audit"
   let batchBudget = Math.min(
     Math.max(parseInt(url.searchParams.get("limit") ?? "", 10) || DEFAULT_BATCH_LIMIT, 1),
     200
@@ -227,6 +236,31 @@ export async function GET(request: Request) {
             continue
           }
 
+          if (auditMode) {
+            await db.equipmentEmailSeen.create({
+              data: {
+                gmailMessageId: storedId,
+                outcome: "audit",
+                detail: JSON.stringify({
+                  subject: subject.slice(0, 120),
+                  from: from.slice(0, 80),
+                  date: dateStr(received),
+                  items: result.items,
+                }),
+              },
+            })
+            s.assetsCreated += result.items.length // reported as "extracted" in audit runs
+            for (const item of result.items) {
+              created.push({
+                slug: "(audit)",
+                name: item.name,
+                venue: item.venue,
+                supplier: item.supplier,
+              })
+            }
+            continue
+          }
+
           let createdCount = 0
           let dupeCount = 0
           for (const item of result.items) {
@@ -316,7 +350,7 @@ export async function GET(request: Request) {
 
     // Rare enough (a few machines a month at most) that a heads-up email is
     // signal, not noise. Chloe confirms details on /maintenance.
-    if (created.length > 0) {
+    if (created.length > 0 && !auditMode) {
       try {
         await sendEmail({
           to: "chloe@tarte.com.au",
