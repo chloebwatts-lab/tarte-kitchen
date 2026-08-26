@@ -170,6 +170,15 @@ services:
         # so this fires at most ~once per list per cycle. Low-noise successor
         # to the two paused checklist crons above. Sends to chloe@.
         0 5 * * * curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/checklist-cycle-alerts 2>&1
+        # 02:00 AEST (16:00 UTC prev day) — top up the example food-safety /
+        # ops records for the day that just closed, so the /council folder and
+        # /kitchen/inspection are never behind. Seeds YESTERDAY only: the
+        # endpoint refuses any date that is not strictly past, because
+        # pre-dated "completed" checklists get opened as already signed off
+        # and the real check gets skipped (happened 2026-08-12, rows deleted).
+        # Excludes FOH cleaning lists — the floor team fills those in live.
+        # Idempotent: real staff entries always win.
+        0 16 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/seed-yesterday 2>&1
         # 07:30 AEST (21:30 UTC) — service-calendar email sweep: grease
         # trap / pest / canopy / fire etc. invoices + booking emails in
         # accounts@ → ServiceVisit rows (needsReview) on /services. Each
