@@ -20,6 +20,16 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   const forceRegenerate = url.searchParams.get("force") === "1"
 
+  // ?labour=1 — debug: return just the recomputed labour section, no
+  // narrative generation, no email, no digest row written.
+  if (url.searchParams.get("labour") === "1") {
+    const { buildWeeklyDigestSnapshot } = await import(
+      "@/lib/weekly-digest/aggregator"
+    )
+    const snapshot = await buildWeeklyDigestSnapshot()
+    return Response.json(snapshot.labour)
+  }
+
   try {
     const result = await runWeeklyDigest({ recipient, forceRegenerate })
     return Response.json({ ok: true, ...result })

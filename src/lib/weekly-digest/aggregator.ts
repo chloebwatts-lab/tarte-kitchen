@@ -17,6 +17,7 @@ import { db } from "@/lib/db"
 import { Venue, ReviewSentiment } from "@/generated/prisma/enums"
 import { lastCompletedTarteWeek } from "@/lib/dates"
 import { TG_PASTRY_REVENUE_SHARE } from "@/lib/labour/buckets"
+import { recodeLabourWeek } from "@/lib/labour/recode"
 import {
   buildCommitmentsSection,
   type CommitmentsSection,
@@ -228,6 +229,9 @@ interface LabourSection {
       target: { min: number; max: number } | null
       status: "ok" | "amber" | "red" | "no-target"
     }>
+    /** True when splits were rebuilt from Deputy worked areas rather than
+     * taken from the bookkeeper's report columns. */
+    recoded?: boolean
   }>
 }
 
@@ -749,6 +753,12 @@ async function buildLabour(): Promise<LabourSection> {
     where: { weekStartWed: latest.weekStartWed },
   })
 
+  // Rebuild dept splits from Deputy worked areas where timesheet coverage
+  // allows: the bookkeeper's columns code people by home profile, not the
+  // area they worked, which mis-grades the bucket targets (see
+  // src/lib/labour/recode.ts). Venue cash totals stay the bookkeeper's.
+  const recode = await recodeLabourWeek(latest.weekStartWed).catch(() => null)
+
   const perVenue: LabourSection["perVenue"] = SINGLE_VENUES.map((v) => {
     const r = rows.find((x) => x.venue === v)
     if (!r)
@@ -759,8 +769,9 @@ async function buildLabour(): Promise<LabourSection> {
         overallPct: null,
         departmentGroups: [],
       }
+    const rc = v === Venue.TEA_GARDEN ? undefined : recode?.[v]
     const rev = r.revenueExGst ? Number(r.revenueExGst) : null
-    const gross = Number(r.grossWages)
+    const gross = rc ? rc.adjustedGrossWages : Number(r.grossWages)
     const overallPct = rev && rev > 0 ? (gross / rev) * 100 : null
 
     const groups: LabourSection["perVenue"][number]["departmentGroups"] = []
@@ -787,16 +798,16 @@ async function buildLabour(): Promise<LabourSection> {
     }
 
     if (v === Venue.BURLEIGH) {
-      const chefsKp = Number(r.wagesChef ?? 0) + Number(r.wagesKp ?? 0)
-      const fohBar = Number(r.wagesFoh ?? 0) + Number(r.wagesBarista ?? 0)
-      const pastry = Number(r.wagesPastry ?? 0)
+      const chefsKp = rc ? rc.buckets.chefsKp : Number(r.wagesChef ?? 0) + Number(r.wagesKp ?? 0)
+      const fohBar = rc ? rc.buckets.fohBarista : Number(r.wagesFoh ?? 0) + Number(r.wagesBarista ?? 0)
+      const pastry = rc ? rc.buckets.pastry : Number(r.wagesPastry ?? 0)
       addGroup("Chefs + KP", chefsKp, targets?.chefsKp ?? null)
       addGroup("FOH + Barista", fohBar, targets?.fohBarista ?? null)
       addGroup("Pastry", pastry, targets?.pastry ?? null)
     } else if (v === Venue.BEACH_HOUSE) {
-      const chefsKp = Number(r.wagesChef ?? 0) + Number(r.wagesKp ?? 0)
-      const foh = Number(r.wagesFoh ?? 0) + Number(r.wagesBarista ?? 0)
-      const pastry = Number(r.wagesPastry ?? 0)
+      const chefsKp = rc ? rc.buckets.chefsKp : Number(r.wagesChef ?? 0) + Number(r.wagesKp ?? 0)
+      const foh = rc ? rc.buckets.fohBarista : Number(r.wagesFoh ?? 0) + Number(r.wagesBarista ?? 0)
+      const pastry = rc ? rc.buckets.pastry : Number(r.wagesPastry ?? 0)
       // Beach House pastry also supplies Tea Garden, credit half of TG's
       // ex-GST revenue into the pastry denominator (see TG_PASTRY_REVENUE_SHARE).
       const tgRow = rows.find((x) => x.venue === Venue.TEA_GARDEN)
@@ -822,6 +833,7 @@ async function buildLabour(): Promise<LabourSection> {
       grossWages: gross,
       overallPct,
       departmentGroups: groups,
+      recoded: !!rc,
     }
   })
 
