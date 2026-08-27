@@ -273,7 +273,7 @@ function wagesSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative
         .join("")
       const overall =
         v.overallPct != null
-          ? `Overall ${fmtPct(v.overallPct, { decimals: 2 })} · ${fmtMoney(v.grossWages)} wages on ${fmtMoney(v.revenueExGst ?? 0)} revenue`
+          ? `Overall ${fmtPct(v.overallPct, { decimals: 2 })}${v.exAdminPct != null ? ` · ex admin ${fmtPct(v.exAdminPct, { decimals: 2 })}` : ""} · ${fmtMoney(v.grossWages)} wages on ${fmtMoney(v.revenueExGst ?? 0)} revenue`
           : "—"
       return `
         <div style="margin:0 18px 12px;">
@@ -911,7 +911,7 @@ export function renderDigestText(
   lines.push(`WAGES vs TARGET`)
   for (const v of snapshot.labour.perVenue) {
     if (!v.departmentGroups.length) continue
-    lines.push(`  ${v.venue}, overall ${v.overallPct != null ? fmtPct(v.overallPct) : "—"}`)
+    lines.push(`  ${v.venue}, overall ${v.overallPct != null ? fmtPct(v.overallPct) : "—"}${v.exAdminPct != null ? ` (ex admin ${fmtPct(v.exAdminPct)})` : ""}`)
     for (const g of v.departmentGroups) {
       const target = g.target ? `${g.target.min}-${g.target.max}%` : "no target"
       lines.push(

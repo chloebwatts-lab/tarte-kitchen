@@ -222,6 +222,10 @@ interface LabourSection {
     revenueExGst: number | null
     grossWages: number
     overallPct: number | null
+    /** Wage % with admin salaries stripped (Olivia + the Shawna half),
+     * the number to compare against Deputy's view. Standing ask from
+     * Chloe 2026-08-28: always show this beside the headline. */
+    exAdminPct: number | null
     departmentGroups: Array<{
       label: string
       dollars: number
@@ -767,12 +771,16 @@ async function buildLabour(): Promise<LabourSection> {
         revenueExGst: null,
         grossWages: 0,
         overallPct: null,
+        exAdminPct: null,
         departmentGroups: [],
       }
     const rc = v === Venue.TEA_GARDEN ? undefined : recode?.[v]
     const rev = r.revenueExGst ? Number(r.revenueExGst) : null
     const gross = rc ? rc.adjustedGrossWages : Number(r.grossWages)
     const overallPct = rev && rev > 0 ? (gross / rev) * 100 : null
+    const admin = r.wagesAdmin != null ? Number(r.wagesAdmin) : 0
+    const exAdminPct =
+      rev && rev > 0 && admin > 0 ? ((gross - admin) / rev) * 100 : null
 
     const groups: LabourSection["perVenue"][number]["departmentGroups"] = []
     const targets = (WAGE_TARGETS as Record<string, typeof WAGE_TARGETS["BURLEIGH"]>)[v]
@@ -832,6 +840,7 @@ async function buildLabour(): Promise<LabourSection> {
       revenueExGst: rev,
       grossWages: gross,
       overallPct,
+      exAdminPct,
       departmentGroups: groups,
       recoded: !!rc,
     }
