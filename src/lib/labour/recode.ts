@@ -38,6 +38,11 @@ interface KnownWeekly {
   homeBucket: Bucket
   /** true = salaried: include full weekly even with no timesheets */
   salaried: boolean
+  /** Fixed venue split for staff whose salary is allocated by agreement
+   * rather than by the hours they happen to work that week (confirmed by
+   * Chloe 2026-08-28 against the payroll transfer lines). Overrides the
+   * hours-based spread. */
+  split?: Array<{ venue: Venue; bucket: Bucket; share: number }>
 }
 
 // Sources: Deputy pay-week audits + Louise's Wages 4.8.2026 xlsx. Update
@@ -52,8 +57,23 @@ const KNOWN_WEEKLY: KnownWeekly[] = [
   { match: /^tais mansur/i, weekly: 1407.88, homeVenue: Venue.BURLEIGH, homeBucket: "chefsKp", salaried: true },
   { match: /^jess(ica)? passos/i, weekly: 1576.92, homeVenue: Venue.BURLEIGH, homeBucket: "pastry", salaried: true },
   { match: /^beatriz maciel/i, weekly: 1250.0, homeVenue: Venue.BURLEIGH, homeBucket: "pastry", salaried: true },
-  { match: /^eden lord/i, weekly: 769.23, homeVenue: Venue.BURLEIGH, homeBucket: "pastry", salaried: true },
-  { match: /^yung chi chang/i, weekly: 1096.15, homeVenue: Venue.BURLEIGH, homeBucket: "fohBarista", salaried: true },
+  // Eden 50/50 across the two pastry teams, Chi 30 Burleigh / 70 Currumbin
+  // FOH: both are standing allocations, not hours-driven.
+  {
+    match: /^eden lord/i, weekly: 769.23, homeVenue: Venue.BURLEIGH, homeBucket: "pastry", salaried: true,
+    split: [
+      { venue: Venue.BURLEIGH, bucket: "pastry", share: 0.5 },
+      { venue: Venue.BEACH_HOUSE, bucket: "pastry", share: 0.5 },
+    ],
+  },
+  {
+    match: /^yung chi chang/i, weekly: 1096.15, homeVenue: Venue.BURLEIGH, homeBucket: "fohBarista", salaried: true,
+    split: [
+      { venue: Venue.BURLEIGH, bucket: "fohBarista", share: 0.3 },
+      { venue: Venue.BEACH_HOUSE, bucket: "fohBarista", share: 0.7 },
+    ],
+  },
+  { match: /^julian mauricio/i, weekly: 1317.31, homeVenue: Venue.BEACH_HOUSE, homeBucket: "chefsKp", salaried: true },
   // Beach House full-timers with no Deputy rates (fixed weekly, hourly on
   // paper: only counted when they actually have timesheets that week)
   { match: /^baily roberts/i, weekly: 1192.31, homeVenue: Venue.BEACH_HOUSE, homeBucket: "fohBarista", salaried: false },
@@ -135,7 +155,19 @@ export async function recodeLabourWeek(
     const owned: Cell[] = []
     for (const [name, list] of byPerson) if (k.match.test(name.trim())) owned.push(...list)
     const totalHours = owned.reduce((s, c) => s + c.hours, 0)
-    if (totalHours > 0) {
+    if (k.split && (totalHours > 0 || k.salaried)) {
+      // Standing allocation: zero out the worked cells (hours stay, for
+      // the rate pool) and post the agreed shares instead.
+      for (const c of owned) c.dollars = 0
+      for (const part of k.split) {
+        cells.push({
+          venue: part.venue,
+          bucket: part.bucket,
+          hours: 0,
+          dollars: k.weekly * part.share,
+        })
+      }
+    } else if (totalHours > 0) {
       for (const c of owned) c.dollars = (k.weekly * c.hours) / totalHours
     } else if (k.salaried) {
       cells.push({ venue: k.homeVenue, bucket: k.homeBucket, hours: 0, dollars: k.weekly })
