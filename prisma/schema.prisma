@@ -48,6 +48,7 @@ model Supplier {
   emailAddresses     SupplierEmail[]
   purchaseOrders     PurchaseOrder[]
   approvedItems      ApprovedSupplierItem[]
+  venueStockMatches  VenueStockSupplierMatch[]
 }
 
 // Approved supplier order forms — the "what we agreed to order from whom at
@@ -1982,6 +1983,16 @@ model MaintenanceIssue {
   contactId  String?
   contact    MaintenanceContact? @relation(fields: [contactId], references: [id])
 
+  /// Set once someone has actually called a trade and put a date on it.
+  /// An OPEN issue with no `bookedFor` is "reported, nobody has called
+  /// anyone yet" — the state that matters most on the ops board, and the
+  /// one an OPEN/FIXED/DISMISSED status alone could not tell apart.
+  /// The trade itself is `contactId`.
+  bookedFor  DateTime?
+  bookedBy   String?
+  bookedAt   DateTime?
+  bookedNote String?
+
   fixSummary  String?
   fixedBy     String?
   fixedAt     DateTime?
@@ -1994,6 +2005,8 @@ model MaintenanceIssue {
   updatedAt DateTime @updatedAt
 
   events MaintenanceIssueEvent[]
+  /// Set when this issue was raised from the venue ops board.
+  venueTask VenueTask?
 
   @@index([assetId, status])
   @@index([venue, status])
@@ -2311,4 +2324,219 @@ model DeptOrderLine {
   @@unique([requestId, approvedItemId])
   @@index([approvedItemId])
   @@index([purchaseOrderId])
+}
+
+// ============================================================
+// VENUE OPS — the board Georgia checks each morning, and the
+// non-food stock behind it. Front-of-house counterpart to the
+// kitchen's RestockSheet: separate tables on purpose so FOH and
+// chef rounds never appear in each other's lists.
+// ============================================================
+
+enum VenueTaskCategory {
+  BROKEN_EQUIPMENT
+  LOW_STOCK
+  RUBBISH_REMOVAL
+  CLEANING
+  FURNITURE
+  BUILDING
+  MISC
+}
+
+enum VenueTaskPriority {
+  URGENT
+  NORMAL
+  WHENEVER
+}
+
+enum VenueTaskStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  DISMISSED
+}
+
+/// One thing somebody spotted that needs seeing to. The point of this table
+/// is that noticing stops being one person's job: anyone on shift reports in
+/// a few seconds, and the morning hit list is read rather than remembered.
+model VenueTask {
+  id       String            @id @default(cuid())
+  venue    Venue
+  category VenueTaskCategory
+  title    String
+  detail   String?
+
+  /// Priority as the reporter set it. Georgia can disagree — `priorityOverride`
+  /// wins wherever it is set, and the reporter's original is kept so a pattern
+  /// of everything-is-urgent stays visible.
+  reportedPriority VenueTaskPriority  @default(NORMAL)
+  priorityOverride VenueTaskPriority?
+
+  status VenueTaskStatus @default(OPEN)
+
+  reportedBy String?
+  /// Who it is on. Null means nobody has picked it up, which is exactly what
+  /// the morning triage is for. Tasks are meant to leave Georgia, not pile on
+  /// her, so this is assigned early and rarely stays null.
+  ownedBy    String?
+
+  /// Set when the report was "we're low on X" — links the flag to the item so
+  /// the reorder list and the board agree with each other.
+  stockItemId String?
+  stockItem   VenueStockItem? @relation(fields: [stockItemId], references: [id])
+
+  /// Set when a broken-equipment report was pushed into the maintenance
+  /// module, so equipment history stays in one place.
+  maintenanceIssueId String?           @unique
+  maintenanceIssue   MaintenanceIssue? @relation(fields: [maintenanceIssueId], references: [id])
+
+  doneBy   String?
+  doneAt   DateTime?
+  doneNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([venue, status])
+  @@index([venue, status, createdAt])
+  @@index([stockItemId])
+}
+
+/// A stop on the walk route. The round is ordered by `sortOrder`, never
+/// alphabetically: a list that criss-crosses the venue does not get done twice.
+model VenueStockArea {
+  id        String  @id @default(cuid())
+  venue     Venue
+  name      String
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  items VenueStockItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([venue, name])
+  @@index([venue, isActive])
+}
+
+/// How an item's level is known. Tracking every tea towel by number does not
+/// survive a busy service, and counts that are wrong but trusted are worse
+/// than no counts, so cheap fast-moving things carry a signal instead.
+enum VenueStockTracking {
+  /// Slow, expensive, worth a number: ink, crockery, cutlery.
+  QUANTITY
+  /// Fast and cheap: one tap for "getting low" or "took the last one".
+  SIGNAL
+}
+
+enum VenueStockSignal {
+  OK
+  LOW
+  OUT
+}
+
+model VenueStockItem {
+  id     String         @id @default(cuid())
+  areaId String
+  area   VenueStockArea @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  name     String
+  /// Count unit shown next to the number ("box", "sleeve", "roll").
+  unit     String?
+  tracking VenueStockTracking @default(SIGNAL)
+
+  /// Reorder point, in `unit`s. QUANTITY items join the order list when
+  /// `onHand` falls to or below this. Null on SIGNAL items.
+  parLevel Decimal? @db.Decimal(10, 2)
+  /// Running on-hand for QUANTITY items: decremented by takes, incremented by
+  /// matched invoice lines, and reset to truth by a physical count. Perpetual
+  /// figures drift, so a count is a correction, not an insult.
+  onHand   Decimal? @db.Decimal(10, 2)
+
+  /// Current state for SIGNAL items. Cleared back to OK by a receipt or count.
+  signal   VenueStockSignal @default(OK)
+  signalAt DateTime?
+  signalBy String?
+
+  sortOrder Int     @default(0)
+  notes     String?
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  movements VenueStockMovement[]
+  matches   VenueStockSupplierMatch[]
+  tasks     VenueTask[]
+
+  @@unique([areaId, name])
+  @@index([areaId, isActive])
+}
+
+enum VenueStockMovementKind {
+  TAKE
+  RECEIPT
+  COUNT
+  ADJUST
+}
+
+/// Ledger behind `VenueStockItem.onHand`. Kept so a wrong number can be
+/// explained rather than argued about.
+model VenueStockMovement {
+  id     String         @id @default(cuid())
+  itemId String
+  item   VenueStockItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  kind VenueStockMovementKind
+  /// Signed change in the item's unit — negative for a TAKE. On a COUNT this
+  /// is the correction that was applied and `countedTo` holds what was counted.
+  delta     Decimal  @db.Decimal(10, 2)
+  /// Resulting on-hand, so the ledger reads without replaying it.
+  balance   Decimal? @db.Decimal(10, 2)
+  countedTo Decimal? @db.Decimal(10, 2)
+
+  by   String?
+  note String?
+
+  /// Set when the top-up came from a supplier invoice rather than a person.
+  /// Loose id rather than a relation: invoice rows are re-ingested and this
+  /// is traceability, not integrity.
+  invoiceLineItemId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([itemId, createdAt])
+  @@index([invoiceLineItemId])
+}
+
+/// Maps a supplier's invoice wording to a venue stock item, so a delivery
+/// tops the count up on its own. The Ingredient equivalent is
+/// SupplierItemMapping; venue stock is deliberately not an Ingredient, so it
+/// needs its own table rather than a nullable column on that one.
+model VenueStockSupplierMatch {
+  id         String   @id @default(cuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  invoiceDescription String
+  itemId             String
+  item               VenueStockItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  /// Invoice unit → item unit. 1 box of 5 reams against an item counted in
+  /// reams is 5. Null means one for one.
+  conversionFactor Decimal? @db.Decimal(12, 6)
+
+  /// Rejected as wrong. The matcher skips these so a re-run can find a better one.
+  ignored   Boolean   @default(false)
+  ignoredAt DateTime?
+  ignoredBy String?
+
+  lastUsed  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([supplierId, invoiceDescription])
+  @@index([itemId])
+  @@index([supplierId, ignored])
 }
