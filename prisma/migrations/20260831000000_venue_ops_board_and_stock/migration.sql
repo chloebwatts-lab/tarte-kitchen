@@ -36,6 +36,8 @@ CREATE TABLE "VenueTask" (
     "ownedBy" TEXT,
     "stockItemId" TEXT,
     "maintenanceIssueId" TEXT,
+    "scheduleId" TEXT,
+    "dueAt" DATE,
     "doneBy" TEXT,
     "doneAt" TIMESTAMP(3),
     "doneNote" TEXT,
@@ -112,6 +114,25 @@ CREATE TABLE "VenueStockSupplierMatch" (
     CONSTRAINT "VenueStockSupplierMatch_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "VenueTaskSchedule" (
+    "id" TEXT NOT NULL,
+    "venue" "Venue" NOT NULL,
+    "category" "VenueTaskCategory" NOT NULL,
+    "title" TEXT NOT NULL,
+    "detail" TEXT,
+    "defaultOwner" TEXT,
+    "everyMonths" INTEGER NOT NULL,
+    "leadDays" INTEGER NOT NULL DEFAULT 14,
+    "lastDoneAt" DATE,
+    "nextDueAt" DATE NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "VenueTaskSchedule_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "VenueTask_maintenanceIssueId_key" ON "VenueTask"("maintenanceIssueId");
 
@@ -123,6 +144,12 @@ CREATE INDEX "VenueTask_venue_status_createdAt_idx" ON "VenueTask"("venue", "sta
 
 -- CreateIndex
 CREATE INDEX "VenueTask_stockItemId_idx" ON "VenueTask"("stockItemId");
+
+-- CreateIndex
+CREATE INDEX "VenueTask_venue_status_dueAt_idx" ON "VenueTask"("venue", "status", "dueAt");
+
+-- CreateIndex
+CREATE INDEX "VenueTask_scheduleId_idx" ON "VenueTask"("scheduleId");
 
 -- CreateIndex
 CREATE INDEX "VenueStockArea_venue_isActive_idx" ON "VenueStockArea"("venue", "isActive");
@@ -151,11 +178,20 @@ CREATE INDEX "VenueStockSupplierMatch_supplierId_ignored_idx" ON "VenueStockSupp
 -- CreateIndex
 CREATE UNIQUE INDEX "VenueStockSupplierMatch_supplierId_invoiceDescription_key" ON "VenueStockSupplierMatch"("supplierId", "invoiceDescription");
 
+-- CreateIndex
+CREATE INDEX "VenueTaskSchedule_venue_isActive_nextDueAt_idx" ON "VenueTaskSchedule"("venue", "isActive", "nextDueAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "VenueTaskSchedule_venue_title_key" ON "VenueTaskSchedule"("venue", "title");
+
 -- AddForeignKey
 ALTER TABLE "VenueTask" ADD CONSTRAINT "VenueTask_stockItemId_fkey" FOREIGN KEY ("stockItemId") REFERENCES "VenueStockItem"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "VenueTask" ADD CONSTRAINT "VenueTask_maintenanceIssueId_fkey" FOREIGN KEY ("maintenanceIssueId") REFERENCES "MaintenanceIssue"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "VenueTask" ADD CONSTRAINT "VenueTask_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "VenueTaskSchedule"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "VenueStockItem" ADD CONSTRAINT "VenueStockItem_areaId_fkey" FOREIGN KEY ("areaId") REFERENCES "VenueStockArea"("id") ON DELETE CASCADE ON UPDATE CASCADE;

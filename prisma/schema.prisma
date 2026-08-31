@@ -2390,6 +2390,12 @@ model VenueTask {
   maintenanceIssueId String?           @unique
   maintenanceIssue   MaintenanceIssue? @relation(fields: [maintenanceIssueId], references: [id])
 
+  /// Set when this task was raised by a schedule rather than by a person.
+  scheduleId String?
+  schedule   VenueTaskSchedule? @relation(fields: [scheduleId], references: [id])
+  /// When it actually falls due, for scheduled work. Null on spotted items.
+  dueAt      DateTime?          @db.Date
+
   doneBy   String?
   doneAt   DateTime?
   doneNote String?
@@ -2400,6 +2406,8 @@ model VenueTask {
   @@index([venue, status])
   @@index([venue, status, createdAt])
   @@index([stockItemId])
+  @@index([venue, status, dueAt])
+  @@index([scheduleId])
 }
 
 /// A stop on the walk route. The round is ordered by `sortOrder`, never
@@ -2539,4 +2547,41 @@ model VenueStockSupplierMatch {
   @@unique([supplierId, invoiceDescription])
   @@index([itemId])
   @@index([supplierId, ignored])
+}
+
+/// A job that comes due on a cadence rather than being spotted by someone:
+/// fire extinguisher tags, pest control, test and tag, allergen review. It
+/// raises itself onto the board when due, already assigned to whoever owns
+/// it, so the morning check is chasing it rather than remembering it.
+///
+/// `defaultOwner` is deliberately NOT the person reading the board. These
+/// items exist on Georgia's board so she is alerted to request them from
+/// Shawna, not so they land on her plate. A schedule that assigns to the
+/// reader has been set up wrong.
+model VenueTaskSchedule {
+  id       String            @id @default(cuid())
+  venue    Venue
+  category VenueTaskCategory
+  title    String
+  detail   String?
+
+  defaultOwner String?
+
+  /// Months between occurrences. 12 = annual, 3 = quarterly.
+  everyMonths Int
+  /// How many days before it falls due to put it on the board. Compliance
+  /// jobs need booking, so they surface well before the date.
+  leadDays    Int @default(14)
+
+  lastDoneAt DateTime? @db.Date
+  nextDueAt  DateTime  @db.Date
+  isActive   Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks VenueTask[]
+
+  @@unique([venue, title])
+  @@index([venue, isActive, nextDueAt])
 }
