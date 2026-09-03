@@ -74,6 +74,11 @@ const KNOWN_WEEKLY: KnownWeekly[] = [
     ],
   },
   { match: /^julian mauricio/i, weekly: 1317.31, homeVenue: Venue.BEACH_HOUSE, homeBucket: "chefsKp", salaried: true },
+  // Salaried Beach House chef with no Deputy timesheets (verified against
+  // Louise's per-person breakdown w/e 25 Aug 2026): without this line his
+  // weekly gross was being spread pro-rata across every bucket by the
+  // venue scale step instead of landing in the kitchen.
+  { match: /^jose luis rincon/i, weekly: 1634.62, homeVenue: Venue.BEACH_HOUSE, homeBucket: "chefsKp", salaried: true },
   // Beach House full-timers with no Deputy rates (fixed weekly, hourly on
   // paper: only counted when they actually have timesheets that week)
   { match: /^baily roberts/i, weekly: 1192.31, homeVenue: Venue.BEACH_HOUSE, homeBucket: "fohBarista", salaried: false },
