@@ -48,6 +48,7 @@ model Supplier {
   emailAddresses     SupplierEmail[]
   purchaseOrders     PurchaseOrder[]
   approvedItems      ApprovedSupplierItem[]
+  products           SupplierProduct[]
 }
 
 // Approved supplier order forms — the "what we agreed to order from whom at
@@ -210,6 +211,9 @@ model Ingredient {
   purchaseOrderLines   PurchaseOrderLine[]
   approvedSupplierItems ApprovedSupplierItem[]
   priceAlerts          PriceAlert[]
+  supplierProducts     SupplierProduct[]
+  priceObservations    PriceObservation[]
+  productPriceAlerts   ProductPriceAlert[]
 
   @@unique([name, supplierId])
   @@index([canonicalName])
@@ -908,6 +912,7 @@ model Invoice {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   lineItems       InvoiceLineItem[]
+  priceObservations PriceObservation[]
 
   @@index([status])
   @@index([supplierName])
@@ -920,6 +925,11 @@ model InvoiceLineItem {
   invoiceId       String
   invoice         Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   description     String
+  /// Supplier's own product / SKU code as printed on the invoice. The
+  /// extractor has always returned it; it is now kept because it is the
+  /// most stable key for a supplier product (survives description
+  /// rewording and pack-format changes).
+  productCode     String?
   quantity        Decimal?    @db.Decimal(12, 3)
   unit            String?
   unitPrice       Decimal?    @db.Decimal(12, 4)
@@ -950,6 +960,8 @@ model InvoiceLineItem {
   sortOrder       Int         @default(0)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
+
+  priceObservation PriceObservation?
 
   @@index([invoiceId])
   @@index([ingredientId])
@@ -1728,6 +1740,149 @@ model PriceAlert {
   @@index([status, stream])
   @@index([canonicalName])
   @@index([ingredientId])
+}
+
+// ============================================================
+// PRICING REBUILD (shadow mode alongside v1 flags / v2 PriceAlert)
+//
+// One currency: dollars per BASE unit (g / ml / ea), which is what recipe
+// costing already uses (purchasePrice / baseUnitsPerPurchase). Each
+// supplier product carries ONE number, packBaseUnits: how many base units
+// a single billed unit holds. Every invoice line becomes an immutable
+// PriceObservation in that currency. No reciprocals, no per-line regexes,
+// no purchaseQuantity arithmetic anywhere in the pipeline.
+// ============================================================
+
+enum PackSource {
+  MEASURE     // billed unit is a measure (kg, g, l, ml, ea, dozen)
+  INGREDIENT  // billed unit equals the ingredient's purchase unit
+  PARSED      // parsed from the description
+  CONFIRMED   // a person answered "one <unit> holds N <g|ml|ea>"
+}
+
+enum PackConfidence {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum SupplierProductStatus {
+  ACTIVE        // pack known; observations flow into alerts
+  NEEDS_PACK    // no pack could be derived, or a SUSPECT observation arrived; a person answers one question
+  REJECTED      // wrong ingredient; ignored until remapped
+}
+
+/// A thing a supplier bills us for, keyed by their product code where one
+/// exists, else by normalised description + billed unit (so Bidfood
+/// "BUTTER SALTED" as PAT and as BLK are two products with two packs).
+model SupplierProduct {
+  id              String                @id @default(cuid())
+  supplierId      String
+  supplier        Supplier              @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  /// "code:<sku>" or "desc:<normalised description>|<unit>". See productKey().
+  productKey      String
+  productCode     String?
+  description     String
+  billedUnit      String?
+  ingredientId    String?
+  ingredient      Ingredient?           @relation(fields: [ingredientId], references: [id])
+  /// Base units (g / ml / ea of the ingredient) in ONE billed unit. Null
+  /// while NEEDS_PACK.
+  packBaseUnits   Decimal?              @db.Decimal(14, 4)
+  packSource      PackSource?
+  packConfidence  PackConfidence?
+  packExplanation String?
+  packConfirmedBy String?
+  packConfirmedAt DateTime?
+  status          SupplierProductStatus @default(ACTIVE)
+  firstSeenAt     DateTime              @default(now())
+  lastSeenAt      DateTime              @default(now())
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  observations    PriceObservation[]
+  alerts          ProductPriceAlert[]
+
+  @@unique([supplierId, productKey])
+  @@index([ingredientId])
+  @@index([status])
+}
+
+enum ObservationStatus {
+  VALID
+  SUSPECT
+  EXCLUDED
+}
+
+/// One invoice line, in dollars per base unit. Written once per line;
+/// re-derived only when the product's pack is confirmed or changed.
+model PriceObservation {
+  id                 String            @id @default(cuid())
+  supplierProductId  String
+  supplierProduct    SupplierProduct   @relation(fields: [supplierProductId], references: [id], onDelete: Cascade)
+  invoiceLineItemId  String            @unique
+  invoiceLineItem    InvoiceLineItem   @relation(fields: [invoiceLineItemId], references: [id], onDelete: Cascade)
+  invoiceId          String
+  invoice            Invoice           @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  ingredientId       String?
+  ingredient         Ingredient?       @relation(fields: [ingredientId], references: [id])
+  observedAt         DateTime          @db.Date
+  venue              Venue?
+  billedQty          Decimal?          @db.Decimal(12, 3)
+  /// Effective price paid per billed unit (line total wins over a discounted printed unit price).
+  billedUnitPrice    Decimal?          @db.Decimal(12, 4)
+  /// Snapshot of the product's pack at derivation time.
+  packBaseUnits      Decimal?          @db.Decimal(14, 4)
+  pricePerBaseUnit   Decimal?          @db.Decimal(14, 8)
+  baseUnitsDelivered Decimal?          @db.Decimal(14, 3)
+  status             ObservationStatus
+  reason             String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@index([supplierProductId, observedAt])
+  @@index([ingredientId, observedAt])
+  @@index([status])
+}
+
+enum ProductAlertStatus {
+  OPEN
+  ACCEPTED    // chef applied the price
+  DISMISSED   // chef said no
+  AUTO_CLOSED // engine: the condition stopped firing; never seen by a person
+}
+
+enum ResolvedBy {
+  CHEF
+  ENGINE
+}
+
+/// One open alert per supplier product. The chef accepts exactly the
+/// observation shown (latestObservationId), never a re-queried value.
+model ProductPriceAlert {
+  id                   String             @id @default(cuid())
+  supplierProductId    String
+  supplierProduct      SupplierProduct    @relation(fields: [supplierProductId], references: [id], onDelete: Cascade)
+  ingredientId         String
+  ingredient           Ingredient         @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  stream               PriceAlertStream
+  latestObservationId  String
+  currentPerBase       Decimal            @db.Decimal(14, 8)
+  priorPerBase         Decimal            @db.Decimal(14, 8)
+  priorMedianPerBase   Decimal?           @db.Decimal(14, 8)
+  changePct            Decimal            @db.Decimal(8, 2)
+  weeklyImpactDollars  Decimal?           @db.Decimal(10, 2)
+  status               ProductAlertStatus @default(OPEN)
+  resolvedBy           ResolvedBy?
+  resolvedAt           DateTime?
+  firstSeenAt          DateTime           @default(now())
+  lastSeenAt           DateTime           @default(now())
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([status, stream])
+  @@index([ingredientId])
+  @@index([supplierProductId, status])
 }
 
 // ============================================================

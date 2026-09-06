@@ -8,6 +8,7 @@ import {
 import type { InvoiceStatus } from "@/generated/prisma/client"
 import { evaluatePriceChange, effectiveUnitPrice } from "./units"
 import { streamForCategory } from "@/lib/price-alerts/classifier"
+import { ingestInvoiceObservations } from "@/lib/pricing/service"
 
 export interface ProcessingResult {
   invoiceId: string
@@ -71,6 +72,7 @@ export async function processInvoice(
   // processInvoice on the same invoice (rescue of a crashed run, retry of
   // an ERROR row) can never leave duplicate or half-written line items.
   type LineRow = {
+    productCode: string | null
     description: string
     quantity: number | null
     unit: string | null
@@ -160,6 +162,7 @@ export async function processInvoice(
 
     lineRows.push({
       description: lineItem.description,
+      productCode: lineItem.productCode?.trim() || null,
       quantity: lineItem.quantity ?? null,
       unit: lineItem.unit ?? null,
       unitPrice: lineItem.unitPrice ?? null,
@@ -229,6 +232,14 @@ export async function processInvoice(
       },
     }),
   ])
+
+  // Pricing rebuild, shadow mode: derive per-base-unit observations for the
+  // lines just written. Never allowed to fail the invoice.
+  try {
+    await ingestInvoiceObservations(invoiceId)
+  } catch (err) {
+    console.error("[pricing] observation ingest failed", invoiceId, err)
+  }
 
   return {
     invoiceId,
