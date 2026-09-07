@@ -11,9 +11,15 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-echo "▶ Pulling latest main..."
-git fetch origin main
-git reset --hard origin/main
+if [ -z "${DEPLOY_PULLED:-}" ]; then
+  echo "▶ Pulling latest main..."
+  git fetch origin main
+  git reset --hard origin/main
+  # The reset may have replaced this very file. Bash reads scripts as it
+  # goes, so continuing here would run a mix of old and new lines. Hand
+  # over to the freshly pulled copy instead, skipping the pull.
+  DEPLOY_PULLED=1 exec "$0" "$@"
+fi
 
 echo "▶ Rebuilding app + migrate images..."
 docker compose build app
