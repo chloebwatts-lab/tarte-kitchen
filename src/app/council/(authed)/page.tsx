@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ShieldCheck, AlertTriangle, FileText, ArrowRight } from "lucide-react"
 import { db } from "@/lib/db"
+import { isSuperseded } from "@/lib/council-docs"
 import { SINGLE_VENUES, VENUE_LABEL } from "@/lib/venues"
 import { Venue } from "@/generated/prisma/enums"
 
@@ -47,9 +48,11 @@ export default async function CouncilLandingPage() {
   for (const r of docCounts) byVenue.set(r.venue, r._count._all)
 
   const today = TODAY().getTime()
+  // Renewed certificates are filed beside the old one; an expired doc with
+  // a later one on file is superseded, not a problem to flag.
   const expiringSoon = expirySnapshots.filter((d) => {
     const t = new Date(d.expiresOn!).getTime()
-    return t < today + 30 * 86400000
+    return t < today + 30 * 86400000 && !isSuperseded(d, expirySnapshots)
   })
 
   return (

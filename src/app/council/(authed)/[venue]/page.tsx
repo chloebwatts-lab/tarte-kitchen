@@ -17,6 +17,7 @@ import {
   ArrowLeft,
 } from "lucide-react"
 import { db } from "@/lib/db"
+import { isSuperseded } from "@/lib/council-docs"
 import { isCouncilAuthed } from "@/lib/council-auth"
 import { CouncilDocumentType, Venue } from "@/generated/prisma/enums"
 import { SINGLE_VENUES, VENUE_LABEL } from "@/lib/venues"
@@ -154,11 +155,15 @@ const TODAY = () => {
   return d
 }
 
-function expiryStatus(expiresOn: Date | null): {
+function expiryStatus(
+  expiresOn: Date | null,
+  superseded = false,
+): {
   label: string
-  tone: "ok" | "warn" | "expired" | "none"
+  tone: "ok" | "warn" | "expired" | "superseded" | "none"
 } {
   if (!expiresOn) return { label: "", tone: "none" }
+  if (superseded) return { label: "Superseded", tone: "superseded" }
   const today = TODAY().getTime()
   const exp = new Date(expiresOn).getTime()
   const days = Math.round((exp - today) / 86400000)
@@ -358,7 +363,7 @@ export default async function CouncilVenuePage({
               ) : (
                 <ul className="divide-y divide-border">
                   {sectionDocs.map((d) => {
-                    const status = expiryStatus(d.expiresOn)
+                    const status = expiryStatus(d.expiresOn, isSuperseded(d, docs))
                     return (
                       <li
                         key={d.id}
@@ -382,6 +387,8 @@ export default async function CouncilVenuePage({
                                 className={
                                   status.tone === "expired"
                                     ? "rounded-full bg-red-light px-2 py-0.5 text-[11px] font-medium text-red-text"
+                                    : status.tone === "superseded"
+                                      ? "rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
                                     : status.tone === "warn"
                                       ? "rounded-full bg-amber-light px-2 py-0.5 text-[11px] font-medium text-amber-text"
                                       : "rounded-full bg-green-light px-2 py-0.5 text-[11px] font-medium text-green-text"

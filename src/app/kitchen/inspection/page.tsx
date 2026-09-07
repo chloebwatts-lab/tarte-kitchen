@@ -11,6 +11,7 @@ import {
   Thermometer,
 } from "lucide-react"
 import { db } from "@/lib/db"
+import { isSuperseded } from "@/lib/council-docs"
 import {
   listCoolingLogsForInspection,
   type CoolingLogRecord,
@@ -302,8 +303,11 @@ async function InspectionHome({
   const pastryDiscarded = pastryAgg._sum.discarded ?? 0
 
   const query = `venue=${venueFilter}&days=${rangeDays}`
-  const licenceDocs = councilDocs.filter((d) => d.type === "FOOD_BUSINESS_LICENCE")
-  const fssDocs = councilDocs.filter((d) => d.type !== "FOOD_BUSINESS_LICENCE")
+  // The old certificate stays in the folder for the audit trail, but the
+  // inspector's glance view should show the current licence only.
+  const currentDocs = councilDocs.filter((d) => !isSuperseded(d, councilDocs))
+  const licenceDocs = currentDocs.filter((d) => d.type === "FOOD_BUSINESS_LICENCE")
+  const fssDocs = currentDocs.filter((d) => d.type !== "FOOD_BUSINESS_LICENCE")
 
   return (
     <>
