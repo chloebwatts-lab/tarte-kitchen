@@ -1,0 +1,75 @@
+# Deploy on merge: every push to main runs scripts/deploy.sh on the droplet.
+#
+# One-time setup (see README, "Deploy on merge"): a repository secret
+# DROPLET_SSH_KEY holding a private key whose public half is in
+# /root/.ssh/authorized_keys on the droplet. Nothing else is needed.
+#
+# Optional secret DROPLET_KNOWN_HOSTS (output of `ssh-keyscan 134.199.157.138`)
+# pins the server's host key; without it the key is fetched at run time.
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never run two deploys at once; a second merge waits for the first.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  DROPLET_HOST: 134.199.157.138
+  DROPLET_USER: root
+  APP_DIR: /root/tarte-kitchen
+
+jobs:
+  deploy:
+    name: Deploy to droplet
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check the deploy key secret exists
+        env:
+          KEY: ${{ secrets.DROPLET_SSH_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::error::DROPLET_SSH_KEY secret is not set. Add it under Settings > Secrets and variables > Actions (see README, Deploy on merge)."
+            exit 1
+          fi
+
+      - name: Install the deploy key
+        env:
+          KEY: ${{ secrets.DROPLET_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DROPLET_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if [ -n "$KNOWN_HOSTS" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -H "$DROPLET_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Run scripts/deploy.sh on the droplet
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o IdentitiesOnly=yes \
+              -o ConnectTimeout=20 \
+              -o ServerAliveInterval=30 \
+              "$DROPLET_USER@$DROPLET_HOST" \
+              "cd $APP_DIR && ./scripts/deploy.sh"
+
+      - name: Confirm the site answers
+        run: |
+          sleep 5
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 https://kitchen.tarte.com.au/login)
+          echo "kitchen.tarte.com.au/login -> $code"
+          case "$code" in
+            200|301|302|401) exit 0 ;;
+            *) echo "::error::Site returned $code after deploy"; exit 1 ;;
+          esac

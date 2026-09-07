@@ -8,14 +8,37 @@ Garden (Currumbin).
 
 ### Deploy a new version to production
 
-On the production droplet, from the repo directory:
+Merging to `main` deploys automatically: the **Deploy** workflow in
+`.github/workflows/deploy.yml` connects to the droplet and runs
+`scripts/deploy.sh`, which pulls `origin/main`, rebuilds the app image,
+runs any pending Prisma migrations, and restarts the app + Caddy. Watch
+it under the repo's Actions tab; it can also be started by hand from
+there ("Run workflow").
+
+To deploy manually instead, from your laptop:
 
 ```bash
-./scripts/deploy.sh
+ssh root@134.199.157.138 'cd /root/tarte-kitchen && ./scripts/deploy.sh'
 ```
 
-That pulls `origin/main`, rebuilds the app image, runs any pending
-Prisma migrations, and restarts the app + Caddy. Safe to re-run.
+#### Deploy on merge: one-time setup
+
+The workflow needs one repository secret, `DROPLET_SSH_KEY`, holding a
+private key the droplet accepts. Generate a dedicated one on the droplet
+and print it (run from your laptop):
+
+```bash
+ssh root@134.199.157.138 'ssh-keygen -t ed25519 -N "" -f /root/.ssh/github-deploy -C github-deploy -q && cat /root/.ssh/github-deploy.pub >> /root/.ssh/authorized_keys && cat /root/.ssh/github-deploy'
+```
+
+Copy everything it prints, from `-----BEGIN OPENSSH PRIVATE KEY-----` to
+`-----END OPENSSH PRIVATE KEY-----`, and add it at
+<https://github.com/chloebwatts-lab/tarte-kitchen/settings/secrets/actions/new>
+with the name `DROPLET_SSH_KEY`. That is the whole setup.
+
+Optional: a second secret `DROPLET_KNOWN_HOSTS` with the output of
+`ssh-keyscan 134.199.157.138` pins the server's host key. Without it the
+workflow fetches the host key at run time.
 
 ### Enable Gmail invoice scanning
 
