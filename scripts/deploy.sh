@@ -22,8 +22,12 @@ docker compose --profile tools build migrate
 echo "▶ Applying pending DB migrations..."
 docker compose --profile tools run --rm migrate
 
-echo "▶ Restarting app..."
-docker compose up -d app caddy
+echo "▶ Restarting app (and cron, whose schedule lives in docker-compose.yml)..."
+# The cron sidecar writes its crontab from the compose file at start-up, so a
+# schedule change only takes effect when the container is recreated. Listing
+# it here makes compose recreate it whenever its config changed, and leave it
+# alone otherwise.
+docker compose up -d app caddy cron
 
 echo "▶ Waiting for health..."
 sleep 3
