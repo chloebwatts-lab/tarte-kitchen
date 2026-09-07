@@ -7,6 +7,7 @@ import {
   dismissProductAlert,
   confirmProductPack,
   computeProductAlerts,
+  ingestMissingObservations,
   ingredientPerBase,
 } from "@/lib/pricing/service"
 import { parsePackSize } from "@/lib/invoices/units"
@@ -181,6 +182,8 @@ export async function dismissProductAlertAction(alertId: string) {
 }
 
 export async function recomputeProductAlertsAction() {
+  // Same as the nightly cron: pick up any invoices not yet observed, then evaluate.
+  await ingestMissingObservations({ limit: 200 })
   const r = await computeProductAlerts()
   refresh()
   return r

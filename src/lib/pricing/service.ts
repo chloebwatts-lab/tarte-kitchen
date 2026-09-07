@@ -322,6 +322,58 @@ export async function rederiveProductObservations(productId: string): Promise<nu
   return n
 }
 
+export interface BackfillResult {
+  invoicesScanned: number
+  invoicesIngested: number
+  productsCreated: number
+  observations: { valid: number; suspect: number; excluded: number; skipped: number }
+}
+
+/**
+ * Self-healing history: ingest any invoice in the window that has matched
+ * lines without an observation yet. Runs before every nightly compute, so
+ * the first deploy builds a year of history on its own and a line matched
+ * later (rematch cron, manual map) gets picked up the next night. Batched
+ * so a cold start cannot blow the cron's time budget; it simply continues
+ * the night after.
+ */
+export async function ingestMissingObservations(opts: { days?: number; limit?: number } = {}): Promise<BackfillResult> {
+  const days = opts.days ?? 365
+  const limit = opts.limit ?? 400
+  const from = new Date(Date.now() - days * 86_400_000)
+  const invoices = await db.invoice.findMany({
+    where: {
+      invoiceDate: { gte: from },
+      supplierId: { not: null },
+      status: { in: ["MATCHED", "EXTRACTED", "APPROVED", "CREDIT_NOTE"] },
+      lineItems: { some: { ingredientId: { not: null }, priceObservation: null } },
+    },
+    orderBy: { invoiceDate: "asc" },
+    take: limit,
+    select: { id: true },
+  })
+  const result: BackfillResult = {
+    invoicesScanned: invoices.length,
+    invoicesIngested: 0,
+    productsCreated: 0,
+    observations: { valid: 0, suspect: 0, excluded: 0, skipped: 0 },
+  }
+  for (const inv of invoices) {
+    try {
+      const s = await ingestInvoiceObservations(inv.id)
+      result.invoicesIngested++
+      result.productsCreated += s.productsCreated
+      result.observations.valid += s.observations.valid
+      result.observations.suspect += s.observations.suspect
+      result.observations.excluded += s.observations.excluded
+      result.observations.skipped += s.observations.skipped
+    } catch (err) {
+      console.error("[pricing] backfill ingest failed", inv.id, err)
+    }
+  }
+  return result
+}
+
 export interface ProductAlertComputeResult {
   productsEvaluated: number
   fired: number

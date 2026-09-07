@@ -170,12 +170,15 @@ real doubling on one surfaces as an alert.
 
 ## Cutover
 
-1. Deploy. Run `npx tsx scripts/pricing-backfill.ts` on the droplet and
-   read the dry-run list; it is the whole backlog of pack questions.
-   Expect a few dozen, not a thousand.
-2. Run with `--apply --days 365`. Read the v2 versus rebuild comparison.
-   Every "only in v2" row should be explainable as a ghost; every "only in
-   rebuild" row should be a real move v2 was hiding.
+1. Deploy. Nothing to run by hand: the nightly cron ingests up to 400
+   invoices a night from the last year until every matched line has an
+   observation, then evaluates. The Recompute button on `/pricing` does
+   the same on demand. `scripts/pricing-backfill.ts` remains for a dry
+   run on the droplet if you want to read the pack-question backlog
+   before it lands on the page.
+2. Read `/pricing` after the first night. Every "only in v2" alert should
+   be explainable as a ghost; every alert only the rebuild raises should
+   be a real move v2 was hiding.
 3. Use `/pricing` for two weeks alongside the old page. Point the weekly
    digest's price section and the nav badge at `ProductPriceAlert`.
 4. Retire in order: stop writing `priceChanged` and `unitChanged` in the
