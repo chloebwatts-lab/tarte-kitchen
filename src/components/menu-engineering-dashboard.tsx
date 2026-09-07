@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState, useTransition } from "react"
+import { RecommendedPrice } from "@/components/recommended-price"
 import Link from "next/link"
 import {
   ScatterChart,
@@ -576,7 +577,7 @@ export function MenuEngineeringDashboard({
             </p>
           ) : (
             <div className="-mx-6 overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
+              <table className="w-full min-w-[840px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left font-serif text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     <th className="py-2 pl-6">Dish</th>
@@ -584,7 +585,8 @@ export function MenuEngineeringDashboard({
                     <th className="py-2 text-right">Sold</th>
                     <th className="py-2 text-right">FC%</th>
                     <th className="py-2 text-right">GP/unit</th>
-                    <th className="py-2 pr-6 text-right">GP contribution</th>
+                    <th className="py-2 text-right">GP contribution</th>
+                    <th className="py-2 pr-6 text-right">Rec. price</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -650,8 +652,18 @@ function ItemRow({ item }: { item: MenuEngineeringItem }) {
       <td className="py-2 text-right tabular-nums">
         ${item.grossProfitPerUnit.toFixed(2)}
       </td>
-      <td className="py-2 pr-6 text-right tabular-nums font-medium">
+      <td className="py-2 text-right tabular-nums font-medium">
         ${item.profitContribution.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+      </td>
+      <td className="py-2 pr-6 text-right">
+        <RecommendedPrice
+          dishId={item.dishId}
+          totalCost={item.totalCost}
+          sellingPrice={item.sellingPrice}
+          foodCostPct={item.foodCostPct}
+          targetPct={item.targetFoodCostPct}
+          compact
+        />
       </td>
     </tr>
   )

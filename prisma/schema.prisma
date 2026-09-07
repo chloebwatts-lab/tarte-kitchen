@@ -400,6 +400,16 @@ model Dish {
   @@unique([name, venue])
 }
 
+/// Target food cost % per menu category. Drives the recommended selling
+/// price on /dishes and the menu matrix. Missing rows fall back to the
+/// defaults in src/lib/menu-pricing.ts.
+model MenuCategoryTarget {
+  category          MenuCategory @id
+  targetFoodCostPct Decimal      @db.Decimal(5, 2)
+  updatedBy         String?
+  updatedAt         DateTime     @updatedAt
+}
+
 model DishComponent {
   id              String       @id @default(cuid())
   dishId          String

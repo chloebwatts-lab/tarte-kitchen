@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test src/lib/pricing/pricing.test.ts && tsx scripts/test-units.ts"
+    "test": "tsx --test src/lib/pricing/pricing.test.ts src/lib/menu-pricing.test.ts && tsx scripts/test-units.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",

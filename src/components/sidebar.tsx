@@ -89,6 +89,7 @@ const navGroups: NavGroup[] = [
       { label: "COGS", href: "/cogs", icon: Receipt },
       { label: "Live Spend", href: "/spend", icon: Activity },
       { label: "Labour", href: "/labour", icon: Users },
+      { label: "Labour Live", href: "/labour/live", icon: Activity },
       { label: "Analysis", href: "/analysis", icon: LineChart },
       { label: "Menu Matrix", href: "/menu-engineering", icon: LayoutGrid },
       { label: "Reports", href: "/reports", icon: BarChart3 },

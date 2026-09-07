@@ -4,6 +4,8 @@ import { getDishes } from "@/lib/actions/dishes"
 import { DishesTable } from "@/components/dishes-table"
 import { DishForm } from "@/components/dish-form"
 import { RecalculateButton } from "@/components/recalculate-button"
+import { CategoryTargets } from "@/components/category-targets"
+import { getCategoryTargets } from "@/lib/actions/menu-pricing"
 
 export default async function DishesPage({
   searchParams,
@@ -12,11 +14,14 @@ export default async function DishesPage({
 }) {
   const { search, menuCategory, venue } = await searchParams
 
-  const dishes = await getDishes({
-    search: typeof search === "string" ? search : undefined,
-    menuCategory: typeof menuCategory === "string" ? menuCategory : undefined,
-    venue: typeof venue === "string" ? venue : undefined,
-  })
+  const [dishes, targets] = await Promise.all([
+    getDishes({
+      search: typeof search === "string" ? search : undefined,
+      menuCategory: typeof menuCategory === "string" ? menuCategory : undefined,
+      venue: typeof venue === "string" ? venue : undefined,
+    }),
+    getCategoryTargets(),
+  ])
 
   return (
     <div className="space-y-6">
@@ -33,8 +38,11 @@ export default async function DishesPage({
         </div>
       </div>
 
+      <CategoryTargets targets={targets} />
+
       <DishesTable
         dishes={dishes}
+        targets={targets}
         initialSearch={typeof search === "string" ? search : ""}
         initialCategory={typeof menuCategory === "string" ? menuCategory : "ALL"}
         initialVenue={typeof venue === "string" ? venue : "ALL"}
