@@ -77,6 +77,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: "Suppliers", href: "/suppliers", icon: Truck },
       { label: "Price Alerts", href: "/price-alerts", icon: TrendingUp },
+      { label: "Price Alerts (new)", href: "/pricing", icon: TrendingUp },
       { label: "Orders", href: "/orders", icon: ShoppingCart },
       { label: "Order Checklists", href: "/order-checklists", icon: ClipboardCheck },
       { label: "Departments", href: "/order-departments", icon: Users },
@@ -89,6 +90,7 @@ const navGroups: NavGroup[] = [
       { label: "COGS", href: "/cogs", icon: Receipt },
       { label: "Live Spend", href: "/spend", icon: Activity },
       { label: "Labour", href: "/labour", icon: Users },
+      { label: "Labour Live", href: "/labour/live", icon: Activity },
       { label: "Analysis", href: "/analysis", icon: LineChart },
       { label: "Menu Matrix", href: "/menu-engineering", icon: LayoutGrid },
       { label: "Reports", href: "/reports", icon: BarChart3 },

@@ -3,6 +3,8 @@
 import { db } from "@/lib/db"
 import { Venue } from "@/generated/prisma/client"
 import { SINGLE_VENUES } from "@/lib/venues"
+import { recommend } from "@/lib/menu-pricing"
+import { getCategoryTargets } from "./menu-pricing"
 
 export type MenuQuadrant = "STAR" | "PLOWHORSE" | "PUZZLE" | "DOG"
 
@@ -20,6 +22,11 @@ export interface MenuEngineeringItem {
   revenueExGst: number
   profitContribution: number
   quadrant: MenuQuadrant
+  /** Category food-cost target and the inc-GST price that would hit it. */
+  targetFoodCostPct: number
+  recommendedPrice: number | null
+  /** recommendedPrice minus sellingPrice; null when on target or no cost. */
+  priceDelta: number | null
 }
 
 export interface MenuEngineeringData {
@@ -82,7 +89,7 @@ export async function getMenuEngineeringData(params: {
 
   // DailySales (per-item POS sync) is often empty; use DailyCategoryTopItem
   // which is populated from the daily Lightspeed PDF email reports.
-  const [topItemRows, allDishes] = await Promise.all([
+  const [topItemRows, allDishes, targets] = await Promise.all([
     db.dailyCategoryTopItem.findMany({
       where: { ...venueFilter, date: { gte: start } },
       select: { productName: true, quantity: true },
@@ -101,6 +108,7 @@ export async function getMenuEngineeringData(params: {
         grossProfit: true,
       },
     }),
+    getCategoryTargets(),
   ])
 
   // Aggregate quantity by normalised product name across all matched rows
@@ -150,7 +158,17 @@ export async function getMenuEngineeringData(params: {
     const grossProfitPerUnit = Number(dish.grossProfit)
     // Revenue estimated from dish selling price × units sold (no line-item revenue in source)
     const revenueExGst = Number(dish.sellingPriceExGst) * qty
+    const targetFoodCostPct = targets[dish.menuCategory]
+    const rec = recommend(
+      Number(dish.totalCost),
+      Number(dish.sellingPrice),
+      Number(dish.foodCostPercentage),
+      targetFoodCostPct
+    )
     rawItems.push({
+      targetFoodCostPct,
+      recommendedPrice: rec.recommendedPrice,
+      priceDelta: rec.onTarget ? null : rec.deltaDollars,
       dishId: dish.id,
       name: dish.name,
       menuCategory: dish.menuCategory,

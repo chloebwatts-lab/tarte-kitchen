@@ -17,6 +17,8 @@ import { Switch } from "@/components/ui/switch"
 import { DishForm } from "@/components/dish-form"
 import { cn } from "@/lib/utils"
 import { updateDishQuick } from "@/lib/actions/dishes"
+import { RecommendedPrice } from "@/components/recommended-price"
+import { DEFAULT_TARGET_FOOD_COST_PCT } from "@/lib/menu-pricing"
 
 // ---------- Types ----------
 
@@ -414,6 +416,8 @@ interface DishesTableProps {
   initialSearch: string
   initialCategory: string
   initialVenue: string
+  /** Food-cost target % per menu category; falls back to code defaults. */
+  targets?: Record<string, number>
 }
 
 export function DishesTable({
@@ -421,6 +425,7 @@ export function DishesTable({
   initialSearch,
   initialCategory,
   initialVenue,
+  targets,
 }: DishesTableProps) {
   const router = useRouter()
   const [search, setSearch] = useState(initialSearch)
@@ -548,7 +553,7 @@ export function DishesTable({
         <div className="overflow-hidden rounded-lg border border-border">
           {/* Header */}
           <div className="hidden border-b border-border bg-muted/50 px-4 py-3 sm:grid sm:grid-cols-12 sm:items-center sm:gap-4">
-            <div className="col-span-4">
+            <div className="col-span-3">
               <SortButton label="Dish" field="name" />
             </div>
             <div className="col-span-1 text-center">
@@ -560,11 +565,14 @@ export function DishesTable({
             <div className="col-span-1 text-right">
               <span className="text-xs font-medium text-muted-foreground">Food Cost</span>
             </div>
-            <div className="col-span-2 text-center">
+            <div className="col-span-1 text-center">
               <SortButton label="Cost %" field="foodCostPercentage" />
             </div>
             <div className="col-span-2 text-right">
               <SortButton label="Gross Profit" field="grossProfit" />
+            </div>
+            <div className="col-span-2 text-right">
+              <span className="text-xs font-medium text-muted-foreground">Recommended</span>
             </div>
           </div>
 
@@ -582,7 +590,7 @@ export function DishesTable({
                     onClick={() => setExpandedId(isExpanded ? null : dish.id)}
                   >
                     {/* Name + Category + Active */}
-                    <div className="col-span-4 flex items-center gap-3">
+                    <div className="col-span-3 flex items-center gap-3">
                       <ChevronDown
                         className={cn(
                           "hidden h-4 w-4 shrink-0 text-muted-foreground transition-transform sm:block",
@@ -621,7 +629,7 @@ export function DishesTable({
                     </div>
 
                     {/* Cost % traffic light */}
-                    <div className="col-span-2 mt-1 flex justify-center sm:mt-0">
+                    <div className="col-span-1 mt-1 flex justify-center sm:mt-0">
                       <Badge variant={costBadge.variant} className="px-3 py-1 text-sm font-bold">
                         {costBadge.label}
                       </Badge>
@@ -632,6 +640,18 @@ export function DishesTable({
                       <p className="text-sm font-semibold text-green-text dark:text-green-400">
                         {formatCurrency(dish.grossProfit)}
                       </p>
+                    </div>
+
+                    {/* Recommended price vs the category's food-cost target */}
+                    <div className="col-span-2 mt-1 text-right sm:mt-0" onClick={(e) => e.stopPropagation()}>
+                      <RecommendedPrice
+                        dishId={dish.id}
+                        totalCost={dish.totalCost}
+                        sellingPrice={dish.sellingPrice}
+                        foodCostPct={dish.foodCostPercentage}
+                        targetPct={targets?.[dish.menuCategory] ?? DEFAULT_TARGET_FOOD_COST_PCT[dish.menuCategory as keyof typeof DEFAULT_TARGET_FOOD_COST_PCT] ?? 30}
+                        onApplied={handleSaved}
+                      />
                     </div>
                   </div>
 
