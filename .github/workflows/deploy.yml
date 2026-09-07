@@ -46,8 +46,28 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          printf '%s\n' "$KEY" > ~/.ssh/deploy_key
+          # Pasted keys often arrive with lost line breaks, Windows line
+          # endings, or a shell prompt glued on the end. Rebuild a clean
+          # file from whatever sits between the BEGIN and END markers.
+          body=$(printf '%s' "$KEY" | tr -d '\r' | tr '\n' ' ' \
+            | sed -n 's/.*-----BEGIN OPENSSH PRIVATE KEY-----\(.*\)-----END OPENSSH PRIVATE KEY-----.*/\1/p' \
+            | tr -d ' \t')
+          if [ -z "$body" ]; then
+            echo "::error::DROPLET_SSH_KEY does not contain an OpenSSH private key. Re-add the secret with the full text from the BEGIN line to the END line."
+            exit 1
+          fi
+          {
+            echo "-----BEGIN OPENSSH PRIVATE KEY-----"
+            printf '%s' "$body" | fold -w 70
+            echo
+            echo "-----END OPENSSH PRIVATE KEY-----"
+          } > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          if ! ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null 2>&1; then
+            echo "::error::DROPLET_SSH_KEY is not a valid private key. Generate a fresh one on the droplet (see README, Deploy on merge) and paste the whole output, BEGIN line to END line."
+            exit 1
+          fi
+          echo "Deploy key loaded: $(ssh-keygen -y -f ~/.ssh/deploy_key | cut -c1-40)..."
           if [ -n "$KNOWN_HOSTS" ]; then
             printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           else
