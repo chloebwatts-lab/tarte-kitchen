@@ -49,11 +49,20 @@ jobs:
           # Pasted keys often arrive with lost line breaks, Windows line
           # endings, or a shell prompt glued on the end. Rebuild a clean
           # file from whatever sits between the BEGIN and END markers.
-          body=$(printf '%s' "$KEY" | tr -d '\r' | tr '\n' ' ' \
+          flat=$(printf '%s' "$KEY" | tr -d '\r' | tr '\n' ' ')
+          body=$(printf '%s' "$flat" \
             | sed -n 's/.*-----BEGIN OPENSSH PRIVATE KEY-----\(.*\)-----END OPENSSH PRIVATE KEY-----.*/\1/p' \
             | tr -d ' \t')
           if [ -z "$body" ]; then
-            echo "::error::DROPLET_SSH_KEY does not contain an OpenSSH private key. Re-add the secret with the full text from the BEGIN line to the END line."
+            # No markers: maybe only the middle block was pasted. An OpenSSH
+            # key body always starts with the base64 of "openssh-key-v1".
+            candidate=$(printf '%s' "$flat" | tr -d ' \t' | sed 's/^.*\(b3BlbnNzaC1rZXktdjE\)/\1/')
+            case "$candidate" in
+              b3BlbnNzaC1rZXktdjE*) body="$candidate" ;;
+            esac
+          fi
+          if [ -z "$body" ]; then
+            echo "::error::DROPLET_SSH_KEY is not an OpenSSH private key. On the droplet run: cat /root/.ssh/github-deploy  and paste ALL of the output (BEGIN line to END line) into the secret."
             exit 1
           fi
           {
