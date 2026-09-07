@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { resolvePack, productKey, describeBase } from "./pack"
+import { resolvePack, productKey, describeBase, detectPackChange } from "./pack"
 import { deriveObservation } from "./observation"
 import { evaluateProduct, newPurchasePrice, median, byDelivery, weeklyImpact } from "./alerts"
 import type { IngredientPackInfo, ObservationPoint } from "./types"
@@ -101,7 +101,9 @@ test("bracketed piece grade is not the pack", () => {
 })
 
 test("product key prefers the supplier code, else description + billed unit", () => {
-  assert.equal(productKey(" 123456 ", "BUTTER SALTED", "PAT"), "code:123456")
+  assert.equal(productKey(" 123456 ", "BUTTER SALTED", "PAT"), "code:123456|pat")
+  // same SKU billed per KG and per CTN are two products, two packs
+  assert.notEqual(productKey("123456", "KALE", "KG"), productKey("123456", "KALE", "CTN"))
   assert.notEqual(productKey(null, "BUTTER SALTED", "PAT"), productKey(null, "BUTTER SALTED", "BLK"))
   assert.equal(productKey(null, "Butter, Salted!", "pat"), productKey(null, "BUTTER SALTED", "PAT"))
 })
@@ -111,6 +113,18 @@ test("describeBase reads naturally", () => {
   assert.equal(describeBase(400, "WEIGHT"), "400 g")
   assert.equal(describeBase(6000, "VOLUME"), "6 l")
   assert.equal(describeBase(12, "COUNT"), "12 ea")
+})
+
+test("a size change on a known product is caught, a reworded same-size description is not", () => {
+  const kale = { packBaseUnits: 5000, description: "Kale Purple Carton 5kg", billedUnit: "CTN" }
+  const changed = detectPackChange(kale, "Kale Purple Carton 10kg", "WEIGHT")
+  assert.equal(changed?.advertisedBaseUnits, 10000)
+  assert.equal(detectPackChange(kale, "KALE PURPLE CTN 5KG", "WEIGHT"), null)
+  assert.equal(detectPackChange(kale, "Kale Purple Carton 5kg", "WEIGHT"), null)
+  // per-kg billing: the bag size in the description is not the pack
+  assert.equal(detectPackChange({ ...kale, packBaseUnits: 1000, billedUnit: "KG" }, "Kale 10kg bag", "WEIGHT"), null)
+  // unit change is a different product key, so it never reaches here
+  assert.notEqual(productKey(null, "Kale Purple Carton", "CTN"), productKey(null, "Kale Purple Carton", "BAG"))
 })
 
 // --------------------------------------------------------- observation

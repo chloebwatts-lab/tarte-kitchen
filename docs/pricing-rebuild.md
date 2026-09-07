@@ -1,9 +1,10 @@
 # Pricing rebuild
 
-Status: shadow mode on branch `claude/tarte-kitchen-audit-pricing-ezsdgr`
-(September 2026). Runs beside the v1 line flags and the v2 `PriceAlert`
-table, reads the same invoice lines, writes only its own tables. Nothing a
-chef sees changes until the cutover steps at the end.
+Status: branch `claude/price-alerts-rebuild` (September 2026), cut from
+the audit branch. Runs beside the v1 line flags and the v2 `PriceAlert`
+table, reads the same invoice lines, writes only its own tables. The new
+screen is at `/pricing` ("Price Alerts (new)" in the sidebar); the old
+pages stay until cutover.
 
 ## Why a rebuild and not another fix
 
@@ -122,17 +123,30 @@ Per product, once. Trust from top to bottom.
    250ML", "1kg tub x 6", "15dz"). Unconfirmed until a person says so.
 5. Nothing usable: `NEEDS_PACK`.
 
+Two guards sit behind that:
+
+The size-change guard: a product already has a pack on file and a new
+line for it carries a description that reads as a different pack in the
+ingredient's family ("KALE CARTON 5KG" became "KALE CARTON 10KG"). The
+observation is parked as suspect and the product asks its question again,
+even if the pack had been confirmed. A reworded description with the same
+size never re-asks, and a per-kg line is per kg whatever the bag size
+says. A change of billed unit on the same product code is a different
+product key altogether, so it gets its own pack rather than inheriting
+the old one. Those two cases are the ones that used to blow the old
+pipeline.
+
 The sanity gate: an unconfirmed pack that is wrong is wrong by a whole
 multiple, so the implied price lands far outside anything a real move
 produces. Beyond 60% for a parsed pack, 150% for an ingredient-derived
 pack, and five times for a measure, the observation is `SUSPECT` and the
-product asks its one question. A confirmed pack is never re-parked, and a
+product asks its one question. The sanity gate never re-parks a confirmed pack, and a
 real doubling on one surfaces as an alert.
 
 ## What is on this branch
 
 - `src/lib/pricing/pack.ts`, `observation.ts`, `alerts.ts`: pure engine,
-  no database, 33 tests covering every historic bug class (the 15 kg bag
+  no database, 34 tests covering every historic bug class (the 15 kg bag
   labelled KG, the 60-pack billed as EA, the Jensens discount line, the
   extractor putting the line total in the unit price, the triple
   multiplier, the bracketed piece grade, engine close versus chef
@@ -147,6 +161,12 @@ real doubling on one surfaces as an alert.
   need a human answer, `--apply` builds history and prints where the new
   engine and v2 disagree.
 - `npm test` runs the engine tests and the existing units regression.
+- `/pricing`: the pack-question queue (one row, one number, one button,
+  with the implied $/kg shown as you type) and the product alert list
+  with per-kg / per-litre / per-each prices, weekly dollar impact and the
+  last deliveries. Accept writes exactly the observation shown. Answering
+  a pack question reprices that product's whole history and re-evaluates
+  alerts immediately.
 
 ## Cutover
 
@@ -156,10 +176,8 @@ real doubling on one surfaces as an alert.
 2. Run with `--apply --days 365`. Read the v2 versus rebuild comparison.
    Every "only in v2" row should be explainable as a ghost; every "only in
    rebuild" row should be a real move v2 was hiding.
-3. Build the two screens: a pack-question queue (one row, one number, one
-   button) and the product alert list showing the observation history as a
-   sparkline. Point the weekly digest's price section at
-   `ProductPriceAlert`.
+3. Use `/pricing` for two weeks alongside the old page. Point the weekly
+   digest's price section and the nav badge at `ProductPriceAlert`.
 4. Retire in order: stop writing `priceChanged` and `unitChanged` in the
    processor, remove `/suppliers` price alert tab and the v2 page, drop
    `SupplierPrice` (never read anywhere) and `SupplierItemMapping.conversionFactor`.

@@ -191,8 +191,48 @@ export function productKey(
   billedUnit: string | null | undefined
 ): string {
   const code = (productCode ?? "").trim()
-  if (code) return `code:${code.toLowerCase()}`
-  return `desc:${normaliseDescriptionKey(description)}|${normaliseUnit(billedUnit) || "-"}`
+  const unit = normaliseUnit(billedUnit) || "-"
+  // The billed unit is part of the key even with a code: Pacific Wholesale
+  // bills the same SKU per KG one week and per CTN the next, and a unit
+  // change on a known product is exactly the case that used to blow up.
+  // A new (code, unit) pair is a new product with its own pack question.
+  if (code) return `code:${code.toLowerCase()}|${unit}`
+  return `desc:${normaliseDescriptionKey(description)}|${unit}`
+}
+
+export interface PackChange {
+  /** Base units the new description advertises. */
+  advertisedBaseUnits: number
+  explanation: string
+}
+
+/**
+ * Size-change guard. A product already has a pack on file; a new invoice
+ * line for the same product carries a description that reads as a
+ * DIFFERENT pack in the ingredient's family ("KALE CARTON 5KG" became
+ * "KALE CARTON 10KG"). Returns the change so the caller can park the
+ * observation as SUSPECT and ask the one question again, instead of
+ * silently pricing 10 kg as 5 kg. Only fires when the description text
+ * itself changed, so a stable description never re-asks.
+ */
+export function detectPackChange(
+  product: { packBaseUnits: number | null; description: string; billedUnit: string | null },
+  lineDescription: string,
+  baseUnitType: BaseUnitType
+): PackChange | null {
+  if (product.packBaseUnits === null || !(product.packBaseUnits > 0)) return null
+  if (normaliseDescriptionKey(lineDescription) === normaliseDescriptionKey(product.description)) return null
+  // A measure-billed line (per kg) is per kg whatever the bag size says.
+  if (isMeasureUnit(product.billedUnit)) return null
+  const parsed = parsePackSize(lineDescription)
+  if (!parsed || packFamily(parsed.unit) !== baseUnitType) return null
+  const advertised = packToBase(parsed.qty, parsed.unit)
+  const ratio = advertised / product.packBaseUnits
+  if (ratio > 0.9 && ratio < 1.1) return null
+  return {
+    advertisedBaseUnits: advertised,
+    explanation: `Description changed and now reads as ${describeBase(advertised, baseUnitType)} per ${normaliseUnit(product.billedUnit) || "unit"}; pack on file is ${describeBase(product.packBaseUnits, baseUnitType)}`,
+  }
 }
 
 export function normaliseDescriptionKey(description: string): string {

@@ -13,7 +13,7 @@ import type {
   ObservationStatus as DbObservationStatus,
   Prisma,
 } from "@/generated/prisma/client"
-import { productKey, resolvePack } from "./pack"
+import { productKey, resolvePack, detectPackChange } from "./pack"
 import { deriveObservation } from "./observation"
 import { evaluateProduct, newPurchasePrice } from "./alerts"
 import type { IngredientPackInfo, ObservationPoint, RecentDecision } from "./types"
@@ -164,6 +164,26 @@ export async function ingestInvoiceObservations(invoiceId: string): Promise<Inge
       continue
     }
 
+    // Size-change guard: same product, new description advertising a
+    // different pack. Park it and ask again rather than price it wrong.
+    const change = detectPackChange(
+      { packBaseUnits: num(product.packBaseUnits), description: product.description, billedUnit: product.billedUnit },
+      line.description,
+      line.ingredient.baseUnitType
+    )
+    if (change) {
+      product = await db.supplierProduct.update({
+        where: { id: product.id },
+        data: {
+          status: "NEEDS_PACK",
+          packConfidence: "LOW",
+          packExplanation: change.explanation,
+          description: line.description,
+          lastSeenAt: new Date(),
+        },
+      })
+    }
+
     const obs = deriveObservation(
       {
         description: line.description,
@@ -177,6 +197,10 @@ export async function ingestInvoiceObservations(invoiceId: string): Promise<Inge
       (product.packConfidence ?? null) as DbPackConfidence | null,
       ingredientPerBase(line.ingredient as IngredientRow)
     )
+    if (change && obs.status !== "EXCLUDED") {
+      obs.status = "SUSPECT"
+      obs.reason = change.explanation
+    }
 
     const data = {
       supplierProductId: product.id,

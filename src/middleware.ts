@@ -58,6 +58,7 @@ export const config = {
     "/order-departments/:path*",
     "/par-levels/:path*",
     "/price-alerts/:path*",
+    "/pricing/:path*",
     "/restock/:path*",
     "/spend/:path*",
     "/labour/:path*",
