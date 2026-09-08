@@ -10,6 +10,7 @@ import {
   GraduationCap,
   Handshake,
   PackageOpen,
+  Printer,
   Scale,
   ShieldCheck,
   ShoppingBasket,
@@ -28,6 +29,7 @@ const TOOLS: Array<{
 }> = [
   { title: "Checklists", sub: "Cleaning & food safety, per venue", href: "/kitchen", icon: ClipboardCheck },
   { title: "Something broken?", sub: "Quick fixes, who to call, warranty", href: "/kitchen/fix", icon: Wrench },
+  { title: "Printer down?", sub: "Epson docket printers: fix it in 5 stages", href: "/kitchen/printers", icon: Printer },
   { title: "Service calendar", sub: "Grease trap, pest, fire checks: done & due", href: "/kitchen/services", icon: CalendarCheck },
   { title: "Wastage log", sub: "Log anything binned, as it happens", href: "/log", icon: Trash2 },
   { title: "Restock & prep counts", sub: "Evening counts, morning restock run", href: "/kitchen/restock", icon: PackageOpen },

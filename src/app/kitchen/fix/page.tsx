@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
-import { ArrowRight, ClipboardCheck, PlusCircle, QrCode, Wrench } from "lucide-react"
+import { ArrowRight, ClipboardCheck, PlusCircle, Printer, QrCode, Wrench } from "lucide-react"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
 import { FixAssetList } from "@/components/kitchen/FixAssetList"
@@ -77,6 +77,15 @@ function VenueLanding() {
           It goes straight to that machine&apos;s page.
         </div>
         <div className="mt-4 text-center">
+          <Link
+            href="/kitchen/printers"
+            className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-semibold text-white"
+            style={{ background: "rgba(255,255,255,0.15)" }}
+          >
+            <Printer className="h-4 w-4" /> Docket printer not printing? Step-by-step checklist
+          </Link>
+        </div>
+        <div className="mt-3 text-center">
           <Link
             href="/kitchen/fix/new"
             className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-[14px] font-semibold text-white"
