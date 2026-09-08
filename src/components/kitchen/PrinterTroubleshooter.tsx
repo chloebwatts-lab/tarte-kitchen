@@ -5,6 +5,8 @@ import { useCallback, useMemo, useState, useSyncExternalStore } from "react"
 import {
   Copy,
   Check,
+  Eye,
+  EyeOff,
   Plug,
   Printer,
   RotateCcw,
@@ -74,7 +76,7 @@ const STAGES: Stage[] = [
         id: "nbn",
         title: "Check the NBN router has lights.",
         detail:
-          "It is in the blue power box outside the main kitchen, as you come out from the blue door.",
+          "Burleigh: it is in the blue power box outside the main kitchen, as you come out from the blue door. Currumbin: find the router for that building and check it the same way.",
       },
       {
         id: "switchboard",
@@ -258,6 +260,9 @@ function CopyButton({ value, label }: { value: string; label: string }) {
 
 export function PrinterTroubleshooter() {
   const [done, hydrated, save] = useTicks()
+  // Password is hidden until tapped, and hides again whenever the page is
+  // reloaded, so it is not sitting on screen on a shared iPad all day.
+  const [showPassword, setShowPassword] = useState(false)
 
   const toggle = useCallback(
     (id: string) => {
@@ -427,10 +432,22 @@ export function PrinterTroubleshooter() {
                         Password
                       </div>
                       <div className="truncate font-mono text-[13px] text-[var(--tk-charcoal)] sm:text-[14px]">
-                        {LOGIN.password}
+                        {showPassword ? LOGIN.password : "\u2022".repeat(LOGIN.password.length)}
                       </div>
                     </div>
-                    <CopyButton value={LOGIN.password} label="password" />
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        aria-pressed={showPassword}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-[var(--tk-line)] bg-white px-3 py-1.5 text-[12px] font-semibold text-[var(--tk-ink-soft)] transition active:scale-95"
+                      >
+                        {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        {showPassword ? "Hide" : "Show"}
+                      </button>
+                      <CopyButton value={LOGIN.password} label="password" />
+                    </div>
                   </div>
                 </div>
               </div>

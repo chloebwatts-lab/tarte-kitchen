@@ -26,7 +26,8 @@ export default function PrintersPage() {
         </h1>
         <p className="mt-2 max-w-xl text-[15px] text-[var(--tk-ink-soft)]">
           Work from the top. Each stage rules out one cause, so do not skip ahead. Tick
-          each step as you go. Most printer outages are fixed by stage 2.
+          each step as you go. Most printer outages are fixed by stage 2. Written for
+          Burleigh, but the same order of checks applies at Currumbin.
         </p>
       </div>
 
