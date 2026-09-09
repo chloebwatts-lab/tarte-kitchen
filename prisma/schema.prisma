@@ -2585,3 +2585,93 @@ model VenueTaskSchedule {
   @@unique([venue, title])
   @@index([venue, isActive, nextDueAt])
 }
+
+// ============================================================
+// RESPONSIBILITY MAP — who owns what, who to ask, and how you
+// get there. Answers two questions with one table because they
+// are the same question asked from different ends.
+// ============================================================
+
+/// One area of the business somebody owns.
+///
+/// Georgia: "I do feel like I'm the go to for all areas of the business:
+/// FOH, Kitchen, KP's etc for any problems. So more knowledge to the head of
+/// those departments on what to do would help." This table is that knowledge,
+/// written down once instead of being asked of her each time.
+///
+/// It is also why nobody could say who does the fire extinguisher tags. An
+/// area with no owner here is the finding, not a gap in the data.
+model ResponsibilityArea {
+  id          String  @id @default(cuid())
+  venue       Venue
+  name        String
+  description String?
+
+  ownerName  String?
+  /// Who to ask when the owner is off. An area with an owner and no backup
+  /// is a single point of failure, and the page says so out loud.
+  backupName String?
+
+  /// The two lines that stop a handover going wrong, from the Job Map card.
+  /// Be specific and use numbers: "table moves and anything comped up to $20"
+  /// beats "minor issues".
+  youDecide String?
+  youAsk    String?
+
+  /// The progression path: what someone would need to learn to take this on.
+  /// Ties the department booklets' sign-off grids to a next step beyond
+  /// being certified, which the paper system currently stops at.
+  toTakeThisOn String?
+  /// Department booklet this area draws on, e.g. "05-barista".
+  bookletRef   String?
+
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  handovers ResponsibilityHandover[]
+
+  @@unique([venue, name])
+  @@index([venue, isActive])
+}
+
+/// The four stages of a handover, straight from the Job Map. Moving one stage
+/// a week is the rule; a person who slips back twice means the process needs
+/// fixing, not the person.
+enum HandoverStage {
+  WATCHING
+  DOING_WITH
+  DOING_TELLING
+  OWNS
+}
+
+/// Somebody learning an area. This is what turns "who is ready for more?"
+/// into something visible: Georgia named Jaz for Bidfood and Provedores and
+/// Chi for the Parallel coffee order, and without a row like this those
+/// nominations live in a questionnaire nobody reopens.
+model ResponsibilityHandover {
+  id     String             @id @default(cuid())
+  areaId String
+  area   ResponsibilityArea @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  personName String
+  stage      HandoverStage @default(WATCHING)
+
+  /// Whether the person has actually agreed to this. Georgia's own note on
+  /// one nomination was "not sure if interested", so an unconfirmed name is
+  /// a conversation to have, not a plan to rely on.
+  confirmed Boolean @default(false)
+
+  startedAt      DateTime  @default(now())
+  stageChangedAt DateTime  @default(now())
+  completedAt    DateTime?
+  notes          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([areaId, personName])
+  @@index([areaId, stage])
+}
