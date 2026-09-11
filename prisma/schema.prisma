@@ -2675,3 +2675,72 @@ model ResponsibilityHandover {
   @@unique([areaId, personName])
   @@index([areaId, stage])
 }
+
+/// One line-up, per venue per day. The five-item agenda in the training
+/// system is mostly assembled from data we already hold, but the push item
+/// and the 86s are human calls, so they live here.
+///
+/// `ranAt` is the point of the table as much as the content is: the line-up
+/// is the engine that re-teaches the culture, and a row with content but no
+/// ranAt means somebody prepared it and never stood up and ran it.
+model LineUp {
+  id    String   @id @default(cuid())
+  venue Venue
+  date  DateTime @db.Date
+
+  /// The one thing everyone names to guests today.
+  pushItem    String?
+  /// What we are out of. Free text, it is read aloud not parsed.
+  eightySixed String?
+  notes       String?
+
+  ledBy String?
+  ranAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([venue, date])
+  @@index([venue, date])
+}
+
+enum MeetingItemStatus {
+  OPEN
+  DISCUSSED
+  DROPPED
+}
+
+/// Something somebody wants raised at the next management meeting.
+///
+/// Savy's answer to what she wants off her plate was not a task, it was
+/// "not being heard". A standing list anyone can add to turns that into
+/// "it is on the agenda for the 18th", and the person who raised it can
+/// see both that it got there and what was decided.
+///
+/// Actions agreed in the room go to MeetingAction, which already exists and
+/// carries an owner and a due date. This table is the queue in front of it.
+model MeetingAgendaItem {
+  id String @id @default(cuid())
+
+  /// Which meeting this is queued for. Null means the next one, which is the
+  /// normal case — nobody adding an item should have to know the date.
+  meetingDate DateTime? @db.Date
+  /// Optional, for items that only concern one shop.
+  venue       Venue?
+
+  topic    String
+  detail   String?
+  raisedBy String?
+
+  status      MeetingItemStatus @default(OPEN)
+  discussedAt DateTime?
+  /// What was actually decided. Written back so raising something has a
+  /// visible end, rather than the item simply disappearing off the list.
+  outcome     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, meetingDate])
+  @@index([createdAt])
+}
