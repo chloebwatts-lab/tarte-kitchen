@@ -2909,3 +2909,12 @@ model MeetingAgendaItem {
   @@index([status, meetingDate])
   @@index([createdAt])
 }
+
+/// Small key/value store for things that must be settable from the admin
+/// without a deploy or an env change. First use: the managers password hash,
+/// so Chloe can set it from a screen instead of the droplet's .env.
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

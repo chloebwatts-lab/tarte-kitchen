@@ -17,6 +17,7 @@ import {
   LayoutDashboard,
   LayoutGrid,
   LineChart,
+  Lock,
   Mail,
   Megaphone,
   PackageOpen,
@@ -107,6 +108,7 @@ const navGroups: NavGroup[] = [
       { label: "Inbox Playbooks", href: "/inbox-playbooks", icon: Mail },
       { label: "Council Folder", href: "/council", icon: ShieldCheck },
       { label: "Settings", href: "/settings/integrations", icon: Settings },
+      { label: "Managers password", href: "/settings/manager-password", icon: Lock },
     ],
   },
 ];

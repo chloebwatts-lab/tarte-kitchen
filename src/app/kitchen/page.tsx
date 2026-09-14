@@ -9,7 +9,7 @@ import {
   Croissant,
   Eye,
   GraduationCap,
-  Megaphone,
+  Lock,
   MessageSquarePlus,
   PackageOpen,
   PackageSearch,
@@ -418,10 +418,10 @@ function CategoryPicker({
           href={`/kitchen/stock?venue=${venue}`}
         />
         <SecondaryTile
-          title="Line-up"
-          subtitle="Today's five minutes: numbers, sections, push item, one value, shout-outs."
-          icon={<Megaphone className="h-6 w-6" strokeWidth={1.8} />}
-          href={`/kitchen/lineup?venue=${venue}`}
+          title="Managers"
+          subtitle="Line-up, morning board, Said + Done, agenda. Password."
+          icon={<Lock className="h-6 w-6" strokeWidth={1.8} />}
+          href="/kitchen/managers"
         />
         <SecondaryTile
           title="Raise something"

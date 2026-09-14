@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import { cookies } from "next/headers"
+import { requireManager } from "@/lib/manager-auth"
 import { getLineUp, getLineUpStreak } from "@/lib/actions/lineup"
 import { LineUpBoard } from "@/components/kitchen/LineUpBoard"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
@@ -25,6 +26,7 @@ export default async function LineUpPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
+  await requireManager("/kitchen/lineup")
   const sp = await searchParams
   const venueParam = typeof sp.venue === "string" ? sp.venue : null
   // Explicit ?venue= wins; otherwise the venue the picker remembered.
