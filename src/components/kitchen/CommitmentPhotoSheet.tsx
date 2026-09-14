@@ -186,16 +186,22 @@ export function CommitmentPhotoSheet({
                   />
                 </a>
                 <button
-                  onClick={() =>
+                  onClick={() => {
+                    // Compliance evidence. One stray tap must not remove it.
+                    if (!window.confirm(`Delete this ${photoKindLabel(p.kind).toLowerCase()} photo? It can't be undone.`)) return
                     startTransition(async () => {
-                      await deleteCommitmentPhoto({ photoId: p.id })
-                      router.refresh()
+                      try {
+                        await deleteCommitmentPhoto({ photoId: p.id })
+                        router.refresh()
+                      } catch {
+                        window.alert("Didn't delete. Check the wifi and try again.")
+                      }
                     })
-                  }
-                  className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white active:bg-black/80"
+                  }}
+                  className="absolute right-1 top-1 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white active:bg-black/80"
                   aria-label="Delete photo"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <X className="h-4 w-4" />
                 </button>
                 <div className="mt-1 truncate text-[12px] text-[var(--tk-ink-soft)]">
                   {photoKindLabel(p.kind)}

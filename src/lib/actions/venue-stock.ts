@@ -34,6 +34,12 @@ export interface RoundItem {
   /// True when this item is already on the reorder list, so the walker
   /// can see it has been noticed and does not flag it again.
   belowPar: boolean
+  /// Somebody tapped or counted this item today (Brisbane time). Lets the
+  /// walk show progress and lets a second person pick up where the first
+  /// left off on a shared iPad.
+  checkedToday: boolean
+  /// When it was last tapped or counted, ISO. Null if never.
+  checkedAt: string | null
 }
 
 export interface RoundArea {
@@ -56,6 +62,18 @@ function isBelowPar(item: {
   const par = n(item.parLevel)
   if (on === null || par === null) return false
   return on <= par
+}
+
+const brisbaneDay = new Intl.DateTimeFormat("en-AU", {
+  timeZone: "Australia/Brisbane",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+})
+
+function isToday(d: Date | null): boolean {
+  if (!d) return false
+  return brisbaneDay.format(d) === brisbaneDay.format(new Date())
 }
 
 /** The walk. Areas in route order, never alphabetical. */
@@ -84,11 +102,17 @@ export async function getStockRound(venue: Venue): Promise<RoundArea[]> {
       signal: i.signal,
       signalBy: i.signalBy,
       belowPar: isBelowPar(i),
+      checkedToday: isToday(i.signalAt),
+      checkedAt: i.signalAt ? i.signalAt.toISOString() : null,
     })),
   }))
 }
 
-/** One tap on a cheap fast-moving item. No numbers involved. */
+/**
+ * One tap on a cheap fast-moving item. No numbers involved. "Fine" is
+ * recorded too (time and name), so the walk can show what has been looked
+ * at today rather than only what is wrong.
+ */
 export async function recordSignal(
   itemId: string,
   signal: VenueStockSignal,
@@ -98,8 +122,8 @@ export async function recordSignal(
     where: { id: itemId },
     data: {
       signal,
-      signalAt: signal === "OK" ? null : new Date(),
-      signalBy: signal === "OK" ? null : by.trim() || null,
+      signalAt: new Date(),
+      signalBy: by.trim() || null,
     },
   })
   revalidatePath("/kitchen/stock")
@@ -147,9 +171,10 @@ export async function recordCount(itemId: string, countedTo: number, by: string)
       data: {
         onHand: countedTo,
         // A count clears a signal: somebody has just looked at the shelf.
+        // The time and name stay, so the walk shows it as checked today.
         signal: "OK",
-        signalAt: null,
-        signalBy: null,
+        signalAt: new Date(),
+        signalBy: by.trim() || null,
       },
     }),
   ])

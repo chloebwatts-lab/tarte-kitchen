@@ -91,7 +91,7 @@ export function RaiseItemForm({
         </label>
 
         {error ? (
-          <p className="text-[16px] font-medium text-[var(--tk-red-text,#B4432A)]">{error}</p>
+          <p className="text-[16px] font-medium text-[var(--tk-warn)]">{error}</p>
         ) : null}
 
         <div className="flex items-center gap-3 pt-1">

@@ -167,6 +167,7 @@ export default async function FixHubPage({
       </div>
 
       <FixAssetList
+        venue={venue}
         assets={assets.map((a) => ({
           slug: a.slug,
           name: a.name,

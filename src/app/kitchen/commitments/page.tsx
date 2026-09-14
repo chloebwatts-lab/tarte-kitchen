@@ -43,6 +43,12 @@ export default async function KitchenCommitmentsPage() {
           it happened, N means it didn&apos;t. The point is that everyone sees
           the same sheet.
         </p>
+        <Link
+          href="/commitments"
+          className="mt-3 inline-flex min-h-[40px] items-center gap-1.5 text-[15px] font-semibold text-[var(--tk-charcoal)]"
+        >
+          Marks are made in the office app <ArrowRight className="h-4 w-4" />
+        </Link>
       </div>
 
       {/* Standing grid (read-only) */}

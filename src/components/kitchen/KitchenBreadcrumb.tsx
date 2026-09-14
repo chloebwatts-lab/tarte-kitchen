@@ -39,12 +39,12 @@ export function KitchenBreadcrumb({ crumbs }: { crumbs: Crumb[] }) {
                 <Link
                   href={c.href}
                   replace
-                  className="max-w-[10rem] truncate whitespace-nowrap rounded-full px-2 py-1.5 font-semibold text-[var(--tk-ink-soft)] transition active:bg-[var(--tk-charcoal-soft)] hover:text-[var(--tk-charcoal)] md:px-2.5"
+                  className="inline-flex min-h-[40px] max-w-[10rem] items-center truncate whitespace-nowrap rounded-full px-2 font-semibold text-[var(--tk-ink-soft)] transition active:bg-[var(--tk-charcoal-soft)] hover:text-[var(--tk-charcoal)] md:px-2.5"
                 >
                   {c.label}
                 </Link>
               ) : (
-                <span className="min-w-0 truncate whitespace-nowrap px-2 py-1.5 font-semibold text-[var(--tk-charcoal)] md:px-2.5">
+                <span className="inline-flex min-h-[40px] min-w-0 items-center truncate whitespace-nowrap px-2 font-semibold text-[var(--tk-charcoal)] md:px-2.5">
                   {c.label}
                 </span>
               )}

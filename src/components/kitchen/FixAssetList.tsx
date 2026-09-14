@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import {
   AlertTriangle,
+  ArrowRight,
   Blend,
   Coffee,
   CookingPot,
@@ -58,7 +59,7 @@ const CATEGORY_ORDER = [
   "other",
 ]
 
-export function FixAssetList({ assets }: { assets: FixAssetRow[] }) {
+export function FixAssetList({ assets, venue }: { assets: FixAssetRow[]; venue?: string }) {
   const [q, setQ] = useState("")
   const [cat, setCat] = useState<string | null>(null)
 
@@ -191,8 +192,13 @@ export function FixAssetList({ assets }: { assets: FixAssetRow[] }) {
 
       {filtered.length === 0 && (
         <div className="rounded-2xl border border-[var(--tk-line)] bg-[var(--tk-card)] p-8 text-center text-[var(--tk-ink-soft)]">
-          Nothing matches. Try another word, tap a different category, or ask the
-          manager to add the machine.
+          <p>Nothing matches. Try another word or a different category.</p>
+          <Link
+            href={`/kitchen/fix/new${venue ? `?venue=${venue}` : ""}`}
+            className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-2xl border border-[var(--tk-line)] bg-white px-5 text-[15px] font-bold text-[var(--tk-charcoal)]"
+          >
+            Not in the list? Add the machine <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       )}
     </div>

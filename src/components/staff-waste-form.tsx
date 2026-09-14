@@ -5,6 +5,7 @@ import { CheckCircle2, Search, X } from "lucide-react"
 import { createWasteEntry } from "@/lib/actions/wastage"
 import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
 import { KitchenButton } from "@/components/kitchen/KitchenButton"
+import { useRememberedName } from "@/components/kitchen/use-remembered-name"
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -139,6 +140,7 @@ function itemLabel(item: FormItem): string {
 
 export function StaffWasteForm({ items }: Props) {
   const [isPending, startTransition] = useTransition()
+  const [name, setName] = useRememberedName()
 
   const [venue, setVenue] = useState<"BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN" | "">("")
   const [selectedItem, setSelectedItem] = useState<FormItem | null>(null)
@@ -211,7 +213,7 @@ export function StaffWasteForm({ items }: Props) {
           unit,
           reason: reason as typeof WASTE_REASONS[number]["value"],
           estimatedCost,
-          recordedBy: "staff",
+          recordedBy: name.trim() || "staff",
         })
         setSuccess({ name: selectedItem.name, cost: estimatedCost })
         setSelectedItem(null)
@@ -250,7 +252,7 @@ export function StaffWasteForm({ items }: Props) {
       {/* Top bar */}
       <div className="flex items-center justify-between gap-4 border-b border-[var(--tk-line)] pb-4">
         <div className="tk-caps" style={{ color: "var(--tk-ink-mute)" }}>
-          Step {Math.min(step, 4)} of 4
+          {ready ? "Ready to log" : `Step ${step} of 4`}
         </div>
         <KitchenLogo size={0.9} />
         <div className="w-[88px]" />
@@ -490,6 +492,21 @@ export function StaffWasteForm({ items }: Props) {
               )
             })}
           </div>
+          {/* Wastage carries a dollar figure. It should also carry a name,
+              remembered per device like every other staff tool. */}
+          <label className="mt-4 block sm:max-w-[280px]">
+            <span className="tk-caps" style={{ color: "var(--tk-ink-mute)" }}>
+              Your name
+            </span>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Who's logging this"
+              autoCapitalize="words"
+              className="mt-1.5 w-full rounded-[14px] border border-[var(--tk-line)] bg-white px-4 py-3 text-[17px] text-[var(--tk-charcoal)] outline-none focus:border-[var(--tk-charcoal)]"
+            />
+          </label>
         </section>
       )}
 

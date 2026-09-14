@@ -44,6 +44,7 @@ export function KitchenRunView({
   const [isPending, startTransition] = useTransition()
   const [isSubmitting, startSubmitTransition] = useTransition()
   const [submitted, setSubmitted] = useState(initial.status === "COMPLETED")
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const [photoCount, setPhotoCount] = useState(initial.photos.length)
   const handlePhotosChange = useCallback((n: number) => setPhotoCount(n), [])
@@ -222,9 +223,15 @@ export function KitchenRunView({
   }
 
   function handleForceSubmit() {
+    setSubmitError(null)
     startSubmitTransition(async () => {
-      await forceCompleteRun(initial.id)
-      setSubmitted(true)
+      try {
+        await forceCompleteRun(initial.id)
+        setSubmitted(true)
+      } catch {
+        // Never claim the checklist is filed when it isn't.
+        setSubmitError("Didn't submit. Check the wifi and tap again.")
+      }
     })
   }
 
@@ -465,6 +472,13 @@ export function KitchenRunView({
           backdropFilter: "blur(12px)",
         }}
       >
+        {submitError ? (
+          <div className="mx-auto max-w-[1194px] px-6 pt-3 md:px-10">
+            <p role="alert" className="rounded-[12px] bg-[var(--tk-warn-soft)] px-4 py-2.5 text-[14px] font-medium text-[var(--tk-warn)]">
+              {submitError}
+            </p>
+          </div>
+        ) : null}
         <div className="mx-auto flex max-w-[1194px] items-center justify-between gap-4 px-6 py-3 md:px-10">
           <div className="text-[14px] text-[var(--tk-ink-soft)]">
             <span className="font-semibold text-[var(--tk-charcoal)]">

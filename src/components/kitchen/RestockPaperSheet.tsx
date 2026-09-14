@@ -1,7 +1,9 @@
 "use client"
 
 import { useMemo, useRef, useState } from "react"
-import { Check, Loader2, Send } from "lucide-react"
+import { attempt } from "@/components/kitchen/safe-action"
+import Link from "next/link"
+import { ArrowRight, Check, Loader2, Send } from "lucide-react"
 import {
   addCatalogItem,
   reopenCountSheet,
@@ -171,7 +173,12 @@ export function RestockPaperSheet({
       return
     }
     const n = parseNum(raw)
-    if (n === undefined) return // scribble garbage: leave on screen, don't save
+    if (n === undefined) {
+      // Scribble garbage: leave it on screen in red and say so, don't save.
+      setError("Numbers only in Coolroom and Need. The red box hasn't saved; fix it and it will.")
+      return
+    }
+    setError((e) => (e && e.startsWith("Numbers only") ? null : e))
     persist(itemId, field === "available" ? { available: n } : { requested: n }, field)
   }
 
@@ -181,11 +188,11 @@ export function RestockPaperSheet({
     const itemName = blanks[idx].trim()
     if (!itemName || readOnly) return
     setAddingBlank(idx)
-    const res = await addCatalogItem({
+    const res = await attempt(addCatalogItem({
       venue: sheet.venue,
       station: sheet.station,
       name: itemName,
-    })
+    }))
     setAddingBlank(null)
     if (!res.ok || !res.itemId) {
       setError(res.error ?? "Couldn't add that item")
@@ -219,10 +226,10 @@ export function RestockPaperSheet({
     }
     setSubmitting(true)
     setError(null)
-    const res = await submitCountSheet({
+    const res = await attempt(submitCountSheet({
       sheetId: sheet.sheetId,
       countedBy: name.trim(),
-    })
+    }))
     setSubmitting(false)
     if (res.ok) {
       setSheet((s) => ({ ...s, status: "SUBMITTED", countedBy: name.trim() }))
@@ -232,7 +239,7 @@ export function RestockPaperSheet({
   }
 
   async function handleReopen() {
-    const res = await reopenCountSheet(sheet.sheetId)
+    const res = await attempt(reopenCountSheet(sheet.sheetId))
     if (res.ok) setSheet((s) => ({ ...s, status: "IN_PROGRESS" }))
     else setError(res.error ?? "Couldn't reopen")
   }
@@ -262,9 +269,14 @@ export function RestockPaperSheet({
         </div>
       )}
       {readOnly && (
-        <div className="rounded-[16px] bg-[var(--tk-bg)] px-5 py-4 text-[14px] font-medium text-[var(--tk-ink-soft)]">
-          This sheet has been restocked. Start tonight&apos;s count from the
-          restock page.
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] bg-[var(--tk-bg)] px-5 py-4 text-[14px] font-medium text-[var(--tk-ink-soft)]">
+          <span>This sheet has been restocked, so it&apos;s read-only now.</span>
+          <Link
+            href={`/kitchen/restock?venue=${sheet.venue}`}
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-[var(--tk-line)] bg-white px-4 text-[14px] font-semibold text-[var(--tk-charcoal)]"
+          >
+            Start tonight&apos;s count <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       )}
       {error && (
@@ -306,9 +318,9 @@ export function RestockPaperSheet({
         </div>
 
         {/* Column headings */}
-        <div className="sticky top-0 z-10 grid grid-cols-[3.5rem_minmax(8rem,2fr)_5.5rem_5.5rem_minmax(6rem,1.5fr)] gap-2 border-b border-[var(--tk-line)] bg-[var(--tk-bg)] px-5 py-2">
+        <div className="sticky top-0 z-10 grid grid-cols-[3rem_minmax(0,1fr)_4.25rem_4.25rem] gap-2 border-b border-[var(--tk-line)] bg-[var(--tk-bg)] px-3 py-2 sm:grid-cols-[3.5rem_minmax(8rem,2fr)_5.5rem_5.5rem_minmax(6rem,1.5fr)] sm:px-5">
           {["#", "Item", "Coolroom", "Need", "Note"].map((h) => (
-            <div key={h} className="tk-caps text-[11px] text-[var(--tk-ink-mute)]">
+            <div key={h} className={`tk-caps text-[11px] text-[var(--tk-ink-mute)] ${h === "Note" ? "hidden sm:block" : ""}`}>
               {h}
             </div>
           ))}
@@ -324,7 +336,7 @@ export function RestockPaperSheet({
             {groupRows.map((r) => (
               <div
                 key={r.itemId}
-                className="grid grid-cols-[3.5rem_minmax(8rem,2fr)_5.5rem_5.5rem_minmax(6rem,1.5fr)] items-center gap-2 border-b border-dashed border-[var(--tk-line)] px-5 py-2"
+                className="grid grid-cols-[3rem_minmax(0,1fr)_4.25rem_4.25rem] items-center gap-2 border-b border-dashed border-[var(--tk-line)] px-3 py-2 sm:grid-cols-[3.5rem_minmax(8rem,2fr)_5.5rem_5.5rem_minmax(6rem,1.5fr)] sm:px-5"
               >
                 <input
                   type="text"
@@ -384,8 +396,8 @@ export function RestockPaperSheet({
                   disabled={readOnly}
                   onChange={(e) => editRow(r.itemId, "note", e.target.value)}
                   aria-label={`Note for ${r.name}`}
-                  className="h-12 w-full rounded-[8px] border border-transparent border-b-[var(--tk-line)] bg-transparent px-2 text-[15px] italic text-[var(--tk-ink-soft)] outline-none focus:border-[var(--tk-sage)]"
-                  placeholder="—"
+                  className="col-span-4 h-10 w-full rounded-[8px] border border-transparent border-b-[var(--tk-line)] bg-transparent px-2 text-[15px] italic text-[var(--tk-ink-soft)] outline-none focus:border-[var(--tk-sage)] sm:col-span-1 sm:h-12"
+                  placeholder="Note"
                 />
               </div>
             ))}
@@ -403,7 +415,7 @@ export function RestockPaperSheet({
             {blanks.map((b, i) => (
               <div
                 key={i}
-                className="grid grid-cols-[3.5rem_1fr] items-center gap-2 border-b border-dashed border-[var(--tk-line)] px-5 py-2"
+                className="grid grid-cols-[3rem_1fr] items-center gap-2 border-b border-dashed border-[var(--tk-line)] px-3 py-2 sm:grid-cols-[3.5rem_1fr] sm:px-5"
               >
                 <div className="text-center text-[13px] text-[var(--tk-ink-mute)]">
                   {addingBlank === i ? (
@@ -449,7 +461,7 @@ export function RestockPaperSheet({
               and it lands on the same morning run.
             </div>
           </div>
-          <div className="grid grid-cols-[3.5rem_minmax(8rem,2fr)_minmax(5rem,1fr)_5.5rem] gap-2 border-b border-[var(--tk-line)] bg-[var(--tk-bg)] px-5 py-2">
+          <div className="grid grid-cols-[3rem_minmax(0,1fr)_4rem_4.25rem] gap-2 border-b border-[var(--tk-line)] bg-[var(--tk-bg)] px-3 py-2 sm:grid-cols-[3.5rem_minmax(8rem,2fr)_minmax(5rem,1fr)_5.5rem] sm:px-5">
             {["#", "Item", "Their coolroom", "Need"].map((h) => (
               <div key={h} className="tk-caps text-[11px] text-[var(--tk-ink-mute)]">
                 {h}
@@ -459,7 +471,7 @@ export function RestockPaperSheet({
           {sibs.map((s) => (
             <div
               key={s.itemId}
-              className="grid grid-cols-[3.5rem_minmax(8rem,2fr)_minmax(5rem,1fr)_5.5rem] items-center gap-2 border-b border-dashed border-[var(--tk-line)] px-5 py-2"
+              className="grid grid-cols-[3rem_minmax(0,1fr)_4rem_4.25rem] items-center gap-2 border-b border-dashed border-[var(--tk-line)] px-3 py-2 sm:grid-cols-[3.5rem_minmax(8rem,2fr)_minmax(5rem,1fr)_5.5rem] sm:px-5"
             >
               <input
                 type="text"

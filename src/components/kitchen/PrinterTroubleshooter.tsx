@@ -163,11 +163,6 @@ const STAGES: Stage[] = [
   },
 ]
 
-const LOGIN = {
-  username: "Georgiafarquhar@gmail.com",
-  password: "0400Jessie123!",
-}
-
 const ALL_STEP_IDS = STAGES.flatMap((s) => s.steps.map((st) => st.id))
 // Steps are numbered straight through all stages, so "go to 9" means one thing.
 const STEP_NUMBER: Record<string, number> = Object.fromEntries(
@@ -258,7 +253,17 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   )
 }
 
-export function PrinterTroubleshooter() {
+export interface PrinterLogin {
+  username: string
+  password: string
+}
+
+/**
+ * `login` is the shared Lightspeed login for the iPads. It is read from the
+ * environment on the server and passed in here, never written into this
+ * file: this component ships to every staff device as JavaScript.
+ */
+export function PrinterTroubleshooter({ login }: { login: PrinterLogin | null }) {
   const [done, hydrated, save] = useTicks()
   // Password is hidden until tapped, and hides again whenever the page is
   // reloaded, so it is not sitting on screen on a shared iPad all day.
@@ -414,42 +419,50 @@ export function PrinterTroubleshooter() {
                 <div className="tk-caps mb-2" style={{ color: "var(--tk-ink-mute)" }}>
                   Lightspeed login for the iPads
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <div className="flex min-w-0 items-center justify-between gap-3 overflow-hidden rounded-[12px] border border-[var(--tk-line)] bg-[var(--tk-bg)] px-3.5 py-2.5">
-                    <div className="min-w-0">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tk-ink-mute)]">
-                        Username
+                {login ? (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="flex min-w-0 items-center justify-between gap-3 overflow-hidden rounded-[12px] border border-[var(--tk-line)] bg-[var(--tk-bg)] px-3.5 py-2.5">
+                      <div className="min-w-0">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tk-ink-mute)]">
+                          Username
+                        </div>
+                        <div className="truncate font-mono text-[13px] text-[var(--tk-charcoal)] sm:text-[14px]">
+                          {login.username}
+                        </div>
                       </div>
-                      <div className="truncate font-mono text-[13px] text-[var(--tk-charcoal)] sm:text-[14px]">
-                        {LOGIN.username}
+                      <CopyButton value={login.username} label="username" />
+                    </div>
+                    <div className="flex min-w-0 items-center justify-between gap-3 overflow-hidden rounded-[12px] border border-[var(--tk-line)] bg-[var(--tk-bg)] px-3.5 py-2.5">
+                      <div className="min-w-0">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tk-ink-mute)]">
+                          Password
+                        </div>
+                        <div className="truncate font-mono text-[13px] text-[var(--tk-charcoal)] sm:text-[14px]">
+                          {showPassword ? login.password : "\u2022".repeat(login.password.length)}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword((v) => !v)}
+                          aria-pressed={showPassword}
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                          className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-[var(--tk-line)] bg-white px-3 py-1.5 text-[12px] font-semibold text-[var(--tk-ink-soft)] transition active:scale-95"
+                        >
+                          {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                          {showPassword ? "Hide" : "Show"}
+                        </button>
+                        <CopyButton value={login.password} label="password" />
                       </div>
                     </div>
-                    <CopyButton value={LOGIN.username} label="username" />
                   </div>
-                  <div className="flex min-w-0 items-center justify-between gap-3 overflow-hidden rounded-[12px] border border-[var(--tk-line)] bg-[var(--tk-bg)] px-3.5 py-2.5">
-                    <div className="min-w-0">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tk-ink-mute)]">
-                        Password
-                      </div>
-                      <div className="truncate font-mono text-[13px] text-[var(--tk-charcoal)] sm:text-[14px]">
-                        {showPassword ? LOGIN.password : "\u2022".repeat(LOGIN.password.length)}
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((v) => !v)}
-                        aria-pressed={showPassword}
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-[var(--tk-line)] bg-white px-3 py-1.5 text-[12px] font-semibold text-[var(--tk-ink-soft)] transition active:scale-95"
-                      >
-                        {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                        {showPassword ? "Hide" : "Show"}
-                      </button>
-                      <CopyButton value={LOGIN.password} label="password" />
-                    </div>
-                  </div>
-                </div>
+                ) : (
+                  <p className="text-[14px] leading-snug text-[var(--tk-ink-soft)]">
+                    The shared login isn&apos;t set up on this site yet. Ask a manager for
+                    it; the office sets it under the site&apos;s environment settings so it
+                    never has to be written down here.
+                  </p>
+                )}
               </div>
             )}
 

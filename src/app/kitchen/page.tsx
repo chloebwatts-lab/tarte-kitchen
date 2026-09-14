@@ -553,8 +553,14 @@ function DepartmentPicker({
             for this venue yet.
           </p>
           <p className="mt-2 text-[13px] text-[var(--tk-ink-soft)]">
-            Ask a manager to create one in the full admin app.
+            A manager creates one in the office app.
           </p>
+          <Link
+            href="/checklists/templates/new"
+            className="mt-4 inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-[var(--tk-line)] px-5 text-[14px] font-semibold text-[var(--tk-charcoal)]"
+          >
+            Open the office app <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       ) : (
         <div className="space-y-2.5">

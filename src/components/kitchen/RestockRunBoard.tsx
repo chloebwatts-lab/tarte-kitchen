@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { attempt } from "@/components/kitchen/safe-action"
 import { ArrowRight, Check, Flag, History, Loader2, Star } from "lucide-react"
 import {
   clearStaleRunSheet,
@@ -119,17 +120,17 @@ export function RestockRunBoard({
       supplied: nowSupplied,
       suppliedBy: nowSupplied == null ? null : name.trim(),
     })
-    const res = await supplyRunLine({
+    const res = await attempt(supplyRunLine({
       lineId: line.lineId,
       supplied: nowSupplied,
       suppliedBy: name.trim(),
-    })
+    }))
     if (!res.ok) {
       patchLine(line.lineId, {
         supplied: line.supplied,
         suppliedBy: line.suppliedBy,
       })
-      setError("Couldn't save. Try again.")
+      setError(res.error ?? "Couldn't save. Try again.")
     }
   }
 
@@ -145,14 +146,22 @@ export function RestockRunBoard({
     )
     if (raw == null) return
     const n = Number(raw.trim().replace(",", "."))
-    if (!Number.isFinite(n) || n < 0) return
+    if (!Number.isFinite(n) || n < 0) {
+      setError(`"${raw.trim()}" isn't a number, so nothing changed for that line. Tap Partial again and type just the amount.`)
+      return
+    }
+    setError(null)
+    const before = { supplied: line.supplied, suppliedBy: line.suppliedBy }
     patchLine(line.lineId, { supplied: n, suppliedBy: name.trim() })
-    const res = await supplyRunLine({
+    const res = await attempt(supplyRunLine({
       lineId: line.lineId,
       supplied: n,
       suppliedBy: name.trim(),
-    })
-    if (!res.ok) setError("Couldn't save. Try again.")
+    }))
+    if (!res.ok) {
+      patchLine(line.lineId, before)
+      setError(res.error ?? "Couldn't save. Try again.")
+    }
   }
 
   async function clearSheet(sheetId: string) {
@@ -168,7 +177,7 @@ export function RestockRunBoard({
     if (!ok) return
     setClearing(sheetId)
     setError(null)
-    const res = await clearStaleRunSheet({ sheetId, clearedBy: name.trim() })
+    const res = await attempt(clearStaleRunSheet({ sheetId, clearedBy: name.trim() }))
     setClearing(null)
     if (!res.ok) {
       setError(res.error ?? "Couldn't clear. Try again.")
@@ -205,10 +214,10 @@ export function RestockRunBoard({
     }
     setFinishing(true)
     setError(null)
-    const res = await completeRestockRun({
+    const res = await attempt(completeRestockRun({
       venue: run.venue,
       restockedBy: name.trim(),
-    })
+    }))
     setFinishing(false)
     if (res.ok) setFinished(true)
     else setError(res.error ?? "Couldn't finish. Try again.")
@@ -636,7 +645,7 @@ function RunItemCard({
               </div>
               <button
                 onClick={() => onAdjust(s)}
-                className="shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--tk-ink-soft)] transition hover:bg-white"
+                className="inline-flex min-h-[44px] shrink-0 items-center rounded-full border border-[var(--tk-line)] px-4 text-[13px] font-semibold text-[var(--tk-ink-soft)] transition hover:bg-white active:scale-95"
               >
                 {done ? "Edit qty" : "Partial…"}
               </button>

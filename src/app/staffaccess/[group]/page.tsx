@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
 import { ToolGrid } from "@/components/kitchen/ToolGrid"
@@ -8,7 +8,10 @@ import { groupBySlug } from "@/lib/staff-tools"
 export default async function StaffGroupPage({ params }: { params: Promise<{ group: string }> }) {
   const { group } = await params
   const g = groupBySlug(group)
-  if (!g || g.locked) notFound()
+  if (!g) notFound()
+  // The managers group lives behind its own gate; a guessed or bookmarked
+  // /staffaccess/managers should land there, not on a 404.
+  if (g.locked) redirect(g.href ?? "/kitchen/managers")
 
   return (
     <div className="relative min-h-screen overflow-hidden" style={{ background: "var(--tk-sage)" }}>

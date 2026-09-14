@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useRef, useState } from "react"
+import { attempt } from "@/components/kitchen/safe-action"
 import {
   AlertTriangle,
   Check,
@@ -42,6 +43,7 @@ export function RestockCountSheet({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savingCount, setSavingCount] = useState(0)
+  const [everSaved, setEverSaved] = useState(false)
   const [newItemName, setNewItemName] = useState("")
   const [addingItem, setAddingItem] = useState(false)
   // Debounce timers per (itemId, field)
@@ -132,6 +134,7 @@ export function RestockCountSheet({
       saveCountLine({ sheetId: sheet.sheetId, itemId, ...patch })
         .then((res) => {
           if (!res.ok) setError(res.error ?? "Couldn't save. Try again.")
+          else setEverSaved(true)
         })
         .catch(() => setError("Couldn't save. Check the connection."))
         .finally(() => setSavingCount((n) => n - 1))
@@ -153,10 +156,10 @@ export function RestockCountSheet({
     }
     setSubmitting(true)
     setError(null)
-    const res = await submitCountSheet({
+    const res = await attempt(submitCountSheet({
       sheetId: sheet.sheetId,
       countedBy: name.trim(),
-    })
+    }))
     setSubmitting(false)
     if (res.ok) {
       setSheet((s) => ({ ...s, status: "SUBMITTED", countedBy: name.trim() }))
@@ -166,7 +169,7 @@ export function RestockCountSheet({
   }
 
   async function handleReopen() {
-    const res = await reopenCountSheet(sheet.sheetId)
+    const res = await attempt(reopenCountSheet(sheet.sheetId))
     if (res.ok) setSheet((s) => ({ ...s, status: "IN_PROGRESS" }))
     else setError(res.error ?? "Couldn't reopen")
   }
@@ -175,11 +178,11 @@ export function RestockCountSheet({
     const itemName = newItemName.trim()
     if (!itemName) return
     setAddingItem(true)
-    const res = await addCatalogItem({
+    const res = await attempt(addCatalogItem({
       venue: sheet.venue,
       station: sheet.station,
       name: itemName,
-    })
+    }))
     setAddingItem(false)
     if (res.ok && res.itemId) {
       if (!lines.some((l) => l.itemId === res.itemId)) {
@@ -254,10 +257,12 @@ export function RestockCountSheet({
               <span className="inline-flex items-center gap-1 text-[var(--tk-ink-soft)]">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> saving
               </span>
-            ) : (
+            ) : everSaved ? (
               <span className="inline-flex items-center gap-1 text-[var(--tk-done)]">
                 <Check className="h-3.5 w-3.5" /> saved
               </span>
+            ) : (
+              <span className="text-[var(--tk-ink-mute)]">saves as you go</span>
             )}
             · {countedCount} counted · {requestedCount} requested
           </span>
@@ -465,8 +470,8 @@ export function RestockCountSheet({
             {requestedCount === 0
               ? "Nothing requested yet. You can still send an all-good count."
               : `${requestedCount} item${requestedCount === 1 ? "" : "s"} will go on the prep chef's morning run.`}{" "}
-            Forget to send? The count still reaches the prep chef. Sending
-            just signs it off with your name.
+            Sending signs it off with your name, so the prep chef knows the
+            count is final.
           </p>
         </div>
       )}

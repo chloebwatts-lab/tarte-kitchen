@@ -5,6 +5,13 @@ import { PrinterTroubleshooter } from "@/components/kitchen/PrinterTroubleshoote
 export const metadata: Metadata = { title: "Printer down?" }
 
 export default function PrintersPage() {
+  // Shared Lightspeed login for the iPads. Lives in the environment, not in
+  // source, and only reaches the page as server-rendered props behind the
+  // staff password. Both halves must be set or nothing is shown.
+  const username = process.env.LIGHTSPEED_IPAD_USERNAME?.trim()
+  const password = process.env.LIGHTSPEED_IPAD_PASSWORD
+  const login = username && password ? { username, password } : null
+
   return (
     <div className="space-y-6 md:space-y-8">
       <KitchenBreadcrumb
@@ -31,7 +38,7 @@ export default function PrintersPage() {
         </p>
       </div>
 
-      <PrinterTroubleshooter />
+      <PrinterTroubleshooter login={login} />
     </div>
   )
 }

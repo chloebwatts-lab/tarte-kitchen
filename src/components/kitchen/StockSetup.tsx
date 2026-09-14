@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { ArrowDown, ArrowUp, Loader2 } from "lucide-react"
+import { ArrowDown, ArrowUp, Check, Loader2 } from "lucide-react"
+import { OFFLINE_MESSAGE } from "@/components/kitchen/safe-action"
 import { KitchenButton } from "@/components/kitchen/KitchenButton"
 import {
   addArea, addItem, moveArea, setAreaActive, setItemActive, updateItem,
@@ -11,7 +12,7 @@ import type { Venue, VenueStockTracking } from "@/generated/prisma/client"
 
 const field =
   "rounded-[10px] border-[1.5px] border-[var(--tk-line)] bg-[var(--tk-card)] px-3 py-2 text-[15px] text-[var(--tk-charcoal)]"
-const small = "rounded-[8px] px-2.5 py-1.5 text-[13px] font-semibold"
+const small = "inline-flex min-h-[40px] items-center justify-center rounded-[10px] px-3 text-[14px] font-semibold"
 
 function ItemRow({ item }: { item: SetupItem }) {
   const [name, setName] = useState(item.name)
@@ -19,22 +20,39 @@ function ItemRow({ item }: { item: SetupItem }) {
   const [tracking, setTracking] = useState<VenueStockTracking>(item.tracking)
   const [par, setPar] = useState(item.parLevel?.toString() ?? "")
   const [busy, start] = useTransition()
+  const [error, setError] = useState("")
+  const [saved, setSaved] = useState(false)
   const dirty =
     name !== item.name || unit !== (item.unit ?? "") || tracking !== item.tracking ||
     par !== (item.parLevel?.toString() ?? "")
 
-  const save = () =>
+  const guarded = (fn: () => Promise<unknown>, then?: () => void) =>
     start(async () => {
-      await updateItem(item.id, {
+      setError("")
+      try {
+        await fn()
+        then?.()
+      } catch {
+        setError(OFFLINE_MESSAGE)
+      }
+    })
+
+  const save = () =>
+    guarded(
+      () => updateItem(item.id, {
         name, unit, tracking,
         parLevel: tracking === "QUANTITY" ? Number(par) : null,
-      })
-    })
+      }),
+      () => {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2000)
+      }
+    )
 
   return (
     <div className={`flex flex-wrap items-center gap-2 py-2 ${item.isActive ? "" : "opacity-50"}`}>
-      <input value={name} onChange={(e) => setName(e.target.value)} className={`${field} min-w-[180px] flex-1`} />
-      <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="unit" className={`${field} w-24`} />
+      <input value={name} onChange={(e) => setName(e.target.value)} aria-label="Item name" className={`${field} min-w-[180px] flex-1`} />
+      <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="unit" aria-label="Unit" className={`${field} w-24`} />
       <select value={tracking} onChange={(e) => setTracking(e.target.value as VenueStockTracking)} className={`${field} w-36`}>
         <option value="SIGNAL">Fine / Low / Out</option>
         <option value="QUANTITY">Counted</option>
@@ -46,13 +64,18 @@ function ItemRow({ item }: { item: SetupItem }) {
         <button onClick={save} disabled={busy} className={`${small} bg-[var(--tk-charcoal)] text-white`}>
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
         </button>
+      ) : saved ? (
+        <span className="inline-flex items-center gap-1 text-[13px] font-semibold text-[var(--tk-done)]">
+          <Check className="h-4 w-4" /> Saved
+        </span>
       ) : null}
       <button
-        onClick={() => start(async () => { await setItemActive(item.id, !item.isActive) })}
+        onClick={() => guarded(() => setItemActive(item.id, !item.isActive))}
         className={`${small} text-[var(--tk-ink-soft)]`}
       >
         {item.isActive ? "Hide" : "Show"}
       </button>
+      {error ? <span className="w-full text-[13px] font-medium text-[var(--tk-warn)]">{error}</span> : null}
     </div>
   )
 }
@@ -90,7 +113,7 @@ function NewItem({ areaId }: { areaId: string }) {
       <button onClick={add} disabled={busy || !name.trim()} className={`${small} bg-[var(--tk-charcoal)] text-white disabled:opacity-40`}>
         {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Add"}
       </button>
-      {error ? <span className="text-[13px] text-[#B4432A]">{error}</span> : null}
+      {error ? <span className="text-[13px] font-medium text-[var(--tk-warn)]">{error}</span> : null}
     </div>
   )
 }
@@ -98,6 +121,19 @@ function NewItem({ areaId }: { areaId: string }) {
 export function StockSetup({ venue, areas }: { venue: Venue; areas: SetupArea[] }) {
   const [newArea, setNewArea] = useState("")
   const [busy, start] = useTransition()
+  const [error, setError] = useState("")
+
+  const guarded = (fn: () => Promise<unknown>, then?: () => void) =>
+    start(async () => {
+      setError("")
+      try {
+        await fn()
+        then?.()
+      } catch (e) {
+        setError(e instanceof Error && e.message && !/fetch|network/i.test(e.message) ? e.message : OFFLINE_MESSAGE)
+      }
+    })
+  const add = () => guarded(() => addArea(venue, newArea), () => setNewArea(""))
 
   return (
     <div className="space-y-6">
@@ -107,13 +143,13 @@ export function StockSetup({ venue, areas }: { venue: Venue; areas: SetupArea[] 
         </p>
         <div className="flex gap-2">
           <input value={newArea} onChange={(e) => setNewArea(e.target.value)} placeholder="e.g. Shed, Bar cupboard, Retail fridge"
-            onKeyDown={(e) => { if (e.key === "Enter") start(async () => { await addArea(venue, newArea); setNewArea("") }) }}
+            onKeyDown={(e) => { if (e.key === "Enter") add() }}
             className={`${field} flex-1`} />
-          <KitchenButton variant="primary" size="md" disabled={busy || !newArea.trim()}
-            onClick={() => start(async () => { await addArea(venue, newArea); setNewArea("") })}>
+          <KitchenButton variant="primary" size="md" disabled={busy || !newArea.trim()} onClick={add}>
             Add
           </KitchenButton>
         </div>
+        {error ? <p className="mt-2 text-[14px] font-medium text-[var(--tk-warn)]">{error}</p> : null}
         <p className="mt-2 text-[13px] text-[var(--tk-ink-soft)]">
           Areas appear in the order you walk them. Use the arrows to match the route.
         </p>
@@ -129,9 +165,9 @@ export function StockSetup({ venue, areas }: { venue: Venue; areas: SetupArea[] 
             <h2 className="tk-display flex-1 text-[20px] font-bold tracking-[-0.02em] text-[var(--tk-charcoal)]">
               {a.name}
             </h2>
-            <button disabled={idx === 0} onClick={() => start(async () => { await moveArea(a.id, "up") })} className={`${small} border border-[var(--tk-line)] disabled:opacity-30`}><ArrowUp className="h-4 w-4" /></button>
-            <button disabled={idx === areas.length - 1} onClick={() => start(async () => { await moveArea(a.id, "down") })} className={`${small} border border-[var(--tk-line)] disabled:opacity-30`}><ArrowDown className="h-4 w-4" /></button>
-            <button onClick={() => start(async () => { await setAreaActive(a.id, !a.isActive) })} className={`${small} text-[var(--tk-ink-soft)]`}>
+            <button aria-label="Move up" disabled={idx === 0} onClick={() => guarded(() => moveArea(a.id, "up"))} className={`${small} min-w-[40px] border border-[var(--tk-line)] disabled:opacity-30`}><ArrowUp className="h-4 w-4" /></button>
+            <button aria-label="Move down" disabled={idx === areas.length - 1} onClick={() => guarded(() => moveArea(a.id, "down"))} className={`${small} min-w-[40px] border border-[var(--tk-line)] disabled:opacity-30`}><ArrowDown className="h-4 w-4" /></button>
+            <button onClick={() => guarded(() => setAreaActive(a.id, !a.isActive))} className={`${small} text-[var(--tk-ink-soft)]`}>
               {a.isActive ? "Hide" : "Show"}
             </button>
           </div>

@@ -112,7 +112,9 @@ export async function addItem(areaId: string, input: ItemInput) {
       unit: input.unit?.trim() || null,
       tracking: input.tracking,
       parLevel: input.tracking === "QUANTITY" ? input.parLevel : null,
-      onHand: input.tracking === "QUANTITY" ? 0 : null,
+      // Never counted yet, so null: a made-up zero would put a brand new item
+      // straight on the order list before anyone has looked at the shelf.
+      onHand: null,
       sortOrder: (last?.sortOrder ?? -1) + 1,
     },
   })
@@ -137,4 +139,99 @@ export async function updateItem(id: string, input: ItemInput) {
 export async function setItemActive(id: string, isActive: boolean) {
   await db.venueStockItem.update({ where: { id }, data: { isActive } })
   bust()
+}
+
+// ------------------------------------------------------------------
+// Starter list. A venue with no stock list shows staff a dead end, and
+// the first version of any list is mostly the same across cafes: the
+// non-food consumables that run out quietly. Seeded once, in walk order,
+// then trimmed and renamed here like anything else.
+// ------------------------------------------------------------------
+
+type StarterItem = [name: string, tracking?: VenueStockTracking, unit?: string, par?: number]
+
+const STARTER_LIST: { area: string; items: StarterItem[] }[] = [
+  {
+    area: "Front counter",
+    items: [
+      ["Till rolls", "QUANTITY", "box", 1],
+      ["Napkins"],
+      ["Paper bags"],
+      ["Takeaway cutlery"],
+      ["Straws"],
+    ],
+  },
+  {
+    area: "Coffee & bar",
+    items: [
+      ["Takeaway cups", "QUANTITY", "sleeve", 4],
+      ["Takeaway lids", "QUANTITY", "sleeve", 4],
+      ["Sugar sachets"],
+      ["Tea bags"],
+      ["Glass cleaner"],
+      ["Bar cloths"],
+    ],
+  },
+  {
+    area: "Kitchen",
+    items: [
+      ["Crockery"],
+      ["Cutlery"],
+      ["Glassware"],
+      ["Jar lids"],
+      ["Takeaway containers"],
+      ["Cling wrap"],
+      ["Baking paper"],
+      ["Gloves"],
+      ["Tea towels"],
+    ],
+  },
+  {
+    area: "Cleaning cupboard",
+    items: [
+      ["Bin liners", "QUANTITY", "roll", 2],
+      ["Paper towel"],
+      ["Hand soap"],
+      ["Sanitiser"],
+      ["Dishwasher detergent"],
+      ["Toilet paper"],
+    ],
+  },
+]
+
+/**
+ * Give a venue with nothing set up a sensible first list. Refuses to run
+ * over an existing list (even a hidden one), so it can never duplicate or
+ * reorder what a manager has already arranged.
+ */
+export async function seedStarterStockList(venue: Venue): Promise<{ areas: number; items: number }> {
+  const existing = await db.venueStockArea.count({ where: { venue } })
+  if (existing > 0) throw new Error("This venue already has a stock list")
+
+  let items = 0
+  await db.$transaction(async (tx) => {
+    for (const [areaIdx, a] of STARTER_LIST.entries()) {
+      await tx.venueStockArea.create({
+        data: {
+          venue,
+          name: a.area,
+          sortOrder: areaIdx,
+          items: {
+            create: a.items.map(([name, tracking = "SIGNAL", unit, par], i) => ({
+              name,
+              unit: unit ?? null,
+              tracking,
+              parLevel: tracking === "QUANTITY" ? par ?? 0 : null,
+              // Null until somebody counts it. See addItem.
+              onHand: null,
+              sortOrder: i,
+            })),
+          },
+        },
+      })
+      items += a.items.length
+    }
+  })
+  bust()
+  return { areas: STARTER_LIST.length, items }
 }

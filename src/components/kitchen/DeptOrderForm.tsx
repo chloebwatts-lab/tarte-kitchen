@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useRef, useState } from "react"
+import { attempt } from "@/components/kitchen/safe-action"
 import {
   AlertTriangle,
   Check,
@@ -37,6 +38,7 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
   const [query, setQuery] = useState("")
   const [onlyAdded, setOnlyAdded] = useState(false)
   const [savingCount, setSavingCount] = useState(0)
+  const [everSaved, setEverSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [noteOpen, setNoteOpen] = useState<string | null>(null)
@@ -95,7 +97,10 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
       })
         .then((res) => {
           if (!res.ok) setError(res.error ?? "Couldn't save. Try again.")
-          else setError(null)
+          else {
+            setError(null)
+            setEverSaved(true)
+          }
         })
         .catch(() => setError("Couldn't save. Check the connection."))
         .finally(() => setSavingCount((n) => n - 1))
@@ -126,12 +131,12 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
       return
     }
     setBusy(true)
-    const res = await approveDeptRequest({
+    const res = await attempt(approveDeptRequest({
       venue: initialForm.venue,
       dept: initialForm.dept,
       approvedBy: name.trim(),
       notes: emptyDay ? "Nothing needed today" : null,
-    })
+    }))
     setBusy(false)
     if (res.ok) {
       setStatus("APPROVED")
@@ -144,10 +149,10 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
 
   async function handleReopen() {
     setBusy(true)
-    const res = await reopenDeptRequest({
+    const res = await attempt(reopenDeptRequest({
       venue: initialForm.venue,
       dept: initialForm.dept,
-    })
+    }))
     setBusy(false)
     if (res.ok) {
       setStatus("OPEN")
@@ -251,10 +256,12 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
               <span className="inline-flex items-center gap-1">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> saving
               </span>
-            ) : (
+            ) : everSaved ? (
               <span className="inline-flex items-center gap-1 text-[var(--tk-done)]">
                 <Check className="h-3.5 w-3.5" /> saved
               </span>
+            ) : (
+              <span className="text-[var(--tk-ink-mute)]">saves as you go</span>
             )}
           </span>
         </div>

@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { OFFLINE_MESSAGE } from "@/components/kitchen/safe-action"
 import Link from "next/link"
-import { Loader2 } from "lucide-react"
+import { Check, Loader2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   assignTask,
@@ -33,8 +34,22 @@ const PRIORITY_CLASS: Record<VenueTaskPriority, string> = {
 function TaskRow({ task }: { task: BoardTask }) {
   const [owner, setOwner] = useState(task.ownedBy ?? "")
   const [busy, start] = useTransition()
+  const [error, setError] = useState("")
+  const [flash, setFlash] = useState("")
 
-  const run = (fn: () => Promise<unknown>) => start(async () => { await fn() })
+  // Every tap either shows a word ("Assigned", "Done") or an error. A
+  // spinner that stops with no change is indistinguishable from a save.
+  const run = (fn: () => Promise<unknown>, said: string) =>
+    start(async () => {
+      setError("")
+      try {
+        await fn()
+        setFlash(said)
+        setTimeout(() => setFlash(""), 2000)
+      } catch {
+        setError(OFFLINE_MESSAGE)
+      }
+    })
 
   return (
     <Card>
@@ -56,8 +71,8 @@ function TaskRow({ task }: { task: BoardTask }) {
               <button
                 key={p}
                 disabled={busy}
-                onClick={() => run(() => overrideTaskPriority(task.id, p))}
-                className={`rounded px-2 py-0.5 text-[11px] font-semibold ${
+                onClick={() => run(() => overrideTaskPriority(task.id, p), "Priority set")}
+                className={`min-h-[36px] rounded-md px-2.5 text-[12px] font-semibold ${
                   task.priority === p ? PRIORITY_CLASS[p] : "text-muted-foreground"
                 }`}
               >
@@ -73,30 +88,38 @@ function TaskRow({ task }: { task: BoardTask }) {
             value={owner}
             onChange={(e) => setOwner(e.target.value)}
             placeholder="Who's on it?"
-            className="w-40 rounded-md border border-border bg-card px-2.5 py-1.5 text-sm"
+            className="min-h-[44px] w-full min-w-0 flex-1 rounded-md border border-border bg-card px-3 text-[15px] sm:w-44 sm:flex-none"
           />
           <button
             disabled={busy}
-            onClick={() => run(() => assignTask(task.id, owner))}
-            className="rounded-md border border-border px-2.5 py-1.5 text-sm font-medium"
+            onClick={() => run(() => assignTask(task.id, owner), owner.trim() ? `Assigned to ${owner.trim()}` : "Owner cleared")}
+            className="min-h-[44px] rounded-md border border-border px-3.5 text-[15px] font-medium"
           >
             Assign
           </button>
-          <span className="flex-1" />
+          <span className="hidden flex-1 sm:block" />
           <button
             disabled={busy}
-            onClick={() => run(() => completeTask(task.id, owner || "Board"))}
-            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+            onClick={() => run(() => completeTask(task.id, owner || "Board"), "Done")}
+            className="min-h-[44px] rounded-md bg-primary px-4 text-[15px] font-medium text-primary-foreground"
           >
-            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Done"}
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Done"}
           </button>
           <button
             disabled={busy}
-            onClick={() => run(() => dismissTask(task.id))}
-            className="rounded-md px-2 py-1.5 text-sm text-muted-foreground"
+            onClick={() => run(() => dismissTask(task.id), "Dismissed")}
+            className="min-h-[44px] rounded-md px-3 text-[15px] text-muted-foreground"
           >
             Dismiss
           </button>
+          {flash ? (
+            <span className="inline-flex items-center gap-1 text-[13px] font-semibold text-[var(--tk-done)]">
+              <Check className="h-4 w-4" /> {flash}
+            </span>
+          ) : null}
+          {error ? (
+            <span className="w-full text-[13px] font-medium text-[var(--tk-warn)]">{error}</span>
+          ) : null}
           {task.maintenanceIssueId ? (
             <Link href="/maintenance" className="text-xs underline text-muted-foreground">
               maintenance

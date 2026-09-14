@@ -2629,6 +2629,8 @@ model VenueStockItem {
 
   /// Current state for SIGNAL items. Cleared back to OK by a receipt or count.
   signal   VenueStockSignal @default(OK)
+  /// When somebody last tapped or counted it, any state including OK, so the
+  /// walk can show what has been looked at today. A receipt clears it.
   signalAt DateTime?
   signalBy String?
 

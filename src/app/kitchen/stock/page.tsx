@@ -38,11 +38,12 @@ export default async function StockPage({
           Stock walk
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
-          Walk the areas in order. Tap Low or Out on anything running short, or type a
-          count where there is a number. Anything flagged lands on the order list.
+          Walk the areas in order and tap Fine, Low or Out on each thing. Where there is
+          a number, count it. Anything Low, Out or under its reorder point lands on the
+          order list by itself.
         </p>
       </div>
-      <StockWalk areas={areas} />
+      <StockWalk areas={areas} venue={venue} />
     </div>
   )
 }

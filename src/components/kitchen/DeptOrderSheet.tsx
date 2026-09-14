@@ -1,8 +1,11 @@
 "use client"
 
 import { useState } from "react"
+import { attempt } from "@/components/kitchen/safe-action"
+import Link from "next/link"
 import {
   AlertTriangle,
+  ArrowRight,
   Check,
   ChevronDown,
   ChevronRight,
@@ -30,6 +33,7 @@ const DAY_SHORT = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 export function DeptOrderSheet({ initialSheet }: { initialSheet: EodSheet }) {
   const [sheet, setSheet] = useState(initialSheet)
   const [name, setName] = useRememberedName()
+  const [confirming, setConfirming] = useState<string | null>(null)
   const [sending, setSending] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
@@ -56,14 +60,15 @@ export function DeptOrderSheet({ initialSheet }: { initialSheet: EodSheet }) {
       return
     }
     setSending(supplier.supplierId)
+    setConfirming(null)
     setError(null)
     setNote(null)
-    const res = await sendSupplierOrder({
+    const res = await attempt(sendSupplierOrder({
       venue: sheet.venue,
       supplierId: supplier.supplierId,
       by: name.trim(),
       force,
-    })
+    }))
     setSending(null)
     if (!res.ok) {
       setError(res.error ?? "Couldn't send")
@@ -157,6 +162,12 @@ export function DeptOrderSheet({ initialSheet }: { initialSheet: EodSheet }) {
           <p className="mt-1.5 text-[15px] text-[var(--tk-ink-soft)]">
             Sections&apos; lists show up here as they approve them.
           </p>
+          <Link
+            href={`/kitchen/order?venue=${sheet.venue}`}
+            className="mt-4 inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-[var(--tk-line)] px-5 text-[15px] font-semibold text-[var(--tk-charcoal)]"
+          >
+            Go to the sections <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       )}
 
@@ -287,30 +298,65 @@ export function DeptOrderSheet({ initialSheet }: { initialSheet: EodSheet }) {
                       </span>
                     ) : (
                       <span className="font-medium" style={{ color: "#8a6d1f" }}>
-                        No email on file, add one in Suppliers first
+                        No email on file. A manager adds it under Suppliers in the office app.
                       </span>
                     )}
                   </div>
-                  <button
-                    onClick={() => handleSend(supplier, waiting.length > 0)}
-                    disabled={
-                      sending === supplier.supplierId || !supplier.supplierEmail
-                    }
-                    className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-[15px] font-semibold text-white disabled:opacity-50"
-                    style={{
-                      background:
-                        waiting.length > 0 ? "#8a6d1f" : "var(--tk-charcoal)",
-                    }}
-                  >
-                    {sending === supplier.supplierId ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
+                  {/* Two taps to email a supplier: the first arms it and says
+                      exactly what is about to go out, the second sends. One
+                      mis-tap on a phone must not place a real order. */}
+                  {confirming === supplier.supplierId ? (
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                      <button
+                        onClick={() => setConfirming(null)}
+                        className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-[var(--tk-line)] bg-white px-5 text-[15px] font-semibold text-[var(--tk-charcoal)]"
+                      >
+                        Not yet
+                      </button>
+                      <button
+                        onClick={() => handleSend(supplier, waiting.length > 0)}
+                        disabled={sending === supplier.supplierId}
+                        className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full px-6 text-[15px] font-semibold text-white disabled:opacity-50"
+                        style={{
+                          background:
+                            waiting.length > 0 ? "#8a6d1f" : "var(--tk-charcoal)",
+                        }}
+                      >
+                        {sending === supplier.supplierId ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
+                        {waiting.length > 0
+                          ? `Yes, email ${supplier.supplierName} without them`
+                          : `Yes, email ${supplier.supplierName}`}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (!name.trim()) {
+                          setError("Put your name in first")
+                          return
+                        }
+                        setError(null)
+                        setConfirming(supplier.supplierId)
+                      }}
+                      disabled={
+                        sending === supplier.supplierId || !supplier.supplierEmail
+                      }
+                      className="inline-flex min-h-[44px] items-center gap-2 rounded-full px-6 text-[15px] font-semibold text-white disabled:opacity-50"
+                      style={{
+                        background:
+                          waiting.length > 0 ? "#8a6d1f" : "var(--tk-charcoal)",
+                      }}
+                    >
                       <Send className="h-4 w-4" />
-                    )}
-                    {waiting.length > 0
-                      ? "Send anyway"
-                      : `Send ${supplier.supplierName} order`}
-                  </button>
+                      {waiting.length > 0
+                        ? `Send ${supplier.supplierName} anyway`
+                        : `Send ${supplier.supplierName} order`}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -345,7 +391,9 @@ export function DeptOrderSheet({ initialSheet }: { initialSheet: EodSheet }) {
                   ${s.total.toFixed(2)}
                   {s.sent?.by ? ` · ${s.sent.by}` : ""}
                   {" · "}
-                  {s.sent?.emailed ? "emailed" : "not emailed yet"}
+                  {s.sent?.emailed
+                    ? "emailed"
+                    : "raised but the email didn't go. A manager sends it from Orders in the office app."}
                 </div>
               </div>
             </div>

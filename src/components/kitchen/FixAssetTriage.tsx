@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import {
   AlertTriangle,
   BadgeCheck,
@@ -112,6 +113,7 @@ export function FixAssetTriage({
   const [done, setDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const router = useRouter()
 
   const symptom = symptoms.find((s) => s.key === symptomKey) ?? null
   const openIssues = issues.filter((i) => i.status === "OPEN")
@@ -183,6 +185,9 @@ export function FixAssetTriage({
           reportedBy: name,
         })
         setDone(true)
+        // The new issue is rendered from server props; refetch so it shows
+        // in "Open now" straight away instead of after a manual reload.
+        router.refresh()
       } catch (e) {
         setError(e instanceof Error ? e.message : "Something went wrong")
       }
@@ -461,7 +466,7 @@ export function FixAssetTriage({
             ))}
           {suggestedContacts.length === 0 && !warrantyContact && (
             <div className="text-[15px] text-[var(--tk-ink-soft)]">
-              No contact on file for this kind of machine yet, tell Chloe so it gets added.
+              No contact on file for this kind of machine yet. Tell a manager so it gets added.
             </div>
           )}
         </div>
@@ -522,10 +527,12 @@ function ErrorCodeLookup({
   codes: ErrorCodeRow[]
   autoOpen: boolean
 }) {
-  const [open, setOpen] = useState(false)
+  // null = nobody has touched it, so follow autoOpen. Once tapped, the tap
+  // wins, otherwise an auto-opened panel could never be closed.
+  const [open, setOpen] = useState<boolean | null>(null)
   const [q, setQ] = useState("")
   const [picked, setPicked] = useState<number | null>(null)
-  const isOpen = open || autoOpen
+  const isOpen = open ?? autoOpen
   const filtered = q.trim()
     ? codes.filter((c) =>
         (c.code + " " + c.meaning).toLowerCase().includes(q.trim().toLowerCase())
@@ -650,6 +657,8 @@ function ContactCard({
 }
 
 function OpenIssueCard({ issue }: { issue: IssueRow }) {
+  const router = useRouter()
+  const [flash, setFlash] = useState<string | null>(null)
   const [comment, setComment] = useState("")
   const [who, setWho] = useState("")
   const [showFix, setShowFix] = useState(false)
@@ -700,6 +709,11 @@ function OpenIssueCard({ issue }: { issue: IssueRow }) {
           {error}
         </div>
       )}
+      {flash && (
+        <div className="mt-3 flex items-center gap-2 rounded-lg bg-white/70 px-3 py-2 text-[13px] font-semibold text-[var(--tk-done)]">
+          <CheckCircle2 className="h-4 w-4" /> {flash}
+        </div>
+      )}
 
       <div className="mt-3 flex flex-col gap-2 border-t border-black/10 pt-3 md:flex-row">
         <input
@@ -725,18 +739,21 @@ function OpenIssueCard({ issue }: { issue: IssueRow }) {
                     try {
                       await addIssueComment(issue.id, who, comment)
                       setComment("")
+                      setFlash("Update added")
+                      setTimeout(() => setFlash(null), 2500)
+                      router.refresh()
                     } catch {
                       setError("Couldn't save the update, tap Add to retry.")
                     }
                   })
                 }
-                className="rounded-lg bg-[var(--tk-charcoal)] px-4 py-2 text-[14px] font-bold text-white disabled:opacity-40"
+                className="min-h-[44px] rounded-lg bg-[var(--tk-charcoal)] px-4 text-[14px] font-bold text-white disabled:opacity-40"
               >
                 Add
               </button>
               <button
                 onClick={() => setShowFix(true)}
-                className="whitespace-nowrap rounded-lg border border-[var(--tk-charcoal)] px-4 py-2 text-[14px] font-bold text-[var(--tk-charcoal)]"
+                className="min-h-[44px] whitespace-nowrap rounded-lg border border-[var(--tk-charcoal)] px-4 text-[14px] font-bold text-[var(--tk-charcoal)]"
               >
                 It's fixed
               </button>
@@ -762,18 +779,20 @@ function OpenIssueCard({ issue }: { issue: IssueRow }) {
                         fixedBy: who,
                         fixSummary,
                       })
+                      setFlash("Marked fixed. Moving it to the history.")
+                      router.refresh()
                     } catch {
                       setError("Couldn't mark it fixed, tap Mark fixed to retry.")
                     }
                   })
                 }
-                className="rounded-lg bg-[var(--tk-done)] px-4 py-2 text-[14px] font-bold text-white disabled:opacity-40"
+                className="min-h-[44px] rounded-lg bg-[var(--tk-done)] px-4 text-[14px] font-bold text-white disabled:opacity-40"
               >
                 {pending ? "Saving…" : "Mark fixed"}
               </button>
               <button
                 onClick={() => setShowFix(false)}
-                className="rounded-lg px-2 py-2 text-[14px] text-[var(--tk-ink-soft)]"
+                className="min-h-[44px] rounded-lg px-3 text-[14px] text-[var(--tk-ink-soft)]"
               >
                 Back
               </button>

@@ -141,7 +141,21 @@ export default async function RestockReportPage({
 
       {report.sheets.length === 0 ? (
         <div className="rounded-[24px] border border-dashed border-[var(--tk-line)] bg-white p-10 text-center text-[14px] text-[var(--tk-ink-soft)]">
-          No counts were taken on this date.
+          <p>No counts were taken on this date.</p>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <Link
+              href={`/kitchen/restock/report?venue=${venue}`}
+              className="inline-flex min-h-[44px] items-center rounded-full border border-[var(--tk-line)] px-5 text-[14px] font-semibold text-[var(--tk-charcoal)]"
+            >
+              Jump to today
+            </Link>
+            <Link
+              href={`/kitchen/restock?venue=${venue}`}
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-[var(--tk-charcoal)] px-5 text-[14px] font-semibold text-white"
+            >
+              Start a count <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
       ) : (
         report.sheets.map((sheet) => (

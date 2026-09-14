@@ -892,7 +892,7 @@ function FilterPill({
   return (
     <Link
       href={href}
-      className="shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-[13px] font-semibold transition"
+      className="inline-flex min-h-[40px] shrink-0 items-center whitespace-nowrap rounded-full px-3.5 text-[13px] font-semibold transition"
       style={{
         background: active ? "var(--tk-charcoal)" : "transparent",
         color: active ? "#fff" : "var(--tk-ink-soft)",

@@ -145,6 +145,15 @@ function ListView({
   return (
     <div className="space-y-8">
       {/* Status board: one card per service */}
+      {programs.length === 0 ? (
+        <div className="rounded-[18px] border-[1.5px] border-dashed border-[var(--tk-line)] bg-[var(--tk-card)] p-6 text-center">
+          <p className="text-[17px] font-semibold text-[var(--tk-charcoal)]">No services set up for this venue yet</p>
+          <p className="mt-1 text-[15px] text-[var(--tk-ink-soft)]">
+            Grease trap, pest control, fire checks and the like get added in the office app
+            under Services. Once they are, this page shows what is done and what is due.
+          </p>
+        </div>
+      ) : null}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {programs.map((p) => (
           <ProgramCard
@@ -271,10 +280,10 @@ function ProgramCard({
         )}
         <button
           onClick={onToggleMark}
-          className="flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--tk-line)] px-3 py-1.5 text-[13px] font-bold text-[var(--tk-charcoal)] transition active:scale-[0.98]"
+          className="flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full border border-[var(--tk-line)] px-3.5 text-[13px] font-bold text-[var(--tk-charcoal)] transition active:scale-[0.98]"
         >
           {marking ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-          {marking ? "Cancel" : "They came"}
+          {marking ? "Cancel" : "Log a visit"}
         </button>
       </div>
 

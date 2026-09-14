@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import { OFFLINE_MESSAGE } from "@/components/kitchen/safe-action"
 import { Check, Loader2 } from "lucide-react"
 import { KitchenButton } from "@/components/kitchen/KitchenButton"
 import { useRememberedName } from "@/components/kitchen/use-remembered-name"
@@ -61,29 +63,44 @@ export function LineUpBoard({
   const [saving, startSave] = useTransition()
   const [running, startRun] = useTransition()
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState("")
+  const router = useRouter()
 
   const ran = Boolean(lineUp.ranAt)
 
   function save() {
+    setError("")
     startSave(async () => {
-      await saveLineUp({
-        venue: lineUp.venue as Venue,
-        pushItem: push,
-        eightySixed: eightySix,
-      })
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
+      try {
+        await saveLineUp({
+          venue: lineUp.venue as Venue,
+          pushItem: push,
+          eightySixed: eightySix,
+        })
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2000)
+      } catch {
+        setError(OFFLINE_MESSAGE)
+      }
     })
   }
 
   function run() {
+    setError("")
     startRun(async () => {
-      await saveLineUp({
-        venue: lineUp.venue as Venue,
-        pushItem: push,
-        eightySixed: eightySix,
-      })
-      await markLineUpRan(lineUp.venue as Venue, name)
+      try {
+        await saveLineUp({
+          venue: lineUp.venue as Venue,
+          pushItem: push,
+          eightySixed: eightySix,
+        })
+        await markLineUpRan(lineUp.venue as Venue, name)
+        // ranAt comes from the server; refetch so the button turns into
+        // "ran at 6:55" instead of just stopping its spinner.
+        router.refresh()
+      } catch {
+        setError(OFFLINE_MESSAGE)
+      }
     })
   }
 
@@ -288,6 +305,9 @@ export function LineUpBoard({
               {running ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               We ran it
             </KitchenButton>
+            {error ? (
+              <p className="w-full text-[15px] font-medium text-[var(--tk-warn)]">{error}</p>
+            ) : null}
           </div>
         )}
         <div className="mt-5 flex items-center gap-1.5">
