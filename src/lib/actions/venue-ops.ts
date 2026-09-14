@@ -32,6 +32,12 @@ function effectivePriority(t: {
   return t.priorityOverride ?? t.reportedPriority
 }
 
+/** The board renders in two places; both go stale on every write. */
+function bust() {
+  revalidatePath("/venue-ops")
+  revalidatePath("/kitchen/managers/board")
+}
+
 const PRIORITY_RANK: Record<VenueTaskPriority, number> = {
   URGENT: 0,
   NORMAL: 1,
@@ -53,6 +59,8 @@ export interface BoardTask {
   dueAt: string | null
   ageDays: number
   maintenanceIssueId: string | null
+  /// Slug of the asset behind a broken-equipment row, for the staff fix page.
+  assetSlug: string | null
   stockItemId: string | null
   createdAt: string
 }
@@ -69,6 +77,9 @@ export interface MorningBoard {
   /// instead of relying on somebody remembering.
   stale: BoardTask[]
   doneToday: number
+  /// Names that have owned a task at this venue lately, plus the schedule
+  /// owners. Assigning is a tap on a name, not typing it again every morning.
+  owners: string[]
 }
 
 function toBoardTask(t: {
@@ -83,6 +94,7 @@ function toBoardTask(t: {
   ownedBy: string | null
   dueAt: Date | null
   maintenanceIssueId: string | null
+  maintenanceIssue?: { asset: { slug: string } | null } | null
   stockItemId: string | null
   createdAt: Date
 }): BoardTask {
@@ -102,6 +114,7 @@ function toBoardTask(t: {
     dueAt: t.dueAt ? t.dueAt.toISOString() : null,
     ageDays,
     maintenanceIssueId: t.maintenanceIssueId,
+    assetSlug: t.maintenanceIssue?.asset?.slug ?? null,
     stockItemId: t.stockItemId,
     createdAt: t.createdAt.toISOString(),
   }
@@ -124,7 +137,35 @@ export async function getMorningBoard(
   const rows = await db.venueTask.findMany({
     where: { venue, status: { in: ["OPEN", "IN_PROGRESS"] } },
     orderBy: { createdAt: "asc" },
+    include: { maintenanceIssue: { select: { asset: { select: { slug: true } } } } },
   })
+
+  const since = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000)
+  const [recentOwners, schedules] = await Promise.all([
+    db.venueTask.findMany({
+      where: { venue, ownedBy: { not: null }, createdAt: { gte: since } },
+      select: { ownedBy: true },
+      distinct: ["ownedBy"],
+    }),
+    db.venueTaskSchedule.findMany({
+      where: { venue, isActive: true, defaultOwner: { not: null } },
+      select: { defaultOwner: true },
+      distinct: ["defaultOwner"],
+    }),
+  ])
+  const seen = new Set<string>()
+  const owners: string[] = []
+  for (const raw of [
+    ...recentOwners.map((r) => r.ownedBy),
+    ...schedules.map((s) => s.defaultOwner),
+  ]) {
+    const name = (raw ?? "").trim()
+    const key = name.toLowerCase()
+    if (!name || seen.has(key)) continue
+    seen.add(key)
+    owners.push(name)
+  }
+  owners.sort((a, b) => a.localeCompare(b))
 
   const startOfDay = new Date()
   startOfDay.setHours(0, 0, 0, 0)
@@ -154,6 +195,7 @@ export async function getMorningBoard(
       .sort(bySeverity),
     stale,
     doneToday,
+    owners,
   }
 }
 
@@ -188,7 +230,7 @@ export async function reportTask(input: ReportTaskInput) {
     },
   })
 
-  revalidatePath("/venue-ops")
+  bust()
   revalidatePath("/kitchen/report")
   return { id: task.id }
 }
@@ -202,7 +244,7 @@ export async function overrideTaskPriority(
     where: { id: taskId },
     data: { priorityOverride: priority },
   })
-  revalidatePath("/venue-ops")
+  bust()
 }
 
 /**
@@ -219,7 +261,7 @@ export async function assignTask(taskId: string, ownedBy: string) {
       status: owner ? "IN_PROGRESS" : "OPEN",
     },
   })
-  revalidatePath("/venue-ops")
+  bust()
 }
 
 export async function completeTask(
@@ -268,7 +310,7 @@ export async function completeTask(
     }
   }
 
-  revalidatePath("/venue-ops")
+  bust()
 }
 
 export async function dismissTask(taskId: string, note?: string) {
@@ -276,7 +318,7 @@ export async function dismissTask(taskId: string, note?: string) {
     where: { id: taskId },
     data: { status: "DISMISSED", doneAt: new Date(), doneNote: note?.trim() || null },
   })
-  revalidatePath("/venue-ops")
+  bust()
 }
 
 /**
@@ -325,6 +367,6 @@ export async function raiseDueSchedules(venue: Venue) {
     raised++
   }
 
-  if (raised) revalidatePath("/venue-ops")
+  if (raised) bust()
   return raised
 }

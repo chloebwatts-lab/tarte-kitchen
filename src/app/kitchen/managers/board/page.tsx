@@ -4,7 +4,8 @@ import { cookies } from "next/headers"
 import { requireManager } from "@/lib/manager-auth"
 import { getMorningBoard } from "@/lib/actions/venue-ops"
 import { getBelowPar } from "@/lib/actions/venue-stock"
-import { VenueOpsBoard } from "@/components/venue-ops-board"
+import { MorningBoard } from "@/components/kitchen/MorningBoard"
+import { VENUE_LABEL } from "@/lib/venues"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 
@@ -23,6 +24,7 @@ export default async function ManagerBoardPage({
   const c = (await cookies()).get("tk-venue")?.value ?? null
   const venue: Venue = isVenue(p) ? p : isVenue(c) ? c : "BURLEIGH"
   const [board, belowPar] = await Promise.all([getMorningBoard(venue, ""), getBelowPar(venue)])
+  const venueLabel = VENUE_LABEL[venue].replace(/\s*\(.*\)$/, "")
 
   return (
     <div className="space-y-6">
@@ -33,12 +35,13 @@ export default async function ManagerBoardPage({
             Morning board
           </div>
           <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
-            Put a name on anything without one. Chase anything waiting on someone else.
+            Everything staff have spotted, every job that has come due, and anything the stock
+            walk says is low. Put a name on what has none, chase what is waiting on someone else.
           </p>
         </div>
         <VenueSwitch current={venue} />
       </div>
-      <VenueOpsBoard board={board} belowPar={belowPar} />
+      <MorningBoard board={board} belowPar={belowPar} venueLabel={venueLabel} />
     </div>
   )
 }
