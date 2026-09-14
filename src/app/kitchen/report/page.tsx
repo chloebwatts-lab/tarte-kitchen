@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import { cookies } from "next/headers"
 import { ReportForm } from "@/components/kitchen/ReportForm"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
 
@@ -39,6 +40,7 @@ export default async function ReportPage({
           Ten seconds. Tap what it is, say where, done. It goes on the morning
           board so it gets seen, and you don&apos;t have to find a manager.
         </p>
+        <div className="mt-3"><VenueSwitch current={venue} /></div>
       </div>
       <ReportForm venue={venue} />
     </div>

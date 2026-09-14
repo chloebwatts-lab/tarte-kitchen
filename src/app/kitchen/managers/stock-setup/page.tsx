@@ -1,12 +1,11 @@
 export const dynamic = "force-dynamic"
 
-import Link from "next/link"
 import { cookies } from "next/headers"
 import { requireManager } from "@/lib/manager-auth"
 import { getStockSetup } from "@/lib/actions/venue-stock-setup"
 import { StockSetup } from "@/components/kitchen/StockSetup"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
-import { VENUE_LABEL } from "@/lib/venues"
+import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
 const VENUES: Venue[] = ["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN"]
@@ -37,14 +36,7 @@ export default async function StockSetupPage({
             Counted with a par for anything worth a number. Fifteen to twenty items is plenty.
           </p>
         </div>
-        <div className="flex gap-1.5">
-          {VENUES.map((x) => (
-            <Link key={x} href={`/kitchen/managers/stock-setup?venue=${x}`}
-              className={`rounded-[10px] px-3 py-1.5 text-[14px] font-semibold ${x === venue ? "bg-[var(--tk-charcoal)] text-white" : "border border-[var(--tk-line)] text-[var(--tk-ink-soft)]"}`}>
-              {VENUE_LABEL[x].replace(/\s*\(.*\)$/, "")}
-            </Link>
-          ))}
-        </div>
+        <VenueSwitch current={venue} />
       </div>
       <StockSetup venue={venue} areas={areas} />
     </div>

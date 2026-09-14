@@ -4,6 +4,7 @@ import { cookies } from "next/headers"
 import { getAgenda } from "@/lib/actions/meetings"
 import { RaiseItemForm } from "@/components/kitchen/RaiseItemForm"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
 
@@ -76,6 +77,7 @@ export default async function RaisePage({
           straight on the agenda, nobody approves it first, and you will see what
           was decided.
         </p>
+        <div className="mt-3"><VenueSwitch current={venue} /></div>
       </div>
 
       <RaiseItemForm

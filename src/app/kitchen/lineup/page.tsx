@@ -5,6 +5,7 @@ import { requireManager } from "@/lib/manager-auth"
 import { getLineUp, getLineUpStreak } from "@/lib/actions/lineup"
 import { LineUpBoard } from "@/components/kitchen/LineUpBoard"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
 
@@ -65,6 +66,7 @@ export default async function LineUpPage({
         <p className="mt-2 text-[15px] text-[var(--tk-ink-soft)]">
           {dayLabel.format(new Date())} &nbsp;&middot;&nbsp; {venueLabel}
         </p>
+        <div className="mt-3"><VenueSwitch current={venue} /></div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
           Five minutes, standing, before open. Read it top to bottom and
           you&apos;ve run it. Everything except the push item and the 86s is

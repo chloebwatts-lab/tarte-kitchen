@@ -4,6 +4,7 @@ import { cookies } from "next/headers"
 import { getStockRound } from "@/lib/actions/venue-stock"
 import { StockWalk } from "@/components/kitchen/StockWalk"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
 
@@ -41,6 +42,7 @@ export default async function StockPage({
           Walk the areas in order. Tap Low or Out on anything running short, or type a
           count where there is a number. Anything flagged lands on the order list.
         </p>
+        <div className="mt-3"><VenueSwitch current={venue} /></div>
       </div>
       <StockWalk areas={areas} />
     </div>
