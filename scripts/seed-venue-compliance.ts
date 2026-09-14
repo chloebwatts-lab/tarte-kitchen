@@ -17,7 +17,7 @@
 // Idempotent: upserts on (venue, title) and (venue, name).
 // Run vs prod:  npx tsx --env-file=.env.local scripts/seed-venue-compliance.ts
 import "dotenv/config"
-import { PrismaClient, Venue } from "../src/generated/prisma"
+import { PrismaClient, Venue } from "../src/generated/prisma/client"
 import { PrismaPg } from "@prisma/adapter-pg"
 import { Pool } from "pg"
 
