@@ -37,10 +37,10 @@ export default async function ReportPage({
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
           Ten seconds. Tap what it is, say where, done. It goes on the morning
-          board so it gets seen, and you don&apos;t have to find a manager.
+          board so it gets seen. No need to find a manager.
         </p>
       </div>
-      <ReportForm venue={venue} />
+      <ReportForm venue={venue} venueLabel={venueLabel} />
     </div>
   )
 }
