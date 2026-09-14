@@ -2,14 +2,24 @@
 
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
-import { Venue, VenueStockTracking } from "@/generated/prisma/client"
+import { Prisma, Venue, VenueStockTracking } from "@/generated/prisma/client"
 
 // Setting up the stock walk: the areas in the order you walk them, and the
 // items in each. Georgia's screen. Nobody else needs it, and the walk itself
 // (/kitchen/stock) never shows any of this, only the taps.
 
-const paths = ["/kitchen/stock", "/kitchen/managers/stock-setup", "/kitchen/managers/board"]
+const paths = ["/kitchen/stock", "/kitchen/managers/stock-setup", "/kitchen/managers/board", "/venue-ops"]
 const bust = () => paths.forEach((p) => revalidatePath(p))
+
+/**
+ * Saves answer with ok/error rather than throwing: a thrown error reaches the
+ * iPad with its message stripped in production, and "Shed" typed twice is a
+ * unique-constraint hit that deserves a sentence, not an error page.
+ */
+export type SaveResult = { ok: true } | { ok: false; error: string }
+
+const isDuplicate = (err: unknown) =>
+  err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002"
 
 export interface SetupItem {
   id: string
@@ -49,18 +59,24 @@ export async function getStockSetup(venue: Venue): Promise<SetupArea[]> {
   }))
 }
 
-export async function addArea(venue: Venue, name: string) {
+export async function addArea(venue: Venue, name: string): Promise<SaveResult> {
   const n = name.trim()
-  if (!n) throw new Error("Give the area a name")
+  if (!n) return { ok: false, error: "Give the area a name" }
   const last = await db.venueStockArea.findFirst({
     where: { venue },
     orderBy: { sortOrder: "desc" },
     select: { sortOrder: true },
   })
-  await db.venueStockArea.create({
-    data: { venue, name: n, sortOrder: (last?.sortOrder ?? -1) + 1 },
-  })
+  try {
+    await db.venueStockArea.create({
+      data: { venue, name: n, sortOrder: (last?.sortOrder ?? -1) + 1 },
+    })
+  } catch (err) {
+    if (isDuplicate(err)) return { ok: false, error: `There is already an area called ${n} here` }
+    throw err
+  }
   bust()
+  return { ok: true }
 }
 
 /** Swap with the neighbour above or below. Walk order is the whole point. */
@@ -94,44 +110,62 @@ export interface ItemInput {
   parLevel?: number | null
 }
 
-export async function addItem(areaId: string, input: ItemInput) {
-  const n = input.name.trim()
-  if (!n) throw new Error("Give the item a name")
+function checkItem(input: ItemInput): { ok: true; name: string } | { ok: false; error: string } {
+  const name = input.name.trim()
+  if (!name) return { ok: false, error: "Give the item a name" }
   if (input.tracking === "QUANTITY" && !(input.parLevel != null && input.parLevel >= 0)) {
-    throw new Error("A counted item needs a par level")
+    return { ok: false, error: "A counted item needs a par level" }
   }
+  return { ok: true, name }
+}
+
+export async function addItem(areaId: string, input: ItemInput): Promise<SaveResult> {
+  const checked = checkItem(input)
+  if (!checked.ok) return checked
   const last = await db.venueStockItem.findFirst({
     where: { areaId },
     orderBy: { sortOrder: "desc" },
     select: { sortOrder: true },
   })
-  await db.venueStockItem.create({
-    data: {
-      areaId,
-      name: n,
-      unit: input.unit?.trim() || null,
-      tracking: input.tracking,
-      parLevel: input.tracking === "QUANTITY" ? input.parLevel : null,
-      onHand: input.tracking === "QUANTITY" ? 0 : null,
-      sortOrder: (last?.sortOrder ?? -1) + 1,
-    },
-  })
+  try {
+    await db.venueStockItem.create({
+      data: {
+        areaId,
+        name: checked.name,
+        unit: input.unit?.trim() || null,
+        tracking: input.tracking,
+        parLevel: input.tracking === "QUANTITY" ? input.parLevel : null,
+        onHand: input.tracking === "QUANTITY" ? 0 : null,
+        sortOrder: (last?.sortOrder ?? -1) + 1,
+      },
+    })
+  } catch (err) {
+    if (isDuplicate(err)) return { ok: false, error: `${checked.name} is already in this area` }
+    throw err
+  }
   bust()
+  return { ok: true }
 }
 
-export async function updateItem(id: string, input: ItemInput) {
-  const n = input.name.trim()
-  if (!n) throw new Error("Give the item a name")
-  await db.venueStockItem.update({
-    where: { id },
-    data: {
-      name: n,
-      unit: input.unit?.trim() || null,
-      tracking: input.tracking,
-      parLevel: input.tracking === "QUANTITY" ? input.parLevel ?? null : null,
-    },
-  })
+export async function updateItem(id: string, input: ItemInput): Promise<SaveResult> {
+  const checked = checkItem(input)
+  if (!checked.ok) return checked
+  try {
+    await db.venueStockItem.update({
+      where: { id },
+      data: {
+        name: checked.name,
+        unit: input.unit?.trim() || null,
+        tracking: input.tracking,
+        parLevel: input.tracking === "QUANTITY" ? input.parLevel ?? null : null,
+      },
+    })
+  } catch (err) {
+    if (isDuplicate(err)) return { ok: false, error: `${checked.name} is already in this area` }
+    throw err
+  }
   bust()
+  return { ok: true }
 }
 
 export async function setItemActive(id: string, isActive: boolean) {

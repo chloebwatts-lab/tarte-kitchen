@@ -35,8 +35,11 @@ function CountRow({ item, name }: { item: RoundItem; name: string }) {
   const [val, setVal] = useState(item.onHand?.toString() ?? "")
   const [busy, start] = useTransition()
   const save = () => {
+    // Blur fires on every tap away. Only a real, changed number is a count:
+    // an empty field would otherwise record 0 and put the item on the order list.
+    if (val.trim() === "") return
     const n = Number(val)
-    if (!Number.isFinite(n)) return
+    if (!Number.isFinite(n) || n < 0 || n === item.onHand) return
     start(async () => { await recordCount(item.id, n, name) })
   }
   return (

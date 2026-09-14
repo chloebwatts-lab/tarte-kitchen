@@ -57,7 +57,7 @@ function TaskRow({ task }: { task: BoardTask }) {
                 key={p}
                 disabled={busy}
                 onClick={() => run(() => overrideTaskPriority(task.id, p))}
-                className={`rounded px-2 py-0.5 text-[11px] font-semibold ${
+                className={`min-h-[36px] rounded-md px-2.5 py-1.5 text-xs font-semibold ${
                   task.priority === p ? PRIORITY_CLASS[p] : "text-muted-foreground"
                 }`}
               >
@@ -73,12 +73,12 @@ function TaskRow({ task }: { task: BoardTask }) {
             value={owner}
             onChange={(e) => setOwner(e.target.value)}
             placeholder="Who's on it?"
-            className="w-40 rounded-md border border-border bg-card px-2.5 py-1.5 text-sm"
+            className="w-44 rounded-md border border-border bg-card px-3 py-2 text-base sm:text-sm"
           />
           <button
             disabled={busy}
             onClick={() => run(() => assignTask(task.id, owner))}
-            className="rounded-md border border-border px-2.5 py-1.5 text-sm font-medium"
+            className="min-h-[40px] rounded-md border border-border px-3 py-2 text-sm font-medium"
           >
             Assign
           </button>
@@ -86,14 +86,14 @@ function TaskRow({ task }: { task: BoardTask }) {
           <button
             disabled={busy}
             onClick={() => run(() => completeTask(task.id, owner || "Board"))}
-            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+            className="min-h-[40px] rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
           >
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Done"}
           </button>
           <button
             disabled={busy}
             onClick={() => run(() => dismissTask(task.id))}
-            className="rounded-md px-2 py-1.5 text-sm text-muted-foreground"
+            className="min-h-[40px] rounded-md px-3 py-2 text-sm text-muted-foreground"
           >
             Dismiss
           </button>

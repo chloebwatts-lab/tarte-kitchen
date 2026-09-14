@@ -109,6 +109,19 @@ function toBoardTask(t: {
 
 const STALE_AFTER_DAYS = 7
 
+/** The board is read from the admin and from the kitchen iPad. Both refresh. */
+const BOARD_PATHS = ["/venue-ops", "/kitchen/managers/board"]
+const bustBoard = () => BOARD_PATHS.forEach((p) => revalidatePath(p))
+
+/** Start of the current AEST day, so "closed today" turns over at local midnight. */
+function aestStartOfDay(now = new Date()): Date {
+  const shifted = new Date(now.getTime() + 10 * 60 * 60 * 1000)
+  return new Date(
+    Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate()) -
+      10 * 60 * 60 * 1000
+  )
+}
+
 /**
  * The morning list. `viewer` decides what counts as "mine" versus "waiting
  * on someone" — the same board reads differently for Georgia and a supervisor.
@@ -126,10 +139,8 @@ export async function getMorningBoard(
     orderBy: { createdAt: "asc" },
   })
 
-  const startOfDay = new Date()
-  startOfDay.setHours(0, 0, 0, 0)
   const doneToday = await db.venueTask.count({
-    where: { venue, status: "DONE", doneAt: { gte: startOfDay } },
+    where: { venue, status: "DONE", doneAt: { gte: aestStartOfDay() } },
   })
 
   const tasks = rows.map(toBoardTask)
@@ -188,7 +199,7 @@ export async function reportTask(input: ReportTaskInput) {
     },
   })
 
-  revalidatePath("/venue-ops")
+  bustBoard()
   revalidatePath("/kitchen/report")
   return { id: task.id }
 }
@@ -202,7 +213,7 @@ export async function overrideTaskPriority(
     where: { id: taskId },
     data: { priorityOverride: priority },
   })
-  revalidatePath("/venue-ops")
+  bustBoard()
 }
 
 /**
@@ -219,7 +230,7 @@ export async function assignTask(taskId: string, ownedBy: string) {
       status: owner ? "IN_PROGRESS" : "OPEN",
     },
   })
-  revalidatePath("/venue-ops")
+  bustBoard()
 }
 
 export async function completeTask(
@@ -268,7 +279,7 @@ export async function completeTask(
     }
   }
 
-  revalidatePath("/venue-ops")
+  bustBoard()
 }
 
 export async function dismissTask(taskId: string, note?: string) {
@@ -276,7 +287,7 @@ export async function dismissTask(taskId: string, note?: string) {
     where: { id: taskId },
     data: { status: "DISMISSED", doneAt: new Date(), doneNote: note?.trim() || null },
   })
-  revalidatePath("/venue-ops")
+  bustBoard()
 }
 
 /**
@@ -284,7 +295,10 @@ export async function dismissTask(taskId: string, note?: string) {
  * is not already open. Assigned to the schedule's owner, never to whoever
  * happens to be reading: these appear so they can be chased, not absorbed.
  *
- * Safe to call on every board load — it is a no-op once the row exists.
+ * Safe to call on every board load: it is a no-op once the row exists.
+ * Runs during the board's render, so it must not call revalidatePath (Next
+ * throws on that mid-render). The board reads the rows straight after, so
+ * nothing is stale anyway.
  */
 export async function raiseDueSchedules(venue: Venue) {
   const schedules = await db.venueTaskSchedule.findMany({
@@ -325,6 +339,5 @@ export async function raiseDueSchedules(venue: Venue) {
     raised++
   }
 
-  if (raised) revalidatePath("/venue-ops")
   return raised
 }

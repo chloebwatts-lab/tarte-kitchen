@@ -22,6 +22,10 @@ function Row({ item, meetingDate }: { item: AgendaItem; meetingDate: string }) {
 
   function close(status: "DISCUSSED" | "DROPPED") {
     setError("")
+    if (status === "DISCUSSED" && !outcome.trim()) {
+      setError("Record what was decided before closing it")
+      return
+    }
     start(async () => {
       try {
         if (action.trim()) {
@@ -62,7 +66,7 @@ function Row({ item, meetingDate }: { item: AgendaItem; meetingDate: string }) {
           value={outcome}
           onChange={(e) => setOutcome(e.target.value)}
           placeholder="What was decided?"
-          className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
+          className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-base sm:text-sm"
         />
 
         <div className="grid gap-2 sm:grid-cols-[1fr_140px_150px]">
@@ -94,7 +98,7 @@ function Row({ item, meetingDate }: { item: AgendaItem; meetingDate: string }) {
           <button
             onClick={() => close("DISCUSSED")}
             disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
             Discussed
@@ -102,7 +106,7 @@ function Row({ item, meetingDate }: { item: AgendaItem; meetingDate: string }) {
           <button
             onClick={() => close("DROPPED")}
             disabled={busy}
-            className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground disabled:opacity-50"
+            className="min-h-[40px] rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground disabled:opacity-50"
           >
             Drop it
           </button>

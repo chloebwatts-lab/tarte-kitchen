@@ -156,7 +156,7 @@ export function LineUpBoard({
         )}
         <label className="mt-5 block">
           <span className="text-[13px] font-semibold uppercase tracking-[0.08em] text-[var(--tk-ink-soft)]">
-            86s — what we&apos;re out of
+            86s: what we&apos;re out of
           </span>
           <input
             type="text"

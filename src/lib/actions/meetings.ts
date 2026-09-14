@@ -14,6 +14,10 @@ import { Venue, MeetingItemStatus } from "@/generated/prisma/client"
 // depend on remembering it on the day.
 // ------------------------------------------------------------------
 
+/** Every screen that lists the agenda, admin and kitchen alike. */
+const AGENDA_PATHS = ["/meetings", "/kitchen/managers/agenda", "/kitchen/raise"]
+const bustAgenda = () => AGENDA_PATHS.forEach((p) => revalidatePath(p))
+
 export interface AgendaItem {
   id: string
   topic: string
@@ -91,8 +95,7 @@ export async function addAgendaItem(input: AddAgendaItemInput) {
       venue: input.venue ?? null,
     },
   })
-  revalidatePath("/meetings")
-  revalidatePath("/kitchen/raise")
+  bustAgenda()
   return { id: item.id }
 }
 
@@ -114,7 +117,7 @@ export async function closeAgendaItem(
     where: { id },
     data: { status, outcome: text || null, discussedAt: new Date() },
   })
-  revalidatePath("/meetings")
+  bustAgenda()
 }
 
 /**
@@ -139,6 +142,7 @@ export async function addMeetingAction(input: {
       sourceTag: `Management ${input.meetingDate.toISOString().slice(0, 10)}`,
     },
   })
-  revalidatePath("/meetings")
+  bustAgenda()
   revalidatePath("/commitments")
+  revalidatePath("/kitchen/commitments")
 }

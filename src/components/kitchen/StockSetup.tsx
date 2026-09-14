@@ -18,18 +18,22 @@ function ItemRow({ item }: { item: SetupItem }) {
   const [unit, setUnit] = useState(item.unit ?? "")
   const [tracking, setTracking] = useState<VenueStockTracking>(item.tracking)
   const [par, setPar] = useState(item.parLevel?.toString() ?? "")
+  const [error, setError] = useState("")
   const [busy, start] = useTransition()
   const dirty =
     name !== item.name || unit !== (item.unit ?? "") || tracking !== item.tracking ||
     par !== (item.parLevel?.toString() ?? "")
 
-  const save = () =>
+  const save = () => {
+    setError("")
     start(async () => {
-      await updateItem(item.id, {
+      const r = await updateItem(item.id, {
         name, unit, tracking,
-        parLevel: tracking === "QUANTITY" ? Number(par) : null,
+        parLevel: tracking === "QUANTITY" && par.trim() !== "" ? Number(par) : null,
       })
+      if (!r.ok) setError(r.error)
     })
+  }
 
   return (
     <div className={`flex flex-wrap items-center gap-2 py-2 ${item.isActive ? "" : "opacity-50"}`}>
@@ -53,6 +57,7 @@ function ItemRow({ item }: { item: SetupItem }) {
       >
         {item.isActive ? "Hide" : "Show"}
       </button>
+      {error ? <span className="basis-full text-[13px] text-[#B4432A]">{error}</span> : null}
     </div>
   )
 }
@@ -66,12 +71,15 @@ function NewItem({ areaId }: { areaId: string }) {
   const [busy, start] = useTransition()
 
   const add = () => {
+    if (!name.trim()) return
     setError("")
     start(async () => {
-      try {
-        await addItem(areaId, { name, unit, tracking, parLevel: tracking === "QUANTITY" ? Number(par) : null })
-        setName(""); setUnit(""); setPar("")
-      } catch (e) { setError(e instanceof Error ? e.message : "Couldn't add") }
+      const r = await addItem(areaId, {
+        name, unit, tracking,
+        parLevel: tracking === "QUANTITY" && par.trim() !== "" ? Number(par) : null,
+      })
+      if (!r.ok) { setError(r.error); return }
+      setName(""); setUnit(""); setPar("")
     })
   }
 
@@ -97,7 +105,18 @@ function NewItem({ areaId }: { areaId: string }) {
 
 export function StockSetup({ venue, areas }: { venue: Venue; areas: SetupArea[] }) {
   const [newArea, setNewArea] = useState("")
+  const [areaError, setAreaError] = useState("")
   const [busy, start] = useTransition()
+
+  const add = () => {
+    if (!newArea.trim()) return
+    setAreaError("")
+    start(async () => {
+      const r = await addArea(venue, newArea)
+      if (!r.ok) { setAreaError(r.error); return }
+      setNewArea("")
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -107,13 +126,13 @@ export function StockSetup({ venue, areas }: { venue: Venue; areas: SetupArea[] 
         </p>
         <div className="flex gap-2">
           <input value={newArea} onChange={(e) => setNewArea(e.target.value)} placeholder="e.g. Shed, Bar cupboard, Retail fridge"
-            onKeyDown={(e) => { if (e.key === "Enter") start(async () => { await addArea(venue, newArea); setNewArea("") }) }}
+            onKeyDown={(e) => { if (e.key === "Enter") add() }}
             className={`${field} flex-1`} />
-          <KitchenButton variant="primary" size="md" disabled={busy || !newArea.trim()}
-            onClick={() => start(async () => { await addArea(venue, newArea); setNewArea("") })}>
+          <KitchenButton variant="primary" size="md" disabled={busy || !newArea.trim()} onClick={add}>
             Add
           </KitchenButton>
         </div>
+        {areaError ? <p className="mt-2 text-[14px] text-[#B4432A]">{areaError}</p> : null}
         <p className="mt-2 text-[13px] text-[var(--tk-ink-soft)]">
           Areas appear in the order you walk them. Use the arrows to match the route.
         </p>
