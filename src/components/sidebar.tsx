@@ -27,6 +27,7 @@ import {
   ShieldCheck,
   ShoppingCart,
   Star,
+  Sunrise,
   Trash2,
   TrendingUp,
   Truck,
@@ -72,6 +73,7 @@ const navGroups: NavGroup[] = [
       { label: "Services", href: "/services", icon: CalendarCheck },
       { label: "Commitments", href: "/commitments", icon: Handshake },
       { label: "Meeting agenda", href: "/meetings", icon: Megaphone },
+      { label: "Morning board", href: "/venue-ops", icon: Sunrise },
     ],
   },
   {

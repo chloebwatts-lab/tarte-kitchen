@@ -7,10 +7,12 @@ import {
   ClipboardCheck,
   ClipboardList,
   Croissant,
+  Eye,
   GraduationCap,
   Megaphone,
   MessageSquarePlus,
   PackageOpen,
+  PackageSearch,
   Printer,
   Ruler,
   Scale,
@@ -402,6 +404,18 @@ function CategoryPicker({
           subtitle="Epson docket printers: power, NBN, IP address, iPads, replace."
           icon={<Printer className="h-6 w-6" strokeWidth={1.8} />}
           href="/kitchen/printers"
+        />
+        <SecondaryTile
+          title="Spotted something?"
+          subtitle="Low on something, rubbish, a clean, a broken chair. Ten seconds, goes on the morning board."
+          icon={<Eye className="h-6 w-6" strokeWidth={1.8} />}
+          href={`/kitchen/report?venue=${venue}`}
+        />
+        <SecondaryTile
+          title="Stock walk"
+          subtitle="Crockery, packaging, the small stuff. Tap Low or Out, it goes on the order list."
+          icon={<PackageSearch className="h-6 w-6" strokeWidth={1.8} />}
+          href={`/kitchen/stock?venue=${venue}`}
         />
         <SecondaryTile
           title="Line-up"
