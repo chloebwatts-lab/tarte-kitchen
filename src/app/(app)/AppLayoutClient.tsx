@@ -9,6 +9,7 @@ import { PriceAlertBanner } from "@/components/price-alert-banner";
 import { cn } from "@/lib/utils";
 
 const pageTitles: Record<string, string> = {
+  "/home": "Home",
   "/dashboard": "Dashboard",
   "/ingredients": "Ingredients",
   "/preparations": "Preparations",

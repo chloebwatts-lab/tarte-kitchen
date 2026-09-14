@@ -35,6 +35,9 @@ echo "▶ Restarting app (and cron, whose schedule lives in docker-compose.yml).
 # alone otherwise.
 docker compose up -d app caddy cron
 
+echo "▶ Reloading Caddy config (bind-mounted Caddyfile, zero downtime)..."
+docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile || echo "  (caddy reload failed; config unchanged or caddy not running)"
+
 echo "▶ Waiting for health..."
 sleep 3
 docker compose ps

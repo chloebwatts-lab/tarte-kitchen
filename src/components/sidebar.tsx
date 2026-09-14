@@ -52,7 +52,10 @@ type NavGroup = {
 const navGroups: NavGroup[] = [
   {
     label: null,
-    items: [{ label: "Dashboard", href: "/dashboard", icon: LayoutDashboard }],
+    items: [
+      { label: "Home", href: "/home", icon: LayoutGrid },
+      { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    ],
   },
   {
     label: "Recipes",
