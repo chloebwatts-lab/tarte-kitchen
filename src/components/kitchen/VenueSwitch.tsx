@@ -12,11 +12,17 @@ const VENUES: Venue[] = ["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN"]
  * a venue with no way to change it. Switching updates the cookie too, so the
  * next visit from Staff tools opens on the venue you actually chose.
  */
+/** Module-level, like the picker's rememberVenue: the compiler lint rejects
+ * mutating a global from inside a component-scoped function. */
+function rememberVenue(v: Venue) {
+  document.cookie = `tk-venue=${v}; path=/; max-age=31536000; samesite=lax`
+}
+
 export function VenueSwitch({ current }: { current: Venue }) {
   const router = useRouter()
   const pathname = usePathname()
   function pick(v: Venue) {
-    document.cookie = `tk-venue=${v}; path=/; max-age=31536000; samesite=lax`
+    rememberVenue(v)
     router.push(`${pathname}?venue=${v}`)
   }
   return (
