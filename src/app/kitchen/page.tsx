@@ -1,7 +1,25 @@
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
-import { ArrowRight, CalendarCheck, ClipboardCheck, ClipboardList, Croissant, GraduationCap, PackageOpen, Ruler, Scale, ShieldCheck, ShoppingBasket, Snowflake, SprayCan, Thermometer, Wrench } from "lucide-react"
+import {
+  ArrowRight,
+  CalendarCheck,
+  ClipboardCheck,
+  ClipboardList,
+  Croissant,
+  GraduationCap,
+  Megaphone,
+  MessageSquarePlus,
+  PackageOpen,
+  Ruler,
+  Scale,
+  ShieldCheck,
+  ShoppingBasket,
+  Snowflake,
+  SprayCan,
+  Thermometer,
+  Wrench,
+} from "lucide-react"
 import { listChecklistTemplates, type ChecklistTemplateSummary } from "@/lib/actions/checklists"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { KitchenStepper } from "@/components/kitchen/KitchenStepper"
@@ -377,6 +395,18 @@ function CategoryPicker({
           subtitle="Scan the machine's QR or find it here: quick fixes, who to call, warranty."
           icon={<Wrench className="h-6 w-6" strokeWidth={1.8} />}
           href={`/kitchen/fix?venue=${venue}`}
+        />
+        <SecondaryTile
+          title="Line-up"
+          subtitle="Today's five minutes: numbers, sections, push item, one value, shout-outs."
+          icon={<Megaphone className="h-6 w-6" strokeWidth={1.8} />}
+          href={`/kitchen/lineup?venue=${venue}`}
+        />
+        <SecondaryTile
+          title="Raise something"
+          subtitle="Anything for the next management meeting. Goes straight on the agenda."
+          icon={<MessageSquarePlus className="h-6 w-6" strokeWidth={1.8} />}
+          href={`/kitchen/raise?venue=${venue}`}
         />
         <SecondaryTile
           title="Ordering & supplies"
