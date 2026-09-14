@@ -79,6 +79,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       { title: "Said + Done", sub: "Kitchen commitments, week by week", href: "/kitchen/commitments", icon: Handshake },
       { title: "Meeting agenda", sub: "What people have raised, and what was decided", href: "/kitchen/managers/agenda", icon: MessageSquarePlus },
       { title: "Staff training", sub: "Food handler records", href: "/kitchen/training", icon: GraduationCap },
+      { title: "Stock list", sub: "Set up what the stock walk asks about", href: "/kitchen/managers/stock-setup", icon: PackageSearch },
     ],
   },
 ]

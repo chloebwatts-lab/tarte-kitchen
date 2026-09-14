@@ -65,7 +65,7 @@ export function StockWalk({ areas }: { areas: RoundArea[] }) {
   if (areas.length === 0) {
     return (
       <p className="text-[17px] text-[var(--tk-ink-soft)]">
-        No stock list set up for this venue yet. Georgia adds the areas and items.
+        No stock list for this venue yet. A manager sets it up under Managers, Stock list.
       </p>
     )
   }
