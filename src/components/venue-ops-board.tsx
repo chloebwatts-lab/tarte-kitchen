@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { OFFLINE_MESSAGE } from "@/components/kitchen/safe-action"
+import { OWNER_ROLES, isOwnerRole } from "@/lib/venue-ops-roles"
 import Link from "next/link"
 import { Check, Loader2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -82,21 +83,49 @@ function TaskRow({ task }: { task: BoardTask }) {
           </div>
         </div>
 
+        {/* Owner. Role chips first (one tap), a typed name second. */}
+        <div className="flex flex-wrap gap-1.5">
+          {OWNER_ROLES.map((r) => {
+            const active = task.ownedBy === r
+            return (
+              <button
+                key={r}
+                type="button"
+                disabled={busy}
+                aria-pressed={active}
+                onClick={() => {
+                  setOwner(r)
+                  run(() => assignTask(task.id, r), `Assigned to ${r}`)
+                }}
+                className={`min-h-[40px] rounded-full border px-3.5 text-[14px] font-semibold transition active:scale-[0.97] ${
+                  active
+                    ? "border-[var(--tk-charcoal)] bg-[var(--tk-charcoal)] text-white"
+                    : "border-border bg-card text-foreground"
+                }`}
+              >
+                {r}
+              </button>
+            )
+          })}
+        </div>
         <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="text"
-            value={owner}
-            onChange={(e) => setOwner(e.target.value)}
-            placeholder="Who's on it?"
-            className="min-h-[44px] w-full min-w-0 flex-1 rounded-md border border-border bg-card px-3 text-[15px] sm:w-44 sm:flex-none"
-          />
-          <button
-            disabled={busy}
-            onClick={() => run(() => assignTask(task.id, owner), owner.trim() ? `Assigned to ${owner.trim()}` : "Owner cleared")}
-            className="min-h-[44px] rounded-md border border-border px-3.5 text-[15px] font-medium"
-          >
-            Assign
-          </button>
+          {/* Name + Assign stay together; on a phone they take their own row. */}
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <input
+              type="text"
+              value={isOwnerRole(owner) ? "" : owner}
+              onChange={(e) => setOwner(e.target.value)}
+              placeholder="Or a person's name"
+              className="min-h-[44px] min-w-0 flex-1 rounded-md border border-border bg-card px-3 text-[15px] sm:w-48 sm:flex-none"
+            />
+            <button
+              disabled={busy || isOwnerRole(owner)}
+              onClick={() => run(() => assignTask(task.id, owner), owner.trim() ? `Assigned to ${owner.trim()}` : "Owner cleared")}
+              className="min-h-[44px] shrink-0 rounded-md border border-border px-3.5 text-[15px] font-medium disabled:opacity-40"
+            >
+              Assign
+            </button>
+          </div>
           <span className="hidden flex-1 sm:block" />
           <button
             disabled={busy}

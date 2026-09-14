@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 
 import { cookies } from "next/headers"
 import { getPrepSheet } from "@/lib/actions/prep-sheet"
+import { getPrepWalkTicks } from "@/lib/actions/prep-walk"
 import { PrepWalkthrough } from "@/components/kitchen/PrepWalkthrough"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
@@ -32,6 +33,7 @@ export default async function KitchenPrepPage({
   const dateParam = typeof sp.date === "string" ? sp.date : undefined
 
   const sheet = await getPrepSheet({ venue, forDate: dateParam })
+  const ticks = await getPrepWalkTicks(venue, sheet.forDate)
   const venueLabel = VENUE_LABEL[venue].replace(/\s*\(.*\)$/, "")
 
   return (
@@ -54,11 +56,12 @@ export default async function KitchenPrepPage({
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
           One prep at a time. Built from the last 4 same-weekday sales at{" "}
           {venueLabel}. Tap <strong>Done</strong> as you make each batch, or{" "}
-          <strong>Skip</strong> if you already have enough.
+          <strong>Skip</strong> if you already have enough. Progress is saved as
+          you go, so another device picks up where you left off.
         </p>
       </div>
 
-      <PrepWalkthrough sheet={sheet} venue={venue} />
+      <PrepWalkthrough sheet={sheet} venue={venue} initialStatuses={ticks} />
     </div>
   )
 }

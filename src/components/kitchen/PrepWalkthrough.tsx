@@ -1,29 +1,33 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { Check, SkipForward, RotateCcw, ArrowRight, Clock } from "lucide-react"
+import { useMemo, useState, useTransition } from "react"
+import { Check, SkipForward, RotateCcw, ArrowRight, Clock, Loader2 } from "lucide-react"
 import type { PrepSheet, PrepSheetLine } from "@/lib/actions/prep-sheet"
+import {
+  clearPrepWalkTick,
+  resetPrepWalk,
+  setPrepWalkTick,
+  type PrepWalkStatuses,
+} from "@/lib/actions/prep-walk"
+import { useRememberedName } from "@/components/kitchen/use-remembered-name"
+import { OFFLINE_MESSAGE } from "@/components/kitchen/safe-action"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
-type Status = "pending" | "done" | "skipped"
+type Status = "DONE" | "SKIPPED"
 
-// Per-prep client-side state. The whole point of this view is fast tap-through,
-// staff don't want to type or wait for round-trips. Progress is mirrored to
-// localStorage (keyed by venue + date) so an iPad going to sleep mid-shift
-// doesn't wipe the run; there's still no server-side audit trail.
-
-const STORAGE_PREFIX = "tk-prep-walkthrough:"
-
-function storageKeyFor(venue: Venue, forDate: string) {
-  return `${STORAGE_PREFIX}${venue}:${forDate.slice(0, 10)}`
-}
+// Fast tap-through: the screen moves on the instant a button is tapped, and
+// the tap is written to the server behind it. Progress therefore lives in
+// one place for every device, survives the iPad's browser being cleared,
+// and records who made what. A failed write rolls the tap back and says so.
 
 export function PrepWalkthrough({
   sheet,
   venue,
+  initialStatuses,
 }: {
   sheet: PrepSheet
   venue: Venue
+  initialStatuses: PrepWalkStatuses
 }) {
   // Stable ordered list: highest-cost preps first so chefs hit the big-impact
   // items at the start of the shift while attention is fresh.
@@ -33,57 +37,14 @@ export function PrepWalkthrough({
     [sheet.lines],
   )
 
-  const [statuses, setStatuses] = useState<Record<string, Status>>({})
+  const [statuses, setStatuses] = useState<Record<string, Status>>(initialStatuses)
   const [index, setIndex] = useState(0)
+  const [name, setName] = useRememberedName()
+  const [error, setError] = useState("")
+  const [saving, startSave] = useTransition()
 
-  const storageKey = storageKeyFor(venue, sheet.forDate)
-
-  // Restore today's progress after a sleep/reload, and clear keys left over
-  // from earlier dates so the iPad doesn't accumulate stale runs.
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(storageKey)
-      if (raw) {
-        const parsed = JSON.parse(raw) as Record<string, Status>
-        if (parsed && typeof parsed === "object") {
-          setStatuses(parsed)
-          setIndex(0)
-        }
-      }
-      const todayPart = storageKey.split(":")[2]
-      for (let i = window.localStorage.length - 1; i >= 0; i--) {
-        const key = window.localStorage.key(i)
-        if (!key || !key.startsWith(STORAGE_PREFIX) || key === storageKey) {
-          continue
-        }
-        const keyDate = key.split(":")[2]
-        if (keyDate && todayPart && keyDate < todayPart) {
-          window.localStorage.removeItem(key)
-        }
-      }
-    } catch {
-      // localStorage unavailable (private mode), progress stays session-only
-    }
-  }, [storageKey])
-
-  function persistStatuses(next: Record<string, Status>) {
-    try {
-      window.localStorage.setItem(storageKey, JSON.stringify(next))
-    } catch {
-      // best-effort only
-    }
-  }
-
-  function clearPersisted() {
-    try {
-      window.localStorage.removeItem(storageKey)
-    } catch {
-      // best-effort only
-    }
-  }
-
-  const done = lines.filter((l) => statuses[l.preparationId] === "done").length
-  const skipped = lines.filter((l) => statuses[l.preparationId] === "skipped")
+  const done = lines.filter((l) => statuses[l.preparationId] === "DONE").length
+  const skipped = lines.filter((l) => statuses[l.preparationId] === "SKIPPED")
     .length
   const remaining = lines.length - done - skipped
   const finished = remaining === 0 && lines.length > 0
@@ -118,10 +79,19 @@ export function PrepWalkthrough({
         forDate={sheet.forDate}
         done={done}
         skipped={skipped}
+        busy={saving}
+        error={error}
         onReset={() => {
-          setStatuses({})
-          setIndex(0)
-          clearPersisted()
+          setError("")
+          startSave(async () => {
+            try {
+              await resetPrepWalk(venue, sheet.forDate)
+              setStatuses({})
+              setIndex(0)
+            } catch {
+              setError(OFFLINE_MESSAGE)
+            }
+          })
         }}
       />
     )
@@ -154,10 +124,27 @@ export function PrepWalkthrough({
         : "Tea Garden"
 
   function mark(status: Status) {
-    const next = { ...statuses, [current.preparationId]: status }
-    setStatuses(next)
+    const id = current.preparationId
+    const before = statuses
+    // Move on immediately; the write happens behind the next card.
+    setStatuses({ ...statuses, [id]: status })
     setIndex(visibleIndex + 1)
-    persistStatuses(next)
+    setError("")
+    startSave(async () => {
+      try {
+        await setPrepWalkTick({
+          venue,
+          forDate: sheet.forDate,
+          preparationId: id,
+          status,
+          by: name,
+        })
+      } catch {
+        setStatuses(before)
+        setIndex(visibleIndex)
+        setError(`${OFFLINE_MESSAGE} Your last tap on ${current.preparationName} didn't stick.`)
+      }
+    })
   }
 
   function back() {
@@ -166,11 +153,20 @@ export function PrepWalkthrough({
     for (let i = visibleIndex - 1; i >= 0; i--) {
       const id = lines[i].preparationId
       if (statuses[id] != null) {
+        const before = statuses
         const next = { ...statuses }
         delete next[id]
         setStatuses(next)
         setIndex(i)
-        persistStatuses(next)
+        setError("")
+        startSave(async () => {
+          try {
+            await clearPrepWalkTick({ venue, forDate: sheet.forDate, preparationId: id })
+          } catch {
+            setStatuses(before)
+            setError(OFFLINE_MESSAGE)
+          }
+        })
         return
       }
     }
@@ -184,20 +180,29 @@ export function PrepWalkthrough({
         total={lines.length}
         venueLabel={venueLabel}
         forDate={sheet.forDate}
+        name={name}
+        onName={setName}
+        saving={saving}
       />
+
+      {error ? (
+        <p role="alert" className="rounded-[14px] bg-[var(--tk-warn-soft)] px-4 py-3 text-[15px] font-medium text-[var(--tk-warn)]">
+          {error}
+        </p>
+      ) : null}
 
       <PrepCard line={current} />
 
       <div className="grid gap-3 sm:grid-cols-[1fr_1fr]">
         <button
-          onClick={() => mark("skipped")}
+          onClick={() => mark("SKIPPED")}
           className="flex min-h-[72px] items-center justify-center gap-3 rounded-[18px] border border-[var(--tk-line)] bg-white px-6 text-[18px] font-semibold text-[var(--tk-charcoal)] transition active:scale-[0.985]"
         >
           <SkipForward className="h-5 w-5" />
           Skip, have enough
         </button>
         <button
-          onClick={() => mark("done")}
+          onClick={() => mark("DONE")}
           className="flex min-h-[72px] items-center justify-center gap-3 rounded-[18px] px-6 text-[18px] font-semibold text-white transition active:scale-[0.985]"
           style={{ background: "var(--tk-done)" }}
         >
@@ -210,14 +215,14 @@ export function PrepWalkthrough({
         <button
           onClick={back}
           disabled={done + skipped === 0}
-          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium text-[var(--tk-ink-soft)] transition hover:bg-[var(--tk-bg)] disabled:opacity-40"
+          className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full px-3 font-medium text-[var(--tk-ink-soft)] transition hover:bg-[var(--tk-bg)] disabled:opacity-40"
         >
           <RotateCcw className="h-3.5 w-3.5" />
           Undo last
         </button>
         <button
-          onClick={() => mark("skipped")}
-          className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 font-medium text-[var(--tk-ink-soft)] transition hover:bg-[var(--tk-bg)]"
+          onClick={() => mark("SKIPPED")}
+          className="inline-flex min-h-[40px] items-center gap-1 rounded-full px-3 font-medium text-[var(--tk-ink-soft)] transition hover:bg-[var(--tk-bg)]"
         >
           Skip & next
           <ArrowRight className="h-3.5 w-3.5" />
@@ -233,12 +238,18 @@ function ProgressBar({
   total,
   venueLabel,
   forDate,
+  name,
+  onName,
+  saving,
 }: {
   done: number
   skipped: number
   total: number
   venueLabel: string
   forDate: string
+  name: string
+  onName: (v: string) => void
+  saving: boolean
 }) {
   const pct = total === 0 ? 0 : Math.round(((done + skipped) / total) * 100)
   const human = new Date(forDate).toLocaleDateString("en-AU", {
@@ -252,7 +263,8 @@ function ProgressBar({
         <span>
           {venueLabel} · {human}
         </span>
-        <span className="tabular-nums">
+        <span className="inline-flex items-center gap-2 tabular-nums">
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
           {done + skipped} of {total}
         </span>
       </div>
@@ -276,6 +288,19 @@ function ProgressBar({
           Remaining {total - done - skipped}
         </span>
       </div>
+      <label className="mt-4 block sm:max-w-[280px]">
+        <span className="text-[12px] font-medium uppercase tracking-widest text-[var(--tk-ink-soft)]">
+          On prep today
+        </span>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => onName(e.target.value)}
+          placeholder="Your name"
+          autoCapitalize="words"
+          className="mt-1.5 w-full rounded-[12px] border border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 py-2.5 text-[16px] text-[var(--tk-charcoal)] outline-none focus:border-[var(--tk-charcoal)]"
+        />
+      </label>
     </div>
   )
 }
@@ -416,12 +441,16 @@ function FinishedState({
   forDate,
   done,
   skipped,
+  busy,
+  error,
   onReset,
 }: {
   venue: Venue
   forDate: string
   done: number
   skipped: number
+  busy: boolean
+  error: string
   onReset: () => void
 }) {
   const human = new Date(forDate).toLocaleDateString("en-AU", {
@@ -438,14 +467,20 @@ function FinishedState({
         All done!
       </div>
       <p className="mt-3 text-[16px] text-[var(--tk-ink-soft)]">
-        {human} prep: {done} made, {skipped} skipped.
+        {human} prep: {done} made, {skipped} skipped. Saved, so it reads the same on every device.
       </p>
+      {error ? (
+        <p role="alert" className="mx-auto mt-3 max-w-md rounded-[14px] bg-[var(--tk-warn-soft)] px-4 py-3 text-[15px] font-medium text-[var(--tk-warn)]">
+          {error}
+        </p>
+      ) : null}
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         <button
           onClick={onReset}
-          className="inline-flex items-center gap-2 rounded-full border border-[var(--tk-line)] bg-white px-5 py-2.5 text-[14px] font-medium text-[var(--tk-charcoal)] hover:bg-[var(--tk-bg)]"
+          disabled={busy}
+          className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[var(--tk-line)] bg-white px-5 text-[14px] font-medium text-[var(--tk-charcoal)] hover:bg-[var(--tk-bg)] disabled:opacity-50"
         >
-          <RotateCcw className="h-4 w-4" />
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
           Run again
         </button>
         <a

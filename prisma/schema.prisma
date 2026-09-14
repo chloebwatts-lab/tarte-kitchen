@@ -2920,3 +2920,26 @@ model AppSetting {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+/// One tap on the prep walk-through: this prep, for this service day, was
+/// made or skipped. Lives on the server so a walk started on the iPad shows
+/// the same progress on a phone, survives a cleared browser, and leaves a
+/// record of who made what. One row per prep per day; a re-tap updates it.
+enum PrepWalkStatus {
+  DONE
+  SKIPPED
+}
+
+model PrepWalkTick {
+  id            String         @id @default(cuid())
+  venue         Venue
+  /// The service day being prepped for, YYYY-MM-DD (matches PrepSheet.forDate).
+  forDate       String
+  preparationId String
+  status        PrepWalkStatus
+  by            String?
+  at            DateTime       @default(now())
+
+  @@unique([venue, forDate, preparationId])
+  @@index([venue, forDate])
+}
