@@ -343,15 +343,16 @@ function Section({
   )
 }
 
+/** Zero counts stay off the strip; the one exception is "needs an owner",
+ * because "nothing needs an owner" is the news a manager opens the board for. */
 function Stat({ n, label, href, tone }: { n: number; label: string; href: string; tone: "hot" | "warn" | "calm" }) {
+  if (n === 0) return null
   const cls =
-    n === 0
-      ? "border-[1.5px] border-[var(--tk-line)] bg-transparent text-[var(--tk-ink-mute)]"
-      : tone === "hot"
-        ? "bg-[var(--tk-charcoal)] text-white"
-        : tone === "warn"
-          ? "bg-[var(--tk-warn-soft)] text-[var(--tk-warn)]"
-          : "bg-[var(--tk-card)] border-[1.5px] border-[var(--tk-line)] text-[var(--tk-charcoal)]"
+    tone === "hot"
+      ? "bg-[var(--tk-charcoal)] text-white"
+      : tone === "warn"
+        ? "bg-[var(--tk-warn-soft)] text-[var(--tk-warn)]"
+        : "bg-[var(--tk-card)] border-[1.5px] border-[var(--tk-line)] text-[var(--tk-charcoal)]"
   return (
     <a href={href} className={`rounded-[12px] px-3.5 py-2 text-[15px] font-semibold ${cls}`}>
       <span className="tk-display text-[18px] font-bold">{n}</span> {label}
@@ -410,7 +411,13 @@ export function MorningBoard({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
-        <Stat n={board.unassigned.length} label="need an owner" href="#needs-owner" tone="hot" />
+        {board.unassigned.length === 0 ? (
+          <span className="inline-flex items-center gap-1.5 rounded-[12px] bg-[var(--tk-done-soft)] px-3.5 py-2 text-[15px] font-semibold text-[var(--tk-done)]">
+            <Check className="h-4 w-4" /> Everything has an owner
+          </span>
+        ) : (
+          <Stat n={board.unassigned.length} label="need an owner" href="#needs-owner" tone="hot" />
+        )}
         <Stat n={waitingCount} label="waiting on someone" href="#waiting" tone="calm" />
         <Stat n={board.stale.length} label="going stale" href="#stale" tone="warn" />
         <Stat n={belowPar.length} label="to order" href="#to-order" tone="calm" />
