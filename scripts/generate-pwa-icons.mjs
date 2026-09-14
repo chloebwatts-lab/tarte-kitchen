@@ -1,4 +1,5 @@
-// Generate the PWA home-screen icons for the staff app (/kitchen).
+// Generate the PWA home-screen icons for the staff app (/staffaccess) and
+// the office app (/home).
 //
 // Renders a simple "Ta." wordmark in white on a duck egg background
 // (Chloe's pick, 2026-08-05), using sharp (already present as Next's
@@ -24,16 +25,19 @@ const outDir = path.join(
 )
 
 const DUCK_EGG = "#a9cdc9"
+// The office app (installed from /home) gets the same wordmark on charcoal
+// so the two icons never get mixed up on one phone.
+const CHARCOAL = "#3c3e3f"
 const WHITE = "#ffffff"
 
 // scale < 1 shrinks the mark into the maskable safe zone (inner ~80%).
-function markSvg(size, scale = 1) {
+function markSvg(size, scale = 1, bg = DUCK_EGG) {
   const fontSize = Math.round(size * 0.5 * scale)
   // Nudge down slightly so the cap-height sits optically centred.
   const baselineY = Math.round(size * 0.5 + fontSize * 0.34)
   const centerX = Math.round(size * 0.5)
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-  <rect width="${size}" height="${size}" fill="${DUCK_EGG}"/>
+  <rect width="${size}" height="${size}" fill="${bg}"/>
   <text x="${centerX}" y="${baselineY}" text-anchor="middle"
         font-family="Georgia, 'Times New Roman', serif" font-weight="600"
         font-size="${fontSize}" letter-spacing="${-fontSize * 0.03}"
@@ -41,8 +45,8 @@ function markSvg(size, scale = 1) {
 </svg>`
 }
 
-async function render(name, size, scale) {
-  const png = await sharp(Buffer.from(markSvg(size, scale)), { density: 300 })
+async function render(name, size, scale, bg = DUCK_EGG) {
+  const png = await sharp(Buffer.from(markSvg(size, scale, bg)), { density: 300 })
     .resize(size, size)
     .png()
     .toBuffer()
@@ -56,4 +60,10 @@ await render("icon-512.png", 512, 1)
 await render("icon-maskable-192.png", 192, 0.72)
 await render("icon-maskable-512.png", 512, 0.72)
 await render("apple-touch-icon.png", 180, 0.92)
+// Office app set
+await render("office-icon-192.png", 192, 1, CHARCOAL)
+await render("office-icon-512.png", 512, 1, CHARCOAL)
+await render("office-maskable-192.png", 192, 0.72, CHARCOAL)
+await render("office-maskable-512.png", 512, 0.72, CHARCOAL)
+await render("office-apple-touch-icon.png", 180, 0.92, CHARCOAL)
 console.log("done")
