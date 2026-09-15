@@ -249,7 +249,7 @@ async function main() {
       continue
     }
     const [name] = hit
-    const a = herbs.get(name) ?? { spend: 0, n: 0, qtyByUnit: new Map(), byVenue: new Map(), bySupplier: new Map(), prices: [] }
+    const a = herbs.get(name) ?? { spend: 0, n: 0, qtyByUnit: new Map(), byVenue: new Map(), bySupplier: new Map(), prices: [] as number[] }
     const v = lineValue(r)
     a.spend += v
     a.n += 1
