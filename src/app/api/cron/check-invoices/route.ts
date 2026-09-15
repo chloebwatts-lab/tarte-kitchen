@@ -20,6 +20,7 @@ import { processInvoice } from "@/lib/invoices/processor"
 import {
   disambiguateSupplier,
   IGNORED_SENDER_PROBES,
+  isOwnMailbox,
   type SupplierRef,
 } from "@/lib/invoices/supplier-match"
 import { readFile } from "fs/promises"
@@ -313,9 +314,17 @@ async function processMessages(
             })
             .catch(() => {})
           stats.unmatched++
-          stats.errors.push(
-            `Message ${ref.id}: could not match sender "${senderEmail}" (display: "${senderName}", invoice: "${parsed.supplierName}") — ${reason}; candidates: ${candidates.map((c) => c.name).join(", ")}`
-          )
+          const detail = `Message ${ref.id}: could not match sender "${senderEmail}" (display: "${senderName}", invoice: "${parsed.supplierName}") — ${reason}; candidates: ${candidates.map((c) => c.name).join(", ")}`
+          // A forward from our own mailbox whose letterhead names some
+          // other company is a staff member passing on a receipt, not a
+          // broken supplier mapping. It is parked in the review queue
+          // above; logging it as a run error lit the dashboard banner for
+          // a $1,600 tray order.
+          if (isOwnMailbox(senderEmail) && /contradicted by letterhead/.test(reason ?? "")) {
+            console.warn(`[check-invoices] parked staff forward: ${detail}`)
+          } else {
+            stats.errors.push(detail)
+          }
           continue
         }
 

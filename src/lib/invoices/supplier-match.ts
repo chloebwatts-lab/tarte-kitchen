@@ -53,7 +53,21 @@ export const IGNORED_SENDER_PROBES = [
   "department of home affairs",
   "department of justice",
   "amazon export sales",
+  // Smallwares and plant (bins, trays, benches): plant & equipment, not
+  // COGS. Shawna forwards these from her mailbox, which is mapped to
+  // Paramount Liquor, so without this they failed the letterhead check
+  // on every sweep and flagged the dashboard.
+  "agc catering equipment",
+  "agc equipment",
+  "agcequipment",
 ]
+
+/** Our own mailboxes. A forward from one of these that fails the letterhead
+ * check is a staff member passing on a non-food receipt, not a supplier
+ * mis-attribution: park it for review, do not treat the run as errored. */
+export function isOwnMailbox(email: string | null): boolean {
+  return !!email && /@tarte\.com\.au$/i.test(email.trim())
+}
 
 // Legitimate alternate letterheads for a supplier: legal entities, trading
 // names, and ordering platforms that print their own branding on the PDF.
