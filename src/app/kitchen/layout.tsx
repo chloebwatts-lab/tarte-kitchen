@@ -1,3 +1,12 @@
+import type { Metadata } from "next"
+
+// Staff home-screen app: this section links the staff manifest only.
+export const metadata: Metadata = {
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "Tarte", statusBarStyle: "default" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
+}
+
 import "./kitchen.css"
 
 import { RefreshOnResume } from "@/components/kitchen/RefreshOnResume"

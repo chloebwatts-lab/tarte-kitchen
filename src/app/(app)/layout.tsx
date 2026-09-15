@@ -3,8 +3,9 @@ import { headers } from "next/headers";
 import { AppLayoutClient } from "./AppLayoutClient";
 
 // The office side installs as its own home-screen app ("Tarte HQ"), with
-// its own manifest and icon, separate from the staff app. Overrides the
-// root layout's staff manifest for every page under (app).
+// its own manifest and icon, separate from the staff app. Only this
+// manifest is linked on office pages, so Add to Home Screen from /home
+// installs Tarte HQ, never the staff tools.
 export const metadata: Metadata = {
   manifest: "/office.webmanifest",
   appleWebApp: { capable: true, title: "Tarte HQ", statusBarStyle: "default" },
