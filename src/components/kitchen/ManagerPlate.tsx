@@ -77,10 +77,16 @@ export function ManagerPlate({ plate, venueLabel }: { plate: PlateData; venueLab
   const sized = openCount - plate.openUnsized
 
   const sentences: string[] = []
+  const split =
+    plate.ownList.length === 0
+      ? "all from the board"
+      : plate.open.length === 0
+        ? `all on ${first}'s own list`
+        : `${plate.open.length} from the board and ${plate.ownList.length} on ${first}'s own list`
   sentences.push(
-    `${first} has ${openCount} open item${openCount === 1 ? "" : "s"} at ${venueLabel}: ${plate.open.length} job${
-      plate.open.length === 1 ? "" : "s"
-    } from the board and ${plate.ownList.length} on ${first}'s own list.`
+    openCount === 0
+      ? `${first} has nothing open at ${venueLabel} right now.`
+      : `${first} has ${openCount} open item${openCount === 1 ? "" : "s"} at ${venueLabel}, ${split}.`
   )
   if (sized > 0) {
     sentences.push(
@@ -89,7 +95,11 @@ export function ManagerPlate({ plate, venueLabel }: { plate: PlateData; venueLab
       }.`
     )
   }
-  if (plate.dueThisWeek > 0) sentences.push(`${plate.dueThisWeek} of the board jobs fall due this week.`)
+  if (plate.dueThisWeek > 0) {
+    sentences.push(
+      plate.dueThisWeek === 1 ? "One of the board jobs falls due this week." : `${plate.dueThisWeek} of the board jobs fall due this week.`
+    )
+  }
   if (plate.chasing.length > 0 || plate.unallocated > 0) {
     const bits: string[] = []
     if (plate.chasing.length > 0) bits.push(`chasing ${plate.chasing.length} job${plate.chasing.length === 1 ? "" : "s"} on other people`)
