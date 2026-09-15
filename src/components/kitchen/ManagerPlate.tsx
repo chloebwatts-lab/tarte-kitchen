@@ -71,7 +71,13 @@ function ListBox({ children }: { children: React.ReactNode }) {
   )
 }
 
-export function ManagerPlate({ plate, venueLabel }: { plate: PlateData; venueLabel: string }) {
+/**
+ * `embedded`: rendered inside the Morning board's "On Georgia" section, which
+ * already lists the board jobs, the own list and the waiting-on groups, so
+ * those three are left out and only the wider picture stays: the sentence,
+ * recurring jobs, standing areas, and what got closed.
+ */
+export function ManagerPlate({ plate, venueLabel, embedded = false }: { plate: PlateData; venueLabel: string; embedded?: boolean }) {
   const first = plate.who.split(/\s+/)[0]
   const openCount = plate.open.length + plate.ownList.length
   const sized = openCount - plate.openUnsized
@@ -133,7 +139,7 @@ export function ManagerPlate({ plate, venueLabel }: { plate: PlateData; venueLab
 
       <p className="max-w-3xl px-1 text-[18px] leading-snug text-[var(--tk-charcoal)]">{sentences.join(" ")}</p>
 
-      {plate.open.length > 0 ? (
+      {!embedded && plate.open.length > 0 ? (
         <section className="border-t-[1.5px] border-[var(--tk-line)] pt-5">
           <SectionHead title={`Board jobs on ${first}`} count={plate.open.length} hint="Worst first." />
           <ListBox>
@@ -144,7 +150,7 @@ export function ManagerPlate({ plate, venueLabel }: { plate: PlateData; venueLab
         </section>
       ) : null}
 
-      {plate.ownList.length > 0 ? (
+      {!embedded && plate.ownList.length > 0 ? (
         <section className="border-t-[1.5px] border-[var(--tk-line)] pt-5">
           <SectionHead
             title={`${first}'s own list`}
@@ -159,7 +165,7 @@ export function ManagerPlate({ plate, venueLabel }: { plate: PlateData; venueLab
         </section>
       ) : null}
 
-      {plate.chasing.length > 0 ? (
+      {!embedded && plate.chasing.length > 0 ? (
         <section className="border-t-[1.5px] border-[var(--tk-line)] pt-5">
           <SectionHead title="Chasing on other people" count={plate.chasing.length} hint="Handed out, still open." />
           <ListBox>
@@ -239,7 +245,7 @@ export function ManagerPlate({ plate, venueLabel }: { plate: PlateData; venueLab
         </section>
       ) : null}
 
-      {openCount === 0 && plate.chasing.length === 0 && plate.schedules.length === 0 && plate.closed30.length === 0 ? (
+      {!embedded && openCount === 0 && plate.chasing.length === 0 && plate.schedules.length === 0 && plate.closed30.length === 0 ? (
         <div className="rounded-[20px] bg-[var(--tk-card)] px-6 py-10 text-center">
           <p className="tk-display text-[28px] font-bold tracking-[-0.02em] text-[var(--tk-charcoal)]">
             Nothing recorded on {first} at {venueLabel}.
@@ -250,6 +256,7 @@ export function ManagerPlate({ plate, venueLabel }: { plate: PlateData; venueLab
         </div>
       ) : null}
 
+      {embedded ? null : (
       <p className="pt-2 text-[15px] text-[var(--tk-ink-soft)]">
         Read-only. To act on any of it, open the{" "}
         <Link href={`/kitchen/managers/board?venue=${plate.venue}`} className="font-semibold text-[var(--tk-charcoal)] underline decoration-[var(--tk-line)] underline-offset-4">
@@ -257,6 +264,7 @@ export function ManagerPlate({ plate, venueLabel }: { plate: PlateData; venueLab
         </Link>
         .
       </p>
+      )}
     </div>
   )
 }

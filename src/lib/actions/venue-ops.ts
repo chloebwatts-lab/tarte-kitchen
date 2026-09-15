@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
+import { sendIssueAlert } from "@/lib/maintenance/notify"
 import {
   Venue,
   VenueTaskCategory,
@@ -36,8 +37,6 @@ function effectivePriority(t: {
 function bust() {
   revalidatePath("/venue-ops")
   revalidatePath("/kitchen/managers/board")
-  revalidatePath("/kitchen/managers/plate")
-  revalidatePath("/kitchen/managers/list")
   revalidatePath("/kitchen/jobs")
 }
 
@@ -381,6 +380,11 @@ export async function completeTask(
       },
     })
     revalidatePath("/maintenance")
+    await sendIssueAlert(
+      task.maintenanceIssueId,
+      "fixed",
+      `${doneBy.trim() || "Someone"} closed it from the morning board.${note?.trim() ? ` ${note.trim()}` : ""}`
+    )
   }
 
   // A recurring job that got done moves its own next due date forward.
@@ -781,8 +785,6 @@ export async function addOwnItem(venue: Venue, who: string, title: string, prior
     },
     select: { id: true },
   })
-  revalidatePath("/kitchen/managers/list")
-  revalidatePath("/kitchen/managers/plate")
   return { id: row.id }
 }
 
@@ -793,7 +795,6 @@ export async function reopenTask(taskId: string) {
     data: { status: "IN_PROGRESS", doneBy: null, doneAt: null, doneNote: null },
   })
   bust()
-  revalidatePath("/kitchen/managers/list")
 }
 
 /** A personal item that turns out to be somebody's job: onto the board, unowned. */
@@ -810,12 +811,9 @@ export async function releaseToBoard(taskId: string, by: string) {
     },
   })
   bust()
-  revalidatePath("/kitchen/managers/list")
 }
 
 /** Delete a personal item outright. Board jobs are dismissed, never deleted. */
 export async function removeOwnItem(taskId: string) {
   await db.venueTask.deleteMany({ where: { id: taskId, personal: true } })
-  revalidatePath("/kitchen/managers/list")
-  revalidatePath("/kitchen/managers/plate")
 }

@@ -3,7 +3,7 @@ import {
   CalendarCheck, ClipboardCheck, ClipboardList, Croissant, Eye, Lock,
   MessageSquarePlus, PackageOpen, PackageSearch, Printer, Scale, ShieldCheck,
   ShoppingBasket, ShoppingCart, Snowflake, Trash2, Wrench, Megaphone, Sunrise,
-  Handshake, GraduationCap, ListChecks, ListTodo, Scale3d,
+  Handshake, GraduationCap, ListChecks,
 } from "lucide-react"
 
 type Icon = ComponentType<{ className?: string; strokeWidth?: number }>
@@ -67,25 +67,16 @@ export const TOOL_GROUPS: ToolGroup[] = [
     ],
   },
   {
-    slug: "jobs",
-    title: "Jobs board",
-    sub: "What the morning board put on you. Tick it off.",
-    icon: ListChecks,
-    href: "/kitchen/jobs",
-    tools: [],
-  },
-  {
     slug: "managers",
     title: "Managers",
-    sub: "Line-up, morning board, the plate. Password.",
+    sub: "Line-up, morning board, jobs board. Password.",
     icon: Lock,
     href: "/kitchen/managers",
     locked: true,
     tools: [
       { title: "Line-up", sub: "Five minutes before open, already filled in", href: "/kitchen/lineup", icon: Megaphone },
       { title: "Morning board", sub: "Everything reported, scheduled or below par", href: "/kitchen/managers/board", icon: Sunrise },
-      { title: "My list", sub: "The manager's own tick-list. Nobody else's to pick up", href: "/kitchen/managers/list", icon: ListTodo },
-      { title: "The plate", sub: "Everything on the manager, for the other managers to see", href: "/kitchen/managers/plate", icon: Scale3d },
+      { title: "Jobs board", sub: "What the morning board put on you. Tick it off", href: "/kitchen/jobs", icon: ListChecks },
       { title: "Said + Done", sub: "Kitchen commitments, week by week", href: "/kitchen/commitments", icon: Handshake },
       { title: "Meeting agenda", sub: "What people have raised, and what was decided", href: "/kitchen/managers/agenda", icon: MessageSquarePlus },
       { title: "Staff training", sub: "Food handler records", href: "/kitchen/training", icon: GraduationCap },

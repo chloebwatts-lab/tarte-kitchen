@@ -24,7 +24,14 @@ import {
   overrideTaskPriority,
   setTaskEstimate,
 } from "@/lib/actions/venue-ops"
-import type { BoardTask, MorningBoard as MorningBoardData } from "@/lib/actions/venue-ops"
+import type {
+  BoardTask,
+  ManagerPlate as PlateData,
+  MorningBoard as MorningBoardData,
+  OwnList as OwnListData,
+} from "@/lib/actions/venue-ops"
+import { OwnList } from "@/components/kitchen/OwnList"
+import { ManagerPlate } from "@/components/kitchen/ManagerPlate"
 import type { ReorderLine } from "@/lib/actions/venue-stock"
 import type { VenueTaskPriority } from "@/generated/prisma/client"
 
@@ -283,13 +290,24 @@ export function MorningBoard({
   board,
   belowPar,
   venueLabel,
+  manager,
+  own,
+  plate,
 }: {
   board: MorningBoardData
   belowPar: ReorderLine[]
   venueLabel: string
+  /// The venue's manager (Georgia at Burleigh). Their section comes first and
+  /// carries their own list and the wider picture, so nobody has to ask.
+  manager: string | null
+  own: OwnListData | null
+  plate: PlateData | null
 }) {
   const [me] = useRememberedName()
   const mine = me.trim().toLowerCase()
+  const [fullPicture, setFullPicture] = useState(false)
+  const mgr = (manager ?? "").trim().toLowerCase()
+  const mgrFirst = manager ? manager.split(/\s+/)[0] : null
 
   // Owned rows grouped by name. Whoever is holding the iPad reads first.
   const byOwner = new Map<string, BoardTask[]>()
@@ -297,6 +315,8 @@ export function MorningBoard({
     const k = (t.ownedBy ?? "").trim()
     byOwner.set(k, [...(byOwner.get(k) ?? []), t])
   }
+  const mgrTasks = mgr ? (byOwner.get([...byOwner.keys()].find((k) => k.toLowerCase() === mgr) ?? "") ?? []) : []
+  if (mgr) for (const k of [...byOwner.keys()]) if (k.toLowerCase() === mgr) byOwner.delete(k)
   const groups = [...byOwner.entries()].sort(([a], [b]) => {
     if (a.toLowerCase() === mine) return -1
     if (b.toLowerCase() === mine) return 1
@@ -307,7 +327,48 @@ export function MorningBoard({
     board.unassigned.length + board.waitingOn.length + board.mine.length + board.stale.length
   const waitingCount = board.waitingOn.length + board.mine.length
 
-  if (openCount === 0 && belowPar.length === 0) {
+  const ownOpen = own?.open.length ?? 0
+  const managerSection =
+    manager && own && plate ? (
+      <Section
+        id="on-manager"
+        title={mgr === mine ? "On you" : `On ${mgrFirst}`}
+        count={mgrTasks.length + ownOpen}
+        hint={
+          plate.openMinutes > 0
+            ? `${plate.openMinutes >= 60 ? `${Math.round(plate.openMinutes / 60)} hr${plate.openMinutes >= 120 ? "s" : ""}` : `${plate.openMinutes} min`} sized. ${mgrFirst}'s own list lives here too, nobody else's to pick up.`
+            : `${mgrFirst}'s own list lives here too, nobody else's to pick up.`
+        }
+      >
+        {mgrTasks.length > 0 ? (
+          <div className="space-y-2.5">
+            {mgrTasks.map((t) => (
+              <TaskRow key={t.id} task={t} names={board.owners} me={me} unowned={false} />
+            ))}
+          </div>
+        ) : null}
+        <div className={mgrTasks.length > 0 ? "mt-4" : ""}>
+          <OwnList list={own} venue={board.venue} />
+        </div>
+        <div className="mt-4">
+          <button
+            onClick={() => setFullPicture((v) => !v)}
+            aria-expanded={fullPicture}
+            className="inline-flex items-center gap-1.5 rounded-[10px] px-2 py-1.5 text-[15px] font-semibold text-[var(--tk-ink-soft)] underline decoration-[var(--tk-line)] underline-offset-4"
+          >
+            {fullPicture ? "Hide the full picture" : `The full picture on ${mgrFirst}`}
+            <ChevronDown className={`h-4 w-4 transition ${fullPicture ? "rotate-180" : ""}`} />
+          </button>
+          {fullPicture ? (
+            <div className="mt-3 rounded-[16px] border-[1.5px] border-[var(--tk-line)] bg-[var(--tk-bg)] p-4 md:p-5">
+              <ManagerPlate plate={plate} venueLabel={venueLabel} embedded />
+            </div>
+          ) : null}
+        </div>
+      </Section>
+    ) : null
+
+  if (openCount === 0 && belowPar.length === 0 && ownOpen === 0) {
     return (
       <div className="rounded-[20px] bg-[var(--tk-card)] px-6 py-10 text-center">
         <p className="tk-display text-[28px] font-bold tracking-[-0.02em] text-[var(--tk-charcoal)]">
@@ -346,6 +407,8 @@ export function MorningBoard({
           </span>
         ) : null}
       </div>
+
+      {managerSection}
 
       {board.unassigned.length > 0 ? (
         <Section
@@ -443,7 +506,7 @@ export function MorningBoard({
         >
           <ListChecks className="h-4 w-4" /> Jobs board
         </Link>{" "}
-        is where everything with a name on it shows up for that person, no managers password.
+        is where everything with a name on it shows up for that person.
         {" "}Something new?{" "}
         <Link href="/kitchen/report" className="font-semibold text-[var(--tk-charcoal)] underline decoration-[var(--tk-line)] underline-offset-4">
           Spotted something

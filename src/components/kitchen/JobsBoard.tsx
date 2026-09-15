@@ -222,7 +222,7 @@ export function JobsBoard({ board, venueLabel }: { board: JobsBoardData; venueLa
         and it goes to the morning board.
       </p>
       <div className="flex flex-wrap gap-2">
-        <Link href="/kitchen/managers/board" className={chip(false)}>Morning board (managers)</Link>
+        <Link href={`/kitchen/managers/board?venue=${board.venue}`} className={chip(false)}>Morning board</Link>
       </div>
     </div>
   )

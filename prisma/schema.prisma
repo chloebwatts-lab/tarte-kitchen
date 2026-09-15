@@ -2145,6 +2145,11 @@ model MaintenanceIssue {
   isSafety    Boolean                @default(false)
 
   reportedBy String?
+  /// Which symptom the reporter picked on the fix page, and which of its
+  /// quick fixes they ticked as tried. The alert email says "checked the
+  /// filter and the drain before calling" instead of just "broken".
+  symptomKey String?
+  triedFixes String[] @default([])
   contactId  String?
   contact    MaintenanceContact? @relation(fields: [contactId], references: [id])
 

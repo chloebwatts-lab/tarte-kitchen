@@ -2,8 +2,7 @@ export const dynamic = "force-dynamic"
 
 import { cookies } from "next/headers"
 import { requireManager } from "@/lib/manager-auth"
-import { getMorningBoard } from "@/lib/actions/venue-ops"
-import { ManagerTabs } from "@/components/kitchen/ManagerTabs"
+import { getManagerPlate, getMorningBoard, getOwnList, getVenueTeam } from "@/lib/actions/venue-ops"
 import { getBelowPar } from "@/lib/actions/venue-stock"
 import { MorningBoard } from "@/components/kitchen/MorningBoard"
 import { VENUE_LABEL } from "@/lib/venues"
@@ -24,7 +23,14 @@ export default async function ManagerBoardPage({
   const p = typeof sp.venue === "string" ? sp.venue : null
   const c = (await cookies()).get("tk-venue")?.value ?? null
   const venue: Venue = isVenue(p) ? p : isVenue(c) ? c : "BURLEIGH"
-  const [board, belowPar] = await Promise.all([getMorningBoard(venue, ""), getBelowPar(venue)])
+  const team = await getVenueTeam(venue)
+  const manager = team.find((m) => m.role === "MANAGER")?.name ?? null
+  const [board, belowPar, own, plate] = await Promise.all([
+    getMorningBoard(venue, ""),
+    getBelowPar(venue),
+    manager ? getOwnList(venue, manager) : null,
+    manager ? getManagerPlate(venue, manager) : null,
+  ])
   const venueLabel = VENUE_LABEL[venue].replace(/\s*\(.*\)$/, "")
 
   return (
@@ -38,13 +44,12 @@ export default async function ManagerBoardPage({
           <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
             Everything staff have spotted, every job that has come due, and anything the stock
             walk says is low. Put a name on what has none; it lands on their Jobs board. Chase what
-            is waiting on someone else.
+            is waiting on someone else. The manager&apos;s own list and full picture sit at the top.
           </p>
         </div>
         <VenueSwitch current={venue} />
       </div>
-      <ManagerTabs venue={venue} manager={board.team.find((m) => m.role === "MANAGER")?.name ?? null} active="board" />
-      <MorningBoard board={board} belowPar={belowPar} venueLabel={venueLabel} />
+      <MorningBoard board={board} belowPar={belowPar} venueLabel={venueLabel} manager={manager} own={own} plate={plate} />
     </div>
   )
 }
