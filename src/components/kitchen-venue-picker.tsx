@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react"
 import Link from "next/link"
+import { usePathname, useSearchParams } from "next/navigation"
 import { ArrowRight, Clock, LayoutGrid } from "lucide-react"
 import { SINGLE_VENUES, VENUE_LABEL } from "@/lib/venues"
 import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
@@ -46,6 +47,19 @@ export function KitchenVenuePicker() {
     () => null
   )
 
+  // Any venue-scoped page falls back to this picker when nothing is
+  // remembered. Picking a venue returns to that same page (other params
+  // kept), not to the checklists, so a stock walk opened on a fresh iPad
+  // still ends up on the stock walk.
+  const pathname = usePathname() || "/kitchen"
+  const params = useSearchParams()
+  const isHome = pathname === "/kitchen"
+  function hrefFor(v: (typeof SINGLE_VENUES)[number]) {
+    const q = new URLSearchParams(params?.toString() ?? "")
+    q.set("venue", v)
+    return `${pathname}?${q.toString()}`
+  }
+
   return (
     <div
       className="relative -mx-6 -my-5 min-h-[calc(100vh-0px)] overflow-hidden rounded-[14px] md:-mx-10 md:-my-8"
@@ -82,14 +96,15 @@ export function KitchenVenuePicker() {
             letterSpacing: "-0.035em",
           }}
         >
-          Checklists
+          {isHome ? "Checklists" : "Which venue?"}
         </h1>
         <p
           className="mx-auto mt-3 max-w-xl text-[16px] leading-snug md:mt-5 md:text-[20px]"
           style={{ color: "rgba(255,255,255,0.85)" }}
         >
-          Cleaning and food temperature logs, all in one place. Pick a venue to
-          begin.
+          {isHome
+            ? "Cleaning and food temperature logs, all in one place. Pick a venue to begin."
+            : "Pick the venue you're at and this page opens for it."}
         </p>
       </div>
 
@@ -99,7 +114,7 @@ export function KitchenVenuePicker() {
           {SINGLE_VENUES.map((v) => (
             <Link
               key={v}
-              href={`/kitchen?venue=${v}`}
+              href={hrefFor(v)}
               onClick={() => rememberVenue(v)}
               className="group flex min-h-[128px] flex-col justify-between rounded-[20px] bg-white/95 p-5 text-left transition active:scale-[0.99] md:min-h-[180px] md:p-6"
               style={{ color: "var(--tk-charcoal)" }}
@@ -137,7 +152,7 @@ export function KitchenVenuePicker() {
               </div>
               <div className="flex items-end justify-between">
                 <span className="tk-caps" style={{ color: "var(--tk-ink-mute)" }}>
-                  Open station
+                  {isHome ? "Open station" : "Open here"}
                 </span>
                 <div
                   className="flex h-10 w-10 items-center justify-center rounded-full transition group-hover:bg-[var(--tk-charcoal)] group-hover:text-white"
