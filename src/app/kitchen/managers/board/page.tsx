@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import { cookies } from "next/headers"
 import { requireManager } from "@/lib/manager-auth"
 import { getMorningBoard } from "@/lib/actions/venue-ops"
+import { ManagerTabs } from "@/components/kitchen/ManagerTabs"
 import { getBelowPar } from "@/lib/actions/venue-stock"
 import { MorningBoard } from "@/components/kitchen/MorningBoard"
 import { VENUE_LABEL } from "@/lib/venues"
@@ -36,11 +37,13 @@ export default async function ManagerBoardPage({
           </div>
           <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
             Everything staff have spotted, every job that has come due, and anything the stock
-            walk says is low. Put a name on what has none, chase what is waiting on someone else.
+            walk says is low. Put a name on what has none; it lands on their Jobs board. Chase what
+            is waiting on someone else.
           </p>
         </div>
         <VenueSwitch current={venue} />
       </div>
+      <ManagerTabs venue={venue} manager={board.team.find((m) => m.role === "MANAGER")?.name ?? null} active="board" />
       <MorningBoard board={board} belowPar={belowPar} venueLabel={venueLabel} />
     </div>
   )
