@@ -6,6 +6,7 @@ import { Sidebar, SidebarMobileTrigger } from "@/components/sidebar";
 import { Header } from "@/components/header";
 import { CommandSearch } from "@/components/command-search";
 import { PriceAlertBanner } from "@/components/price-alert-banner";
+import { MobileNav } from "@/components/mobile-nav";
 import { cn } from "@/lib/utils";
 
 const pageTitles: Record<string, string> = {
@@ -80,7 +81,10 @@ export function AppLayoutClient({
 
       <div
         className={cn(
-          "flex flex-1 flex-col transition-all duration-200",
+          // min-w-0 so a wide child (an email-width table, a long token) can
+          // never widen this column past the phone screen; without it iOS
+          // stretches the whole layout and every card runs off the right.
+          "flex min-w-0 flex-1 flex-col transition-all duration-200",
           sidebarCollapsed ? "md:pl-16" : "md:pl-64"
         )}
       >
@@ -89,9 +93,11 @@ export function AppLayoutClient({
           <SidebarMobileTrigger onOpen={() => setSidebarCollapsed(false)} />
         </Header>
 
-        <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6">{children}</div>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
+          {/* Bottom padding on phones keeps the last card clear of the bar. */}
+          <div className="mx-auto w-full max-w-6xl px-4 py-6 pb-24 md:px-6 md:pb-6">{children}</div>
         </main>
+        {isFullAccess && <MobileNav onMenu={() => setSidebarCollapsed(false)} />}
       </div>
     </div>
   );
