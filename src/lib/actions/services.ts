@@ -175,6 +175,44 @@ export async function staffMarkServiceDone(input: StaffMarkDoneInput) {
   revalidateServicePages()
 }
 
+export interface StaffAddVisitInput {
+  programId: string
+  kind: ServiceVisitKind
+  serviceDate: string // YYYY-MM-DD
+  recordedBy: string
+  providerName?: string
+  notes?: string
+}
+
+/**
+ * Staff put a visit on the calendar themselves: a booking the provider made
+ * by phone, or a visit whose invoice never reached the mailbox. The email
+ * sweep's same-event guard treats a manual row within 3 days as the same
+ * visit, so a later email for it won't double up.
+ */
+export async function staffAddServiceVisit(input: StaffAddVisitInput) {
+  if (!input.recordedBy.trim()) throw new Error("Name is required")
+  const date = new Date(`${input.serviceDate}T00:00:00`)
+  if (isNaN(date.getTime())) throw new Error("Bad date")
+  const program = await db.serviceProgram.findUnique({
+    where: { id: input.programId },
+    select: { id: true },
+  })
+  if (!program) throw new Error("Unknown service")
+  await db.serviceVisit.create({
+    data: {
+      programId: input.programId,
+      kind: input.kind,
+      serviceDate: date,
+      source: "MANUAL",
+      recordedBy: input.recordedBy.trim(),
+      providerName: input.providerName?.trim() || null,
+      notes: input.notes?.trim() || null,
+    },
+  })
+  revalidateServicePages()
+}
+
 // ── Admin: programs ─────────────────────────────────────────────────────────
 
 export interface ProgramInput {

@@ -15,7 +15,12 @@ import {
   Plus,
   X,
 } from "lucide-react"
-import { staffMarkServiceDone, type ServiceProgramRow } from "@/lib/actions/services"
+import { staffAddServiceVisit, type ServiceProgramRow } from "@/lib/actions/services"
+import { useRememberedName } from "@/components/kitchen/use-remembered-name"
+
+type VisitKind = "COMPLETED" | "BOOKED"
+/** Which card has its inline form open, and for what. */
+type Marking = { id: string; kind: VisitKind } | null
 import { STATUS_LABEL } from "@/lib/services/constants"
 
 const STATUS_STYLE: Record<
@@ -47,10 +52,17 @@ function todayStr(): string {
   return `${d.getFullYear()}-${m}-${day}`
 }
 
-export function ServicesCalendar({ programs }: { programs: ServiceProgramRow[] }) {
+export function ServicesCalendar({ programs: allPrograms }: { programs: ServiceProgramRow[] }) {
   const router = useRouter()
-  const [markingId, setMarkingId] = useState<string | null>(null)
+  const [marking, setMarking] = useState<Marking>(null)
   const [view, setView] = useState<"list" | "calendar">("list")
+  // One service at a time: tap Pest control and the card, its next booking
+  // and its history are all that's left on the page.
+  const [filter, setFilter] = useState<string | null>(null)
+  const programs = useMemo(
+    () => (filter ? allPrograms.filter((p) => p.id === filter) : allPrograms),
+    [allPrograms, filter]
+  )
 
   // One flat feed of everything, for the month-grouped calendar view:
   // future bookings ascending on top, history descending below.
@@ -81,9 +93,43 @@ export function ServicesCalendar({ programs }: { programs: ServiceProgramRow[] }
 
   return (
     <div className="space-y-8">
-      {/* View toggle */}
-      <div className="flex justify-end px-1">
-        <div className="flex rounded-2xl border border-[var(--tk-line)] bg-[var(--tk-card)] p-1">
+      {/* Service filter + view toggle */}
+      <div className="flex flex-wrap items-start justify-between gap-3 px-1">
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            onClick={() => setFilter(null)}
+            className={`rounded-full px-3.5 py-2 text-[14px] font-bold transition active:scale-[0.98] ${
+              filter === null
+                ? "bg-[var(--tk-charcoal)] text-white"
+                : "border border-[var(--tk-line)] bg-[var(--tk-card)] text-[var(--tk-ink-soft)]"
+            }`}
+          >
+            All services
+          </button>
+          {allPrograms.map((p) => {
+            const st = STATUS_STYLE[p.schedule.status]
+            const active = filter === p.id
+            return (
+              <button
+                key={p.id}
+                onClick={() => setFilter(active ? null : p.id)}
+                className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-[14px] font-bold transition active:scale-[0.98] ${
+                  active
+                    ? "bg-[var(--tk-charcoal)] text-white"
+                    : "border border-[var(--tk-line)] bg-[var(--tk-card)] text-[var(--tk-charcoal)]"
+                }`}
+              >
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ background: active ? "white" : st.fg }}
+                  aria-hidden
+                />
+                {p.displayLabel}
+              </button>
+            )
+          })}
+        </div>
+        <div className="flex shrink-0 rounded-2xl border border-[var(--tk-line)] bg-[var(--tk-card)] p-1">
           {(
             [
               { key: "list", label: "List", icon: List },
@@ -110,12 +156,12 @@ export function ServicesCalendar({ programs }: { programs: ServiceProgramRow[] }
       ) : (
         <ListView
           programs={programs}
-          markingId={markingId}
-          setMarkingId={setMarkingId}
+          marking={marking}
+          setMarking={setMarking}
           upcoming={upcoming}
           historyByMonth={historyByMonth}
           onSaved={() => {
-            setMarkingId(null)
+            setMarking(null)
             router.refresh()
           }}
         />
@@ -126,15 +172,15 @@ export function ServicesCalendar({ programs }: { programs: ServiceProgramRow[] }
 
 function ListView({
   programs,
-  markingId,
-  setMarkingId,
+  marking,
+  setMarking,
   upcoming,
   historyByMonth,
   onSaved,
 }: {
   programs: ServiceProgramRow[]
-  markingId: string | null
-  setMarkingId: (id: string | null) => void
+  marking: Marking
+  setMarking: (m: Marking) => void
   upcoming: Array<{ program: ServiceProgramRow; visit: ServiceProgramRow["visits"][number] }>
   historyByMonth: Array<{
     month: string
@@ -142,6 +188,7 @@ function ListView({
   }>
   onSaved: () => void
 }) {
+  const [adding, setAdding] = useState(false)
   return (
     <div className="space-y-8">
       {/* Status board: one card per service */}
@@ -150,8 +197,10 @@ function ListView({
           <ProgramCard
             key={p.id}
             program={p}
-            marking={markingId === p.id}
-            onToggleMark={() => setMarkingId(markingId === p.id ? null : p.id)}
+            marking={marking?.id === p.id ? marking.kind : null}
+            onToggleMark={(kind) =>
+              setMarking(marking?.id === p.id && marking.kind === kind ? null : { id: p.id, kind })
+            }
             onSaved={onSaved}
           />
         ))}
@@ -159,10 +208,29 @@ function ListView({
 
       {/* Coming up */}
       <section>
-        <h2 className="tk-caps mb-3 px-1 text-[13px] text-[var(--tk-ink-mute)]">Booked in</h2>
+        <div className="mb-3 flex items-center justify-between gap-3 px-1">
+          <h2 className="tk-caps text-[13px] text-[var(--tk-ink-mute)]">Booked in</h2>
+          <button
+            onClick={() => setAdding((a) => !a)}
+            className="flex items-center gap-1.5 rounded-full border border-[var(--tk-line)] bg-[var(--tk-card)] px-3.5 py-2 text-[14px] font-bold text-[var(--tk-charcoal)] transition active:scale-[0.98]"
+          >
+            {adding ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {adding ? "Cancel" : "Add a booking"}
+          </button>
+        </div>
+        {adding ? (
+          <div className="mb-3 rounded-[18px] border border-[var(--tk-line)] bg-[var(--tk-card)] p-4">
+            <p className="mb-3 text-[15px] text-[var(--tk-ink-soft)]">
+              Bookings from emails land here on their own. Booked by phone, or an email that
+              never came through? Put it on the calendar here.
+            </p>
+            <VisitForm programs={programs} kind="BOOKED" allowKind onSaved={onSaved} />
+          </div>
+        ) : null}
         {upcoming.length === 0 ? (
           <div className="rounded-[18px] border border-[var(--tk-line)] bg-[var(--tk-card)] px-5 py-4 text-[15px] text-[var(--tk-ink-soft)]">
-            Nothing booked in yet. Bookings picked up from emails land here on their own.
+            Nothing booked in yet. Bookings picked up from emails land here on their own; if one
+            was booked by phone, add it above.
           </div>
         ) : (
           <div className="space-y-2">
@@ -209,8 +277,8 @@ function ProgramCard({
   onSaved,
 }: {
   program: ServiceProgramRow
-  marking: boolean
-  onToggleMark: () => void
+  marking: VisitKind | null
+  onToggleMark: (kind: VisitKind) => void
   onSaved: () => void
 }) {
   const s = STATUS_STYLE[p.schedule.status]
@@ -258,7 +326,7 @@ function ProgramCard({
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-2 border-t border-[var(--tk-line)] pt-3">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--tk-line)] pt-3">
         {p.providerPhone ? (
           <a
             href={`tel:${p.providerPhone.replace(/\s+/g, "")}`}
@@ -269,41 +337,87 @@ function ProgramCard({
         ) : (
           <span className="text-[13px] text-[var(--tk-ink-mute)]">{p.blurb}</span>
         )}
-        <button
-          onClick={onToggleMark}
-          className="flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--tk-line)] px-3 py-1.5 text-[13px] font-bold text-[var(--tk-charcoal)] transition active:scale-[0.98]"
-        >
-          {marking ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-          {marking ? "Cancel" : "They came"}
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {(
+            [
+              ["COMPLETED", "They came"],
+              ["BOOKED", "Book it in"],
+            ] as [VisitKind, string][]
+          ).map(([kind, label]) => (
+            <button
+              key={kind}
+              onClick={() => onToggleMark(kind)}
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-bold transition active:scale-[0.98] ${
+                marking === kind
+                  ? "border-[var(--tk-charcoal)] bg-[var(--tk-charcoal)] text-white"
+                  : "border-[var(--tk-line)] text-[var(--tk-charcoal)]"
+              }`}
+            >
+              {marking === kind ? <X className="h-3.5 w-3.5" /> : kind === "BOOKED" ? <CalendarClock className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+              {marking === kind ? "Cancel" : label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {marking ? <MarkDoneForm program={p} onSaved={onSaved} /> : null}
+      {marking ? (
+        <div className="mt-3 rounded-[14px] bg-[var(--tk-bg)] p-3">
+          <VisitForm programs={[p]} kind={marking} onSaved={onSaved} />
+        </div>
+      ) : null}
     </div>
   )
 }
 
-function MarkDoneForm({
-  program,
+/**
+ * One form for both "they came" and "book it in". With one program it is the
+ * card's inline form; with several it asks which service first. `allowKind`
+ * adds a happened / booked toggle for the catch-all "Add a booking" box.
+ */
+function VisitForm({
+  programs,
+  kind: initialKind,
+  allowKind,
   onSaved,
 }: {
-  program: ServiceProgramRow
+  programs: ServiceProgramRow[]
+  kind: VisitKind
+  allowKind?: boolean
   onSaved: () => void
 }) {
+  const [programId, setProgramId] = useState(programs.length === 1 ? programs[0].id : "")
+  const [kind, setKind] = useState<VisitKind>(initialKind)
   const [date, setDate] = useState(todayStr())
-  const [name, setName] = useState("")
+  const [name, setName] = useRememberedName()
+  const [provider, setProvider] = useState(
+    programs.length === 1 ? (programs[0].providerName ?? "") : ""
+  )
   const [notes, setNotes] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
+  const program = programs.find((p) => p.id === programId) ?? null
+
+  function pickProgram(id: string) {
+    setProgramId(id)
+    const p = programs.find((x) => x.id === id)
+    if (p?.providerName && !provider.trim()) setProvider(p.providerName)
+  }
+
   function save() {
+    if (!program) {
+      setError("Pick which service it is")
+      return
+    }
     setError(null)
     startTransition(async () => {
       try {
-        await staffMarkServiceDone({
+        await staffAddServiceVisit({
           programId: program.id,
+          kind,
           serviceDate: date,
           recordedBy: name,
+          providerName: provider,
           notes,
         })
         onSaved()
@@ -313,36 +427,80 @@ function MarkDoneForm({
     })
   }
 
+  const field =
+    "rounded-lg border border-[var(--tk-line)] bg-white px-3 py-2.5 text-[15px] text-[var(--tk-charcoal)]"
+  const seg = (active: boolean) =>
+    `flex-1 rounded-lg px-3 py-2 text-[14px] font-bold transition ${
+      active ? "bg-[var(--tk-charcoal)] text-white" : "text-[var(--tk-ink-soft)]"
+    }`
+
   return (
-    <div className="mt-3 space-y-2 rounded-[14px] bg-[var(--tk-bg)] p-3">
+    <div className="space-y-2">
+      {programs.length > 1 ? (
+        <select value={programId} onChange={(e) => pickProgram(e.target.value)} className={`w-full ${field}`}>
+          <option value="">Which service?</option>
+          {programs.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.displayLabel}
+              {p.providerName ? ` · ${p.providerName}` : ""}
+            </option>
+          ))}
+        </select>
+      ) : null}
+      {allowKind ? (
+        <div className="flex rounded-lg border border-[var(--tk-line)] bg-white p-1">
+          <button onClick={() => setKind("BOOKED")} className={seg(kind === "BOOKED")}>
+            Booked for a date
+          </button>
+          <button onClick={() => setKind("COMPLETED")} className={seg(kind === "COMPLETED")}>
+            Already happened
+          </button>
+        </div>
+      ) : null}
       <div className="grid grid-cols-2 gap-2">
-        <input
-          type="date"
-          value={date}
-          max={todayStr()}
-          onChange={(e) => setDate(e.target.value)}
-          className="rounded-lg border border-[var(--tk-line)] bg-white px-3 py-2.5 text-[15px]"
-        />
-        <input
-          placeholder="Your name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="rounded-lg border border-[var(--tk-line)] bg-white px-3 py-2.5 text-[15px]"
-        />
+        <label className="flex flex-col gap-1">
+          <span className="tk-caps text-[11px] text-[var(--tk-ink-mute)]">
+            {kind === "BOOKED" ? "Booked for" : "Done on"}
+          </span>
+          <input
+            type="date"
+            value={date}
+            min={kind === "BOOKED" ? todayStr() : undefined}
+            max={kind === "COMPLETED" ? todayStr() : undefined}
+            onChange={(e) => setDate(e.target.value)}
+            className={field}
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="tk-caps text-[11px] text-[var(--tk-ink-mute)]">Your name</span>
+          <input
+            placeholder="Your name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className={field}
+          />
+        </label>
       </div>
+      <input
+        placeholder="Who's coming (optional)"
+        value={provider}
+        onChange={(e) => setProvider(e.target.value)}
+        className={`w-full ${field}`}
+      />
       <input
         placeholder="Anything worth noting (optional)"
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
-        className="w-full rounded-lg border border-[var(--tk-line)] bg-white px-3 py-2.5 text-[15px]"
+        className={`w-full ${field}`}
       />
       {error ? <p className="text-[13px] font-semibold text-[var(--tk-warn)]">{error}</p> : null}
       <button
         onClick={save}
-        disabled={pending || !name.trim()}
+        disabled={pending || !name.trim() || !programId}
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--tk-charcoal)] px-4 py-2.5 text-[15px] font-bold text-white disabled:opacity-40"
       >
-        <Check className="h-4 w-4" /> {pending ? "Saving…" : "Mark done"}
+        {kind === "BOOKED" ? <CalendarClock className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+        {pending ? "Saving…" : kind === "BOOKED" ? "Put it on the calendar" : "Mark done"}
       </button>
     </div>
   )
