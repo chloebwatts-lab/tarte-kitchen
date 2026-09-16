@@ -55,16 +55,24 @@ echo "▶ Checking the running app is the image just built..."
 # until they match; one retry covers a recreate that half-happened.
 app_image="$(docker compose config --images | grep -- '-app$' | head -1)"
 want="$(docker image inspect -f '{{.Id}}' "$app_image")"
-have="$(docker inspect -f '{{.Image}}' "$(docker compose ps -q app)")"
-if [ "$want" != "$have" ]; then
+# Right after a recreate, `compose ps -q app` can still list the old
+# container while it is being removed, so only a RUNNING app container on
+# the new image counts.
+running_app_matches() {
+  local id
+  for id in $(docker compose ps -q --status running app); do
+    [ "$(docker inspect -f '{{.Image}}' "$id")" = "$want" ] && return 0
+  done
+  return 1
+}
+if ! running_app_matches; then
   echo "  running app is not the new image, recreating once more..."
   docker compose up -d --no-deps --force-recreate app
-  have="$(docker inspect -f '{{.Image}}' "$(docker compose ps -q app)")"
 fi
-if [ "$want" != "$have" ]; then
-  echo "✗ App container is still on the old image. Not deployed." >&2
-  echo "  built:   $want" >&2
-  echo "  running: $have" >&2
+if ! running_app_matches; then
+  echo "✗ No running app container is on the image just built. Not deployed." >&2
+  echo "  built: $want" >&2
+  docker ps -a --format '  {{.Names}} {{.Status}} {{.Image}}' | grep -- '-app' >&2 || true
   exit 1
 fi
 
@@ -76,4 +84,4 @@ if ! curl -fsS -o /dev/null --retry 20 --retry-delay 2 --retry-all-errors http:/
 fi
 docker compose ps
 
-echo "✓ Deployed $(git rev-parse --short HEAD), app on image ${have#sha256:}."
+echo "✓ Deployed $(git rev-parse --short HEAD), app on image ${want#sha256:}."
