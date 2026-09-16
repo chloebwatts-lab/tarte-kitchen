@@ -1655,8 +1655,9 @@ model InvoiceSyncRun {
   id                String   @id @default(cuid())
   startedAt         DateTime @default(now())
   finishedAt        DateTime?
-  /// "incremental" (after:lastScanAt) or "sweep" (last-14-days, full
-  /// re-scan that trusts the gmailMessageId @unique dedupe).
+  /// "incremental" (after:lastScanAt), "sweep" (last-14-days, full
+  /// re-scan that trusts the gmailMessageId @unique dedupe) or
+  /// "backfill" (manual historical window, see the check-invoices route).
   mode              String
   messagesFound     Int      @default(0)
   invoicesIngested  Int      @default(0)
