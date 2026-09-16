@@ -70,6 +70,11 @@ services:
       LIGHTSPEED_CLIENT_ID: ${LIGHTSPEED_CLIENT_ID:-}
       LIGHTSPEED_CLIENT_SECRET: ${LIGHTSPEED_CLIENT_SECRET:-}
       LIGHTSPEED_REDIRECT_URI: ${LIGHTSPEED_REDIRECT_URI:-}
+      # Labour cost via Tarte Shifts' pay-runs feed (holds the Xero org
+      # connections so this app no longer needs a Currumbin app slot)
+      SHIFTS_PAYRUNS_URL: ${SHIFTS_PAYRUNS_URL:-}
+      SHIFTS_PAYRUNS_ORG: ${SHIFTS_PAYRUNS_ORG:-Tarte Currumbin}
+      SHIFTS_SECRET: ${SHIFTS_SECRET:-}
       # Deputy (labour timesheets)
       DEPUTY_CLIENT_ID: ${DEPUTY_CLIENT_ID:-}
       DEPUTY_CLIENT_SECRET: ${DEPUTY_CLIENT_SECRET:-}
@@ -148,6 +153,8 @@ services:
         */30 * * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" 'http://app:3000/api/cron/sync-sales?days=2' 2>&1
         # Every 15 min — pull Deputy rosters so /labour stays fresh
         */15 * * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-deputy 2>&1
+        # Daily 06:00 AEST — posted pay runs via Tarte Shifts' feed → WeeklyLabourCost
+        0 20 * * * curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-labour 2>&1
         # 09:00 AEST (23:00 UTC) — auto-fill pastry rotation from yesterday's
         # POS sales + wastage register (after the 08:00 EOD email import).
         0 23 * * * curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-pastry-rotation 2>&1

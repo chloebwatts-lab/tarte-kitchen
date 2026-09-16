@@ -30,6 +30,19 @@ const DISCONNECTED: XeroStatus = {
 export async function getXeroStatus(): Promise<XeroStatus> {
   try {
     const conn = await (db as any).xeroConnection.findFirst()
+    // Labour now arrives via Tarte Shifts' pay-runs feed; the token on
+    // TK's own row no longer matters, only how recently a sync landed.
+    if (process.env.SHIFTS_PAYRUNS_URL && process.env.SHIFTS_SECRET) {
+      const lastSyncedAt: Date | null = conn?.lastSyncedAt ?? null
+      return {
+        connected: true,
+        organisationName: `${process.env.SHIFTS_PAYRUNS_ORG ?? "Tarte Currumbin"} (via Tarte Shifts)`,
+        lastSyncedAt,
+        tenantId: conn?.tenantId ?? null,
+        tokenExpiresAt: null,
+        tokenExpired: lastSyncedAt != null && lastSyncedAt.getTime() < Date.now() - 10 * 24 * 60 * 60 * 1000,
+      }
+    }
     if (!conn) return DISCONNECTED
     const tokenExpiresAt: Date | null = conn.tokenExpiresAt ?? null
     const lastSyncedAt: Date | null = conn.lastSyncedAt ?? null
