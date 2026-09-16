@@ -9,21 +9,23 @@ export const maxDuration = 60
 // so no third-party sender or DNS verification is needed.
 //
 // Locked down two ways: the CRON_SECRET bearer token, and recipients must be
-// @tarte.com.au, this must never become an open relay.
+// @tarte.com.au unless the caller passes `external: true` (Tarte Shifts'
+// onboarding emails go to new hires' personal addresses). The secret only
+// lives in the droplet .env files, so this never becomes an open relay.
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("authorization")
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 })
   }
 
-  let body: { to?: unknown; subject?: unknown; html?: unknown; text?: unknown }
+  let body: { to?: unknown; subject?: unknown; html?: unknown; text?: unknown; external?: unknown }
   try {
     body = await req.json()
   } catch {
     return Response.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const { to, subject, html, text } = body
+  const { to, subject, html, text, external } = body
   if (typeof to !== "string" || typeof subject !== "string" || typeof html !== "string") {
     return Response.json(
       { error: "Required fields: to (string), subject (string), html (string)" },
@@ -41,15 +43,19 @@ export async function POST(req: NextRequest) {
   }
 
   // Each recipient must be a full, well-formed @tarte.com.au address, not
-  // just a string that happens to end with the domain.
+  // just a string that happens to end with the domain. `external: true`
+  // relaxes that to any single well-formed address (one recipient, so a
+  // caller can't fan a message out).
   const RECIPIENT_RE = /^[A-Za-z0-9._%+-]+@tarte\.com\.au$/
+  const ANY_EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/
   const recipients = to.split(",").map((r) => r.trim()).filter(Boolean)
+  const allowExternal = external === true && recipients.length === 1
   if (
     recipients.length === 0 ||
-    recipients.some((r) => !RECIPIENT_RE.test(r))
+    recipients.some((r) => !(allowExternal ? ANY_EMAIL_RE : RECIPIENT_RE).test(r))
   ) {
     return Response.json(
-      { error: "Recipients must all be @tarte.com.au addresses" },
+      { error: allowExternal ? "Recipient must be a well-formed email address" : "Recipients must all be @tarte.com.au addresses" },
       { status: 400 }
     )
   }
