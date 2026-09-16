@@ -25,6 +25,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Caddy and the cron sidecar address this container as `kitchen-app`, not
+    # the compose service name `app`. tarte-shifts joins this network too and
+    # its service is also called `app`, so `app` resolves to BOTH containers
+    # and Docker round-robins between them (2026-09-16: half of all staff
+    # requests landed on Shifts and 404'd). A name only we use can't collide.
+    networks:
+      default:
+        aliases:
+          - kitchen-app
     environment:
       DATABASE_URL: postgres://tarte:${DB_PASSWORD}@db:5432/tarte_kitchen
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
@@ -120,7 +129,7 @@ services:
       SHAWNA_AUTH_HASH: ${SHAWNA_AUTH_HASH}
 
   # Simple cron sidecar — fires the app's /api/cron/* endpoints on a daily
-  # schedule. Runs inside the docker network so it can reach `app:3000`
+  # schedule. Runs inside the docker network so it can reach `kitchen-app:3000`
   # directly; authenticates via CRON_SECRET. Times are in UTC.
   cron:
     image: alpine:3.19
@@ -136,53 +145,53 @@ services:
         apk add --no-cache curl tzdata >/dev/null
         cat > /etc/crontabs/root <<'CRON'
         # 08:00 AEST — pull Lightspeed end-of-day email(s) from Gmail
-        0 22 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-lightspeed-reports 2>&1
+        0 22 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/sync-lightspeed-reports 2>&1
         # Every 2 hours — incremental supplier-invoice scan (Gmail after:
         # lastScanAt). Was once-daily — bumped 2026-05-22 so a stale
         # watermark or rate-limit hiccup can't cost us a whole day.
-        0 */2 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/check-invoices 2>&1
+        0 */2 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/check-invoices 2>&1
         # 09:00 AEST — nightly 14-day sweep that trusts gmailMessageId
         # dedupe. Safety net against watermark drift / silent skips —
         # the May 2026 incident that lost 30+ invoices over 4 days
         # would have been caught here next morning.
-        0 23 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" 'http://app:3000/api/cron/check-invoices?mode=sweep' 2>&1
+        0 23 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/check-invoices?mode=sweep' 2>&1
         # Every 30 min — Lightspeed API sales sync for today + yesterday
         # (?days=2). Keeps the live FOH tracker's revenue side current.
         # Email source still wins for yesterday once it lands. Cheap: a
         # couple of API calls per venue per sync.
-        */30 * * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" 'http://app:3000/api/cron/sync-sales?days=2' 2>&1
+        */30 * * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/sync-sales?days=2' 2>&1
         # Every 15 min — pull Deputy rosters so /labour stays fresh
-        */15 * * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-deputy 2>&1
+        */15 * * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/sync-deputy 2>&1
         # Daily 06:00 AEST — posted pay runs via Tarte Shifts' feed → WeeklyLabourCost
-        0 20 * * * curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-labour 2>&1
+        0 20 * * * curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/sync-labour 2>&1
         # 09:00 AEST (23:00 UTC) — auto-fill pastry rotation from yesterday's
         # POS sales + wastage register (after the 08:00 EOD email import).
-        0 23 * * * curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-pastry-rotation 2>&1
+        0 23 * * * curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/sync-pastry-rotation 2>&1
         # 09:30 AEST (23:30 UTC) — retry unmatched invoice lines against
         # newly added ingredients/mappings, after the 09:00 sweep and
         # before the 10:00 alert recompute so fresh matches feed it.
-        30 23 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/rematch-invoices 2>&1
+        30 23 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/rematch-invoices 2>&1
         # 10:00 AEST (00:00 UTC) — recompute v2 price alerts, after the
         # 09:00 invoice sweep. Idempotent full recompute; auto-closes
         # alerts that stopped firing.
-        0 0 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/compute-price-alerts 2>&1
+        0 0 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/compute-price-alerts 2>&1
         # Pricing rebuild (shadow mode): product-level alerts from per-base-unit
         # observations, 10:15 AEST, after the v2 compute so the two can be compared.
-        15 0 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/compute-product-alerts 2>&1
+        15 0 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/compute-product-alerts 2>&1
         # PAUSED 2026-05-15 per Chloe: too much email noise. Checklist /
         # temp-log status stays visible on the dashboard (DashboardOpsPanel)
         # and will be folded into the Friday weekly digest. To re-enable,
         # uncomment both lines and restart the cron container.
         # Every 15 min — overdue checklist alerts to chloe@ + shawna@
-        # */15 * * * * curl -fsS -m 60 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/checklist-alerts 2>&1
+        # */15 * * * * curl -fsS -m 60 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/checklist-alerts 2>&1
         # 18:00 AEST (08:00 UTC) — daily checklist summary to chloe@
-        # 0 8 * * * curl -fsS -m 60 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/daily-checklist-summary 2>&1
+        # 0 8 * * * curl -fsS -m 60 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/daily-checklist-summary 2>&1
         # 15:00 AEST (05:00 UTC) daily — weekly/monthly checklist cycle nudge.
         # The endpoint self-gates: it only emails near a cycle's close (weekly
         # Sat/Sun, monthly last few days) and only when items are still open,
         # so this fires at most ~once per list per cycle. Low-noise successor
         # to the two paused checklist crons above. Sends to chloe@.
-        0 5 * * * curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/checklist-cycle-alerts 2>&1
+        0 5 * * * curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/checklist-cycle-alerts 2>&1
         # 02:00 AEST (16:00 UTC prev day) — top up the example food-safety /
         # ops records for the day that just closed, so the /council folder and
         # /kitchen/inspection are never behind. Seeds YESTERDAY only: the
@@ -191,40 +200,40 @@ services:
         # and the real check gets skipped (happened 2026-08-12, rows deleted).
         # Excludes FOH cleaning lists — the floor team fills those in live.
         # Idempotent: real staff entries always win.
-        0 16 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/seed-yesterday 2>&1
+        0 16 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/seed-yesterday 2>&1
         # 07:30 AEST (21:30 UTC) — service-calendar email sweep: grease
         # trap / pest / canopy / fire etc. invoices + booking emails in
         # accounts@ → ServiceVisit rows (needsReview) on /services. Each
         # message is Claude-classified at most once (ServiceEmailSeen).
-        30 21 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/check-service-emails 2>&1
+        30 21 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/check-service-emails 2>&1
         # 07:40 AEST (21:40 UTC) — equipment-purchase email sweep: invoices /
         # order confirmations for new machines in accounts@ + hello@ →
         # MaintenanceAsset rows (needsReview) with a QR slug ready to print.
         # Emails chloe@ only when something was created. Each message is
         # Claude-classified at most once (EquipmentEmailSeen).
-        40 21 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/check-equipment-emails 2>&1
+        40 21 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/check-equipment-emails 2>&1
         # 08:00 AEST (22:00 UTC) — pull Google reviews, Claude-tag, draft
         # replies + email Chloe once per day. Was hourly back when Places
         # API capped each fetch at 5 reviews/venue — but GBP returns ALL
         # reviews paginated, so daily covers everything without flooding
         # Chloe's inbox with several draft batches per day.
-        0 22 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/sync-reviews 2>&1
+        0 22 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/sync-reviews 2>&1
         # Friday 08:00 AEST (22:00 UTC Thu) — unified weekly business digest
         # (reviews + sales + wages + COGS + wastage + supplier price spikes
         # + top sellers) → emailed to chloe@. See tarte_friday_digest.md memory.
-        0 22 * * 4 curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/weekly-digest 2>&1
+        0 22 * * 4 curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/weekly-digest 2>&1
         # Sunday 08:30 AEST (22:30 UTC Sat) — "how much left to spend this
         # week" per venue → emailed to chloe@. Moved from Sun 17:00 per
         # Chris 2026-07-14 (wants it Sunday morning); 08:30 sits after the
         # 08:00 Lightspeed EOD import so Saturday's takings are included.
         # Renders straight off the live /spend snapshot (no LLM).
-        30 22 * * 6 curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/weekly-spend-email 2>&1
+        30 22 * * 6 curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/weekly-spend-email 2>&1
         # Thursday 07:00 AEST (21:00 UTC Wed) — auto-pull Louise's "Reports"
         # email from accounts@ Gmail (3 PDFs + 2 xlsx) into LabourWeekActual
         # + WeeklyCogs, so Friday's digest has the actuals without Chloe
         # having to upload Thursday afternoon. Failure / partial → email
         # chloe@ with a link to /labour/upload for manual recovery.
-        0 21 * * 3 curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/pull-louise-reports 2>&1
+        0 21 * * 3 curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/pull-louise-reports 2>&1
         CRON
         exec crond -f -l 8 -L /dev/stdout
 

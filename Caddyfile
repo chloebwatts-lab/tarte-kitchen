@@ -97,7 +97,11 @@
 	}
 
 	handle {
-		reverse_proxy app:3000 {
+		# kitchen-app = this compose's app container (network alias set in
+		# docker-compose.yml). Never `app`: tarte-shifts shares this network
+		# with a service of the same name, and Docker DNS would split traffic
+		# between the two.
+		reverse_proxy kitchen-app:3000 {
 			# Forward the basic-auth user to the app so the layout can hide
 			# nav items for restricted users (Shawna should only see Reviews
 			# / Inbox-Playbooks — anything else 401s and pops a login box).
