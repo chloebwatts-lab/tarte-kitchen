@@ -38,6 +38,15 @@ import path from "path"
  *   2. Sweep, `from:(supplier-emails) newer_than:14d`. Catches anything
  *      a stale or jumped watermark would have skipped. Without this the
  *      pipeline silently lost ~30 invoices over 4 days in May 2026.
+ *   3. Backfill, `?mode=backfill&after=YYYY-MM-DD&before=YYYY-MM-DD`
+ *      (optional `&supplier=pacific,jensens` to narrow the from: list by
+ *      supplier name or email). Manual only: pulls historical invoices
+ *      from before the app existed so year-round purchasing questions
+ *      (seasonal produce pricing, annual volumes) can be answered from
+ *      real invoice lines. Never touches the watermark, skips the rescue
+ *      and unknown-sender passes. Gmail caps a query at 500 results, so
+ *      run it a month at a time; the response says `capped: true` when
+ *      the window needs narrowing.
  *
  * Plus a separate query for *unknown* senders so PDFs from newly-onboarded
  * or renamed-email-from suppliers land in a review queue rather than
@@ -556,7 +565,37 @@ export async function GET(request: Request) {
   // Sweep mode: full 14-day rescan, trusting gmailMessageId dedupe. Run
   // once daily (cron passes ?mode=sweep) alongside the incremental
   // ticks. Manual invocation: ?mode=sweep for a forced full re-scan.
-  const mode: "incremental" | "sweep" = url.searchParams.get("mode") === "sweep" ? "sweep" : "incremental"
+  const modeParam = url.searchParams.get("mode")
+  const mode: "incremental" | "sweep" | "backfill" =
+    modeParam === "sweep" ? "sweep" : modeParam === "backfill" ? "backfill" : "incremental"
+
+  // Backfill window. Gmail's after:/before: take YYYY/MM/DD and treat
+  // `before` as exclusive, so a calendar month is after=01 before=next 01.
+  const isoDay = /^\d{4}-\d{2}-\d{2}$/
+  const after = url.searchParams.get("after")
+  const before = url.searchParams.get("before")
+  if (mode === "backfill" && (!after || !before || !isoDay.test(after) || !isoDay.test(before) || after >= before)) {
+    return Response.json(
+      { error: "backfill needs after=YYYY-MM-DD and before=YYYY-MM-DD with after < before" },
+      { status: 400 }
+    )
+  }
+  // Optional supplier narrowing so a backfill can target produce alone
+  // rather than re-parsing every Bidfood invoice for seven months.
+  const supplierTerms = (url.searchParams.get("supplier") ?? "")
+    .split(",")
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean)
+  const scopedEmails =
+    mode === "backfill" && supplierTerms.length > 0
+      ? allEmails.filter((email) => {
+          const names = (emailMap.get(email) ?? []).map((s) => s.name.toLowerCase())
+          return supplierTerms.some((t) => email.toLowerCase().includes(t) || names.some((n) => n.includes(t)))
+        })
+      : allEmails
+  if (mode === "backfill" && scopedEmails.length === 0) {
+    return Response.json({ error: `no supplier emails match supplier=${supplierTerms.join(",")}` }, { status: 400 })
+  }
 
   const runStart = new Date()
   const runRow = await db.invoiceSyncRun.create({
@@ -565,10 +604,14 @@ export async function GET(request: Request) {
 
   try {
     const accessToken = await getValidGmailAccessToken()
-    const fromQuery = `from:(${allEmails.join(" OR ")})`
+    const fromQuery = `from:(${scopedEmails.join(" OR ")})`
 
     let messageRefs: Array<{ id: string; threadId: string }>
-    if (mode === "sweep") {
+    if (mode === "backfill") {
+      const gmailDay = (d: string) => d.replace(/-/g, "/")
+      const query = `${fromQuery} has:attachment filename:pdf after:${gmailDay(after!)} before:${gmailDay(before!)}`
+      messageRefs = await searchMessages(accessToken, query, 500)
+    } else if (mode === "sweep") {
       const query = `${fromQuery} has:attachment filename:pdf newer_than:14d`
       messageRefs = await searchMessages(accessToken, query, 500)
     } else {
@@ -604,13 +647,17 @@ export async function GET(request: Request) {
       )
     }
 
-    // Best-effort unknown-sender capture on every run, fast query.
+    // Best-effort unknown-sender capture on every scheduled run, fast
+    // query. A backfill is about one historical window, not the last 30
+    // days, so it skips this.
     const knownSet = new Set(allEmails.map((e) => e.toLowerCase()))
     let unknownLogged = 0
-    try {
-      unknownLogged = await captureUnknownSenders(accessToken, knownSet, runStart)
-    } catch (e) {
-      stats.errors.push(`unknown-sender capture: ${e instanceof Error ? e.message : String(e)}`)
+    if (mode !== "backfill") {
+      try {
+        unknownLogged = await captureUnknownSenders(accessToken, knownSet, runStart)
+      } catch (e) {
+        stats.errors.push(`unknown-sender capture: ${e instanceof Error ? e.message : String(e)}`)
+      }
     }
 
     // Only advance the incremental watermark to runStart (NOT new Date()
@@ -648,6 +695,10 @@ export async function GET(request: Request) {
     return Response.json({
       success: true,
       mode,
+      window: mode === "backfill" ? { after, before, suppliers: scopedEmails.length } : undefined,
+      // Gmail returns at most 500 per query; a full page means the window
+      // held more than that and must be split.
+      capped: mode === "backfill" ? stats.messagesFound >= 500 : undefined,
       messagesFound: stats.messagesFound,
       invoicesIngested: stats.invoicesIngested,
       duplicates: stats.duplicates,
