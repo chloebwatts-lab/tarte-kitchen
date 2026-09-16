@@ -3,7 +3,7 @@ import {
   CalendarCheck, ClipboardCheck, ClipboardList, Croissant, Eye, Lock,
   MessageSquarePlus, PackageOpen, PackageSearch, Printer, Scale, ShieldCheck,
   ShoppingBasket, ShoppingCart, Snowflake, Trash2, Wrench, Megaphone, Sunrise,
-  Handshake, GraduationCap,
+  Handshake, GraduationCap, ListChecks,
 } from "lucide-react"
 
 type Icon = ComponentType<{ className?: string; strokeWidth?: number }>
@@ -69,13 +69,14 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     slug: "managers",
     title: "Managers",
-    sub: "Line-up, morning board, Said + Done. Password.",
+    sub: "Line-up, morning board, jobs board. Password.",
     icon: Lock,
     href: "/kitchen/managers",
     locked: true,
     tools: [
       { title: "Line-up", sub: "Five minutes before open, already filled in", href: "/kitchen/lineup", icon: Megaphone },
       { title: "Morning board", sub: "Everything reported, scheduled or below par", href: "/kitchen/managers/board", icon: Sunrise },
+      { title: "Jobs board", sub: "What the morning board put on you. Tick it off", href: "/kitchen/jobs", icon: ListChecks },
       { title: "Said + Done", sub: "Kitchen commitments, week by week", href: "/kitchen/commitments", icon: Handshake },
       { title: "Meeting agenda", sub: "What people have raised, and what was decided", href: "/kitchen/managers/agenda", icon: MessageSquarePlus },
       { title: "Staff training", sub: "Food handler records", href: "/kitchen/training", icon: GraduationCap },

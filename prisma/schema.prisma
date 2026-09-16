@@ -2146,6 +2146,11 @@ model MaintenanceIssue {
   isSafety    Boolean                @default(false)
 
   reportedBy String?
+  /// Which symptom the reporter picked on the fix page, and which of its
+  /// quick fixes they ticked as tried. The alert email says "checked the
+  /// filter and the drain before calling" instead of just "broken".
+  symptomKey String?
+  triedFixes String[] @default([])
   contactId  String?
   contact    MaintenanceContact? @relation(fields: [contactId], references: [id])
 
@@ -2562,6 +2567,29 @@ model VenueTask {
   /// When it actually falls due, for scheduled work. Null on spotted items.
   dueAt      DateTime?          @db.Date
 
+  /// Who put the current owner on it and when. The Jobs board reads this
+  /// back to the owner ("Georgia put this on you, Tuesday"), and the plate
+  /// view uses it to show how long things sit before they move.
+  assignedBy String?
+  assignedAt DateTime?
+
+  /// Set when an owner sends a job back to the board unowned. Cleared the
+  /// next time it is assigned. A bounce is information the manager needs,
+  /// not something to hide in a note.
+  handedBackBy String?
+  handedBackAt DateTime?
+
+  /// Rough size, in minutes, as the manager sizes it: 15, 30, 60, 120, 240,
+  /// 480. Optional. Summed on the plate view so "what is on Georgia" has
+  /// hours next to it, not just a count.
+  estimateMinutes Int?
+
+  /// True for an item on somebody's own list (Georgia's replacement for
+  /// Apple Notes). Personal items never show on the morning board or the
+  /// Jobs board and are nobody else's to pick up; the plate view counts
+  /// them so the volume is visible without the items being up for grabs.
+  personal Boolean @default(false)
+
   doneBy   String?
   doneAt   DateTime?
   doneNote String?
@@ -2750,6 +2778,34 @@ model VenueTaskSchedule {
 
   @@unique([venue, title])
   @@index([venue, isActive, nextDueAt])
+}
+
+/// The two kinds of person the boards care about. The MANAGER reads the
+/// morning board and allocates; SUPERVISORs are who the jobs land on and
+/// who the Jobs board is laid out for.
+enum VenueTeamRole {
+  MANAGER
+  SUPERVISOR
+}
+
+/// The named people at a venue that jobs get put on: the manager and the
+/// supervisors under them. Free-text owners still work everywhere (Georgia
+/// can type any name), but a listed person shows as a chip on the morning
+/// board before they have ever owned a job, and gets a column on the Jobs
+/// board even when there is nothing on them, which is its own message.
+model VenueTeamMember {
+  id        String        @id @default(cuid())
+  venue     Venue
+  name      String
+  role      VenueTeamRole @default(SUPERVISOR)
+  sortOrder Int           @default(0)
+  isActive  Boolean       @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([venue, name])
+  @@index([venue, isActive, sortOrder])
 }
 
 // ============================================================

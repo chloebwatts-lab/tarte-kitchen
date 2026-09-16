@@ -13,7 +13,8 @@ import {
 } from "lucide-react"
 import type { SymptomDef } from "@/lib/maintenance/constants"
 import { classifyIssue } from "@/lib/maintenance/constants"
-import { addIssueComment, markIssueFixed, reportIssue } from "@/lib/actions/maintenance"
+import { useRouter } from "next/navigation"
+import { addIssueComment, bookTrade, markIssueFixed, reportIssue } from "@/lib/actions/maintenance"
 
 interface ContactRow {
   id: string
@@ -38,6 +39,9 @@ interface IssueRow {
   wasWarranty: boolean
   costCents: number | null
   contactName: string | null
+  bookedFor: string | null
+  bookedBy: string | null
+  bookedNote: string | null
   events: Array<{ author: string | null; body: string; at: string }>
 }
 
@@ -110,8 +114,12 @@ export function FixAssetTriage({
   const [name, setName] = useState("")
   const [detail, setDetail] = useState("")
   const [done, setDone] = useState(false)
+  const [emailed, setEmailed] = useState(true)
+  const [tried, setTried] = useState<number[]>([])
+  const [lastCalled, setLastCalled] = useState<ContactRow | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const router = useRouter()
 
   const symptom = symptoms.find((s) => s.key === symptomKey) ?? null
   const openIssues = issues.filter((i) => i.status === "OPEN")
@@ -175,14 +183,17 @@ export function FixAssetTriage({
         const repeatTag = priorSameClass
           ? `[REPEAT: this machine's ${ordinal(priorSameClass.count + 1)} ${priorSameClass.cls.label} issue] `
           : ""
-        await reportIssue({
+        const res = await reportIssue({
           assetSlug: asset.slug,
           symptomKey,
           title: symptom ? symptom.label : detail.slice(0, 80) || "Problem reported",
           description: repeatTag + detail,
           reportedBy: name,
+          triedFixes: symptom ? tried.map((i) => symptom.quickFixes[i]).filter(Boolean) : [],
         })
+        setEmailed(res.emailed)
         setDone(true)
+        router.refresh()
       } catch (e) {
         setError(e instanceof Error ? e.message : "Something went wrong")
       }
@@ -286,7 +297,12 @@ export function FixAssetTriage({
       {openIssues.length > 0 && (
         <div className="space-y-3">
           {openIssues.map((i) => (
-            <OpenIssueCard key={i.id} issue={i} />
+            <OpenIssueCard
+              key={i.id}
+              issue={i}
+              contacts={[...(warrantyContact ? [warrantyContact] : []), ...suggestedContacts.filter((c) => c.id !== warrantyContact?.id)]}
+              lastCalled={lastCalled}
+            />
           ))}
         </div>
       )}
@@ -324,6 +340,7 @@ export function FixAssetTriage({
                 setSymptomKey(s.key === symptomKey ? null : s.key)
                 setShowReport(false)
                 setDone(false)
+                setTried([])
               }}
               className={`rounded-xl border px-4 py-3 text-left text-[16px] font-medium transition ${
                 s.key === symptomKey
@@ -364,17 +381,37 @@ export function FixAssetTriage({
             )}
             <div>
               <div className="text-[13px] font-semibold uppercase tracking-wide text-[var(--tk-ink-mute)]">
-                Try this first, before anyone gets paid a callout
+                Try this first, before anyone gets paid a callout. Tap each one you tried.
               </div>
               <ol className="mt-2 space-y-2">
-                {symptom.quickFixes.map((f, idx) => (
-                  <li key={idx} className="flex gap-3 text-[15px] leading-snug text-[var(--tk-ink)]">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--tk-sage-soft)] text-[13px] font-bold text-[var(--tk-charcoal)]">
-                      {idx + 1}
-                    </span>
-                    {f}
-                  </li>
-                ))}
+                {symptom.quickFixes.map((f, idx) => {
+                  const on = tried.includes(idx)
+                  return (
+                    <li key={idx}>
+                      <button
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() =>
+                          setTried((t) => (t.includes(idx) ? t.filter((i) => i !== idx) : [...t, idx]))
+                        }
+                        className={`flex w-full gap-3 rounded-xl border px-3 py-2.5 text-left text-[15px] leading-snug transition active:scale-[0.99] ${
+                          on
+                            ? "border-[var(--tk-done)] bg-[var(--tk-done-soft)] text-[var(--tk-charcoal)]"
+                            : "border-[var(--tk-line)] text-[var(--tk-ink)]"
+                        }`}
+                      >
+                        <span
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[13px] font-bold ${
+                            on ? "bg-[var(--tk-done)] text-white" : "bg-[var(--tk-sage-soft)] text-[var(--tk-charcoal)]"
+                          }`}
+                        >
+                          {on ? "✓" : idx + 1}
+                        </span>
+                        {f}
+                      </button>
+                    </li>
+                  )
+                })}
               </ol>
             </div>
 
@@ -430,9 +467,19 @@ export function FixAssetTriage({
         )}
 
         {done && (
-          <div className="mt-5 flex items-center gap-3 rounded-xl bg-[var(--tk-done-soft)] p-4 text-[16px] font-semibold text-[var(--tk-done)]">
-            <CheckCircle2 className="h-6 w-6" /> Logged. It's on the maintenance board,
-            no WhatsApp message needed.
+          <div className="mt-5 rounded-xl bg-[var(--tk-done-soft)] p-4 text-[16px] text-[var(--tk-charcoal)]">
+            <div className="flex items-center gap-3 font-semibold text-[var(--tk-done)]">
+              <CheckCircle2 className="h-6 w-6" /> Logged.
+            </div>
+            <p className="mt-1.5 leading-snug">
+              It is on the morning board for a manager to own
+              {emailed ? ", and hello@ and Shawna have the details by email" : ""}. No WhatsApp needed.
+              {!emailed ? " The email did not go, so tell a manager in person too." : ""}
+            </p>
+            <p className="mt-1.5 leading-snug">
+              If it needs a trade: check the warranty banner, call from the list below, then log
+              the call on the fault card so everyone knows who is coming and when.
+            </p>
           </div>
         )}
       </div>
@@ -452,12 +499,12 @@ export function FixAssetTriage({
         </h2>
         <div className="mt-4 space-y-3">
           {underWarranty && warrantyContact && (
-            <ContactCard contact={warrantyContact} badge="WARRANTY: call first" highlight />
+            <ContactCard contact={warrantyContact} badge="WARRANTY: call first" highlight onCall={setLastCalled} />
           )}
           {suggestedContacts
             .filter((c) => c.id !== (underWarranty ? warrantyContact?.id : ""))
             .map((c) => (
-              <ContactCard key={c.id} contact={c} />
+              <ContactCard key={c.id} contact={c} onCall={setLastCalled} />
             ))}
           {suggestedContacts.length === 0 && !warrantyContact && (
             <div className="text-[15px] text-[var(--tk-ink-soft)]">
@@ -607,10 +654,12 @@ function ContactCard({
   contact,
   badge,
   highlight,
+  onCall,
 }: {
   contact: ContactRow
   badge?: string
   highlight?: boolean
+  onCall?: (c: ContactRow) => void
 }) {
   return (
     <div
@@ -638,6 +687,7 @@ function ContactCard({
       {contact.phone ? (
         <a
           href={`tel:${contact.phone.replace(/\s+/g, "")}`}
+          onClick={() => onCall?.(contact)}
           className="flex shrink-0 items-center gap-2 rounded-xl bg-[var(--tk-charcoal)] px-4 py-3 text-[15px] font-bold text-white"
         >
           <Phone className="h-4 w-4" /> {contact.phone}
@@ -649,13 +699,61 @@ function ContactCard({
   )
 }
 
-function OpenIssueCard({ issue }: { issue: IssueRow }) {
+const comingFmt = new Intl.DateTimeFormat("en-AU", {
+  weekday: "long",
+  day: "numeric",
+  month: "short",
+  timeZone: "Australia/Brisbane",
+})
+
+function OpenIssueCard({
+  issue,
+  contacts,
+  lastCalled,
+}: {
+  issue: IssueRow
+  contacts: ContactRow[]
+  lastCalled: ContactRow | null
+}) {
   const [comment, setComment] = useState("")
   const [who, setWho] = useState("")
   const [showFix, setShowFix] = useState(false)
   const [fixSummary, setFixSummary] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const router = useRouter()
+
+  // Log-the-call form. Opens itself once a number on this page has been
+  // tapped, prefilled with that contact, so the log is one more tap.
+  const [showCall, setShowCall] = useState(false)
+  const [callContactId, setCallContactId] = useState<string | null>(null)
+  const [callOther, setCallOther] = useState("")
+  const [comingOn, setComingOn] = useState("")
+  const [callNote, setCallNote] = useState("")
+  const [callDone, setCallDone] = useState<string | null>(null)
+  const callOpen = showCall || (!!lastCalled && !callDone)
+  const pickedId = callContactId ?? (lastCalled && contacts.some((c) => c.id === lastCalled.id) ? lastCalled.id : null)
+
+  function submitCall() {
+    setError(null)
+    startTransition(async () => {
+      try {
+        const res = await bookTrade({
+          issueId: issue.id,
+          contactId: pickedId,
+          contactName: pickedId ? undefined : callOther,
+          comingOn: comingOn || null,
+          bookedBy: who,
+          note: callNote,
+        })
+        setCallDone(res.emailed ? "Logged and emailed to hello@ and Shawna." : "Logged. The email did not go, tell a manager too.")
+        setShowCall(false)
+        router.refresh()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Couldn't log the call, try again.")
+      }
+    })
+  }
 
   return (
     <div
@@ -680,10 +778,95 @@ function OpenIssueCard({ issue }: { issue: IssueRow }) {
           <div className="text-[13px] text-[var(--tk-ink-soft)]">
             {issue.reportedBy ? `${issue.reportedBy} · ` : ""}
             {fmtDate(issue.createdAt)}
-            {issue.contactName ? ` · trade: ${issue.contactName}` : ""}
           </div>
+          {issue.bookedBy || issue.contactName ? (
+            <div className="mt-1.5 rounded-lg bg-white/70 px-3 py-2 text-[14px] text-[var(--tk-charcoal)]">
+              <b>{issue.bookedBy ?? "Someone"}</b> called <b>{issue.contactName ?? issue.bookedNote ?? "a trade"}</b>
+              {issue.bookedFor ? `, coming ${comingFmt.format(new Date(issue.bookedFor))}` : ", no date yet"}
+              {issue.contactName && issue.bookedNote ? `. ${issue.bookedNote}` : ""}
+            </div>
+          ) : (
+            <div className="mt-1.5 text-[13px] font-semibold text-[var(--tk-ink-soft)]">
+              Nobody has logged a call to a trade yet.
+            </div>
+          )}
         </div>
       </div>
+
+      {callDone && (
+        <div className="mt-3 flex items-center gap-2 rounded-lg bg-[var(--tk-done-soft)] px-3 py-2 text-[14px] font-semibold text-[var(--tk-done)]">
+          <CheckCircle2 className="h-4 w-4" /> {callDone}
+        </div>
+      )}
+
+      {callOpen && (
+        <div className="mt-3 space-y-3 rounded-xl border border-black/10 bg-white/70 p-4">
+          <div className="text-[13px] font-bold uppercase tracking-wide text-[var(--tk-ink-mute)]">
+            Log the call
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {contacts.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => { setCallContactId(c.id); setCallOther("") }}
+                className={`rounded-lg border px-3 py-2 text-[14px] font-semibold ${
+                  pickedId === c.id
+                    ? "border-[var(--tk-charcoal)] bg-[var(--tk-charcoal)] text-white"
+                    : "border-black/10 bg-white text-[var(--tk-charcoal)]"
+                }`}
+              >
+                {c.name}
+              </button>
+            ))}
+            <input
+              value={callOther}
+              onChange={(e) => { setCallOther(e.target.value); setCallContactId(null) }}
+              placeholder="Someone else"
+              className="min-w-[140px] flex-1 rounded-lg border border-black/10 bg-white px-3 py-2 text-[14px] outline-none"
+            />
+          </div>
+          <div className="flex flex-col gap-2 md:flex-row">
+            <label className="flex items-center gap-2 text-[14px] text-[var(--tk-ink-soft)]">
+              Coming on
+              <input
+                type="date"
+                value={comingOn}
+                onChange={(e) => setComingOn(e.target.value)}
+                className="rounded-lg border border-black/10 bg-white px-3 py-2 text-[14px] text-[var(--tk-charcoal)] outline-none"
+              />
+            </label>
+            <input
+              value={callNote}
+              onChange={(e) => setCallNote(e.target.value)}
+              placeholder="Time, what they said, quote…"
+              className="flex-1 rounded-lg border border-black/10 bg-white px-3 py-2 text-[14px] outline-none"
+            />
+          </div>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center">
+            <input
+              value={who}
+              onChange={(e) => setWho(e.target.value)}
+              placeholder="Your name"
+              className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-[14px] outline-none md:w-40"
+            />
+            <button
+              disabled={pending || !who.trim() || (!pickedId && !callOther.trim())}
+              onClick={submitCall}
+              className="rounded-lg bg-[var(--tk-charcoal)] px-4 py-2 text-[14px] font-bold text-white disabled:opacity-40"
+            >
+              {pending ? "Saving…" : "Log the call"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowCall(false); setCallDone(callDone ?? "") }}
+              className="px-2 py-2 text-[14px] text-[var(--tk-ink-soft)]"
+            >
+              Not now
+            </button>
+          </div>
+        </div>
+      )}
 
       {issue.events.length > 0 && (
         <div className="mt-3 space-y-1 border-t border-black/10 pt-3">
@@ -734,6 +917,14 @@ function OpenIssueCard({ issue }: { issue: IssueRow }) {
               >
                 Add
               </button>
+              {!callOpen && (
+                <button
+                  onClick={() => { setShowCall(true); setCallDone(null) }}
+                  className="whitespace-nowrap rounded-lg border border-[var(--tk-charcoal)] px-4 py-2 text-[14px] font-bold text-[var(--tk-charcoal)]"
+                >
+                  Called a trade
+                </button>
+              )}
               <button
                 onClick={() => setShowFix(true)}
                 className="whitespace-nowrap rounded-lg border border-[var(--tk-charcoal)] px-4 py-2 text-[14px] font-bold text-[var(--tk-charcoal)]"

@@ -13,6 +13,46 @@ const time = new Intl.DateTimeFormat("en-AU", {
   minute: "2-digit",
   timeZone: "Australia/Brisbane",
 })
+/** "6am", "2:30pm": the way a roster is read out, not the way a clock prints. */
+function shortTime(iso: string): string {
+  const parts = new Intl.DateTimeFormat("en-AU", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Australia/Brisbane",
+  }).formatToParts(new Date(iso))
+  const h = parts.find((x) => x.type === "hour")?.value ?? ""
+  const m = parts.find((x) => x.type === "minute")?.value ?? "00"
+  const p = (parts.find((x) => x.type === "dayPeriod")?.value ?? "").replace(/\./g, "").toLowerCase()
+  return `${h}${m === "00" ? "" : `:${m}`}${p}`
+}
+
+/**
+ * Deputy's salary "cards" are rostered as if they were people ("Salary Chefs
+ * Burleigh 9–10am") so payroll can allocate. At line-up they are noise, so
+ * they are dropped; a real person rostered onto a salary area is re-homed to
+ * the section the area name implies.
+ */
+const SALARY_PLACEHOLDER = /^salary\b/i
+const VENUE_WORDS = /\b(burleigh|currumbin|beach house|tea garden|bakery)\b/gi
+
+function sectionOf(area: string | null): string {
+  if (!area) return "Unassigned"
+  let a = area.replace(SALARY_PLACEHOLDER, "").replace(VENUE_WORDS, "").replace(/\s+/g, " ").trim()
+  if (!a) return "Unassigned"
+  if (/^boh$/i.test(a)) a = "Kitchen"
+  if (/^foh$/i.test(a)) a = "FOH"
+  if (/^kp/i.test(a)) a = "KP"
+  return a.charAt(0).toUpperCase() + a.slice(1)
+}
+
+/** Read out front to back: floor first, then the kitchen, then the pastry team. */
+const SECTION_ORDER = ["FOH", "Barista", "Takeaway area", "Juice bar", "Kitchen", "Prep", "Pastry", "KP"]
+function sectionRank(name: string): number {
+  const i = SECTION_ORDER.findIndex((s) => s.toLowerCase() === name.toLowerCase())
+  return i === -1 ? SECTION_ORDER.length : i
+}
+
 const money = new Intl.NumberFormat("en-AU", {
   style: "currency",
   currency: "AUD",
@@ -87,14 +127,19 @@ export function LineUpBoard({
     })
   }
 
+  const shifts = lineUp.shifts.filter((s) => s.unfilled || !SALARY_PLACEHOLDER.test(s.name.trim()))
   const byArea = new Map<string, typeof lineUp.shifts>()
-  for (const s of lineUp.shifts) {
-    const key = s.area ?? "Unassigned area"
+  for (const s of shifts) {
+    const key = sectionOf(s.area)
     const list = byArea.get(key) ?? []
     list.push(s)
     byArea.set(key, list)
   }
-  const unfilled = lineUp.shifts.filter((s) => s.unfilled).length
+  const sections = [...byArea.entries()].sort(
+    ([a], [b]) => sectionRank(a) - sectionRank(b) || a.localeCompare(b)
+  )
+  for (const [, list] of sections) list.sort((a, b) => a.start.localeCompare(b.start))
+  const unfilled = shifts.filter((s) => s.unfilled).length
 
   return (
     <div className="space-y-7">
@@ -122,33 +167,52 @@ export function LineUpBoard({
 
       {/* 2. TODAY */}
       <Step n={2} title="Today" aside="2 minutes">
-        {lineUp.shifts.length === 0 ? (
+        {shifts.length === 0 ? (
           <p className="text-[17px] text-[var(--tk-ink-soft)]">
             No roster synced for today. Talk through sections from the printed
             roster.
           </p>
         ) : (
           <>
-            {unfilled > 0 && (
-              <p className="mb-3 rounded-[12px] bg-[var(--tk-amber-light,#FBF0E4)] px-4 py-2.5 text-[16px] font-semibold text-[var(--tk-charcoal)]">
-                {unfilled} shift{unfilled === 1 ? "" : "s"} still unfilled today.
-                Ask the room before you ring around.
-              </p>
-            )}
-            <div className="space-y-2.5">
-              {[...byArea.entries()].map(([area, shifts]) => (
-                <div key={area} className="flex flex-wrap items-baseline gap-x-2.5">
-                  <span className="min-w-[150px] text-[13px] font-semibold uppercase tracking-[0.08em] text-[var(--tk-ink-soft)]">
-                    {area}
-                  </span>
-                  <span className="text-[17px] text-[var(--tk-charcoal)]">
-                    {shifts
-                      .map(
-                        (s) =>
-                          `${s.name} ${time.format(new Date(s.start))}–${time.format(new Date(s.end))}`
-                      )
-                      .join(" · ")}
-                  </span>
+            <p className="mb-3 text-[15px] text-[var(--tk-ink-soft)]">
+              {shifts.length} on today across {sections.length} section{sections.length === 1 ? "" : "s"}.
+              {unfilled > 0
+                ? ` ${unfilled} shift${unfilled === 1 ? "" : "s"} still unfilled: ask the room before you ring around.`
+                : ""}
+            </p>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              {sections.map(([area, list]) => (
+                <div
+                  key={area}
+                  className="rounded-[14px] border-[1.5px] border-[var(--tk-line)] bg-[var(--tk-card)] px-4 py-3"
+                >
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[13px] font-semibold uppercase tracking-[0.08em] text-[var(--tk-ink-soft)]">
+                      {area}
+                    </span>
+                    <span className="text-[13px] text-[var(--tk-ink-mute)]">{list.length}</span>
+                  </div>
+                  <ul className="mt-1.5 space-y-1">
+                    {list.map((s, i) => (
+                      <li key={i} className="flex items-baseline justify-between gap-3 text-[17px] leading-snug">
+                        <span
+                          className={
+                            s.unfilled
+                              ? "font-semibold text-[var(--tk-warn)]"
+                              : "font-semibold text-[var(--tk-charcoal)]"
+                          }
+                        >
+                          {s.unfilled ? "Unfilled" : s.name.split(/\s+/)[0]}
+                          {!s.unfilled && s.name.split(/\s+/).length > 1 ? (
+                            <span className="font-normal text-[var(--tk-ink-soft)]"> {s.name.split(/\s+/).slice(1).join(" ")}</span>
+                          ) : null}
+                        </span>
+                        <span className="shrink-0 tabular-nums text-[15px] text-[var(--tk-ink-soft)]">
+                          {shortTime(s.start)}–{shortTime(s.end)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ))}
             </div>

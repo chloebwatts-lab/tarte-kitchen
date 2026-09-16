@@ -3,15 +3,35 @@
 import { useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Check, ChevronDown, Loader2, Wrench } from "lucide-react"
+import { Check, ChevronDown, ListChecks, Loader2, Wrench } from "lucide-react"
 import { useRememberedName } from "@/components/kitchen/use-remembered-name"
+import {
+  CATEGORY,
+  ESTIMATES,
+  NamePicker,
+  PRIORITY_LABEL,
+  PriorityTag,
+  ageLabel,
+  chip,
+  dueLabel,
+  fmtMinutes,
+  whenLabel,
+} from "@/components/kitchen/board-bits"
 import {
   assignTask,
   completeTask,
   dismissTask,
   overrideTaskPriority,
+  setTaskEstimate,
 } from "@/lib/actions/venue-ops"
-import type { BoardTask, MorningBoard as MorningBoardData } from "@/lib/actions/venue-ops"
+import type {
+  BoardTask,
+  ManagerPlate as PlateData,
+  MorningBoard as MorningBoardData,
+  OwnList as OwnListData,
+} from "@/lib/actions/venue-ops"
+import { OwnList } from "@/components/kitchen/OwnList"
+import { ManagerPlate } from "@/components/kitchen/ManagerPlate"
 import type { ReorderLine } from "@/lib/actions/venue-stock"
 import type { VenueTaskPriority } from "@/generated/prisma/client"
 
@@ -21,124 +41,6 @@ import type { VenueTaskPriority } from "@/generated/prisma/client"
  * away under the row. The morning job is putting a name on things, so an
  * unowned row shows the names right there; an owned row shows who and Done.
  */
-
-const CATEGORY: Record<string, string> = {
-  BROKEN_EQUIPMENT: "Broken equipment",
-  LOW_STOCK: "Low stock",
-  RUBBISH_REMOVAL: "Rubbish",
-  CLEANING: "Cleaning",
-  FURNITURE: "Furniture",
-  BUILDING: "Building",
-  MISC: "Other",
-}
-
-/** Same words the reporter chose from on the Spotted something screen. */
-const PRIORITY_LABEL: Record<VenueTaskPriority, string> = {
-  URGENT: "Today",
-  NORMAL: "This week",
-  WHENEVER: "Whenever",
-}
-
-const dayFmt = new Intl.DateTimeFormat("en-AU", {
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-  timeZone: "Australia/Brisbane",
-})
-
-const todayFmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Brisbane" })
-
-/** dueAt arrives as an ISO string for a @db.Date column: the calendar day is the first ten chars. */
-function dueLabel(dueAt: string): { text: string; late: boolean } {
-  const day = dueAt.slice(0, 10)
-  const today = todayFmt.format(new Date())
-  const date = new Date(`${day}T12:00:00+10:00`)
-  const diff = Math.round((Date.parse(`${day}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000)
-  if (diff === 0) return { text: "due today", late: false }
-  if (diff === 1) return { text: "due tomorrow", late: false }
-  if (diff < 0) {
-    const d = -diff
-    return { text: `${d} day${d === 1 ? "" : "s"} overdue`, late: true }
-  }
-  return { text: `due ${dayFmt.format(date)}`, late: false }
-}
-
-function ageLabel(days: number): string {
-  if (days <= 0) return "today"
-  if (days === 1) return "yesterday"
-  if (days < 14) return `${days} days ago`
-  const w = Math.floor(days / 7)
-  return `${w} week${w === 1 ? "" : "s"} ago`
-}
-
-const chip = (active: boolean) =>
-  `rounded-[10px] px-3 py-2 text-[15px] font-semibold transition active:scale-[0.98] disabled:opacity-50 ${
-    active
-      ? "bg-[var(--tk-charcoal)] text-white"
-      : "border-[1.5px] border-[var(--tk-line)] bg-[var(--tk-card)] text-[var(--tk-charcoal)]"
-  }`
-
-function NamePicker({
-  names,
-  current,
-  onPick,
-  busy,
-  compact,
-}: {
-  names: string[]
-  current: string | null
-  onPick: (name: string) => void
-  busy: boolean
-  compact?: boolean
-}) {
-  const [other, setOther] = useState(false)
-  const [typed, setTyped] = useState("")
-  const shown = compact ? names.slice(0, 4) : names
-  const cur = (current ?? "").trim().toLowerCase()
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      {shown.map((n) => (
-        <button
-          key={n}
-          disabled={busy}
-          onClick={() => onPick(n)}
-          className={chip(n.trim().toLowerCase() === cur)}
-        >
-          {n}
-        </button>
-      ))}
-      {other ? (
-        <form
-          className="flex items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (typed.trim()) onPick(typed)
-          }}
-        >
-          <input
-            autoFocus
-            type="text"
-            value={typed}
-            onChange={(e) => setTyped(e.target.value)}
-            placeholder="Name"
-            className="w-36 rounded-[10px] border-[1.5px] border-[var(--tk-line)] bg-[var(--tk-card)] px-3 py-2 text-[15px]"
-          />
-          <button type="submit" disabled={busy || !typed.trim()} className={chip(true)}>
-            Set
-          </button>
-        </form>
-      ) : (
-        <button
-          disabled={busy}
-          onClick={() => setOther(true)}
-          className="rounded-[10px] px-2 py-2 text-[15px] font-semibold text-[var(--tk-ink-soft)] underline decoration-[var(--tk-line)] underline-offset-4"
-        >
-          {names.length ? "Someone else" : "Type a name"}
-        </button>
-      )}
-    </div>
-  )
-}
 
 function TaskRow({
   task,
@@ -166,6 +68,14 @@ function TaskRow({
   if (scheduled) meta.push("Scheduled")
   else if (task.reportedBy) meta.push(`${task.reportedBy}, ${ageLabel(task.ageDays)}`)
   else meta.push(ageLabel(task.ageDays))
+  if (task.handedBackBy && task.handedBackAt && unowned) {
+    meta.push(
+      <span key="back" className="font-semibold text-[var(--tk-warn)]">
+        {task.handedBackBy} handed it back {whenLabel(task.handedBackAt)}
+      </span>
+    )
+  }
+  if (task.estimateMinutes) meta.push(fmtMinutes(task.estimateMinutes))
   if (due) {
     meta.push(
       <span key="due" className={due.late ? "font-semibold text-[var(--tk-warn)]" : undefined}>
@@ -184,16 +94,7 @@ function TaskRow({
           aria-expanded={open}
         >
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-            {task.priority === "URGENT" ? (
-              <span className="rounded-full bg-[var(--tk-warn-soft)] px-2.5 py-0.5 text-[12px] font-bold uppercase tracking-[0.08em] text-[var(--tk-warn)]">
-                Today
-              </span>
-            ) : null}
-            {task.priority === "WHENEVER" ? (
-              <span className="rounded-full bg-[var(--tk-charcoal-soft)] px-2.5 py-0.5 text-[12px] font-bold uppercase tracking-[0.08em] text-[var(--tk-ink-soft)]">
-                Whenever
-              </span>
-            ) : null}
+            <PriorityTag priority={task.priority} />
             <span className="text-[18px] font-semibold leading-snug text-[var(--tk-charcoal)]">
               {task.title}
             </span>
@@ -219,7 +120,7 @@ function TaskRow({
               current={null}
               busy={busy}
               compact
-              onPick={(n) => run(() => assignTask(task.id, n))}
+              onPick={(n) => run(() => assignTask(task.id, n, me))}
             />
           ) : (
             <>
@@ -259,8 +160,14 @@ function TaskRow({
               names={names}
               current={task.ownedBy}
               busy={busy}
-              onPick={(n) => run(() => assignTask(task.id, n))}
+              onPick={(n) => run(() => assignTask(task.id, n, me))}
             />
+            {task.ownedBy && task.assignedAt ? (
+              <p className="mt-2 text-[14px] text-[var(--tk-ink-soft)]">
+                On {task.ownedBy} since {whenLabel(task.assignedAt)}
+                {task.assignedBy ? `, put there by ${task.assignedBy}` : ""}. They see it on the Jobs board.
+              </p>
+            ) : null}
           </div>
           <div>
             <p className="mb-2 text-[13px] font-semibold uppercase tracking-[0.08em] text-[var(--tk-ink-soft)]">
@@ -275,6 +182,25 @@ function TaskRow({
                   className={chip(task.priority === p)}
                 >
                   {PRIORITY_LABEL[p]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-[13px] font-semibold uppercase tracking-[0.08em] text-[var(--tk-ink-soft)]">
+              How long, roughly
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {ESTIMATES.map((e) => (
+                <button
+                  key={e.minutes}
+                  disabled={busy}
+                  onClick={() =>
+                    run(() => setTaskEstimate(task.id, task.estimateMinutes === e.minutes ? null : e.minutes))
+                  }
+                  className={chip(task.estimateMinutes === e.minutes)}
+                >
+                  {e.label}
                 </button>
               ))}
             </div>
@@ -364,13 +290,24 @@ export function MorningBoard({
   board,
   belowPar,
   venueLabel,
+  manager,
+  own,
+  plate,
 }: {
   board: MorningBoardData
   belowPar: ReorderLine[]
   venueLabel: string
+  /// The venue's manager (Georgia at Burleigh). Their section comes first and
+  /// carries their own list and the wider picture, so nobody has to ask.
+  manager: string | null
+  own: OwnListData | null
+  plate: PlateData | null
 }) {
   const [me] = useRememberedName()
   const mine = me.trim().toLowerCase()
+  const [fullPicture, setFullPicture] = useState(false)
+  const mgr = (manager ?? "").trim().toLowerCase()
+  const mgrFirst = manager ? manager.split(/\s+/)[0] : null
 
   // Owned rows grouped by name. Whoever is holding the iPad reads first.
   const byOwner = new Map<string, BoardTask[]>()
@@ -378,6 +315,8 @@ export function MorningBoard({
     const k = (t.ownedBy ?? "").trim()
     byOwner.set(k, [...(byOwner.get(k) ?? []), t])
   }
+  const mgrTasks = mgr ? (byOwner.get([...byOwner.keys()].find((k) => k.toLowerCase() === mgr) ?? "") ?? []) : []
+  if (mgr) for (const k of [...byOwner.keys()]) if (k.toLowerCase() === mgr) byOwner.delete(k)
   const groups = [...byOwner.entries()].sort(([a], [b]) => {
     if (a.toLowerCase() === mine) return -1
     if (b.toLowerCase() === mine) return 1
@@ -388,7 +327,48 @@ export function MorningBoard({
     board.unassigned.length + board.waitingOn.length + board.mine.length + board.stale.length
   const waitingCount = board.waitingOn.length + board.mine.length
 
-  if (openCount === 0 && belowPar.length === 0) {
+  const ownOpen = own?.open.length ?? 0
+  const managerSection =
+    manager && own && plate ? (
+      <Section
+        id="on-manager"
+        title={mgr === mine ? "On you" : `On ${mgrFirst}`}
+        count={mgrTasks.length + ownOpen}
+        hint={
+          plate.openMinutes > 0
+            ? `${plate.openMinutes >= 60 ? `${Math.round(plate.openMinutes / 60)} hr${plate.openMinutes >= 120 ? "s" : ""}` : `${plate.openMinutes} min`} sized. ${mgrFirst}'s own list lives here too, nobody else's to pick up.`
+            : `${mgrFirst}'s own list lives here too, nobody else's to pick up.`
+        }
+      >
+        {mgrTasks.length > 0 ? (
+          <div className="space-y-2.5">
+            {mgrTasks.map((t) => (
+              <TaskRow key={t.id} task={t} names={board.owners} me={me} unowned={false} />
+            ))}
+          </div>
+        ) : null}
+        <div className={mgrTasks.length > 0 ? "mt-4" : ""}>
+          <OwnList list={own} venue={board.venue} />
+        </div>
+        <div className="mt-4">
+          <button
+            onClick={() => setFullPicture((v) => !v)}
+            aria-expanded={fullPicture}
+            className="inline-flex items-center gap-1.5 rounded-[10px] px-2 py-1.5 text-[15px] font-semibold text-[var(--tk-ink-soft)] underline decoration-[var(--tk-line)] underline-offset-4"
+          >
+            {fullPicture ? "Hide the full picture" : `The full picture on ${mgrFirst}`}
+            <ChevronDown className={`h-4 w-4 transition ${fullPicture ? "rotate-180" : ""}`} />
+          </button>
+          {fullPicture ? (
+            <div className="mt-3 rounded-[16px] border-[1.5px] border-[var(--tk-line)] bg-[var(--tk-bg)] p-4 md:p-5">
+              <ManagerPlate plate={plate} venueLabel={venueLabel} embedded />
+            </div>
+          ) : null}
+        </div>
+      </Section>
+    ) : null
+
+  if (openCount === 0 && belowPar.length === 0 && ownOpen === 0) {
     return (
       <div className="rounded-[20px] bg-[var(--tk-card)] px-6 py-10 text-center">
         <p className="tk-display text-[28px] font-bold tracking-[-0.02em] text-[var(--tk-charcoal)]">
@@ -428,6 +408,8 @@ export function MorningBoard({
         ) : null}
       </div>
 
+      {managerSection}
+
       {board.unassigned.length > 0 ? (
         <Section
           id="needs-owner"
@@ -451,7 +433,7 @@ export function MorningBoard({
               id={`waiting-${owner.toLowerCase().replace(/\s+/g, "-")}`}
               title={owner.toLowerCase() === mine ? "On you" : `Waiting on ${owner}`}
               count={tasks.length}
-              hint={owner.toLowerCase() === mine ? undefined : "Chase, don't do."}
+              hint={owner.toLowerCase() === mine ? undefined : "On their Jobs board. Chase, don't do."}
             >
               <div className="space-y-2.5">
                 {tasks.map((t) => (
@@ -518,7 +500,14 @@ export function MorningBoard({
       ) : null}
 
       <p className="pt-2 text-[15px] text-[var(--tk-ink-soft)]">
-        Something new?{" "}
+        <Link
+          href={`/kitchen/jobs?venue=${board.venue}`}
+          className="inline-flex items-center gap-1.5 font-semibold text-[var(--tk-charcoal)] underline decoration-[var(--tk-line)] underline-offset-4"
+        >
+          <ListChecks className="h-4 w-4" /> Jobs board
+        </Link>{" "}
+        is where everything with a name on it shows up for that person.
+        {" "}Something new?{" "}
         <Link href="/kitchen/report" className="font-semibold text-[var(--tk-charcoal)] underline decoration-[var(--tk-line)] underline-offset-4">
           Spotted something
         </Link>{" "}

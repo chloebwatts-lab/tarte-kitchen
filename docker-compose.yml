@@ -36,6 +36,9 @@ services:
       # by staff-auth.ts, which fails closed: unset means nobody gets in.
       STAFF_USERNAME: ${STAFF_USERNAME:-tarte}
       STAFF_PASSWORD: ${STAFF_PASSWORD}
+      # Who hears about broken equipment (report, trade booked, fixed).
+      # Comma-separated; defaults in code to hello@ + shawna@ when unset.
+      MAINTENANCE_ALERT_TO: ${MAINTENANCE_ALERT_TO:-}
       # Secrets used at runtime — sourced from the droplet's .env via docker compose
       TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY}
       CRON_SECRET: ${CRON_SECRET}
