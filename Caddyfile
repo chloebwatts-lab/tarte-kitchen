@@ -131,3 +131,12 @@ inbox.tarte.com.au {
 
 	reverse_proxy inbox:8787
 }
+
+# tarte-shifts — rosters, kiosk and onboarding. Runs in /root/tarte-shifts
+# under its own docker-compose, joined to this network. Auth is in-app
+# (PIN login + roles; onboarding links are unguessable tokens), so no
+# basic_auth here.
+shifts.tarte.com.au {
+	encode gzip
+	reverse_proxy tarte-shifts-app-1:3000
+}
