@@ -142,5 +142,13 @@ inbox.tarte.com.au {
 # basic_auth here.
 shifts.tarte.com.au {
 	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "camera=(self), geolocation=(), microphone=()"
+		-Server
+	}
 	reverse_proxy tarte-shifts-app-1:3000
 }
