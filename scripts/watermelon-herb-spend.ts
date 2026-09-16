@@ -50,6 +50,7 @@ const NOT_WATERMELON = /radish|juice|syrup|cordial|puree|frozen|iqf|candy|lolly|
 
 type Row = {
   invoiceId: string
+  invoiceNumber: string | null
   invoiceDate: string
   supplierName: string
   venue: string | null
@@ -96,6 +97,7 @@ async function main() {
   const res = await pool.query(
     `
     SELECT i.id            AS "invoiceId",
+           i."invoiceNumber" AS "invoiceNumber",
            i."invoiceDate"::text AS "invoiceDate",
            i."supplierName" AS "supplierName",
            i.venue::text    AS venue,
@@ -120,10 +122,24 @@ async function main() {
     [from.toISOString().slice(0, 10), to.toISOString().slice(0, 10)]
   )
   await pool.end()
-  const rows = res.rows as Row[]
+  const raw = res.rows as Row[]
+
+  // The same supplier invoice can be ingested twice (Fresho re-sends, sweep
+  // re-imports). Keep the first invoice id seen per supplier + invoice number
+  // so a duplicate does not double the kilos.
+  const keep = new Map<string, string>()
+  const dupIds = new Set<string>()
+  for (const r of raw) {
+    if (!r.invoiceNumber) continue
+    const k = `${r.supplierName.toLowerCase()}|${r.invoiceNumber.trim()}`
+    const first = keep.get(k)
+    if (first === undefined) keep.set(k, r.invoiceId)
+    else if (first !== r.invoiceId) dupIds.add(r.invoiceId)
+  }
+  const rows = raw.filter((r) => !dupIds.has(r.invoiceId))
 
   console.log(`Window ${from.toISOString().slice(0, 10)} to ${to.toISOString().slice(0, 10)} (${windowDays} days, ${weeks.toFixed(1)} weeks)`)
-  console.log(`Matched invoice lines: ${rows.length}\n`)
+  console.log(`Matched invoice lines: ${rows.length}` + (dupIds.size ? ` (dropped ${raw.length - rows.length} lines from ${dupIds.size} duplicate invoices)` : "") + "\n")
 
   // ---------- WATERMELON ----------
   const wm = rows.filter((r) => {
