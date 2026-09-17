@@ -61,19 +61,41 @@ export async function setManagerCookie(): Promise<void> {
   })
 }
 
-export async function isManagerAuthed(): Promise<boolean> {
-  if (await getServerSession(authOptions)) return true
+/** Expiry time of a valid, unexpired manager cookie, or null. */
+async function managerCookieExpiry(): Promise<number | null> {
   const raw = (await cookies()).get(COOKIE_NAME)?.value
-  if (!raw) return false
+  if (!raw) return null
   const idx = raw.indexOf(".")
-  if (idx < 0) return false
+  if (idx < 0) return null
   const payload = raw.slice(0, idx)
   const sig = raw.slice(idx + 1)
   const expected = sign(payload)
-  if (sig.length !== expected.length) return false
-  if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false
+  if (sig.length !== expected.length) return null
+  if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null
   const expiresAt = Number(payload)
-  return Number.isFinite(expiresAt) && expiresAt > Date.now()
+  return Number.isFinite(expiresAt) && expiresAt > Date.now() ? expiresAt : null
+}
+
+export async function isManagerAuthed(): Promise<boolean> {
+  if (await getServerSession(authOptions)) return true
+  return (await managerCookieExpiry()) !== null
+}
+
+/**
+ * Sliding expiry. A manager who keeps using the app keeps the cookie: once it
+ * is past halfway, the next action re-issues it for a fresh 12 hours. Cookies
+ * can only be written from a server action or route handler, so a call made
+ * while a page renders is a no-op rather than an error.
+ */
+async function touchManagerCookie(): Promise<void> {
+  const expiresAt = await managerCookieExpiry()
+  if (expiresAt === null) return
+  if (expiresAt - Date.now() > TWELVE_HOURS_MS / 2) return
+  try {
+    await setManagerCookie()
+  } catch {
+    // Rendering a page, not handling an action. Nothing to refresh here.
+  }
 }
 
 /** Call at the top of any manager-only page. `next` is where to come back to. */
@@ -89,4 +111,5 @@ export async function requireManager(next: string): Promise<void> {
  */
 export async function assertManager(): Promise<void> {
   if (!(await isManagerAuthed())) throw new Error("Locked. Unlock the managers area first.")
+  await touchManagerCookie()
 }
