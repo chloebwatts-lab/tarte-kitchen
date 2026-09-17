@@ -140,19 +140,14 @@ inbox.tarte.com.au {
 	reverse_proxy inbox:8787
 }
 
-# tarte-shifts — rosters, kiosk and onboarding. Runs in /root/tarte-shifts
-# under its own docker-compose, joined to this network. Auth is in-app
-# (PIN login + roles; onboarding links are unguessable tokens), so no
-# basic_auth here.
+# tarte-shifts moved to its own droplet (170.64.133.74) on 17 Sep 2026.
+# This vhost only bridges the DNS change-over: anyone still resolving the
+# old IP is forwarded to the new box. Safe to delete a few days later.
 shifts.tarte.com.au {
-	encode gzip
-	header {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
-		X-Content-Type-Options nosniff
-		X-Frame-Options DENY
-		Referrer-Policy strict-origin-when-cross-origin
-		Permissions-Policy "camera=(self), geolocation=(), microphone=()"
-		-Server
+	reverse_proxy https://170.64.133.74 {
+		header_up Host shifts.tarte.com.au
+		transport http {
+			tls_server_name shifts.tarte.com.au
+		}
 	}
-	reverse_proxy tarte-shifts-app-1:3000
 }
