@@ -10,6 +10,7 @@ export default async function CouncilLoginPage({
 }) {
   const sp = await searchParams
   const hasError = sp.error === "1"
+  const isLocked = sp.error === "locked"
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -35,6 +36,9 @@ export default async function CouncilLoginPage({
             placeholder="Password"
             className="block w-full rounded-md border border-input bg-card px-3 py-2 text-base shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
+          {isLocked && (
+            <p className="text-sm text-red-text">Too many wrong tries. Wait 15 minutes, then try again.</p>
+          )}
           {hasError && (
             <p className="text-sm text-red-text">Incorrect password.</p>
           )}

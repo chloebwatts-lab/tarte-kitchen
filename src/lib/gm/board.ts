@@ -5,7 +5,8 @@
  */
 
 import { db } from "@/lib/db"
-import { addDays, currentWeekStart, todayAest } from "@/lib/commitments/weeks"
+import { addDays, todayAest } from "@/lib/commitments/weeks"
+import { gmWeekStart } from "./week"
 import { DEFAULT_GM_DAYS, GM_ITEMS, type GmDays, type GmItem } from "./plan"
 import { dayLabel, getAutoReadings, getWeekNumbers, type AutoReading, type WeekNumbers } from "./readings"
 
@@ -76,7 +77,7 @@ export function composeReport(p: {
   sent?: boolean
 }): string {
   const done = p.items.filter((i) => i.state === "done" || i.state === "auto-ok")
-  const notDone = p.items.filter((i) => !(i.state === "done" || i.state === "auto-ok") && i.slug !== "friday-report")
+  const notDone = p.items.filter((i) => !(i.state === "done" || i.state === "auto-ok") && i.slug !== "weekly-report")
   const lines: string[] = []
   lines.push(`Oliver's week, ${p.weekLabel}`)
   lines.push("")
@@ -117,7 +118,7 @@ export function composeReport(p: {
 // ─── Nudge cron read model ───────────────────────────────────────────
 
 export async function gmDigestForCron() {
-  const weekStart = currentWeekStart()
+  const weekStart = gmWeekStart()
   const monday = new Date(weekStart)
   const [built, numbers, talks, gmDays, report, email, tasks] = await Promise.all([
     buildItems(weekStart),

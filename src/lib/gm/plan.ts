@@ -5,7 +5,8 @@
  *   - Timesheet approval, Deputy salary cards and pay rates: Shawna.
  *   - Wage %, COGS %, supplier price rises, review reply drafts: worked out
  *     automatically and shown to him here as readings, never as chores.
- *   - Pricing and till changes, supplier contracts, subscriptions: Chloe.
+ *   - Loading prices in the till: Shawna.
+ *   - Pricing decisions, supplier contracts, subscriptions: Chloe.
  *
  * Anything the app can see for itself carries an `auto` key and ticks
  * itself. A manual mark always wins over the auto reading.
@@ -21,7 +22,7 @@ export type GmAutoKey =
   | "checklists"
   | "wastage"
   | "one-on-ones"
-  | "friday-report"
+  | "weekly-report"
 
 export interface GmItem {
   slug: string
@@ -52,7 +53,7 @@ export const THEME_LABEL: Record<GmTheme, string> = {
 export const THEME_BLURB: Record<Exclude<GmTheme, "everyday">, string> = {
   rosters: "Two weeks live, inside band, no holes.",
   kitchen: "Labels, prep, portions, orders, waste.",
-  people: "One-on-ones, new starters, reviews, the Friday report.",
+  people: "One-on-ones, new starters, reviews, the Monday report.",
 }
 
 export const GM_ITEMS: GmItem[] = [
@@ -71,7 +72,7 @@ export const GM_ITEMS: GmItem[] = [
     theme: "rosters",
     pillar: "efficient",
     title: "Roster live two full weeks ahead",
-    hint: "Published in Deputy by Wednesday. The app checks Deputy for you.",
+    hint: "Publish on Thursday, before the weekend. The app checks Deputy for you.",
     auto: "roster-horizon",
   },
   {
@@ -204,12 +205,12 @@ export const GM_ITEMS: GmItem[] = [
     noteOnDone: "What was it, and what changed?",
   },
   {
-    slug: "friday-report",
+    slug: "weekly-report",
     theme: "people",
     pillar: "efficient",
-    title: "Friday report sent to Chloe by 3pm",
-    hint: "The app writes the numbers. You add two lines and press send.",
-    auto: "friday-report",
+    title: "Monday report sent to Chloe by 3pm",
+    hint: "Last job before your two days off. The app writes the numbers. You add two lines and press send.",
+    auto: "weekly-report",
   },
 ]
 
@@ -231,14 +232,14 @@ export const GM_TASK_SEEDS: GmTaskSeed[] = [
     slug: "rosters-live",
     title: "Two weeks of rosters live, inside band, GM days blocked",
     doneMeans: "Weeks starting 30 Sep and 7 Oct published. Every dept in band on the forecast. Zero open shifts.",
-    dueOn: "2026-09-23",
+    dueOn: "2026-09-24",
     sortOrder: 1,
   },
   {
     slug: "oct-1-briefing",
     title: "Staff briefed on the 1 October changes",
-    doneMeans: "Card surcharge ends 1 Oct. Every FOH person can explain it and the Sunday surcharge to a guest. Menus and signage match the till. Chloe loads the prices, you run the floor.",
-    dueOn: "2026-09-30",
+    doneMeans: "Card surcharge ends 1 Oct. Every FOH person can explain it and the Sunday surcharge to a guest. Menus and signage match the till. Shawna loads the prices, you run the floor.",
+    dueOn: "2026-09-28",
     sortOrder: 2,
   },
   {
@@ -286,8 +287,8 @@ export const GM_TASK_SEEDS: GmTaskSeed[] = [
   {
     slug: "holiday-rosters",
     title: "Christmas and school holiday rosters published",
-    doneMeans: "9 Dec to 19 Jan live by 1 Dec, staffed for 1.35 times a normal week. Public holidays covered. Leave requests closed.",
-    dueOn: "2026-12-01",
+    doneMeans: "9 Dec to 19 Jan live by 30 Nov, staffed for 1.35 times a normal week. Public holidays covered. Leave requests closed.",
+    dueOn: "2026-11-30",
     sortOrder: 9,
   },
   {
@@ -307,6 +308,6 @@ export const GM_MONTHLY_MANUAL: { slug: string; label: string; target: string }[
 ]
 
 // ── GM days ───────────────────────────────────────────────────
-/** ISO weekday (1 = Mon) to theme. Editable on the page. */
+/** ISO weekday (1 = Mon) to theme. Thursday, Friday, Monday. Editable on the page. */
 export type GmDays = Partial<Record<"1" | "2" | "3" | "4" | "5" | "6" | "7", Exclude<GmTheme, "everyday">>>
-export const DEFAULT_GM_DAYS: GmDays = { "1": "rosters", "3": "kitchen", "5": "people" }
+export const DEFAULT_GM_DAYS: GmDays = { "4": "rosters", "5": "kitchen", "1": "people" }

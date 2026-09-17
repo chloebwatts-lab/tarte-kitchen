@@ -7,6 +7,7 @@ import {
   buildStaffCookieValue,
   checkStaffCredentials,
 } from "@/lib/staff-auth"
+import { guardedCheck } from "@/lib/login-guard"
 
 /** Only ever bounce back into our own app, never to a pasted URL. */
 function safeNext(raw: string): string {
@@ -20,8 +21,9 @@ export async function submitStaffLogin(formData: FormData): Promise<void> {
   const password = String(formData.get("password") ?? "")
   const next = safeNext(String(formData.get("next") ?? "/staffaccess"))
 
-  if (!(await checkStaffCredentials(username, password))) {
-    redirect(`/staff-login?error=1&next=${encodeURIComponent(next)}`)
+  const result = await guardedCheck("staff", () => checkStaffCredentials(username, password))
+  if (result !== "ok") {
+    redirect(`/staff-login?error=${result === "locked" ? "locked" : "1"}&next=${encodeURIComponent(next)}`)
   }
 
   const { value, expiresAt } = await buildStaffCookieValue()

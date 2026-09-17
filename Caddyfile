@@ -39,6 +39,8 @@
 		# PWA install assets — the staff home-screen app installs from the
 		# public /kitchen area, so the manifest + icons must load without a
 		# password prompt. Branding only, no data behind these paths.
+		# GM desk alert service worker: code only, no data.
+		not path /gm-sw.js
 		not path /manifest.webmanifest
 		not path /office.webmanifest
 		not path /icons/*

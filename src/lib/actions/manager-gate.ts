@@ -8,9 +8,12 @@ import {
   setManagerCookie,
   storeManagerPassword,
 } from "@/lib/manager-auth"
+import { guardedCheck, LOCKED_MESSAGE } from "@/lib/login-guard"
 
 export async function unlockManagers(password: string, next: string) {
-  if (!(await checkManagerPassword(password))) {
+  const result = await guardedCheck("managers", () => checkManagerPassword(password))
+  if (result === "locked") return { ok: false as const, error: LOCKED_MESSAGE }
+  if (result === "wrong") {
     return { ok: false as const, error: "That's not it. Ask Chloe or Shawna." }
   }
   await setManagerCookie()

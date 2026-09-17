@@ -51,6 +51,9 @@ services:
       # Secrets used at runtime — sourced from the droplet's .env via docker compose
       TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY}
       CRON_SECRET: ${CRON_SECRET}
+      # GM desk phone alerts (web push). Optional: blank = email only.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       # Gmail OAuth + invoice parsing
       GMAIL_CLIENT_ID: ${GMAIL_CLIENT_ID}
       GMAIL_CLIENT_SECRET: ${GMAIL_CLIENT_SECRET}
@@ -234,14 +237,16 @@ services:
         # having to upload Thursday afternoon. Failure / partial → email
         # chloe@ with a link to /labour/upload for manual recovery.
         0 21 * * 3 curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/pull-louise-reports 2>&1
-        # GM desk (Oliver's tile). Times are UTC: 20:30 = 6:30am AEST list
-        # on his GM days; Fri 03:00 = 1pm report nudge; Fri 06:00 = 4pm
-        # "no report" note to Chloe; Sun 10:00 = 8pm freeze of the week's
-        # app readings for the month sheet. Every kind self-gates.
+        # GM desk (Oliver's tile). His week is the Wed to Tue trading week; GM days Thu, Fri,
+        # Mon. Times are UTC: 20:30 = 6:30am AEST list; 04:00 = 2pm "still
+        # open"; Mon 03:00 = 1pm report nudge; Mon 06:00 = 4pm "no report"
+        # note to Chloe; Tue 10:00 = 8pm freeze of the week's app readings.
+        # Every kind self-gates (GM day, password set, already sent).
         30 20 * * * curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/gm-nudge?kind=morning' 2>&1
-        0 3 * * 5 curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/gm-nudge?kind=report-due' 2>&1
-        0 6 * * 5 curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/gm-nudge?kind=wrap' 2>&1
-        0 10 * * 0 curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/gm-nudge?kind=close' 2>&1
+        0 4 * * * curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/gm-nudge?kind=afternoon' 2>&1
+        0 3 * * 1 curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/gm-nudge?kind=report-due' 2>&1
+        0 6 * * 1 curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/gm-nudge?kind=wrap' 2>&1
+        0 10 * * 2 curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/gm-nudge?kind=close' 2>&1
         CRON
         exec crond -f -l 8 -L /dev/stdout
 

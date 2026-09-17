@@ -147,7 +147,7 @@ async function hoursVsRoster(): Promise<AutoReading> {
   }
 }
 
-// ── Checklists, this Mon to Sun week, Burleigh ────────────────
+// ── Checklists, this trading week (Wed to Tue), Burleigh ────────────────
 
 async function checklists(weekStart: string): Promise<AutoReading> {
   const monday = new Date(weekStart)
@@ -184,7 +184,7 @@ async function checklists(weekStart: string): Promise<AutoReading> {
   }
 }
 
-// ── Wastage, this Mon to Sun week ─────────────────────────────
+// ── Wastage, this trading week (Wed to Tue) ─────────────────────────────
 
 async function wastage(weekStart: string): Promise<AutoReading & { total: number }> {
   const monday = new Date(weekStart)
@@ -216,7 +216,7 @@ async function oneOnOnes(weekStart: string): Promise<AutoReading> {
   return { met: n >= ONE_ON_ONE_TARGET, detail: `${n} of ${ONE_ON_ONE_TARGET} this week.` }
 }
 
-async function fridayReport(weekStart: string): Promise<AutoReading> {
+async function weeklyReport(weekStart: string): Promise<AutoReading> {
   const r = await db.gmReport.findUnique({ where: { weekStart: new Date(weekStart) } })
   if (!r) return { met: false, detail: "Not sent yet." }
   const at = new Date(r.sentAt.getTime() + AEST_MS)
@@ -235,7 +235,7 @@ export async function getAutoReadings(weekStart: string): Promise<{
     checklists(weekStart),
     wastage(weekStart),
     oneOnOnes(weekStart),
-    fridayReport(weekStart),
+    weeklyReport(weekStart),
   ])
   return {
     readings: {
@@ -245,7 +245,7 @@ export async function getAutoReadings(weekStart: string): Promise<{
       checklists: c,
       wastage: { met: w.met, detail: w.detail },
       "one-on-ones": one,
-      "friday-report": rep,
+      "weekly-report": rep,
     },
     nextToPublish: h.nextToPublish,
     wastageTotal: w.total,

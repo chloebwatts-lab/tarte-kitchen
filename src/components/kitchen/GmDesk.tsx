@@ -10,6 +10,7 @@ import {
   clearGmMark,
   logOneOnOne,
   markGmItem,
+  saveGmPush,
   sendFridayReport,
   setGmDays,
   setGmTaskDone,
@@ -56,7 +57,7 @@ export function GmDesk({ board }: { board: GmBoard }) {
       <div className="px-1">
         <div className="text-[15px] font-semibold uppercase tracking-[0.08em] text-[var(--tk-ink-mute)]">{board.todayLabel}</div>
         <h1 className="tk-display mt-1 leading-none text-[var(--tk-charcoal)]" style={{ fontSize: "clamp(34px, 6vw, 48px)", fontWeight: 700, letterSpacing: "-0.025em" }}>
-          {board.todayTheme ? THEME_LABEL[board.todayTheme] : "Role day"}
+          {board.todayTheme ? THEME_LABEL[board.todayTheme] : board.isoDay === 2 || board.isoDay === 3 ? "Day off" : "On the floor"}
         </h1>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">{MISSION}</p>
       </div>
@@ -86,7 +87,7 @@ export function GmDesk({ board }: { board: GmBoard }) {
           </button>
         ))}
         <Link href="/kitchen/gm/month" className="rounded-[10px] px-2 py-3 text-center text-[16px] font-semibold text-[var(--tk-ink-soft)]">
-          Month
+          Tracking
         </Link>
       </div>
 
@@ -120,15 +121,19 @@ function Today({ board, run, busy, nextTask }: { board: GmBoard; run: Run; busy:
   const carried = board.items.filter((i) => {
     if (i.theme === "everyday" || i.theme === theme) return false
     const d = dayOf.get(i.theme as DayTheme)
-    return d != null && d < board.isoDay && d >= board.firstDayThisWeek && !isDone(i) && i.state !== "couldnt"
+    if (d == null) return false
+    const pos = (d + 4) % 7 // Wed = 0 ... Tue = 6, same as gmWeekPos
+    return pos < board.todayPos && pos >= board.firstPosThisWeek && !isDone(i) && i.state !== "couldnt"
   })
   const finished = todays.filter((i) => isDone(i) || i.state === "couldnt")
 
   return (
     <div className="space-y-7">
+      {board.pushKey && board.pushDevices === 0 ? <PhoneAlerts board={board} run={run} /> : null}
+
       {!theme ? (
         <div className="rounded-[16px] bg-[var(--tk-sage-soft)] p-5 text-[17px] leading-snug text-[var(--tk-ink)]">
-          You are in a role today, so nothing new is due. Two minutes: look at what is still open below, and at the numbers.
+          Not a GM day, so nothing new is due. Two minutes: look at what is still open below, and at the numbers.
         </div>
       ) : null}
 
@@ -261,7 +266,7 @@ function ItemCard({ item, run, busy, board, compact }: { item: BoardItem; run: R
           <KitchenButton variant="ghost" size="sm" disabled={busy} onClick={() => run(() => clearGmMark(item.slug))}>
             <RotateCcw className="h-4 w-4" /> Undo
           </KitchenButton>
-        ) : item.slug === "friday-report" || item.slug === "one-on-ones" ? null : (
+        ) : item.slug === "weekly-report" || item.slug === "one-on-ones" ? null : (
           <>
             {!done ? (
               <KitchenButton variant="primary" size="lg" disabled={busy || (mode === "couldnt")} onClick={tickDone} className="min-w-[150px]">
@@ -380,6 +385,7 @@ function Numbers({ board }: { board: GmBoard }) {
     <Section title="The numbers" sub="Worked out for you from payroll and invoices. Percent of sales, no dollars.">
       {wages.tiles.length ? <TileRow label={`Wages, week ${wages.weekLabel}`} tiles={wages.tiles} /> : null}
       {cogs.tiles.length ? <TileRow label={`COGS, week ${cogs.weekLabel}`} tiles={cogs.tiles} /> : null}
+      <KitchenButton href="/kitchen/gm/live" variant="secondary" size="lg" className="w-full">See this week live: spend and wages so far</KitchenButton>
     </Section>
   )
 }
@@ -406,26 +412,27 @@ function TileRow({ label, tiles }: { label: string; tiles: NumberTile[] }) {
 function Week({ board, run, busy }: { board: GmBoard; run: Run; busy: boolean }) {
   return (
     <div className="space-y-8">
-      <FridayReport board={board} run={run} busy={busy} />
+      <WeeklyReport board={board} run={run} busy={busy} />
       {(["everyday", ...THEMES] as GmTheme[]).map((th) => (
         <Section key={th} title={THEME_LABEL[th]}>
           {board.items.filter((i) => i.theme === th).map((i) => <ItemCard key={i.slug} item={i} run={run} busy={busy} board={board} compact={isDone(i)} />)}
         </Section>
       ))}
+      <PhoneAlerts board={board} run={run} />
       <DayPicker board={board} run={run} busy={busy} />
     </div>
   )
 }
 
-function FridayReport({ board, run, busy }: { board: GmBoard; run: Run; busy: boolean }) {
+function WeeklyReport({ board, run, busy }: { board: GmBoard; run: Run; busy: boolean }) {
   const [fixed, setFixed] = useState(board.report.fixed)
   const [need, setNeed] = useState(board.report.need)
   const [show, setShow] = useState(false)
   return (
     <section className="rounded-[16px] border border-[var(--tk-line)] bg-[var(--tk-card)] p-4 md:p-5">
-      <h2 className="text-[20px] font-bold text-[var(--tk-ink)]">Friday report to Chloe</h2>
+      <h2 className="text-[20px] font-bold text-[var(--tk-ink)]">Monday report to Chloe</h2>
       <p className="mt-1 text-[16px] text-[var(--tk-ink-soft)]">
-        {board.report.sent ? `Sent ${board.report.sentLabel}. Sending again replaces it.` : "Due Friday 3pm. The numbers and the ticks are filled in for you. Add two lines."}
+        {board.report.sent ? `Sent ${board.report.sentLabel}. Sending again replaces it.` : "Due Monday 3pm, before your two days off. The numbers and the ticks are filled in for you. Add two lines."}
       </p>
       <label htmlFor="gm-fixed" className="mt-4 block text-[15px] font-semibold text-[var(--tk-ink)]">One thing I fixed this week</label>
       <textarea id="gm-fixed" rows={2} value={fixed} onChange={(e) => setFixed(e.target.value)} className="mt-1.5 w-full rounded-[12px] border-[1.5px] border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 py-3 text-[17px]" />
@@ -463,7 +470,7 @@ function DayPicker({ board, run, busy }: { board: GmBoard; run: Run; busy: boole
       </button>
       {open ? (
         <div className="mt-3 space-y-3">
-          <p className="text-[15px] text-[var(--tk-ink-soft)]">Tap a day to change what it is for. Blank means you are in a role.</p>
+          <p className="text-[15px] text-[var(--tk-ink-soft)]">Tap a day to change what it is for. Blank means on the floor or off.</p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-7">
             {DAY_NAMES.map((n, idx) => {
               const d = String(idx + 1)
@@ -471,7 +478,7 @@ function DayPicker({ board, run, busy }: { board: GmBoard; run: Run; busy: boole
               return (
                 <button key={d} onClick={() => cycle(d)} className={cn("rounded-[12px] border px-2 py-3 text-center", t ? "border-[var(--tk-charcoal)] bg-[var(--tk-sage-soft)]" : "border-[var(--tk-line)] bg-[var(--tk-bg)]")}>
                   <div className="text-[16px] font-bold text-[var(--tk-ink)]">{n}</div>
-                  <div className="text-[13px] text-[var(--tk-ink-soft)]">{t ? THEME_LABEL[t].split(" ")[0] : "Role"}</div>
+                  <div className="text-[13px] text-[var(--tk-ink-soft)]">{t ? THEME_LABEL[t].split(" ")[0] : "No"}</div>
                 </button>
               )
             })}
@@ -523,5 +530,60 @@ function TaskCard({ task, run, busy }: { task: GmBoard["tasks"][number]; run: Ru
         )}
       </div>
     </div>
+  )
+}
+
+// ─── Phone alerts ────────────────────────────────────────────────────
+
+function keyBytes(base64: string): Uint8Array {
+  const pad = "=".repeat((4 - (base64.length % 4)) % 4)
+  const raw = atob((base64 + pad).replace(/-/g, "+").replace(/_/g, "/"))
+  return Uint8Array.from(raw, (c) => c.charCodeAt(0))
+}
+const b64 = (buf: ArrayBuffer | null) => (buf ? btoa(String.fromCharCode(...new Uint8Array(buf))) : "")
+
+function PhoneAlerts({ board, run }: { board: GmBoard; run: Run }) {
+  const [msg, setMsg] = useState("")
+  const [working, setWorking] = useState(false)
+  if (!board.pushKey) return null
+
+  async function turnOn() {
+    setMsg("")
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+      setMsg("On an iPhone, alerts only work from the home screen app. In Safari tap Share, then Add to Home Screen. Open Tarte from the home screen, come back here and tap this again.")
+      return
+    }
+    setWorking(true)
+    try {
+      const perm = await Notification.requestPermission()
+      if (perm !== "granted") { setMsg("Alerts are blocked for this app. Allow notifications for Tarte in your phone settings, then tap this again."); return }
+      const reg = await navigator.serviceWorker.register("/gm-sw.js")
+      await navigator.serviceWorker.ready
+      const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(board.pushKey as string) as BufferSource }))
+      const label = /iPhone|iPad/.test(navigator.userAgent) ? "iPhone" : /Android/.test(navigator.userAgent) ? "Android" : "Computer"
+      run(() => saveGmPush({ endpoint: sub.endpoint, p256dh: b64(sub.getKey("p256dh")), auth: b64(sub.getKey("auth")), label }))
+      setMsg("Done. A test alert is on its way to this phone.")
+    } catch {
+      setMsg("That did not work on this phone. Tell Chloe.")
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  return (
+    <section className="rounded-[16px] border border-[var(--tk-line)] bg-[var(--tk-card)] p-4 md:p-5">
+      <h2 className="text-[20px] font-bold text-[var(--tk-ink)]">Phone alerts</h2>
+      <p className="mt-1 text-[16px] leading-snug text-[var(--tk-ink-soft)]">
+        {board.pushDevices > 0
+          ? `On for ${board.pushDevices} ${board.pushDevices === 1 ? "device" : "devices"}. Tap again on a new phone to add it.`
+          : "Get your GM day list at 6:30am, a 2pm check if things are still open, and the Monday report nudge, as alerts on this phone."}
+      </p>
+      <div className="mt-3">
+        <KitchenButton variant={board.pushDevices > 0 ? "secondary" : "primary"} size="lg" disabled={working} onClick={turnOn}>
+          {working ? <Loader2 className="h-5 w-5 animate-spin" /> : null} Turn on alerts on this phone
+        </KitchenButton>
+      </div>
+      {msg ? <p className="mt-3 text-[16px] font-medium text-[var(--tk-ink)]">{msg}</p> : null}
+    </section>
   )
 }

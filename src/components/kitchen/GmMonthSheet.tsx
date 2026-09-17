@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { saveGmMonthly, type GmMonth } from "@/lib/actions/gm"
+import { saveGmMonthly, type GmMonth, type TrackWeek } from "@/lib/actions/gm"
 
 const AGENDA: [string, string][] = [
   ["0 to 10", "Numbers. Reds first."],
@@ -12,17 +12,48 @@ const AGENDA: [string, string][] = [
   ["50 to 60", "Next month's three priorities. You name them, Chloe agrees them."],
 ]
 
-export function GmMonthSheet({ month }: { month: GmMonth }) {
+export function GmMonthSheet({ month, tracking }: { month: GmMonth; tracking: TrackWeek[] }) {
   return (
     <div className="space-y-7 pb-16">
       <div className="px-1">
         <h1 className="tk-display leading-none text-[var(--tk-charcoal)]" style={{ fontSize: "clamp(34px, 6vw, 48px)", fontWeight: 700, letterSpacing: "-0.025em" }}>
-          {month.thisLabel} sheet
+          How I am tracking
         </h1>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
-          Bring this to the monthly sit-down with Chloe. The app fills in everything it can see. You add three numbers at the bottom.
+          Week by week first, then the {month.thisLabel} sheet you bring to the monthly sit-down with Chloe. The app fills in everything it can see.
         </p>
       </div>
+
+      <section className="space-y-3">
+        <h2 className="px-1 text-[14px] font-bold uppercase tracking-[0.09em] text-[var(--tk-ink-mute)]">Week by week (Wednesday to Tuesday, same as the roster)</h2>
+        <div className="overflow-x-auto rounded-[16px] border border-[var(--tk-line)] bg-[var(--tk-card)]">
+          <table className="w-full min-w-[560px] text-left text-[16px]">
+            <thead>
+              <tr className="bg-[var(--tk-sage-soft)] text-[13px] uppercase tracking-[0.07em] text-[var(--tk-ink-soft)]">
+                <th className="px-4 py-3 font-bold">Week</th>
+                <th className="px-4 py-3 font-bold">Ticked</th>
+                <th className="px-4 py-3 font-bold">Wages</th>
+                <th className="px-4 py-3 font-bold">COGS</th>
+                <th className="px-4 py-3 font-bold">Wastage</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tracking.map((w) => (
+                <tr key={w.label} className={`border-t border-[var(--tk-line)] ${w.current ? "bg-[var(--tk-gold-soft)]" : ""}`}>
+                  <td className="px-4 py-3 font-semibold text-[var(--tk-ink)]">{w.label}{w.current ? " (now)" : ""}</td>
+                  <td className="px-4 py-3 tabular-nums">{w.done || <span className="text-[var(--tk-ink-mute)]">before the desk</span>}</td>
+                  <td className={`px-4 py-3 font-bold tabular-nums ${parseFloat(w.wagePct) > 38 ? "text-[var(--tk-warn)]" : "text-[var(--tk-ink)]"}`}>{w.wagePct || <span className="font-normal text-[var(--tk-ink-mute)]">not in yet</span>}</td>
+                  <td className={`px-4 py-3 font-bold tabular-nums ${parseFloat(w.cogsPct) > 26 ? "text-[var(--tk-warn)]" : "text-[var(--tk-ink)]"}`}>{w.cogsPct || <span className="font-normal text-[var(--tk-ink-mute)]">not in yet</span>}</td>
+                  <td className={`px-4 py-3 tabular-nums ${parseInt(w.wastage.slice(1)) > 400 ? "font-bold text-[var(--tk-warn)]" : "text-[var(--tk-ink)]"}`}>{w.wastage}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="px-1 text-[14px] text-[var(--tk-ink-mute)]">Targets: wages 38% or under, COGS 26% or under, wastage $400 or under. Red means over. Wages and COGS land a few days after each trading week closes.</p>
+      </section>
+
+      <h2 className="px-1 text-[14px] font-bold uppercase tracking-[0.09em] text-[var(--tk-ink-mute)]">{month.thisLabel} sheet</h2>
 
       <div className="overflow-x-auto rounded-[16px] border border-[var(--tk-line)] bg-[var(--tk-card)]">
         <table className="w-full min-w-[560px] text-left text-[16px]">

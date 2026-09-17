@@ -17,6 +17,7 @@ export default async function StaffLoginPage({
 }) {
   const sp = await searchParams
   const failed = sp.error === "1"
+  const locked = sp.error === "locked"
   const next = typeof sp.next === "string" ? sp.next : "/staffaccess"
 
   return (
@@ -75,6 +76,14 @@ export default async function StaffLoginPage({
           />
         </label>
 
+        {locked && (
+          <p
+            className="mt-4 rounded-[14px] px-4 py-3 text-[14px] font-medium"
+            style={{ background: "var(--tk-gold-soft)", color: "#8a6d1f" }}
+          >
+            Too many wrong tries. Wait 15 minutes, then try again.
+          </p>
+        )}
         {failed && (
           <p
             className="mt-4 rounded-[14px] px-4 py-3 text-[14px] font-medium"

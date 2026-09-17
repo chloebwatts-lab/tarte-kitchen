@@ -3049,3 +3049,27 @@ model GmMonthly {
 
   @@unique([month, slug])
 }
+
+/// One row per password attempt at any gate (staff, managers, gm,
+/// council, admin). Drives the lockout in src/lib/login-guard.ts.
+/// Never stores what was typed. Rows older than 14 days are pruned.
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  gate      String
+  ip        String
+  ok        Boolean
+  createdAt DateTime @default(now())
+
+  @@index([gate, ip, createdAt])
+  @@index([gate, createdAt])
+}
+
+/// A phone or browser Oliver has switched GM desk alerts on for.
+model GmPushSub {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  label     String?
+  createdAt DateTime @default(now())
+}

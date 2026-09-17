@@ -6,8 +6,14 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { checkGmPassword, isGmAuthed, setGmCookie, storeGmPassword } from "@/lib/gm-auth"
-import { addDays, currentWeekStart, mondayOf, todayAest, ymd } from "@/lib/commitments/weeks"
+import { addDays, todayAest, ymd } from "@/lib/commitments/weeks"
+import { gmWeekPos, gmWeekStart, gmWeekStartOf } from "@/lib/gm/week"
 import { sendEmail } from "@/lib/gmail/send"
+import { guardedCheck, LOCKED_MESSAGE } from "@/lib/login-guard"
+import { pushPublicKey, sendGmPush } from "@/lib/gm/push"
+import { getCurrentWeekSpend } from "@/lib/spend/current-week"
+import { getLiveLabourSnapshot } from "@/lib/actions/labour-live"
+import { CROSS_VENUE_WEEKLY_TOTAL } from "@/lib/labour/recode"
 import {
   GM_ITEMS,
   GM_MONTHLY_MANUAL,
@@ -27,9 +33,9 @@ import { buildItems, composeReport, fmt, getGmDays, short, type BoardItem } from
 
 const DAYS_KEY = "gmDays"
 const EMAIL_KEY = "gmEmail"
-/** Desk went live Fri 18 Sep 2026: that week's earlier GM days are not "missed". */
-const GM_DESK_LAUNCH_WEEK = "2026-09-14"
-const GM_DESK_LAUNCH_ISODAY = 5
+/** Desk went live Fri 18 Sep 2026: the Thursday before it is not "missed". */
+const GM_DESK_LAUNCH_WEEK = "2026-09-16"
+const GM_DESK_LAUNCH_POS = 2
 const REPORT_TO = process.env.GM_REPORT_RECIPIENT || "chloe@tarte.com.au"
 
 async function guard(): Promise<void> {
@@ -43,10 +49,14 @@ function bust() {
 // ─── Gate ────────────────────────────────────────────────────────────
 
 export async function unlockGm(password: string, next: string) {
-  if (!(await checkGmPassword(password))) {
+  const result = await guardedCheck("gm", () => checkGmPassword(password))
+  if (result === "locked") return { ok: false as const, error: LOCKED_MESSAGE }
+  if (result === "wrong") {
     return { ok: false as const, error: "That's not it. Ask Chloe." }
   }
   await setGmCookie()
+  // First real unlock = Oliver has been handed his desk. Reminders start from here.
+  await db.appSetting.upsert({ where: { key: "gmFirstUnlockAt" }, create: { key: "gmFirstUnlockAt", value: new Date().toISOString() }, update: {} })
   redirect(next.startsWith("/kitchen/gm") ? next : "/kitchen/gm")
 }
 
@@ -86,8 +96,10 @@ export interface GmBoard {
   weekStart: string
   weekLabel: string
   isoDay: number
-  /** ISO weekday the desk went live, in its launch week. 1 in every week after. */
-  firstDayThisWeek: number
+  /** Where today sits in the Wed to Tue week (Wed = 0). */
+  todayPos: number
+  /** Position the desk went live at, in its launch week. 0 in every week after. */
+  firstPosThisWeek: number
   gmDays: GmDays
   todayTheme: Exclude<GmTheme, "everyday"> | null
   items: BoardItem[]
@@ -100,22 +112,25 @@ export interface GmBoard {
   talksThisWeek: { id: string; name: string; when: string }[]
   tasks: BoardTask[]
   report: { sent: boolean; sentLabel: string | null; fixed: string; need: string; preview: string }
+  /** Null when push keys are not configured on the server. */
+  pushKey: string | null
+  pushDevices: number
 }
 
 async function ensureTasks(): Promise<void> {
   const have = new Set((await db.gmTask.findMany({ select: { slug: true } })).map((t) => t.slug))
   for (const s of GM_TASK_SEEDS) {
-    if (have.has(s.slug)) continue
-    await db.gmTask.create({
-      data: { slug: s.slug, title: s.title, doneMeans: s.doneMeans, dueOn: new Date(s.dueOn), sortOrder: s.sortOrder },
-    })
+    const data = { title: s.title, doneMeans: s.doneMeans, dueOn: new Date(s.dueOn), sortOrder: s.sortOrder }
+    if (!have.has(s.slug)) await db.gmTask.create({ data: { slug: s.slug, ...data } })
+    // The plan file is the source of truth for wording and dates until a task is done.
+    else await db.gmTask.updateMany({ where: { slug: s.slug, doneOn: null }, data })
   }
 }
 
 export async function getGmBoard(): Promise<GmBoard> {
   await guard()
   await ensureTasks()
-  const weekStart = currentWeekStart()
+  const weekStart = gmWeekStart()
   const monday = new Date(weekStart)
   const today = todayAest()
   const isoDay = today.getUTCDay() === 0 ? 7 : today.getUTCDay()
@@ -130,6 +145,7 @@ export async function getGmBoard(): Promise<GmBoard> {
     db.gmTask.findMany({ orderBy: [{ dueOn: "asc" }, { sortOrder: "asc" }] }),
     db.gmReport.findUnique({ where: { weekStart: monday } }),
   ])
+  const pushDevices = await db.gmPushSub.count()
 
   const items = built.items
   const doneCount = items.filter((i) => i.state === "done" || i.state === "auto-ok").length
@@ -141,7 +157,8 @@ export async function getGmBoard(): Promise<GmBoard> {
     weekStart,
     weekLabel,
     isoDay,
-    firstDayThisWeek: weekStart === GM_DESK_LAUNCH_WEEK ? GM_DESK_LAUNCH_ISODAY : 1,
+    todayPos: gmWeekPos(isoDay),
+    firstPosThisWeek: weekStart === GM_DESK_LAUNCH_WEEK ? GM_DESK_LAUNCH_POS : 0,
     gmDays,
     todayTheme,
     items,
@@ -163,6 +180,8 @@ export async function getGmBoard(): Promise<GmBoard> {
       doneLabel: t.doneOn ? short(t.doneOn) : null,
       note: t.note,
     })),
+    pushKey: pushPublicKey(),
+    pushDevices,
     report: {
       sent: Boolean(report),
       sentLabel: report ? short(new Date(report.sentAt.getTime() + 10 * 3600000)) : null,
@@ -182,7 +201,7 @@ export async function markGmItem(p: { slug: string; met: boolean; note?: string;
   const note = p.note?.trim() || null
   if (!p.met && !note) return { ok: false as const, error: "One line on what happened, so next week is different." }
   if (p.met && item.noteOnDone && !note) return { ok: false as const, error: item.noteOnDone }
-  const weekStart = new Date(currentWeekStart())
+  const weekStart = new Date(gmWeekStart())
   const data = { met: p.met, note, num1: p.num1 ?? null, num2: p.num2 ?? null }
   await db.gmMark.upsert({
     where: { itemSlug_weekStart: { itemSlug: p.slug, weekStart } },
@@ -196,7 +215,7 @@ export async function markGmItem(p: { slug: string; met: boolean; note?: string;
 /** Undo: puts the item back to open (or back to the app's own reading). */
 export async function clearGmMark(slug: string) {
   await guard()
-  const weekStart = new Date(currentWeekStart())
+  const weekStart = new Date(gmWeekStart())
   const row = await db.gmMark.findUnique({ where: { itemSlug_weekStart: { itemSlug: slug, weekStart } } })
   if (row) await db.gmMark.delete({ where: { id: row.id } })
   bust()
@@ -245,7 +264,7 @@ export async function logOneOnOne(staffName: string, note?: string) {
 export async function undoOneOnOne(id: string) {
   await guard()
   const row = await db.gmOneOnOne.findUnique({ where: { id } })
-  if (row && row.heldOn >= mondayOf(todayAest())) await db.gmOneOnOne.delete({ where: { id } })
+  if (row && row.heldOn >= gmWeekStartOf(todayAest())) await db.gmOneOnOne.delete({ where: { id } })
   bust()
   return { ok: true as const }
 }
@@ -257,7 +276,7 @@ export async function sendFridayReport(p: { fixed: string; need: string }) {
   const fixed = p.fixed.trim()
   const need = p.need.trim()
   if (!fixed) return { ok: false as const, error: "Name one thing you fixed this week. One line is enough." }
-  const weekStart = currentWeekStart()
+  const weekStart = gmWeekStart()
   const monday = new Date(weekStart)
   const [built, numbers, talks] = await Promise.all([
     buildItems(weekStart),
@@ -267,7 +286,7 @@ export async function sendFridayReport(p: { fixed: string; need: string }) {
   const weekLabel = `${short(monday)} to ${short(addDays(monday, 6))}`
   const body = composeReport({ weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), fixed, need })
   try {
-    await sendEmail({ to: REPORT_TO, subject: `Oliver's Friday report, ${weekLabel}`, body })
+    await sendEmail({ to: REPORT_TO, subject: `Oliver's Monday report, ${weekLabel}`, body })
   } catch {
     return { ok: false as const, error: "The email did not send. Try again in a minute, or tell Chloe." }
   }
@@ -314,7 +333,8 @@ async function monthFigures(first: Date): Promise<Record<string, string>> {
   const wagePcts = labourWeeks.map((w) => {
     const rev = Number(w.revenueExGst)
     const exAdmin = w.grossWagesExAdmin != null ? Number(w.grossWagesExAdmin) : Number(w.grossWages) - Number(w.wagesAdmin ?? 0)
-    return rev > 0 ? (exAdmin / rev) * 100 : null
+    // Same standing cross-venue adjustment the desk tile and the digest apply.
+    return rev > 0 ? ((exAdmin + CROSS_VENUE_WEEKLY_TOTAL) / rev) * 100 : null
   }).filter((x): x is number => x != null)
   const wg = avg(wagePcts)
   out.wage = wg != null ? `${wg.toFixed(1)}%` : ""
@@ -389,3 +409,121 @@ export async function saveGmMonthly(slug: string, value: string) {
   return { ok: true as const }
 }
 
+
+// ─── Phone alerts ────────────────────────────────────────────────────
+
+export async function saveGmPush(sub: { endpoint: string; p256dh: string; auth: string; label?: string }) {
+  await guard()
+  if (!/^https:\/\//.test(sub.endpoint) || !sub.p256dh || !sub.auth) return { ok: false as const, error: "This phone did not give a usable alert address." }
+  const data = { p256dh: sub.p256dh, auth: sub.auth, label: sub.label?.slice(0, 80) ?? null }
+  await db.gmPushSub.upsert({ where: { endpoint: sub.endpoint }, create: { endpoint: sub.endpoint, ...data }, update: data })
+  const r = await sendGmPush("Alerts are on", "This is where your GM day list and the Friday nudge will land.")
+  bust()
+  return r.sent > 0 ? { ok: true as const } : { ok: false as const, error: "Saved, but the test alert did not send. Tell Chloe." }
+}
+
+export async function removeGmPush(endpoint: string) {
+  await guard()
+  const row = await db.gmPushSub.findUnique({ where: { endpoint } })
+  if (row) await db.gmPushSub.delete({ where: { id: row.id } })
+  bust()
+  return { ok: true as const }
+}
+
+// ─── Tracking: week by week ──────────────────────────────────────────
+
+export interface TrackWeek {
+  label: string
+  current: boolean
+  done: string
+  wagePct: string
+  cogsPct: string
+  wastage: string
+}
+
+export async function getGmTracking(): Promise<TrackWeek[]> {
+  await guard()
+  const thisWed = gmWeekStartOf(todayAest())
+  const weeks = Array.from({ length: 8 }, (_, i) => addDays(thisWed, -7 * i))
+  const oldest = weeks[weeks.length - 1]
+  const [marks, actuals, cogs, waste, live] = await Promise.all([
+    db.gmMark.findMany({ where: { weekStart: { gte: oldest } }, select: { weekStart: true, met: true } }),
+    db.labourWeekActual.findMany({ where: { venue: "BURLEIGH", weekStartWed: { gte: oldest }, revenueExGst: { not: null } } }),
+    db.weeklyCogs.findMany({ where: { venue: "BURLEIGH", weekStartWed: { gte: oldest }, cogsPct: { not: null } } }),
+    db.wasteEntry.findMany({ where: { venue: "BURLEIGH", date: { gte: oldest } }, select: { date: true, estimatedCost: true } }),
+    buildItems(ymd(thisWed)),
+  ])
+  return weeks.map((thu, idx) => {
+    // Same Wed to Tue week as payroll and COGS, so the columns line up exactly.
+    const wed = ymd(thu)
+    const a = actuals.find((x) => ymd(x.weekStartWed) === wed)
+    const c = cogs.find((x) => ymd(x.weekStartWed) === wed)
+    const rev = a?.revenueExGst != null ? Number(a.revenueExGst) : 0
+    const exAdmin = a ? (a.grossWagesExAdmin != null ? Number(a.grossWagesExAdmin) : Number(a.grossWages) - Number(a.wagesAdmin ?? 0)) : 0
+    const end = addDays(thu, 6)
+    const w = waste.filter((x) => x.date >= thu && x.date <= end).reduce((sum, x) => sum + Number(x.estimatedCost), 0)
+    const mine = marks.filter((m) => ymd(m.weekStart) === ymd(thu))
+    const done = idx === 0
+      ? `${live.items.filter((i) => i.state === "done" || i.state === "auto-ok").length} of ${GM_ITEMS.length}`
+      : mine.length ? `${mine.filter((m) => m.met).length} of ${GM_ITEMS.length}` : ""
+    return {
+      label: `${short(thu)} to ${short(end)}`,
+      current: idx === 0,
+      done,
+      wagePct: rev > 0 && exAdmin > 0 ? `${(((exAdmin + CROSS_VENUE_WEEKLY_TOTAL) / rev) * 100).toFixed(1)}%` : "",
+      cogsPct: c?.cogsPct != null ? `${Number(c.cogsPct).toFixed(1)}%` : "",
+      wastage: w > 0 ? `$${Math.round(w)}` : "",
+    }
+  })
+}
+
+// ─── Live trackers (Burleigh only) ───────────────────────────────────
+
+export interface GmLive {
+  weekLabel: string
+  cogs: {
+    spent: number
+    budget: number | null
+    remaining: number | null
+    targetPct: number
+    projectedPct: number | null
+    pace: "on-track" | "watch" | "over" | "no-forecast"
+    revenueToDate: number | null
+    daily: { day: string; amount: number }[]
+    suppliers: { supplier: string; amount: number; usual: number | null }[]
+  } | null
+  wages: { label: string; pct: string; target: string; status: "ok" | "amber" | "red" | "none" }[]
+  wagesOverall: string | null
+}
+
+export async function getGmLive(): Promise<GmLive> {
+  await guard()
+  const [spend, labour] = await Promise.all([getCurrentWeekSpend(), getLiveLabourSnapshot().catch(() => null)])
+  const b = spend.buckets.find((x) => x.bucket === "BURLEIGH")
+  const v = labour?.venues.find((x) => x.venue === "BURLEIGH")
+  const projRev = b?.projectedRevenueExGst ?? b?.forecastRevenue ?? null
+  return {
+    weekLabel: `${short(new Date(spend.weekStartWed))} to ${short(new Date(spend.weekEndTue))}`,
+    cogs: b
+      ? {
+          spent: Math.round(b.effectiveSpent),
+          budget: b.budget != null ? Math.round(b.budget) : null,
+          remaining: b.remaining != null ? Math.round(b.remaining) : null,
+          targetPct: b.targetPct,
+          projectedPct: projRev && projRev > 0 ? Math.round((b.projectedEndOfWeek / projRev) * 1000) / 10 : null,
+          pace: b.paceStatus,
+          revenueToDate: b.revenueToDateExGst != null ? Math.round(b.revenueToDateExGst) : null,
+          daily: b.daily.map((d) => ({ day: d.dayName, amount: Math.round(d.amount) })),
+          suppliers: [...b.suppliers].sort((x, y) => y.amount - x.amount).slice(0, 10).map((x) => ({ supplier: x.supplier, amount: Math.round(x.amount), usual: x.fourWeekAvg != null ? Math.round(x.fourWeekAvg) : null })),
+        }
+      : null,
+    // Percent only. Dollars and salaries never leave the office side.
+    wages: (v?.buckets ?? []).filter((x) => x.target).map((x) => ({
+      label: x.label,
+      pct: x.projectedPct != null ? `${x.projectedPct.toFixed(1)}%` : "",
+      target: x.target ? `${x.target.min} to ${x.target.max}%` : "",
+      status: x.status === "no-target" ? "none" : x.status,
+    })),
+    wagesOverall: v?.overallProjectedPct != null ? `${v.overallProjectedPct.toFixed(1)}%` : null,
+  }
+}
