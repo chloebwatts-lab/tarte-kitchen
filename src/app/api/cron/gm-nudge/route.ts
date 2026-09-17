@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { sendEmail } from "@/lib/gmail/send"
 import { todayAest } from "@/lib/commitments/weeks"
 import { gmDigestForCron } from "@/lib/gm/board"
+import { gmPasswordIsSet } from "@/lib/gm-auth"
 import { THEME_LABEL, type GmDays } from "@/lib/gm/plan"
 
 const CHLOE = process.env.GM_REPORT_RECIPIENT || "chloe@tarte.com.au"
@@ -28,7 +29,13 @@ export async function GET(request: Request) {
   const preview = url.searchParams.get("preview") === "1"
 
   try {
+    // Nothing goes out until Oliver actually has a desk to open, and not in
+    // the week it launched (Mon 14 Sep 2026), when half the week predates it.
+    if (!(await gmPasswordIsSet())) return Response.json({ ok: true, skipped: "GM password not set yet" })
     const d = await gmDigestForCron()
+    if (d.weekStart === "2026-09-14" && (kind === "wrap" || kind === "report-due") && !preview) {
+      return Response.json({ ok: true, skipped: "launch week" })
+    }
     const today = todayAest()
     const isoDay = today.getUTCDay() === 0 ? 7 : today.getUTCDay()
     const open = (i: (typeof d.items)[number]) => !(i.state === "done" || i.state === "auto-ok" || i.state === "couldnt")

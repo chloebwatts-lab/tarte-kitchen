@@ -72,13 +72,15 @@ export function composeReport(p: {
   talks: string[]
   fixed: string
   need: string
+  /** False when Chloe is being told the report never came. */
+  sent?: boolean
 }): string {
   const done = p.items.filter((i) => i.state === "done" || i.state === "auto-ok")
   const notDone = p.items.filter((i) => !(i.state === "done" || i.state === "auto-ok") && i.slug !== "friday-report")
   const lines: string[] = []
   lines.push(`Oliver's week, ${p.weekLabel}`)
   lines.push("")
-  lines.push(`Done: ${done.length + 1} of ${p.items.length}.`)
+  lines.push(`Done: ${done.length + (p.sent === false ? 0 : 1)} of ${p.items.length}.`)
   if (notDone.length) {
     lines.push("")
     lines.push("Not done:")
@@ -137,6 +139,6 @@ export async function gmDigestForCron() {
     reportSent: Boolean(report),
     email,
     openTasks: tasks.map((t) => ({ title: t.title, dueLabel: short(t.dueOn), daysLeft: Math.round((t.dueOn.getTime() - todayAest().getTime()) / 86400000) })),
-    compose: (fixed: string, need: string) => composeReport({ weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), fixed, need }),
+    compose: (fixed: string, need: string) => composeReport({ weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), fixed, need, sent: false }),
   }
 }
