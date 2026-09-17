@@ -1,6 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
+import { assertManager } from "@/lib/manager-auth"
 import { revalidatePath } from "next/cache"
 import { Venue } from "@/generated/prisma/client"
 
@@ -119,6 +120,7 @@ export async function createTrainingRecord(
   venue: Venue,
   params: TrainingRecordInput
 ): Promise<string> {
+  await assertManager()
   if (!params.staffName.trim()) throw new Error("Staff name is required")
   const row = await db.trainingRecord.create({
     data: { venue, ...normalise(params) },
@@ -131,12 +133,14 @@ export async function updateTrainingRecord(
   id: string,
   params: TrainingRecordInput
 ): Promise<void> {
+  await assertManager()
   if (!params.staffName.trim()) throw new Error("Staff name is required")
   await db.trainingRecord.update({ where: { id }, data: normalise(params) })
   revalidate()
 }
 
 export async function deleteTrainingRecord(id: string): Promise<void> {
+  await assertManager()
   await db.trainingRecord.delete({ where: { id } })
   revalidate()
 }
@@ -144,6 +148,7 @@ export async function deleteTrainingRecord(id: string): Promise<void> {
 export async function listTrainingRecords(
   venue: Venue
 ): Promise<TrainingRecordDto[]> {
+  await assertManager()
   const rows = await db.trainingRecord.findMany({
     where: { venue },
     orderBy: [{ staffName: "asc" }],

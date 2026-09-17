@@ -1,6 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
+import { assertManager } from "@/lib/manager-auth"
 import { revalidatePath } from "next/cache"
 import { CommitmentParty } from "@/generated/prisma/client"
 import { AUTO_SOURCES } from "@/lib/commitments/auto"
@@ -68,6 +69,7 @@ const STANDING_SEEDS: Array<{
 /** Idempotent, keeps the six sheet rows present and ordered without
  *  disturbing any marks. Called on board load. */
 export async function ensureStandingCommitments(): Promise<void> {
+  await assertManager()
   for (const seed of STANDING_SEEDS) {
     await db.standingCommitment.upsert({
       where: { slug: seed.slug },
@@ -154,6 +156,7 @@ const STATUS_ORDER: Record<OneOffStatus, number> = {
 export async function getCommitmentsBoard(params?: {
   maxWeeks?: number
 }): Promise<CommitmentsBoard> {
+  await assertManager()
   const weeks = boardWeekStarts(params?.maxWeeks ?? 12)
   const oldestWeek = weeks[weeks.length - 1]
   const today = ymd(todayAest())
@@ -289,6 +292,7 @@ export async function setStandingMark(params: {
   note?: string | null
   markedBy?: string | null
 }): Promise<void> {
+  await assertManager()
   const weekStart = parseYmd(params.weekStart, "weekStart")
   const note = params.note?.trim() || null
   await db.standingCommitmentMark.upsert({
@@ -316,6 +320,7 @@ export async function clearStandingMark(params: {
   commitmentId: string
   weekStart: string
 }): Promise<void> {
+  await assertManager()
   await db.standingCommitmentMark.deleteMany({
     where: {
       commitmentId: params.commitmentId,
@@ -331,6 +336,7 @@ export async function createOneOff(params: {
   agreedOn: string
   dueOn: string
 }): Promise<void> {
+  await assertManager()
   const promise = params.promise.trim()
   if (!promise) throw new Error("Promise text is required")
   await db.oneOffCommitment.create({
@@ -351,6 +357,7 @@ export async function updateOneOff(params: {
   agreedOn?: string
   dueOn?: string
 }): Promise<void> {
+  await assertManager()
   const data: Record<string, unknown> = {}
   if (params.promise !== undefined) {
     const promise = params.promise.trim()
@@ -369,6 +376,7 @@ export async function markOneOffDone(params: {
   id: string
   doneOn?: string
 }): Promise<void> {
+  await assertManager()
   await db.oneOffCommitment.update({
     where: { id: params.id },
     data: {
@@ -381,6 +389,7 @@ export async function markOneOffDone(params: {
 }
 
 export async function reopenOneOff(params: { id: string }): Promise<void> {
+  await assertManager()
   await db.oneOffCommitment.update({
     where: { id: params.id },
     data: { doneOn: null },
@@ -395,6 +404,7 @@ export async function rescheduleOneOff(params: {
   newDueOn: string
   missedReason: string
 }): Promise<void> {
+  await assertManager()
   const missedReason = params.missedReason.trim()
   if (!missedReason) throw new Error("A reason is required when moving a date")
   await db.oneOffCommitment.update({
@@ -408,6 +418,7 @@ export async function rescheduleOneOff(params: {
 }
 
 export async function deleteOneOff(params: { id: string }): Promise<void> {
+  await assertManager()
   await db.oneOffCommitment.delete({ where: { id: params.id } })
   revalidateCommitments()
 }
@@ -421,6 +432,7 @@ export async function createMeetingAction(params: {
   dueOn: string
   sourceTag: string
 }): Promise<void> {
+  await assertManager()
   const action = params.action.trim()
   const owner = params.owner.trim()
   const sourceTag = params.sourceTag.trim()
@@ -447,6 +459,7 @@ export async function updateMeetingAction(params: {
   dueOn?: string
   sourceTag?: string
 }): Promise<void> {
+  await assertManager()
   const data: Record<string, unknown> = {}
   if (params.action !== undefined) {
     const action = params.action.trim()
@@ -474,6 +487,7 @@ export async function markMeetingActionDone(params: {
   id: string
   doneOn?: string
 }): Promise<void> {
+  await assertManager()
   await db.meetingAction.update({
     where: { id: params.id },
     data: {
@@ -484,6 +498,7 @@ export async function markMeetingActionDone(params: {
 }
 
 export async function reopenMeetingAction(params: { id: string }): Promise<void> {
+  await assertManager()
   await db.meetingAction.update({
     where: { id: params.id },
     data: { doneOn: null },
@@ -492,6 +507,7 @@ export async function reopenMeetingAction(params: { id: string }): Promise<void>
 }
 
 export async function deleteMeetingAction(params: { id: string }): Promise<void> {
+  await assertManager()
   await db.meetingAction.delete({ where: { id: params.id } })
   revalidateCommitments()
 }
@@ -506,6 +522,7 @@ export async function saveCommitmentPhoto(params: {
   caption?: string | null
   uploadedBy?: string | null
 }): Promise<void> {
+  await assertManager()
   await db.commitmentWeekPhoto.create({
     data: {
       weekStart: parseYmd(params.weekStart, "weekStart"),
@@ -522,6 +539,7 @@ export async function saveCommitmentPhoto(params: {
 export async function deleteCommitmentPhoto(params: {
   photoId: string
 }): Promise<void> {
+  await assertManager()
   await db.commitmentWeekPhoto.deleteMany({ where: { id: params.photoId } })
   revalidateCommitments()
 }

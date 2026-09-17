@@ -1,6 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
+import { assertManager } from "@/lib/manager-auth"
 import { revalidatePath } from "next/cache"
 import { Venue } from "@/generated/prisma/client"
 import { valueForDate, type TarteValue } from "@/lib/lineup/tarte-ten"
@@ -87,6 +88,7 @@ const num = (v: unknown): number | null =>
   v === null || v === undefined ? null : Number(v)
 
 export async function getLineUp(venue: Venue, now = new Date()): Promise<LineUp> {
+  await assertManager()
   const today = aestDateOnly(now)
   const yesterday = addDays(today, -1)
   const weekAgo = addDays(today, -7)
@@ -184,6 +186,7 @@ export interface SaveLineUpInput {
 
 /** The two human items. Saving is not the same as running it. */
 export async function saveLineUp(input: SaveLineUpInput) {
+  await assertManager()
   const date = aestDateOnly(new Date())
   const data = {
     pushItem: input.pushItem?.trim() || null,
@@ -204,6 +207,7 @@ export async function saveLineUp(input: SaveLineUpInput) {
  * failure mode this records.
  */
 export async function markLineUpRan(venue: Venue, ledBy: string) {
+  await assertManager()
   const date = aestDateOnly(new Date())
   await db.lineUp.upsert({
     where: { venue_date: { venue, date } },
@@ -215,6 +219,7 @@ export async function markLineUpRan(venue: Venue, ledBy: string) {
 
 /** Ran / not ran over the last N days, for the habit itself. */
 export async function getLineUpStreak(venue: Venue, days = 14) {
+  await assertManager()
   const today = aestDateOnly(new Date())
   const from = addDays(today, -(days - 1))
   const rows = await db.lineUp.findMany({

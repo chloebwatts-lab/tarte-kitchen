@@ -1,6 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
+import { assertManager } from "@/lib/manager-auth"
 import { revalidatePath } from "next/cache"
 import { sendIssueAlert } from "@/lib/maintenance/notify"
 import {
@@ -152,6 +153,7 @@ function toBoardTask(t: {
 
 /** The manager and supervisors at a venue, in the order they are listed. */
 export async function getVenueTeam(venue: Venue): Promise<TeamMember[]> {
+  await assertManager()
   const rows = await db.venueTeamMember.findMany({
     where: { venue, isActive: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -210,6 +212,7 @@ export async function getMorningBoard(
   venue: Venue,
   viewer: string
 ): Promise<MorningBoard> {
+  await assertManager()
   // Recurring compliance work raises itself first, so opening the board is
   // enough to see something that falls due next week.
   await raiseDueSchedules(venue)
@@ -296,6 +299,7 @@ export async function overrideTaskPriority(
   taskId: string,
   priority: VenueTaskPriority
 ) {
+  await assertManager()
   await db.venueTask.update({
     where: { id: taskId },
     data: { priorityOverride: priority },
@@ -309,6 +313,7 @@ export async function overrideTaskPriority(
  * this whole module exists to remove.
  */
 export async function assignTask(taskId: string, ownedBy: string, assignedBy?: string) {
+  await assertManager()
   const owner = ownedBy.trim()
   await db.venueTask.update({
     where: { id: taskId },
@@ -330,6 +335,7 @@ export async function assignTask(taskId: string, ownedBy: string, assignedBy?: s
  * job that quietly reappeared.
  */
 export async function handBackTask(taskId: string, by: string) {
+  await assertManager()
   await db.venueTask.update({
     where: { id: taskId },
     data: {
@@ -344,6 +350,7 @@ export async function handBackTask(taskId: string, by: string) {
 
 /** Rough size in minutes, or null to clear it. */
 export async function setTaskEstimate(taskId: string, minutes: number | null) {
+  await assertManager()
   await db.venueTask.update({
     where: { id: taskId },
     data: { estimateMinutes: minutes && minutes > 0 ? Math.round(minutes) : null },
@@ -356,6 +363,7 @@ export async function completeTask(
   doneBy: string,
   note?: string
 ) {
+  await assertManager()
   const task = await db.venueTask.update({
     where: { id: taskId },
     data: {
@@ -406,6 +414,7 @@ export async function completeTask(
 }
 
 export async function dismissTask(taskId: string, note?: string) {
+  await assertManager()
   await db.venueTask.update({
     where: { id: taskId },
     data: { status: "DISMISSED", doneAt: new Date(), doneNote: note?.trim() || null },
@@ -421,6 +430,7 @@ export async function dismissTask(taskId: string, note?: string) {
  * Safe to call on every board load — it is a no-op once the row exists.
  */
 export async function raiseDueSchedules(venue: Venue) {
+  await assertManager()
   const schedules = await db.venueTaskSchedule.findMany({
     where: { venue, isActive: true },
   })
@@ -497,6 +507,7 @@ export interface JobsBoard {
 }
 
 export async function getJobsBoard(venue: Venue): Promise<JobsBoard> {
+  await assertManager()
   await raiseDueSchedules(venue)
   const [rows, team] = await Promise.all([
     db.venueTask.findMany({
@@ -619,6 +630,7 @@ export interface ManagerPlate {
 }
 
 export async function getManagerPlate(venue: Venue, who: string): Promise<ManagerPlate> {
+  await assertManager()
   await raiseDueSchedules(venue)
   const me = norm(who)
   const now = new Date()
@@ -743,6 +755,7 @@ export interface OwnList {
 }
 
 export async function getOwnList(venue: Venue, who: string): Promise<OwnList> {
+  await assertManager()
   const me = who.trim()
   const startOfDay = new Date()
   startOfDay.setHours(0, 0, 0, 0)
@@ -766,6 +779,7 @@ export async function getOwnList(venue: Venue, who: string): Promise<OwnList> {
 }
 
 export async function addOwnItem(venue: Venue, who: string, title: string, priority: VenueTaskPriority = "NORMAL") {
+  await assertManager()
   const me = who.trim()
   const text = title.trim()
   if (!me) throw new Error("Whose list is this?")
@@ -790,6 +804,7 @@ export async function addOwnItem(venue: Venue, who: string, title: string, prior
 
 /** Untick. Only meaningful on the day it was ticked; older done items are gone from view. */
 export async function reopenTask(taskId: string) {
+  await assertManager()
   await db.venueTask.update({
     where: { id: taskId },
     data: { status: "IN_PROGRESS", doneBy: null, doneAt: null, doneNote: null },
@@ -799,6 +814,7 @@ export async function reopenTask(taskId: string) {
 
 /** A personal item that turns out to be somebody's job: onto the board, unowned. */
 export async function releaseToBoard(taskId: string, by: string) {
+  await assertManager()
   await db.venueTask.update({
     where: { id: taskId },
     data: {
@@ -815,5 +831,6 @@ export async function releaseToBoard(taskId: string, by: string) {
 
 /** Delete a personal item outright. Board jobs are dismissed, never deleted. */
 export async function removeOwnItem(taskId: string) {
+  await assertManager()
   await db.venueTask.deleteMany({ where: { id: taskId, personal: true } })
 }

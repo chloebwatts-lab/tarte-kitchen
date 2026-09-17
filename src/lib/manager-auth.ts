@@ -82,3 +82,11 @@ export async function requireManager(next: string): Promise<void> {
     redirect(`/kitchen/managers/unlock?next=${encodeURIComponent(next)}`)
   }
 }
+
+/**
+ * Call at the top of any manager-only server action. Pages redirect, actions
+ * throw: an action can be invoked by id with only the staff cookie.
+ */
+export async function assertManager(): Promise<void> {
+  if (!(await isManagerAuthed())) throw new Error("Locked. Unlock the managers area first.")
+}

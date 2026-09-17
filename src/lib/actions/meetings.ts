@@ -1,6 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
+import { assertManager } from "@/lib/manager-auth"
 import { revalidatePath } from "next/cache"
 import { Venue, MeetingItemStatus } from "@/generated/prisma/client"
 
@@ -106,6 +107,7 @@ export async function closeAgendaItem(
   status: "DISCUSSED" | "DROPPED",
   outcome: string
 ) {
+  await assertManager()
   const text = outcome.trim()
   if (status === "DISCUSSED" && !text) {
     throw new Error("Record what was decided before closing it")
@@ -127,6 +129,7 @@ export async function addMeetingAction(input: {
   dueOn: Date
   meetingDate: Date
 }) {
+  await assertManager()
   const action = input.action.trim()
   if (!action) throw new Error("Say what the action is")
   if (!input.owner.trim()) throw new Error("Every action needs an owner")
