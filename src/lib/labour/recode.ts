@@ -56,21 +56,25 @@ const KNOWN_WEEKLY: KnownWeekly[] = [
   { match: /^vinicius/i, weekly: 1538.46, homeVenue: Venue.BURLEIGH, homeBucket: "chefsKp", salaried: true },
   { match: /^tais mansur/i, weekly: 1407.88, homeVenue: Venue.BURLEIGH, homeBucket: "chefsKp", salaried: true },
   { match: /^jess(ica)? passos/i, weekly: 1576.92, homeVenue: Venue.BURLEIGH, homeBucket: "pastry", salaried: true },
-  { match: /^beatriz maciel/i, weekly: 1250.0, homeVenue: Venue.BURLEIGH, homeBucket: "pastry", salaried: true },
-  // Eden 50/50 across the two pastry teams, Chi 30 Burleigh / 70 Currumbin
-  // FOH: both are standing allocations, not hours-driven.
+  {
+    match: /^beatriz maciel/i, weekly: 1250.0, homeVenue: Venue.BURLEIGH, homeBucket: "pastry", salaried: true,
+    split: [
+      { venue: Venue.BURLEIGH, bucket: "pastry", share: 0.7 },
+      { venue: Venue.BEACH_HOUSE, bucket: "pastry", share: 0.3 },
+    ],
+  },
+  // Standing allocations, not hours-driven (payroll allocations changed
+  // 3 Sep 2026): Eden all Burleigh pastry, Beatriz 70 Burleigh / 30
+  // Currumbin pastry, Chi 50/50 across the two coffee teams.
   {
     match: /^eden lord/i, weekly: 769.23, homeVenue: Venue.BURLEIGH, homeBucket: "pastry", salaried: true,
-    split: [
-      { venue: Venue.BURLEIGH, bucket: "pastry", share: 0.5 },
-      { venue: Venue.BEACH_HOUSE, bucket: "pastry", share: 0.5 },
-    ],
+    split: [{ venue: Venue.BURLEIGH, bucket: "pastry", share: 1 }],
   },
   {
     match: /^yung chi chang/i, weekly: 1096.15, homeVenue: Venue.BURLEIGH, homeBucket: "fohBarista", salaried: true,
     split: [
-      { venue: Venue.BURLEIGH, bucket: "fohBarista", share: 0.3 },
-      { venue: Venue.BEACH_HOUSE, bucket: "fohBarista", share: 0.7 },
+      { venue: Venue.BURLEIGH, bucket: "fohBarista", share: 0.5 },
+      { venue: Venue.BEACH_HOUSE, bucket: "fohBarista", share: 0.5 },
     ],
   },
   { match: /^julian mauricio/i, weekly: 1317.31, homeVenue: Venue.BEACH_HOUSE, homeBucket: "chefsKp", salaried: true },
@@ -82,8 +86,7 @@ const KNOWN_WEEKLY: KnownWeekly[] = [
   // Beach House full-timers with no Deputy rates (fixed weekly, hourly on
   // paper: only counted when they actually have timesheets that week)
   { match: /^baily roberts/i, weekly: 1192.31, homeVenue: Venue.BEACH_HOUSE, homeBucket: "fohBarista", salaried: false },
-  { match: /^carmen taylor/i, weekly: 1317.31, homeVenue: Venue.BEACH_HOUSE, homeBucket: "fohBarista", salaried: false },
-  { match: /^chloe johns/i, weekly: 1317.3, homeVenue: Venue.BEACH_HOUSE, homeBucket: "fohBarista", salaried: false },
+  { match: /^chloe johns/i, weekly: 1346.15, homeVenue: Venue.BEACH_HOUSE, homeBucket: "fohBarista", salaried: false },
   { match: /^georgia rodney/i, weekly: 1317.31, homeVenue: Venue.BEACH_HOUSE, homeBucket: "fohBarista", salaried: false },
   { match: /^debbie embalsado/i, weekly: 1134.62, homeVenue: Venue.BEACH_HOUSE, homeBucket: "pastry", salaried: false },
   { match: /^michelle$|^michelle malbog/i, weekly: 1096.15, homeVenue: Venue.BEACH_HOUSE, homeBucket: "chefsKp", salaried: false },
