@@ -110,7 +110,7 @@ export default async function DeptOrderHubPage({
                 </div>
                 <div className="mt-0.5 text-[14px] text-[var(--tk-ink-soft)]">
                   {card.requestedLines > 0
-                    ? `${card.requestedLines} item${card.requestedLines === 1 ? "" : "s"}${hub.showPrices ? ` · $${card.total.toFixed(2)}` : ""}${card.approvedBy ? ` · approved by ${card.approvedBy}` : ""}`
+                    ? `${card.requestedLines} item${card.requestedLines === 1 ? "" : "s"} · $${card.total.toFixed(2)}${card.approvedBy ? ` · approved by ${card.approvedBy}` : ""}`
                     : DEPT_BLURB[card.dept]}
                 </div>
               </div>

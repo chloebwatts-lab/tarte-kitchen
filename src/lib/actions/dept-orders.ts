@@ -7,7 +7,6 @@ import type { OrderDept, Venue } from "@/generated/prisma/client"
 import { ORDER_DEPTS, DEPT_LABEL, deptForItem } from "@/lib/departments"
 import { submitOrder, sendOrderEmail } from "@/lib/actions/orders"
 import { findOrCreateTodayDraftOrder } from "@/lib/actions/order-checklist"
-import { isManagerAuthed } from "@/lib/manager-auth"
 
 // ------------------------------------------------------------------
 // Department ordering.
@@ -54,8 +53,6 @@ export type DeptHub = {
   /** Suppliers with at least one approved line waiting to be sent. */
   suppliersWaiting: number
   suppliersSent: number
-  /** Dollar figures are for managers. False = every amount arrives as 0. */
-  showPrices: boolean
 }
 
 export type DeptFormRow = {
@@ -83,8 +80,6 @@ export type DeptForm = {
   approvedBy: string | null
   notes: string | null
   rows: DeptFormRow[]
-  /** False = packPrice arrives as 0 on every row. */
-  showPrices: boolean
 }
 
 export type EodSupplierLine = {
@@ -118,8 +113,6 @@ export type EodSheet = {
   waitingOn: Array<{ dept: OrderDept; ownerName: string | null }>
   suppliers: EodSupplierOrder[]
   grandTotal: number
-  /** False = every price and total arrives as 0. */
-  showPrices: boolean
 }
 
 // ─── Shared loaders ─────────────────────────────────────────────────────────
@@ -159,7 +152,6 @@ function dateLabel(d: Date) {
 
 export async function getDeptOrderHub(venue: Venue): Promise<DeptHub> {
   const date = todayAest()
-  const showPrices = await isManagerAuthed()
   const [depts, items, requests] = await Promise.all([
     activeDepts(venue),
     itemsByDept(),
@@ -183,12 +175,10 @@ export async function getDeptOrderHub(venue: Venue): Promise<DeptHub> {
       ownerName,
       itemCount: itemCounts.get(dept) ?? 0,
       requestedLines: lines.length,
-      total: showPrices
-        ? lines.reduce(
-            (s, l) => s + Number(l.quantity) * Number(l.item.packPrice),
-            0
-          )
-        : 0,
+      total: lines.reduce(
+        (s, l) => s + Number(l.quantity) * Number(l.item.packPrice),
+        0
+      ),
       status: !req ? "NOT_STARTED" : req.status === "APPROVED" ? "APPROVED" : "OPEN",
       approvedBy: req?.approvedBy ?? null,
       approvedAt: req?.approvedAt?.toISOString() ?? null,
@@ -218,7 +208,6 @@ export async function getDeptOrderHub(venue: Venue): Promise<DeptHub> {
     allIn,
     suppliersWaiting: waiting.size,
     suppliersSent: sent.size,
-    showPrices,
   }
 }
 
@@ -230,7 +219,6 @@ export async function getDeptForm(params: {
 }): Promise<DeptForm> {
   const { venue, dept } = params
   const date = todayAest()
-  const showPrices = await isManagerAuthed()
 
   const [owner, items, request] = await Promise.all([
     db.deptOrderOwner.findUnique({
@@ -254,7 +242,7 @@ export async function getDeptForm(params: {
         approvedItemId: it.id,
         name: it.name,
         packSize: it.packSize,
-        packPrice: showPrices ? Number(it.packPrice) : 0,
+        packPrice: Number(it.packPrice),
         unit: it.unit,
         category: it.category,
         supplierId: it.supplier.id,
@@ -275,7 +263,6 @@ export async function getDeptForm(params: {
     approvedBy: request?.approvedBy ?? null,
     notes: request?.notes ?? null,
     rows,
-    showPrices,
   }
 }
 
@@ -407,27 +394,7 @@ export async function reopenDeptRequest(params: {
 
 // ─── End-of-day sheet, regrouped by supplier ────────────────────────────────
 
-/**
- * What the order sheet page shows. Supplier prices and totals are for
- * managers; anyone else on the staff login gets the same sheet with the
- * money blanked, so they can still check quantities and send.
- */
 export async function getEodSheet(venue: Venue): Promise<EodSheet> {
-  const sheet = await buildEodSheet(venue)
-  if (await isManagerAuthed()) return sheet
-  return {
-    ...sheet,
-    showPrices: false,
-    grandTotal: 0,
-    suppliers: sheet.suppliers.map((s) => ({
-      ...s,
-      total: 0,
-      lines: s.lines.map((l) => ({ ...l, packPrice: 0, lineTotal: 0 })),
-    })),
-  }
-}
-
-async function buildEodSheet(venue: Venue): Promise<EodSheet> {
   const date = todayAest()
   const [depts, items, requests] = await Promise.all([
     activeDepts(venue),
@@ -582,7 +549,6 @@ async function buildEodSheet(venue: Venue): Promise<EodSheet> {
       Math.round(
         suppliers.filter((s) => !s.sent).reduce((s, x) => s + x.total, 0) * 100
       ) / 100,
-    showPrices: true,
   }
 }
 
@@ -602,7 +568,7 @@ export async function sendSupplierOrder(params: {
   const by = params.by.trim()
   if (!by) return { ok: false, error: "Put your name in first" }
 
-  const sheet = await buildEodSheet(params.venue)
+  const sheet = await getEodSheet(params.venue)
   if (sheet.waitingOn.length > 0 && !params.force) {
     const names = sheet.waitingOn.map((w) => DEPT_LABEL[w.dept]).join(", ")
     return { ok: false, error: `Still waiting on ${names}` }
