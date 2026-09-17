@@ -2974,3 +2974,78 @@ model AppSetting {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+// ============================================================
+// GM DESK — Oliver's tile (/kitchen/gm). The plan itself (what is
+// due on which GM day) lives in code at src/lib/gm/plan.ts; these
+// tables only hold what he ticked, logged and sent.
+// ============================================================
+
+/// One Yes / Couldn't for one plan item in one Monday-anchored week.
+model GmMark {
+  id        String   @id @default(cuid())
+  itemSlug  String
+  weekStart DateTime @db.Date
+  met       Boolean
+  note      String?
+  /// Optional counts, meaning set per item in the plan (label walk:
+  /// num1 = out of date, num2 = unlabelled).
+  num1      Int?
+  num2      Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([itemSlug, weekStart])
+  @@index([weekStart])
+}
+
+/// Dated must-achieve task. Seeded from the plan by slug; done state
+/// and notes live here.
+model GmTask {
+  id        String    @id @default(cuid())
+  slug      String    @unique
+  title     String
+  doneMeans String
+  dueOn     DateTime  @db.Date
+  doneOn    DateTime? @db.Date
+  note      String?
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([dueOn])
+}
+
+/// A ten-minute one-on-one. Name is the Deputy display name.
+model GmOneOnOne {
+  id        String   @id @default(cuid())
+  staffName String
+  heldOn    DateTime @db.Date
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([heldOn])
+  @@index([staffName])
+}
+
+/// The Friday report as sent to Chloe, one per week.
+model GmReport {
+  id        String   @id @default(cuid())
+  weekStart DateTime @unique @db.Date
+  fixed     String
+  need      String
+  body      String
+  sentAt    DateTime @default(now())
+}
+
+/// Monthly numbers only a person knows (pulse, leavers, sick calls).
+model GmMonthly {
+  id        String   @id @default(cuid())
+  /// First of the month.
+  month     DateTime @db.Date
+  slug      String
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@unique([month, slug])
+}

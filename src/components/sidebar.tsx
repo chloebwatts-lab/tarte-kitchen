@@ -112,6 +112,7 @@ const navGroups: NavGroup[] = [
       { label: "Council Folder", href: "/council", icon: ShieldCheck },
       { label: "Settings", href: "/settings/integrations", icon: Settings },
       { label: "Managers password", href: "/settings/manager-password", icon: Lock },
+      { label: "GM desk (Oliver)", href: "/settings/gm-desk", icon: Lock },
     ],
   },
 ];

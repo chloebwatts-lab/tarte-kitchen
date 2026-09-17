@@ -234,6 +234,14 @@ services:
         # having to upload Thursday afternoon. Failure / partial → email
         # chloe@ with a link to /labour/upload for manual recovery.
         0 21 * * 3 curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/pull-louise-reports 2>&1
+        # GM desk (Oliver's tile). Times are UTC: 20:30 = 6:30am AEST list
+        # on his GM days; Fri 03:00 = 1pm report nudge; Fri 06:00 = 4pm
+        # "no report" note to Chloe; Sun 10:00 = 8pm freeze of the week's
+        # app readings for the month sheet. Every kind self-gates.
+        30 20 * * * curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/gm-nudge?kind=morning' 2>&1
+        0 3 * * 5 curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/gm-nudge?kind=report-due' 2>&1
+        0 6 * * 5 curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/gm-nudge?kind=wrap' 2>&1
+        0 10 * * 0 curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/gm-nudge?kind=close' 2>&1
         CRON
         exec crond -f -l 8 -L /dev/stdout
 

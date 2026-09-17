@@ -3,7 +3,7 @@ import {
   CalendarCheck, ClipboardCheck, ClipboardList, Croissant, Eye, Lock,
   MessageSquarePlus, PackageOpen, PackageSearch, Printer, Scale, ShieldCheck,
   ShoppingBasket, ShoppingCart, Snowflake, Trash2, Wrench, Megaphone, Sunrise,
-  Handshake, GraduationCap, ListChecks,
+  Handshake, GraduationCap, ListChecks, Compass,
 } from "lucide-react"
 
 type Icon = ComponentType<{ className?: string; strokeWidth?: number }>
@@ -15,7 +15,7 @@ export interface ToolGroup {
   sub: string
   icon: Icon
   tools: Tool[]
-  /** Managers group: lives under its own gate, not a sub page here. */
+  /** Managers and Oliver: live under their own gate, not a sub page here. */
   href?: string
   locked?: boolean
 }
@@ -82,6 +82,15 @@ export const TOOL_GROUPS: ToolGroup[] = [
       { title: "Staff training", sub: "Food handler records", href: "/kitchen/training", icon: GraduationCap },
       { title: "Stock list", sub: "Set up what the stock walk asks about", href: "/kitchen/managers/stock-setup", icon: PackageSearch },
     ],
+  },
+  {
+    slug: "gm",
+    title: "Oliver",
+    sub: "GM desk: today, this week, the numbers. Own password.",
+    icon: Compass,
+    href: "/kitchen/gm",
+    locked: true,
+    tools: [],
   },
 ]
 
