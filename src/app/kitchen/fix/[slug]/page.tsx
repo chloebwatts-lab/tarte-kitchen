@@ -5,6 +5,7 @@ import { notFound } from "next/navigation"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { FixAssetTriage } from "@/components/kitchen/FixAssetTriage"
 import { getFixAsset } from "@/lib/actions/maintenance"
+import { isManagerAuthed } from "@/lib/manager-auth"
 
 export default async function FixAssetPage({
   params,
@@ -14,6 +15,7 @@ export default async function FixAssetPage({
   const { slug } = await params
   const data = await getFixAsset(slug)
   if (!data) notFound()
+  const showCosts = await isManagerAuthed()
 
   const { asset, symptoms, suggestedContacts, warrantyContact, warrantyEnd } = data
   const venueLabel = asset.venue === "BURLEIGH" ? "Burleigh" : "Beach House"
@@ -83,7 +85,8 @@ export default async function FixAssetPage({
           bookedNote: i.bookedNote,
           fixSummary: i.fixSummary,
           wasWarranty: i.wasWarranty,
-          costCents: i.costCents,
+          // Repair bills are for managers and the office.
+          costCents: showCosts ? i.costCents : null,
           contactName: i.contact?.name ?? null,
           events: i.events.map((e) => ({
             author: e.author,

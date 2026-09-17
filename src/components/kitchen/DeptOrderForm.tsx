@@ -46,6 +46,8 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
 
   const added = rows.filter((r) => (r.quantity ?? 0) > 0)
   const total = added.reduce((s, r) => s + (r.quantity ?? 0) * r.packPrice, 0)
+  // Managers only. Without the managers password the prices arrive as 0.
+  const showPrices = initialForm.showPrices
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -170,7 +172,7 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
           </div>
           <p className="mt-3 text-[16px] text-[var(--tk-ink-soft)]">
             {added.length > 0
-              ? `${added.length} item${added.length === 1 ? "" : "s"} · $${total.toFixed(2)}`
+              ? `${added.length} item${added.length === 1 ? "" : "s"}${showPrices ? ` · $${total.toFixed(2)}` : ""}`
               : `${DEPT_LABEL[initialForm.dept]} has nothing to order today`}
             {approvedBy ? ` · by ${approvedBy}` : ""}
           </p>
@@ -223,9 +225,11 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
                   <div className="text-[15px] font-semibold text-[var(--tk-charcoal)]">
                     {r.quantity} ×
                   </div>
-                  <div className="text-[13px] text-[var(--tk-ink-soft)]">
-                    ${((r.quantity ?? 0) * r.packPrice).toFixed(2)}
-                  </div>
+                  {showPrices ? (
+                    <div className="text-[13px] text-[var(--tk-ink-soft)]">
+                      ${((r.quantity ?? 0) * r.packPrice).toFixed(2)}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ))}
@@ -328,13 +332,19 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
                           </span>
                         ) : null}
                       </div>
-                      <div className="mt-0.5 text-[13px] text-[var(--tk-ink-soft)] tabular-nums">
-                        ${row.packPrice.toFixed(2)} a pack
-                        {qty > 0
-                          ? ` · $${(qty * row.packPrice).toFixed(2)}`
-                          : ""}
-                        {row.enteredBy && qty > 0 ? ` · ${row.enteredBy}` : ""}
-                      </div>
+                      {showPrices ? (
+                        <div className="mt-0.5 text-[13px] text-[var(--tk-ink-soft)] tabular-nums">
+                          ${row.packPrice.toFixed(2)} a pack
+                          {qty > 0
+                            ? ` · $${(qty * row.packPrice).toFixed(2)}`
+                            : ""}
+                          {row.enteredBy && qty > 0 ? ` · ${row.enteredBy}` : ""}
+                        </div>
+                      ) : row.enteredBy && qty > 0 ? (
+                        <div className="mt-0.5 text-[13px] text-[var(--tk-ink-soft)]">
+                          {row.enteredBy}
+                        </div>
+                      ) : null}
                     </div>
 
                     {sent ? (
@@ -418,8 +428,8 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
               {DEPT_LABEL[initialForm.dept]} today
             </div>
             <div className="text-[20px] font-semibold text-[var(--tk-charcoal)] tabular-nums">
-              {added.length} item{added.length === 1 ? "" : "s"} · $
-              {total.toFixed(2)}
+              {added.length} item{added.length === 1 ? "" : "s"}
+              {showPrices ? ` · $${total.toFixed(2)}` : ""}
             </div>
           </div>
           {added.length === 0 ? (
