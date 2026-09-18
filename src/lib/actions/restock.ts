@@ -33,6 +33,8 @@ export interface CountSheetLine {
   priority: boolean
   /// 1 = make first. Assigned in tap order on the count sheet.
   priorityRank: number | null
+  /// ISO instant the station needs it by (Brisbane time when shown).
+  neededBy: string | null
   note: string | null
 }
 
@@ -53,6 +55,7 @@ export interface SiblingItem {
   /// This kitchen's request against their item (line lives on OUR sheet).
   requested: number | null
   priorityRank: number | null
+  neededBy: string | null
 }
 
 export interface CountSheet {
@@ -80,6 +83,7 @@ export interface RunStationLine {
   supplied: number | null
   suppliedBy: string | null
   note: string | null
+  neededBy: string | null
   countedBy: string | null
 }
 
@@ -90,6 +94,8 @@ export interface RunItem {
   priority: boolean
   /// Lowest rank across stations; null if starred without a rank.
   priorityRank: number | null
+  /// Earliest "needed by" across stations. The run sorts by it.
+  neededBy: string | null
   totalRequested: number
   totalSupplied: number
   stations: RunStationLine[]
@@ -310,6 +316,7 @@ export async function getCountSheet(params: {
         theirCountedAt: theirs?.at.toISOString() ?? null,
         requested: num(mine?.requested),
         priorityRank: mine?.priorityRank ?? null,
+        neededBy: mine?.neededBy?.toISOString() ?? null,
       }
     })
   }
@@ -337,6 +344,7 @@ export async function getCountSheet(params: {
         requested: num(line?.requested),
         priority: line?.priority ?? false,
         priorityRank: line?.priorityRank ?? null,
+        neededBy: line?.neededBy?.toISOString() ?? null,
         note: line?.note ?? null,
       }
     }),
@@ -350,6 +358,8 @@ export async function saveCountLine(params: {
   requested?: number | null
   priority?: boolean
   priorityRank?: number | null
+  /// ISO instant, or null to clear.
+  neededBy?: string | null
   note?: string | null
 }): Promise<{ ok: boolean; error?: string }> {
   const sheet = await db.restockSheet.findUnique({
@@ -365,8 +375,14 @@ export async function saveCountLine(params: {
     requested?: number | null
     priority?: boolean
     priorityRank?: number | null
+    neededBy?: Date | null
     note?: string | null
   } = {}
+  const neededBy =
+    params.neededBy == null ? null : new Date(params.neededBy)
+  if (neededBy && Number.isNaN(neededBy.getTime()))
+    return { ok: false, error: "Bad needed-by time" }
+  if ("neededBy" in params) patch.neededBy = neededBy
   if ("available" in params) patch.available = params.available
   if ("requested" in params) patch.requested = params.requested
   if (params.priority !== undefined) patch.priority = params.priority
@@ -389,6 +405,7 @@ export async function saveCountLine(params: {
       requested: params.requested ?? null,
       priority: params.priorityRank != null || (params.priority ?? false),
       priorityRank: params.priorityRank ?? null,
+      neededBy,
       note: params.note ?? null,
     },
     update: patch,
@@ -538,6 +555,7 @@ export async function getRestockRun(venue: Venue): Promise<RestockRun> {
         category: line.item.category,
         priority: false,
         priorityRank: null,
+        neededBy: null,
         totalRequested: 0,
         totalSupplied: 0,
         stations: [],
@@ -548,6 +566,10 @@ export async function getRestockRun(venue: Venue): Promise<RestockRun> {
           entry.priorityRank == null
             ? line.priorityRank
             : Math.min(entry.priorityRank, line.priorityRank)
+      }
+      if (line.neededBy) {
+        const iso = line.neededBy.toISOString()
+        if (entry.neededBy == null || iso < entry.neededBy) entry.neededBy = iso
       }
       entry.totalRequested += requested
       entry.totalSupplied += num(line.supplied) ?? 0
@@ -561,6 +583,7 @@ export async function getRestockRun(venue: Venue): Promise<RestockRun> {
         supplied: num(line.supplied),
         suppliedBy: line.suppliedBy,
         note: line.note,
+        neededBy: line.neededBy?.toISOString() ?? null,
         countedBy: sheet.countedBy,
       })
       itemsByKey.set(key, entry)
@@ -571,6 +594,8 @@ export async function getRestockRun(venue: Venue): Promise<RestockRun> {
   const items = Array.from(itemsByKey.values()).sort(
     (a, b) =>
       Number(b.priority) - Number(a.priority) ||
+      // Anything with a deadline comes first, earliest deadline on top
+      (a.neededBy ?? "9").localeCompare(b.neededBy ?? "9") ||
       // Within priority items: Jose's rank order, unranked stars last
       (a.priorityRank ?? 99) - (b.priorityRank ?? 99) ||
       catRank(a.category) - catRank(b.category) ||

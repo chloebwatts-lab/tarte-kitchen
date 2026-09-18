@@ -2017,6 +2017,10 @@ model RestockLine {
   /// rank; the morning run sorts by it. `priority` is kept true whenever a
   /// rank is set.
   priorityRank Int?
+  /// When the station actually needs it (Brisbane time). Set from the
+  /// "Needed by" chips on the count sheet; the morning run sorts by it
+  /// and flags anything already late. Null = by open, no fixed time.
+  neededBy   DateTime?
   note       String?
   suppliedBy String?
   suppliedAt DateTime?

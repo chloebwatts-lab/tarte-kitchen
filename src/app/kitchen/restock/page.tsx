@@ -63,6 +63,17 @@ export default async function RestockHubPage({
           chef runs one consolidated list next morning and restocks both
           kitchens before service.
         </p>
+        <div
+          className="mt-4 max-w-2xl rounded-[16px] px-5 py-4 text-[15px] leading-snug"
+          style={{ background: "var(--tk-gold-soft)", color: "#5d4a12" }}
+        >
+          <strong>Why we do this here and not by text.</strong> The count is the
+          prep list. If it is on the sheet, with a number, a priority and a
+          needed-by time, it gets made first thing and nobody has to chase.
+          If it is not on the sheet, it is a 6am phone call, a run to the
+          shop, and a dish we cannot serve at lunch. Two minutes at close
+          saves an hour in the morning.
+        </div>
       </div>
 
       <div className="space-y-3">

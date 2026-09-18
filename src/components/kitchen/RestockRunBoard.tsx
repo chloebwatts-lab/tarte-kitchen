@@ -10,6 +10,7 @@ import {
   type RunStationLine,
 } from "@/lib/actions/restock"
 import { STATION_SHORT_LABEL } from "@/lib/stations"
+import { formatNeededBy, isLate } from "@/lib/restock-needed-by"
 import type { KitchenStation } from "@/generated/prisma/client"
 
 type StationFilter = KitchenStation | "ALL"
@@ -551,6 +552,19 @@ function RunItemCard({
                 {item.unit}
               </span>
             )}
+            {item.neededBy && !allDone && (
+              <span
+                className="shrink-0 rounded-full px-2.5 py-0.5 text-[12px] font-semibold"
+                style={
+                  isLate(item.neededBy)
+                    ? { background: "#fbe3e0", color: "#8f2a22" }
+                    : { background: "var(--tk-sage-soft)", color: "var(--tk-charcoal)" }
+                }
+              >
+                {isLate(item.neededBy) ? "Late. " : ""}
+                {formatNeededBy(item.neededBy)}
+              </span>
+            )}
           </div>
           {multiKitchen && (
             <div className="mt-0.5 text-[13px] text-[var(--tk-ink-soft)]">
@@ -619,6 +633,11 @@ function RunItemCard({
                     </span>
                   )}
                 </div>
+                {s.neededBy && multiKitchen && (
+                  <div className="text-[13px] text-[var(--tk-ink-soft)]">
+                    {formatNeededBy(s.neededBy)}
+                  </div>
+                )}
                 {s.note && (
                   <div className="text-[13px] italic text-[var(--tk-ink-soft)]">
                     “{s.note}”

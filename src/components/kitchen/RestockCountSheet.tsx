@@ -20,6 +20,13 @@ import {
   type SiblingItem,
 } from "@/lib/actions/restock"
 import { STATION_LABEL, STATION_SHORT_LABEL } from "@/lib/stations"
+import {
+  NEEDED_BY_TIMES,
+  formatNeededBy,
+  neededByAt,
+  neededByDays,
+  splitNeededBy,
+} from "@/lib/restock-needed-by"
 
 /**
  * Closing chef's count sheet. Mirrors the paper "Kitchen Restock Request"
@@ -123,6 +130,7 @@ export function RestockCountSheet({
       requested?: number | null
       priority?: boolean
       priorityRank?: number | null
+      neededBy?: string | null
       note?: string | null
     },
     debounceKey?: string
@@ -196,6 +204,7 @@ export function RestockCountSheet({
             requested: null,
             priority: false,
             priorityRank: null,
+            neededBy: null,
             note: null,
           },
         ])
@@ -271,6 +280,16 @@ export function RestockCountSheet({
         >
           <AlertTriangle className="h-5 w-5 shrink-0" />
           This sheet was already restocked, so it&apos;s read-only now.
+        </div>
+      )}
+
+      {!readOnly && (
+        <div className="rounded-[16px] border border-[var(--tk-line)] bg-white px-5 py-4 text-[14px] leading-snug text-[var(--tk-ink-soft)]">
+          <strong className="text-[var(--tk-charcoal)]">Why this sheet matters.</strong>{" "}
+          The prep chef makes exactly what is on it, in the order you number it.
+          Nothing here means nothing made, and a text at 6am means someone
+          drops what they are doing. Tap an item&apos;s name to say when you
+          need it and leave a note.
         </div>
       )}
 
@@ -485,7 +504,16 @@ function CountRow({
   onChange: (patch: Partial<CountSheetLine>, debounceKey?: string) => void
   onToggleRank: () => void
 }) {
-  const [showNote, setShowNote] = useState(!!line.note)
+  const [showNote, setShowNote] = useState(!!line.note || !!line.neededBy)
+  const days = useMemo(() => neededByDays(), [])
+  const picked = line.neededBy ? splitNeededBy(line.neededBy) : null
+  // Day defaults to tomorrow once a time is tapped; time defaults to open
+  // once a day is tapped, so one tap is enough for the common case.
+  function pick(ymd: string | null, hour: number | null) {
+    const d = ymd ?? picked?.ymd ?? days[0].ymd
+    const h = hour ?? picked?.hour ?? NEEDED_BY_TIMES[0].hour
+    onChange({ neededBy: neededByAt(d, h).toISOString() })
+  }
   const needsAttention =
     line.parLevel != null &&
     line.available != null &&
@@ -519,6 +547,19 @@ function CountRow({
                 style={{ background: "var(--tk-gold-soft)", color: "#8a6d1f" }}
               >
                 below par
+              </span>
+            )}
+            {line.neededBy && (
+              <span
+                className="ml-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                style={{ background: "var(--tk-sage-soft)", color: "var(--tk-charcoal)" }}
+              >
+                {formatNeededBy(line.neededBy)}
+              </span>
+            )}
+            {!line.neededBy && !showNote && (line.requested ?? 0) > 0 && (
+              <span className="ml-1.5 text-[12px] text-[var(--tk-ink-mute)]">
+                when?
               </span>
             )}
             {line.note && !showNote && (
@@ -560,7 +601,41 @@ function CountRow({
         </button>
       </div>
       {showNote && (
-        <div className="px-4 pb-3">
+        <div className="space-y-2 px-4 pb-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-[12px] font-semibold uppercase tracking-wider text-[var(--tk-ink-soft)]">
+              Needed by
+            </span>
+            {days.map((d) => (
+              <Chip
+                key={d.ymd}
+                on={picked?.ymd === d.ymd}
+                disabled={readOnly}
+                onClick={() => pick(d.ymd, null)}
+              >
+                {d.label}
+              </Chip>
+            ))}
+            <span className="mx-1 text-[var(--tk-ink-mute)]">·</span>
+            {NEEDED_BY_TIMES.map((t) => (
+              <Chip
+                key={t.hour}
+                on={picked?.hour === t.hour}
+                disabled={readOnly}
+                onClick={() => pick(null, t.hour)}
+              >
+                {t.label}
+              </Chip>
+            ))}
+            {line.neededBy && !readOnly && (
+              <button
+                onClick={() => onChange({ neededBy: null })}
+                className="ml-1 text-[12px] text-[var(--tk-ink-mute)] underline"
+              >
+                clear
+              </button>
+            )}
+          </div>
           <input
             type="text"
             defaultValue={line.note ?? ""}
@@ -574,6 +649,35 @@ function CountRow({
         </div>
       )}
     </div>
+  )
+}
+
+function Chip({
+  on,
+  disabled,
+  onClick,
+  children,
+}: {
+  on: boolean
+  disabled?: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      aria-pressed={on}
+      className="min-h-[36px] rounded-full border px-3 text-[13px] font-semibold transition active:scale-95 disabled:opacity-50"
+      style={{
+        borderColor: on ? "var(--tk-charcoal)" : "var(--tk-line)",
+        background: on ? "var(--tk-charcoal)" : "white",
+        color: on ? "#fff" : "var(--tk-charcoal)",
+      }}
+    >
+      {children}
+    </button>
   )
 }
 

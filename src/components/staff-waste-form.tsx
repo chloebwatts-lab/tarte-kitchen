@@ -5,6 +5,7 @@ import { CheckCircle2, Search, X } from "lucide-react"
 import { createWasteEntry } from "@/lib/actions/wastage"
 import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
 import { KitchenButton } from "@/components/kitchen/KitchenButton"
+import { useRememberedName } from "@/components/kitchen/use-remembered-name"
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -149,6 +150,10 @@ export function StaffWasteForm({ items }: Props) {
   const [reason, setReason] = useState<string>("")
   const [error, setError] = useState("")
   const [success, setSuccess] = useState<{ name: string; cost: number } | null>(null)
+  // Same per-device memory as the order forms, so a shared iPad remembers
+  // who is logging without a retype on every bin.
+  const [recordedBy, setRecordedBy] = useRememberedName()
+  const [note, setNote] = useState("")
 
   // Combine all items, sorted so the most-wasted-in-last-30-days float to
   // the top, so a staffer typing "h" hits "Hollandaise" before "Herbs".
@@ -211,8 +216,10 @@ export function StaffWasteForm({ items }: Props) {
           unit,
           reason: reason as typeof WASTE_REASONS[number]["value"],
           estimatedCost,
-          recordedBy: "staff",
+          recordedBy: recordedBy.trim() || "staff",
+          notes: note.trim() || null,
         })
+        setNote("")
         setSuccess({ name: selectedItem.name, cost: estimatedCost })
         setSelectedItem(null)
         setQuantity("")
@@ -489,6 +496,32 @@ export function StaffWasteForm({ items }: Props) {
                 </button>
               )
             })}
+          </div>
+        </section>
+      )}
+
+      {/* Who and why, optional but asked for */}
+      {reason && (
+        <section>
+          <SectionLabel n={5} active={false} done={!!recordedBy.trim()}>
+            Your name
+          </SectionLabel>
+          <div className="flex flex-col gap-2.5 sm:flex-row">
+            <input
+              type="text"
+              value={recordedBy}
+              onChange={(e) => setRecordedBy(e.target.value)}
+              placeholder="Your name"
+              autoCapitalize="words"
+              className="min-h-[52px] rounded-[14px] border border-[var(--tk-line)] bg-white px-4 text-[16px] text-[var(--tk-charcoal)] outline-none focus:border-[var(--tk-sage)] sm:w-64"
+            />
+            <input
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Anything worth knowing (e.g. fridge door left open)"
+              className="min-h-[52px] flex-1 rounded-[14px] border border-[var(--tk-line)] bg-white px-4 text-[16px] text-[var(--tk-charcoal)] outline-none focus:border-[var(--tk-sage)]"
+            />
           </div>
         </section>
       )}

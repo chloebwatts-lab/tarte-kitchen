@@ -1,0 +1,833 @@
+<title>Tarte Management Screen</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+  :root {
+    --ground: #F5F7FA;
+    --panel: #FFFFFF;
+    --ink: #13202C;
+    --muted: #55646F;
+    --line: #D3DBE3;
+    --accent: #1D4F7C;
+    --good: #14684B; --good-bg: #DCF1E8;
+    --warn: #8A5200; --warn-bg: #FBE8C6;
+    --bad: #A8231C; --bad-bg: #F9DBD8;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: "Atkinson Hyperlegible", Verdana, "Helvetica Neue", Arial, sans-serif;
+    font-size: clamp(16px, 1.55vw, 26px); line-height: 1.4;
+  }
+  section {
+    position: fixed; inset: 0; overflow-y: auto; cursor: pointer;
+    padding-block: clamp(24px, 5vh, 64px) clamp(48px, 8vh, 80px); padding-inline: clamp(16px, 5vw, 96px);
+    display: flex; flex-direction: column; justify-content: safe center; gap: clamp(16px, 3.5vh, 40px);
+    opacity: 0; visibility: hidden; transition: opacity 0.25s ease;
+  }
+  section.on { opacity: 1; visibility: visible; }
+  @media (prefers-reduced-motion: reduce) { section { transition: none; } }
+  .kicker { color: var(--accent); font-weight: 700; font-size: 0.8em; letter-spacing: 0.06em; text-transform: uppercase; }
+  h1 { margin: 0; font-size: clamp(28px, 4.2vw, 68px); line-height: 1.1; font-weight: 700; text-wrap: balance; max-width: 22ch; }
+  h1.wide { max-width: 28ch; }
+  .sub { color: var(--muted); max-width: 60ch; margin: 0; }
+  .big { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: clamp(12px, 2vw, 32px); }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: clamp(14px, 2vw, 28px); display: grid; gap: 4px; }
+  .stat .n { font-size: clamp(36px, 5vw, 84px); font-weight: 700; line-height: 1; }
+  .stat .l { font-weight: 700; }
+  .stat .w { color: var(--muted); font-size: 0.85em; }
+  .scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; }
+  th, td { padding: clamp(8px, 1.3vh, 16px) clamp(10px, 1.4vw, 22px); text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  th { font-size: 0.75em; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+  th:first-child, td:first-child { text-align: left; }
+  td.then { color: var(--muted); font-size: 0.85em; }
+  td.now { font-weight: 700; font-size: 1.15em; }
+  td .dol { display: block; font-weight: 400; font-size: 0.7em; color: var(--muted); }
+  tr.total td { border-top: 2px solid var(--ink); }
+  tr.quiet td { color: var(--muted); font-size: 0.85em; }
+  tr.quiet td.now { font-size: 0.95em; font-weight: 700; color: var(--ink); }
+  .chip { display: inline-block; padding: 3px 12px; border-radius: 999px; font-weight: 700; font-size: 0.8em; }
+  .chip.good { background: var(--good-bg); color: var(--good); }
+  .chip.warn { background: var(--warn-bg); color: var(--warn); }
+  .chip.bad { background: var(--bad-bg); color: var(--bad); }
+  .bars { display: grid; gap: clamp(18px, 3vh, 36px); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: clamp(16px, 2.4vw, 36px); }
+  .bar-row { display: grid; gap: 8px; }
+  .bar-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .bar-head .name { font-weight: 700; }
+  .bar-head .val { font-size: 1.6em; font-weight: 700; }
+  .track { position: relative; height: clamp(22px, 3.4vh, 40px); background: var(--ground); border-radius: 6px; border: 1px solid var(--line); }
+  .fill { position: absolute; inset: 0 auto 0 0; border-radius: 5px 0 0 5px; }
+  .fill.good { background: var(--good); } .fill.warn { background: var(--warn); }
+  .mark { position: absolute; top: -8px; bottom: -8px; width: 4px; background: var(--ink); border-radius: 2px; }
+  .mark span { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px; font-size: 0.7em; font-weight: 700; white-space: nowrap; }
+  .bar-foot { color: var(--muted); font-size: 0.8em; margin-top: 18px; }
+  ol.asks { margin: 0; padding: 0; list-style: none; display: grid; gap: clamp(12px, 2.4vh, 28px); counter-reset: ask; }
+  ol.asks li { counter-increment: ask; display: grid; grid-template-columns: auto 1fr; gap: clamp(12px, 1.6vw, 28px); align-items: start; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: clamp(14px, 2vw, 28px); }
+  ol.asks li::before { content: counter(ask); font-size: clamp(32px, 4vw, 64px); font-weight: 700; color: var(--accent); line-height: 1; }
+  ol.asks b { display: block; font-size: 1.2em; }
+  ol.asks span { color: var(--muted); }
+  nav { position: fixed; z-index: 2; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; gap: 10px; }
+  nav a { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--accent); display: block; }
+  nav a.on { background: var(--accent); }
+  nav a:focus-visible, .ctl button:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+  .ctl { position: fixed; z-index: 2; right: 16px; bottom: 10px; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; font-weight: 700; }
+  .ctl button { font: inherit; color: var(--accent); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .ctl button:hover { border-color: var(--accent); }
+  /* Agenda + showcase additions */
+  .stat .n.small { font-size: clamp(24px, 2.8vw, 46px); line-height: 1.1; }
+  .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: clamp(12px, 2vw, 32px); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: clamp(14px, 2vw, 28px); display: grid; gap: 8px; }
+  .card b { font-size: 1.05em; }
+  .card span { color: var(--muted); }
+  section.divider { align-items: flex-start; }
+  section.divider h1 { font-size: clamp(36px, 5.5vw, 92px); max-width: 18ch; }
+  section.divider .sub { font-size: 1.15em; }
+  /* Showcase: one line, the live app in a frame, one line on why */
+  section.show { gap: clamp(10px, 2vh, 22px); justify-content: flex-start; padding-block: clamp(16px, 3vh, 36px) clamp(48px, 8vh, 72px); }
+  section.show h1 { font-size: clamp(22px, 2.9vw, 46px); max-width: 40ch; }
+  .frame-wrap { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 1fr; gap: 12px; }
+  .frame-wrap.wide { grid-template-columns: 1fr minmax(220px, 26ch); }
+  .ipad { position: relative; height: 100%; min-height: 40vh; background: #1a1f26; border-radius: 22px; padding: 12px; box-shadow: 0 12px 40px rgba(19,32,44,.18); cursor: default; }
+  .ipad iframe { display: block; width: 100%; height: 100%; border: 0; border-radius: 12px; background: #fff; }
+  .ipad .blocked { position: absolute; inset: 12px; display: grid; place-content: center; text-align: center; gap: 8px; background: var(--panel); border-radius: 12px; color: var(--muted); padding: 24px; }
+  .ipad .blocked a { color: var(--accent); font-weight: 700; }
+  .why { background: var(--panel); border: 1px solid var(--line); border-left: 6px solid var(--accent); border-radius: 10px; padding: clamp(12px, 1.6vw, 22px); color: var(--muted); font-size: 0.9em; align-self: start; }
+  .why b { color: var(--ink); display: block; margin-bottom: 4px; }
+  .tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .tools button, .tools a { font: inherit; font-size: 0.7em; font-weight: 700; color: var(--accent); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 5px 11px; cursor: pointer; text-decoration: none; }
+  .tools .path { font-size: 0.7em; color: var(--muted); margin-left: auto; }
+  section.show.big-frame .kicker, section.show.big-frame .why, section.show.big-frame .tools .path { display: none; }
+  section.show.big-frame h1 { font-size: clamp(18px, 1.8vw, 28px); }
+  section.show.big-frame .frame-wrap { grid-template-columns: 1fr; }
+  @media (max-width: 900px) { .frame-wrap.wide { grid-template-columns: 1fr; } }
+</style>
+<style>
+  nav { max-width: 70vw; flex-wrap: wrap; justify-content: center; gap: 6px; }
+  nav a { width: 9px; height: 9px; }
+  nav a.gap { margin-left: 14px; }
+  .menu[hidden] { display: none; }
+  .menu { position: fixed; inset: 0; z-index: 5; background: rgba(19,32,44,.55); display: grid; place-items: center; padding: 24px; }
+  .menu-box { background: var(--panel); border-radius: 12px; width: min(900px, 100%); max-height: 90vh; overflow: auto; padding: 20px 24px; font-size: 16px; }
+  .menu-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .menu-head button { font: inherit; font-weight: 700; color: var(--accent); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .menu ol { margin: 0; padding: 0; list-style: none; columns: 2; column-gap: 24px; }
+  .menu li { break-inside: avoid; }
+  .menu li a { display: block; padding: 6px 8px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+  .menu li a:hover, .menu li a.on { background: var(--ground); }
+  .menu .mk { display: block; font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+  @media (max-width: 700px) { .menu ol { columns: 1; } nav { display: none; } }
+</style>
+
+<nav aria-label="Screens"><a href="#s1" aria-label="Wages are back under 40%. The job now is to hold it."></a><a href="#s2" aria-label="Front of house and pastry are on band. The kitchen is $745 over."></a><a href="#s3" aria-label="Everything on band except the kitchen, which is $288 over."></a><a href="#s4" aria-label="Wages plus COGS. Burleigh 65%. Beach House 67%."></a><a href="#s5" aria-label="Beach House food costs two points more than Burleigh, every week."></a><a href="#d-app" aria-label="The app. Every tile, live, on this screen." class=gap></a><a href="#app-home" aria-label="Everything staff need is five tiles. Bookmark it, it stays logged in for 90 days."></a><a href="#app-ck-home" aria-label="Cleaning and food temperature checklists, by venue, by area, with what is due today."></a><a href="#app-ck-cooling" aria-label="The cooling log times every cooked batch going into the coolroom."></a><a href="#app-ck-waste" aria-label="Log anything binned, as it happens. Item, how much, why."></a><a href="#app-ck-pastry" aria-label="Pastry rotation: prepared, sold and discarded for every bake."></a><a href="#app-ck-inspect" aria-label="The inspection view: the last 30 days, council-ready, one tap to print."></a><a href="#app-st-restock" aria-label="Restock and prep counts. The closing chef counts, the prep chef makes exactly that."></a><a href="#app-st-run" aria-label="The morning restock run: one list from every kitchen, deadlines first, tick as you deliver."></a><a href="#app-st-walk" aria-label="The stock walk: tap Low or Out and it goes straight on the order list."></a><a href="#app-st-prep" aria-label="Prep walk-through: tomorrow's prep, one item at a time, built from the last four same-weekdays."></a><a href="#app-st-order" aria-label="Ordering: each section puts in what it needs, the department head approves, one order per supplier goes out."></a><a href="#app-st-supplies" aria-label="Ordering and supplies: where we buy what, and who to call."></a><a href="#app-st-serves" aria-label="Coolroom serves: type the tub weight, get the number of serves left."></a><a href="#app-st-portions" aria-label="The portion guide: what goes on every plate, in grams."></a><a href="#app-sp-report" aria-label="Spotted something? Ten seconds. Tap what it is, say where, done."></a><a href="#app-sp-fix" aria-label="Something broken? Scan the QR on the machine. Quick fixes, who to call, warranty."></a><a href="#app-sp-printers" aria-label="Printer down? Five stages, in order. Do not skip ahead."></a><a href="#app-sp-services" aria-label="The service calendar: grease trap, pest, canopy, fire. When it last ran and when it is due."></a><a href="#app-sp-raise" aria-label="Raise something. It goes straight on this meeting's agenda."></a><a href="#app-mg-home" aria-label="Numbers and names live here. Unlocked for 12 hours on a device."></a><a href="#app-mg-lineup" aria-label="The line-up: five minutes before open, already filled in."></a><a href="#app-mg-board" aria-label="The morning board: everything reported, scheduled or below par, waiting for a name."></a><a href="#app-mg-jobs" aria-label="The jobs board: what the morning board put on you. Tick it off, or hand it back."></a><a href="#app-mg-said" aria-label="Said and Done: the kitchen commitments, week by week."></a><a href="#app-mg-agenda" aria-label="The meeting agenda: what people raised, and what was decided."></a><a href="#app-mg-training" aria-label="Staff training: the food handler record for every team member."></a><a href="#app-mg-stock" aria-label="The stock list: set up what the stock walk asks about."></a><a href="#app-gm" aria-label="Oliver's GM desk: today, this week, deadlines, and the numbers as percentages."></a><a href="#a1" aria-label="What changes from October." class=gap></a><a href="#a2" aria-label="Oliver is now General Manager at Burleigh, three office days a week."></a><a href="#a3" aria-label="We move to Square in October. Currumbin first, Burleigh a week later."></a><a href="#a4" aria-label="Card surcharges end on 30 September. Everything we charge on top must be printed."></a><a href="#a5" aria-label="A 17% surcharge covers about half of a public holiday. The roster covers the rest."></a><a href="#a6" aria-label="Rosters are published two weeks ahead. Always."></a><a href="#a7" aria-label="Service is the number one complaint at both venues. A named team member is the number one reason for five stars."></a><a href="#a8" aria-label="Every new hire goes through the onboarding link. No paper, no Deputy invite."></a><a href="#a9" aria-label="Nothing changes in the systems from 1 December to 20 January."></a><a href="#a10" aria-label="Every department has a handbook. Take yours home today."></a><a href="#s6" aria-label="Three things to hold until next month." class=gap></a></nav>
+<div class="ctl"><span id="count"></span><button id="menu-open" aria-label="All slides">Menu</button><button id="prev" aria-label="Previous slide">&#9664;</button><button id="next" aria-label="Next slide">&#9654;</button><button id="fs" hidden>Full screen</button></div>
+<div id="menu" class="menu" hidden><div class="menu-box"><div class="menu-head"><b>Slides</b><button type="button" id="menu-close">Close</button></div><ol><li><a href="#s1" data-i="0"><span class="mk">Management meeting, September 2026. Week ending Tuesday 15 September</span>Wages are back under 40%. The job now is to hold it.</a></li><li><a href="#s2" data-i="1"><span class="mk">Tarte Bakery Burleigh, wages as % of revenue</span>Front of house and pastry are on band. The kitchen is $745 over.</a></li><li><a href="#s3" data-i="2"><span class="mk">Beach House Currumbin, wages as % of revenue</span>Everything on band except the kitchen, which is $288 over.</a></li><li><a href="#s4" data-i="3"><span class="mk">New from today: one number per venue</span>Wages plus COGS. Burleigh 65%. Beach House 67%.</a></li><li><a href="#s5" data-i="4"><span class="mk">COGS, week ending 15 September</span>Beach House food costs two points more than Burleigh, every week.</a></li><li><a href="#d-app" data-i="5"><span class="mk">Part two</span>The app. Every tile, live, on this screen.</a></li><li><a href="#app-home" data-i="6"><span class="mk">The iPad home screen</span>Everything staff need is five tiles. Bookmark it, it stays logged in for 90 days.</a></li><li><a href="#app-ck-home" data-i="7"><span class="mk">Checklists and logs</span>Cleaning and food temperature checklists, by venue, by area, with what is due today.</a></li><li><a href="#app-ck-cooling" data-i="8"><span class="mk">Checklists and logs</span>The cooling log times every cooked batch going into the coolroom.</a></li><li><a href="#app-ck-waste" data-i="9"><span class="mk">Checklists and logs</span>Log anything binned, as it happens. Item, how much, why.</a></li><li><a href="#app-ck-pastry" data-i="10"><span class="mk">Checklists and logs</span>Pastry rotation: prepared, sold and discarded for every bake.</a></li><li><a href="#app-ck-inspect" data-i="11"><span class="mk">Checklists and logs</span>The inspection view: the last 30 days, council-ready, one tap to print.</a></li><li><a href="#app-st-restock" data-i="12"><span class="mk">Stock and ordering</span>Restock and prep counts. The closing chef counts, the prep chef makes exactly that.</a></li><li><a href="#app-st-run" data-i="13"><span class="mk">Stock and ordering</span>The morning restock run: one list from every kitchen, deadlines first, tick as you deliver.</a></li><li><a href="#app-st-walk" data-i="14"><span class="mk">Stock and ordering</span>The stock walk: tap Low or Out and it goes straight on the order list.</a></li><li><a href="#app-st-prep" data-i="15"><span class="mk">Stock and ordering</span>Prep walk-through: tomorrow's prep, one item at a time, built from the last four same-weekdays.</a></li><li><a href="#app-st-order" data-i="16"><span class="mk">Stock and ordering</span>Ordering: each section puts in what it needs, the department head approves, one order per supplier goes out.</a></li><li><a href="#app-st-supplies" data-i="17"><span class="mk">Stock and ordering</span>Ordering and supplies: where we buy what, and who to call.</a></li><li><a href="#app-st-serves" data-i="18"><span class="mk">Stock and ordering</span>Coolroom serves: type the tub weight, get the number of serves left.</a></li><li><a href="#app-st-portions" data-i="19"><span class="mk">Stock and ordering</span>The portion guide: what goes on every plate, in grams.</a></li><li><a href="#app-sp-report" data-i="20"><span class="mk">Broken or spotted</span>Spotted something? Ten seconds. Tap what it is, say where, done.</a></li><li><a href="#app-sp-fix" data-i="21"><span class="mk">Broken or spotted</span>Something broken? Scan the QR on the machine. Quick fixes, who to call, warranty.</a></li><li><a href="#app-sp-printers" data-i="22"><span class="mk">Broken or spotted</span>Printer down? Five stages, in order. Do not skip ahead.</a></li><li><a href="#app-sp-services" data-i="23"><span class="mk">Broken or spotted</span>The service calendar: grease trap, pest, canopy, fire. When it last ran and when it is due.</a></li><li><a href="#app-sp-raise" data-i="24"><span class="mk">Broken or spotted</span>Raise something. It goes straight on this meeting's agenda.</a></li><li><a href="#app-mg-home" data-i="25"><span class="mk">Managers, behind the managers password</span>Numbers and names live here. Unlocked for 12 hours on a device.</a></li><li><a href="#app-mg-lineup" data-i="26"><span class="mk">Managers</span>The line-up: five minutes before open, already filled in.</a></li><li><a href="#app-mg-board" data-i="27"><span class="mk">Managers</span>The morning board: everything reported, scheduled or below par, waiting for a name.</a></li><li><a href="#app-mg-jobs" data-i="28"><span class="mk">Managers</span>The jobs board: what the morning board put on you. Tick it off, or hand it back.</a></li><li><a href="#app-mg-said" data-i="29"><span class="mk">Managers</span>Said and Done: the kitchen commitments, week by week.</a></li><li><a href="#app-mg-agenda" data-i="30"><span class="mk">Managers</span>The meeting agenda: what people raised, and what was decided.</a></li><li><a href="#app-mg-training" data-i="31"><span class="mk">Managers</span>Staff training: the food handler record for every team member.</a></li><li><a href="#app-mg-stock" data-i="32"><span class="mk">Managers</span>The stock list: set up what the stock walk asks about.</a></li><li><a href="#app-gm" data-i="33"><span class="mk">Oliver's desk, behind his own password</span>Oliver's GM desk: today, this week, deadlines, and the numbers as percentages.</a></li><li><a href="#a1" data-i="34"><span class="mk">Part three</span>What changes from October.</a></li><li><a href="#a2" data-i="35"><span class="mk">People</span>Oliver is now General Manager at Burleigh, three office days a week.</a></li><li><a href="#a3" data-i="36"><span class="mk">Tills</span>We move to Square in October. Currumbin first, Burleigh a week later.</a></li><li><a href="#a4" data-i="37"><span class="mk">Pricing, from Wednesday 1 October</span>Card surcharges end on 30 September. Everything we charge on top must be printed.</a></li><li><a href="#a5" data-i="38"><span class="mk">Labour Day, Monday 5 October</span>A 17% surcharge covers about half of a public holiday. The roster covers the rest.</a></li><li><a href="#a6" data-i="39"><span class="mk">Rosters</span>Rosters are published two weeks ahead. Always.</a></li><li><a href="#a7" data-i="40"><span class="mk">Service</span>Service is the number one complaint at both venues. A named team member is the number one reason for five stars.</a></li><li><a href="#a8" data-i="41"><span class="mk">People</span>Every new hire goes through the onboarding link. No paper, no Deputy invite.</a></li><li><a href="#a9" data-i="42"><span class="mk">Christmas</span>Nothing changes in the systems from 1 December to 20 January.</a></li><li><a href="#a10" data-i="43"><span class="mk">Training</span>Every department has a handbook. Take yours home today.</a></li><li><a href="#s6" data-i="44"><span class="mk">To close</span>Three things to hold until next month.</a></li></ol></div></div>
+
+<section id="s1">
+  <div class="kicker">Management meeting, September 2026. Week ending Tuesday 15 September</div>
+  <h1>Wages are back under 40%. The job now is to hold it.</h1>
+  <div class="big">
+    <div class="stat"><div class="l">Group wages</div><div class="n">39.3%</div><div class="w">Was 44.3% two weeks ago</div></div>
+    <div class="stat"><div class="l">Saved each week</div><div class="n">$7,300</div><div class="w">Lower wages on $7,500 more revenue</div></div>
+    <div class="stat"><div class="l">Group revenue ex GST</div><div class="n">$214k</div><div class="w">$220k last week, $207k the week before</div></div>
+  </div>
+</section>
+
+<section id="s2">
+  <div class="kicker">Tarte Bakery Burleigh, wages as % of revenue</div>
+  <h1 class="wide">Front of house and pastry are on band. The kitchen is $745 over.</h1>
+  <div class="scroll"><table>
+    <thead><tr><th>Department</th><th>Band</th><th>1 Sep</th><th>8 Sep</th><th>15 Sep</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Chefs + KP</td><td class="then">11.5 to 12%</td><td class="then">13.5%</td><td class="then">13.1%</td><td class="now">12.7%<span class="dol">$14,292</span></td><td><span class="chip bad">&#9650; Over by 0.7</span></td></tr>
+      <tr><td>FOH + Barista</td><td class="then">20.5 to 21%</td><td class="then">23.0%</td><td class="then">20.0%</td><td class="now">19.8%<span class="dol">$22,298</span></td><td><span class="chip good">&#10003; On band</span></td></tr>
+      <tr><td>Pastry</td><td class="then">4.75 to 5.25%</td><td class="then">5.7%</td><td class="then">4.6%</td><td class="now">4.6%<span class="dol">$5,233</span></td><td><span class="chip good">&#10003; On band</span></td></tr>
+      <tr class="total"><td>Total wages</td><td></td><td class="then">44.2%</td><td class="then">39.8%</td><td class="now">39.1%<span class="dol">$44,191 on $112,891</span></td><td></td></tr>
+      <tr class="quiet"><td>Without admin (what Deputy shows)</td><td></td><td>42.2%</td><td>37.7%</td><td class="now">37.0%</td><td></td></tr>
+      <tr class="quiet"><td>Without admin or leave (the roster)</td><td></td><td>40.7%</td><td>35.2%</td><td class="now">35.4%</td><td></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="s3">
+  <div class="kicker">Beach House Currumbin, wages as % of revenue</div>
+  <h1 class="wide">Everything on band except the kitchen, which is $288 over.</h1>
+  <div class="scroll"><table>
+    <thead><tr><th>Department</th><th>Band</th><th>1 Sep</th><th>8 Sep</th><th>15 Sep</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Chefs + KP</td><td class="then">12.5 to 13.5%</td><td class="then">15.5%</td><td class="then">13.4%</td><td class="now">13.8%<span class="dol">$12,953</span></td><td><span class="chip warn">&#9650; Over by 0.3</span></td></tr>
+      <tr><td>FOH incl Barista</td><td class="then">21.5 to 22.5%</td><td class="then">24.1%</td><td class="then">21.4%</td><td class="now">22.2%<span class="dol">$20,828</span></td><td><span class="chip good">&#10003; On band</span></td></tr>
+      <tr><td>Pastry</td><td class="then">2.5 to 3%</td><td class="then">3.7%</td><td class="then">3.1%</td><td class="now">2.6%<span class="dol">$2,477</span></td><td><span class="chip good">&#10003; On band</span></td></tr>
+      <tr class="total"><td>Total wages</td><td></td><td class="then">44.5%</td><td class="then">38.9%</td><td class="now">39.8%<span class="dol">$37,340 on $93,819</span></td><td></td></tr>
+      <tr class="quiet"><td>Without admin (what Deputy shows)</td><td></td><td>43.3%</td><td>37.9%</td><td class="now">38.6%</td><td></td></tr>
+      <tr class="quiet"><td>Without admin or leave (the roster)</td><td></td><td>42.1%</td><td>37.6%</td><td class="now">37.7%</td><td></td></tr>
+      <tr class="quiet"><td>Tea Garden, on its own revenue</td><td>No band yet</td><td>44.5%</td><td>38.1%</td><td class="now">36.3%</td><td></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="s4">
+  <div class="kicker">New from today: one number per venue</div>
+  <h1 class="wide">Wages plus COGS. Burleigh 65%. Beach House 67%.</h1>
+  <div class="bars">
+    <div class="bar-row">
+      <div class="bar-head"><span class="name">Burleigh</span><span><span class="val">63.0%</span> <span class="chip good">&#10003; Under target</span></span></div>
+      <div class="track"><div class="fill good" style="width:43.3%"></div><div class="mark" style="left:50%"><span>Target 65%</span></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-head"><span class="name">Beach House</span><span><span class="val">67.6%</span> <span class="chip warn">&#9650; Over by 0.6</span></span></div>
+      <div class="track"><div class="fill warn" style="width:58.7%"></div><div class="mark" style="left:56.7%"><span>Target 67%</span></div></div>
+    </div>
+    <div class="bar-foot">Both venues were at 73.4% two weeks ago. Measured on a four week average, because supplier bills land unevenly. Every point is worth about $2,100 a week across the group.</div>
+  </div>
+</section>
+
+<section id="s5">
+  <div class="kicker">COGS, week ending 15 September</div>
+  <h1 class="wide">Beach House food costs two points more than Burleigh, every week.</h1>
+  <div class="scroll"><table>
+    <thead><tr><th>Category</th><th>Burleigh</th><th>Beach House</th><th>Gap</th></tr></thead>
+    <tbody>
+      <tr><td>Food</td><td class="now">18.7%<span class="dol">$21,097</span></td><td class="now">20.9%<span class="dol">$19,580</span></td><td><span class="chip warn">&#9650; +2.2 pts, about $2,000 a week</span></td></tr>
+      <tr><td>Drinks incl alcohol</td><td class="now">0.2%<span class="dol">$238</span></td><td class="now">1.9%<span class="dol">$1,788</span></td><td class="then">+1.7 pts, expected with the bar</td></tr>
+      <tr><td>Coffee and tea</td><td class="now">4.1%<span class="dol">$4,646</span></td><td class="now">3.9%<span class="dol">$3,644</span></td><td class="then">Level</td></tr>
+      <tr><td>Consumables and packaging</td><td class="now">0.9%<span class="dol">$984</span></td><td class="now">1.2%<span class="dol">$1,097</span></td><td class="then">Level</td></tr>
+      <tr class="total"><td>Total COGS</td><td class="now">23.9%<span class="dol">$26,965</span></td><td class="now">27.8%<span class="dol">$26,108</span></td><td></td></tr>
+      <tr class="quiet"><td>Eight week average</td><td class="now">25.9%</td><td class="now">27.7%</td><td></td></tr>
+    </tbody>
+  </table></div>
+  <p class="sub">Burleigh's 29.2% spike two weeks ago did not repeat. Pastry ingredient orders and supermarket top-ups are back to normal.</p>
+</section>
+
+<section id="d-app" class="divider">
+  <div class="kicker">Part two</div>
+  <h1>The app. Every tile, live, on this screen.</h1>
+  <p class="sub">kitchen.tarte.com.au on every iPad and phone. One line on what each page is for, then the real thing, then why it matters. Fifteen minutes.</p>
+</section>
+
+<section id="app-home" class="show" data-app="/staffaccess">
+  <div class="kicker">The iPad home screen</div>
+  <h1>Everything staff need is five tiles. Bookmark it, it stays logged in for 90 days.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/staffaccess" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/staffaccess</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="The iPad home screen: /staffaccess" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>One front door on every iPad and phone. Checklists, stock, breakages, and the two password areas for managers and Oliver. If someone asks where something is, the answer is always this screen.</div>
+  </div>
+</section>
+
+<section id="app-ck-home" class="show" data-app="/kitchen">
+  <div class="kicker">Checklists and logs</div>
+  <h1>Cleaning and food temperature checklists, by venue, by area, with what is due today.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Checklists and logs: /kitchen" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>This is our food safety evidence. Council can ask for it any day. Weekly and monthly lists stay open all cycle and email Chloe what was missed at the end of it.</div>
+  </div>
+</section>
+
+<section id="app-ck-cooling" class="show" data-app="/kitchen/cooling?venue=BEACH_HOUSE">
+  <div class="kicker">Checklists and logs</div>
+  <h1>The cooling log times every cooked batch going into the coolroom.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/cooling?venue=BEACH_HOUSE" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/cooling</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Checklists and logs: /kitchen/cooling" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>The HACCP rule is 21 degrees within two hours and 5 degrees within six. A missed entry looks the same as unsafe food to an inspector. Thirty seconds per batch.</div>
+  </div>
+</section>
+
+<section id="app-ck-waste" class="show" data-app="/log">
+  <div class="kicker">Checklists and logs</div>
+  <h1>Log anything binned, as it happens. Item, how much, why.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/log" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/log</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Checklists and logs: /log" loading="lazy"></iframe></div>
+    <div class="why"><b>Why wastage is integral</b>Wastage is the only cost we can see the moment it happens. Every entry is costed on the spot from our own recipe prices. Logged waste sets the ordering pars, shows which prep is over-made, and is the first number Oliver and the head chefs check on Friday. Under 1.5% of revenue is green, over 2.5% is red. Unlogged waste still costs the same, we just cannot fix it.</div>
+  </div>
+</section>
+
+<section id="app-ck-pastry" class="show" data-app="/kitchen/pastry?venue=BEACH_HOUSE">
+  <div class="kicker">Checklists and logs</div>
+  <h1>Pastry rotation: prepared, sold and discarded for every bake.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/pastry?venue=BEACH_HOUSE" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/pastry</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Checklists and logs: /kitchen/pastry" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>Burleigh sells about 11,000 pastries a month. One tray over-baked a day is $10,000 a year. This log tells us which bake to cut and which to add.</div>
+  </div>
+</section>
+
+<section id="app-ck-inspect" class="show" data-app="/kitchen/inspection?venue=BEACH_HOUSE">
+  <div class="kicker">Checklists and logs</div>
+  <h1>The inspection view: the last 30 days, council-ready, one tap to print.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/inspection?venue=BEACH_HOUSE" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/inspection</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Checklists and logs: /kitchen/inspection" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>When the EHO walks in, this is the screen you hand over. Cleaning, temperatures, cooling, pastry and corrective actions in one read-only record. Nothing to hunt for.</div>
+  </div>
+</section>
+
+<section id="app-st-restock" class="show" data-app="/kitchen/restock?venue=BEACH_HOUSE">
+  <div class="kicker">Stock and ordering</div>
+  <h1>Restock and prep counts. The closing chef counts, the prep chef makes exactly that.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/restock?venue=BEACH_HOUSE" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/restock</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Stock and ordering: /kitchen/restock" loading="lazy"></iframe></div>
+    <div class="why"><b>Why chefs must use this</b>The count is the prep list. Each line has a number, a priority order and, new from today, a needed-by day and time. If it is on the sheet it gets made first thing. If it is not, it is a 6am phone call and a dish we cannot serve at lunch. Two minutes at close saves an hour in the morning.</div>
+  </div>
+</section>
+
+<section id="app-st-run" class="show" data-app="/kitchen/restock/run?venue=BEACH_HOUSE">
+  <div class="kicker">Stock and ordering</div>
+  <h1>The morning restock run: one list from every kitchen, deadlines first, tick as you deliver.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/restock/run?venue=BEACH_HOUSE" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/restock/run</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Stock and ordering: /kitchen/restock/run" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>Both kitchens' requests merge into one make-list, so the prep chef makes once and splits. Anything not delivered shows as a shortfall on the daily report, so nothing quietly disappears.</div>
+  </div>
+</section>
+
+<section id="app-st-walk" class="show" data-app="/kitchen/stock?venue=BEACH_HOUSE">
+  <div class="kicker">Stock and ordering</div>
+  <h1>The stock walk: tap Low or Out and it goes straight on the order list.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/stock?venue=BEACH_HOUSE" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/stock</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Stock and ordering: /kitchen/stock" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>Fifteen to twenty items, walked in order. No notebook, no photo of the shelf. Whatever is flagged lands on the morning board and the department order.</div>
+  </div>
+</section>
+
+<section id="app-st-prep" class="show" data-app="/kitchen/prep?venue=BEACH_HOUSE">
+  <div class="kicker">Stock and ordering</div>
+  <h1>Prep walk-through: tomorrow's prep, one item at a time, built from the last four same-weekdays.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/prep?venue=BEACH_HOUSE" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/prep</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Stock and ordering: /kitchen/prep" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>Prep amounts come from what we actually sold on that weekday, not a guess. Over-prep is wastage, under-prep is a sold-out dish.</div>
+  </div>
+</section>
+
+<section id="app-st-order" class="show" data-app="/kitchen/order?venue=BEACH_HOUSE">
+  <div class="kicker">Stock and ordering</div>
+  <h1>Ordering: each section puts in what it needs, the department head approves, one order per supplier goes out.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/order?venue=BEACH_HOUSE" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/order</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Stock and ordering: /kitchen/order" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>Four departments, one daily order, prices shown per pack. No more three people texting the same supplier. The order sheet regroups everything by supplier and emails it.</div>
+  </div>
+</section>
+
+<section id="app-st-supplies" class="show" data-app="/kitchen/ordering">
+  <div class="kicker">Stock and ordering</div>
+  <h1>Ordering and supplies: where we buy what, and who to call.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/ordering" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/ordering</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Stock and ordering: /kitchen/ordering" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>The reference for a new starter or a sick-day cover. Every supplier, what they deliver, account numbers and contacts, in one place.</div>
+  </div>
+</section>
+
+<section id="app-st-serves" class="show" data-app="/kitchen/serves?venue=BEACH_HOUSE">
+  <div class="kicker">Stock and ordering</div>
+  <h1>Coolroom serves: type the tub weight, get the number of serves left.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/serves?venue=BEACH_HOUSE" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/serves</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Stock and ordering: /kitchen/serves" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>Takes the guesswork out of the coolroom count. The maths uses the recipe's real portion size, so the prep request is right.</div>
+  </div>
+</section>
+
+<section id="app-st-portions" class="show" data-app="/kitchen/portions?venue=BEACH_HOUSE">
+  <div class="kicker">Stock and ordering</div>
+  <h1>The portion guide: what goes on every plate, in grams.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/portions?venue=BEACH_HOUSE" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/portions</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Stock and ordering: /kitchen/portions" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>Consistency is what the food cost is built on. Beach House food runs two points over Burleigh. Portions are the first place to look.</div>
+  </div>
+</section>
+
+<section id="app-sp-report" class="show" data-app="/kitchen/report?venue=BEACH_HOUSE">
+  <div class="kicker">Broken or spotted</div>
+  <h1>Spotted something? Ten seconds. Tap what it is, say where, done.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/report?venue=BEACH_HOUSE" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/report</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Broken or spotted: /kitchen/report" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>Low stock, rubbish, a clean, a wobbly chair. It lands on the morning board with a time and a place, so it gets a name against it instead of being mentioned twice and forgotten.</div>
+  </div>
+</section>
+
+<section id="app-sp-fix" class="show" data-app="/kitchen/fix?venue=BEACH_HOUSE">
+  <div class="kicker">Broken or spotted</div>
+  <h1>Something broken? Scan the QR on the machine. Quick fixes, who to call, warranty.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/fix?venue=BEACH_HOUSE" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/fix</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Broken or spotted: /kitchen/fix" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>Every machine has a sticker. The page tells you the five things to try first, whether it is still under warranty, and one tap calls the trade. The report emails hello@ and Shawna and goes on the board.</div>
+  </div>
+</section>
+
+<section id="app-sp-printers" class="show" data-app="/kitchen/printers">
+  <div class="kicker">Broken or spotted</div>
+  <h1>Printer down? Five stages, in order. Do not skip ahead.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/printers" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/printers</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Broken or spotted: /kitchen/printers" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>Docket printers cause more mid-service panic than anything else. Power, internet, IP address, iPads, then replace. Most fixes are stage one or two.</div>
+  </div>
+</section>
+
+<section id="app-sp-services" class="show" data-app="/kitchen/services?venue=BEACH_HOUSE">
+  <div class="kicker">Broken or spotted</div>
+  <h1>The service calendar: grease trap, pest, canopy, fire. When it last ran and when it is due.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/services?venue=BEACH_HOUSE" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/services</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Broken or spotted: /kitchen/services" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>Council wants the dockets. The calendar sweeps the inbox every morning and books the visits in itself. Anything due shows here before it is overdue.</div>
+  </div>
+</section>
+
+<section id="app-sp-raise" class="show" data-app="/kitchen/raise?venue=BEACH_HOUSE">
+  <div class="kicker">Broken or spotted</div>
+  <h1>Raise something. It goes straight on this meeting's agenda.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/raise?venue=BEACH_HOUSE" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/raise</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Broken or spotted: /kitchen/raise" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>Anyone on the team can put an item in front of this room. What was raised and what was decided is kept in the managers' agenda page, so decisions do not evaporate.</div>
+  </div>
+</section>
+
+<section id="app-mg-home" class="show" data-app="/kitchen/managers">
+  <div class="kicker">Managers, behind the managers password</div>
+  <h1>Numbers and names live here. Unlocked for 12 hours on a device.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/managers" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/managers</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Managers, behind the managers password: /kitchen/managers" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>Supervisors get this password. It holds yesterday's take, people's names and the boards. The shared iPad login does not.</div>
+  </div>
+</section>
+
+<section id="app-mg-lineup" class="show" data-app="/kitchen/lineup?venue=BEACH_HOUSE">
+  <div class="kicker">Managers</div>
+  <h1>The line-up: five minutes before open, already filled in.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/lineup?venue=BEACH_HOUSE" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/lineup</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Managers: /kitchen/lineup" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>Yesterday's take and today's brief, already filled in. Read it out to the team, do not write it. The Ritz-Carlton daily line-up, our version.</div>
+  </div>
+</section>
+
+<section id="app-mg-board" class="show" data-app="/kitchen/managers/board?venue=BEACH_HOUSE">
+  <div class="kicker">Managers</div>
+  <h1>The morning board: everything reported, scheduled or below par, waiting for a name.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/managers/board?venue=BEACH_HOUSE" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/managers/board</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Managers: /kitchen/managers/board" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>Every spotted item, every due job and every stock flag lands here. Put a name on it and it moves to that person's jobs board. The manager's own list lives here too.</div>
+  </div>
+</section>
+
+<section id="app-mg-jobs" class="show" data-app="/kitchen/jobs?venue=BEACH_HOUSE">
+  <div class="kicker">Managers</div>
+  <h1>The jobs board: what the morning board put on you. Tick it off, or hand it back.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/jobs?venue=BEACH_HOUSE" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/jobs</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Managers: /kitchen/jobs" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>One section per person. Supervisors can finally see their own jobs, and a manager's workload is visible instead of questioned.</div>
+  </div>
+</section>
+
+<section id="app-mg-said" class="show" data-app="/kitchen/commitments">
+  <div class="kicker">Managers</div>
+  <h1>Said and Done: the kitchen commitments, week by week.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/commitments" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/commitments</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Managers: /kitchen/commitments" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>What each kitchen agreed to at the reset meeting, and whether it happened. Paper sheets can be photographed straight in.</div>
+  </div>
+</section>
+
+<section id="app-mg-agenda" class="show" data-app="/kitchen/managers/agenda">
+  <div class="kicker">Managers</div>
+  <h1>The meeting agenda: what people raised, and what was decided.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/managers/agenda" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/managers/agenda</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Managers: /kitchen/managers/agenda" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>This meeting's list, built from Raise something. Decisions are written next to the item, so next month we check them instead of re-discussing.</div>
+  </div>
+</section>
+
+<section id="app-mg-training" class="show" data-app="/kitchen/training?venue=BEACH_HOUSE">
+  <div class="kicker">Managers</div>
+  <h1>Staff training: the food handler record for every team member.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/training?venue=BEACH_HOUSE" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/training</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Managers: /kitchen/training" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>Council asks for it. Managers tick training off here as it happens, and the handbooks you take home today are what it refers to.</div>
+  </div>
+</section>
+
+<section id="app-mg-stock" class="show" data-app="/kitchen/managers/stock-setup?venue=BEACH_HOUSE">
+  <div class="kicker">Managers</div>
+  <h1>The stock list: set up what the stock walk asks about.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/managers/stock-setup?venue=BEACH_HOUSE" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/managers/stock-setup</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Managers: /kitchen/managers/stock-setup" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>Fine, Low or Out for the cheap fast items, a count with a par for anything worth a number. Fifteen to twenty items is plenty.</div>
+  </div>
+</section>
+
+<section id="app-gm" class="show" data-app="/kitchen/gm">
+  <div class="kicker">Oliver's desk, behind his own password</div>
+  <h1>Oliver's GM desk: today, this week, deadlines, and the numbers as percentages.</h1>
+  <div class="tools">
+    <button type="button" data-act="reload">Reload</button>
+    <button type="button" data-act="big">Bigger</button>
+    <a href="/kitchen/gm" target="_blank" rel="noopener">Open in a tab</a>
+    <span class="path">kitchen.tarte.com.au/kitchen/gm</span>
+  </div>
+  <div class="frame-wrap wide">
+    <div class="ipad"><iframe title="Oliver's desk, behind his own password: /kitchen/gm" loading="lazy"></iframe></div>
+    <div class="why"><b>Why it matters</b>It tells him what to do on each GM day and ticks what it can itself: roster published two weeks out, open shifts, checklists, wastage, one-on-ones, wage and COGS percent. The Monday report to Chloe comes off this page.</div>
+  </div>
+</section>
+
+<section id="a1" class="divider">
+  <div class="kicker">Part three</div>
+  <h1>What changes from October.</h1>
+  <p class="sub">Oliver's new role, the switch to Square, the 1 October price changes, Labour Day and rosters.</p>
+</section>
+
+<section id="a2">
+  <div class="kicker">People</div>
+  <h1 class="wide">Oliver is now General Manager at Burleigh, three office days a week.</h1>
+  <div class="big">
+    <div class="stat"><div class="l">Thursday</div><div class="n small">Rosters</div><div class="w">Next two weeks published, open shifts filled, hours checked against sales</div></div>
+    <div class="stat"><div class="l">Friday</div><div class="n small">Kitchen and money</div><div class="w">Wage %, COGS %, wastage, ordering to par</div></div>
+    <div class="stat"><div class="l">Monday</div><div class="n small">People and report</div><div class="w">One on ones, training, the Monday report to Chloe by 3pm</div></div>
+  </div>
+  <div class="split">
+    <div class="card"><b>His brief, in his words</b><span>Make the business more efficient. Make the business more profitable. Make the staff happier.</span></div>
+    <div class="card"><b>Still with others</b><span>Timesheets and till pricing stay with Shawna. Pricing, contracts and subscriptions stay with Chloe. Saturday and Sunday Oliver is on the floor. Tuesday and Wednesday he is off.</span></div>
+  </div>
+</section>
+
+<section id="a3">
+  <div class="kicker">Tills</div>
+  <h1 class="wide">We move to Square in October. Currumbin first, Burleigh a week later.</h1>
+  <div class="big">
+    <div class="stat"><div class="l">Beach House and Tea Garden</div><div class="n small">Tue 6 Oct</div><div class="w">First trading day after the school holidays and Labour Day</div></div>
+    <div class="stat"><div class="l">Burleigh</div><div class="n small">Tue 13 Oct</div><div class="w">One week later, once Currumbin has settled</div></div>
+  </div>
+  <div class="split">
+    <div class="card"><b>What to expect</b><span>Square staff are on site on day one and the first Saturday at each venue. New registers and handhelds, all at no cost. Lightspeed tills stay logged in for a few days as the fallback.</span></div>
+    <div class="card"><b>What we need from you</b><span>Every manager does the Square training before their go-live date. Menu, modifiers and gift cards get checked against the old till before we switch. Nothing changes between 1 December and 20 January.</span></div>
+  </div>
+</section>
+
+<section id="a4">
+  <div class="kicker">Pricing, from Wednesday 1 October</div>
+  <h1 class="wide">Card surcharges end on 30 September. Everything we charge on top must be printed.</h1>
+  <ol class="asks">
+    <li><div><b>Card surcharge switched off on the night of Tuesday 30 September.</b><span>It becomes illegal from 1 October. The tills need a manual reset that night at both venues.</span></div></li>
+    <li><div><b>Public holiday surcharge stays at 17% and gets printed everywhere.</b><span>Menus, QR menus, website and receipts, before Labour Day on Monday 5 October. Today it is only at the till.</span></div></li>
+    <li><div><b>Sunday surcharge: TO CONFIRM.</b><span>Proposal is 10% at both venues from 1 October. Burleigh is 8% today, Beach House has none. Gold Coast norm is 10%.</span></div></li>
+  </ol>
+</section>
+
+<section id="a5">
+  <div class="kicker">Labour Day, Monday 5 October</div>
+  <h1 class="wide">A 17% surcharge covers about half of a public holiday. The roster covers the rest.</h1>
+  <div class="big">
+    <div class="stat"><div class="l">Show Day, 28 Aug</div><div class="n">173 / 187</div><div class="w">Roster hours at Burleigh / Beach House, the same as a normal Friday</div></div>
+    <div class="stat"><div class="l">Extra wages that day</div><div class="n">$12,700</div><div class="w">About $5,700 Burleigh, $7,000 Beach House, from penalty rates</div></div>
+    <div class="stat"><div class="l">Surcharge collected</div><div class="n">$6,000</div><div class="w">About $3,200 Burleigh, $2,800 Beach House</div></div>
+  </div>
+  <div class="card"><b>The ask for 5 October</b><span>Roster about 70% of a normal Monday's hours and run a shorter menu. Book the roster this Thursday, not the week of.</span></div>
+</section>
+
+<section id="a6">
+  <div class="kicker">Rosters</div>
+  <h1 class="wide">Rosters are published two weeks ahead. Always.</h1>
+  <div class="split">
+    <div class="card"><b>Where we were on Friday 18 September</b><span>Burleigh's roster for the week of 23 September was still a draft. Nothing existed for the week of 30 September. Two front of house shifts were open.</span></div>
+    <div class="card"><b>The standard from now</b><span>Every Thursday the next two full weeks are published. Staff can plan their lives, and we can see the wage % before the week starts, not after.</span></div>
+  </div>
+</section>
+
+<section id="a7">
+  <div class="kicker">Service</div>
+  <h1 class="wide">Service is the number one complaint at both venues. A named team member is the number one reason for five stars.</h1>
+  <div class="big">
+    <div class="stat"><div class="l">Burleigh on Google</div><div class="n">4.4</div><div class="w">Goal is 4.5. Twenty or more five star reviews a month gets us there</div></div>
+    <div class="stat"><div class="l">Beach House on Google</div><div class="n">4.6</div><div class="w">Two bad reviews from dropping back to 4.5</div></div>
+  </div>
+  <div class="split">
+    <div class="card"><b>What the one star reviews say</b><span>Slow, forgotten, and no apology. The words "no apology" come up again and again.</span></div>
+    <div class="card"><b>What the five star reviews say</b><span>A name. Bailey, Pearl and Gemma at Beach House. Oliver and Barney at Burleigh. Recovery is a genuine apology and a fix on the spot, never a voucher.</span></div>
+  </div>
+</section>
+
+<section id="a8">
+  <div class="kicker">People</div>
+  <h1 class="wide">Every new hire goes through the onboarding link. No paper, no Deputy invite.</h1>
+  <div class="split">
+    <div class="card"><b>How it works</b><span>Manager sends the hire link. The new starter fills a seven step form on their phone. Manager approves. Deputy, Xero and the staff list are created for them, and the system chases anything missing.</span></div>
+    <div class="card"><b>Why</b><span>One missed tax form or bank detail costs Shawna an hour and the new starter a pay week. Live since 16 September.</span></div>
+  </div>
+</section>
+
+<section id="a9">
+  <div class="kicker">Christmas</div>
+  <h1 class="wide">Nothing changes in the systems from 1 December to 20 January.</h1>
+  <ol class="asks">
+    <li><div><b>Leave requests for December and January in by Friday 16 October.</b><span>Rosters for the holidays are published by mid November.</span></div></li>
+    <li><div><b>Functions and high tea bookings locked in the service calendar.</b><span>Every booking in the app, not in someone's inbox.</span></div></li>
+    <li><div><b>Square, rosters and menus frozen from 1 December.</b><span>Fix what needs fixing in October and November.</span></div></li>
+  </ol>
+</section>
+
+<section id="a10">
+  <div class="kicker">Training</div>
+  <h1 class="wide">Every department has a handbook. Take yours home today.</h1>
+  <div class="split">
+    <div class="card"><b>What is in the pack</b><span>The Tarte Way for everyone, then one booklet per department: front of house Burleigh, front of house Beach House, Tea Garden, barista, kitchen, pastry and managers. The Currumbin sequence of service is in there too.</span></div>
+    <div class="card"><b>The last page of each one is a Reset Card</b><span>One page. Read it when service has gone flat or a review says we were slow. It is the refresher, not the training.</span></div>
+    <div class="card"><b>What we ask</b><span>Read yours this week. New starters get theirs on day one from their manager and it is ticked off in Staff training. Managers, the system manual is yours alone.</span></div>
+  </div>
+</section>
+
+<section id="s6">
+  <div class="kicker">To close</div>
+  <h1>Three things to hold until next month.</h1>
+  <ol class="asks">
+    <li><div><b>Hold the rosters from the last two weeks.</b><span>They work. Use them as the template and flex only for booked events.</span></div></li>
+    <li><div><b>Kitchens, close the last gap.</b><span>Burleigh $745 a week, Beach House $288 a week. That is one or two shifts, not a restructure.</span></div></li>
+    <li><div><b>Beach House, find the two points in food.</b><span>Portion sizes, ordering to par, and wastage logged every day.</span></div></li>
+  </ol>
+</section>
+
+<script>
+  const APP_HOST = "kitchen.tarte.com.au";
+  const onApp = location.hostname === APP_HOST || location.hostname === "localhost" || location.hostname.startsWith("192.168.");
+  const secs = [...document.querySelectorAll("section")];
+  const dots = [...document.querySelectorAll("nav a")];
+  const menuLinks = [...document.querySelectorAll("#menu li a")];
+  const count = document.getElementById("count");
+  const fs = document.getElementById("fs");
+  const menu = document.getElementById("menu");
+  let cur = Math.max(0, secs.findIndex((s) => "#" + s.id === location.hash));
+
+  // App slides load the live page the first time they are shown, then keep it.
+  function loadApp(sec) {
+    const url = sec.dataset.app;
+    if (!url) return;
+    const frame = sec.querySelector("iframe");
+    if (!onApp) {
+      if (!sec.querySelector(".blocked")) {
+        const b = document.createElement("div");
+        b.className = "blocked";
+        b.innerHTML = "<div>The live app only shows when this deck is opened inside Tarte Kitchen.</div><a href=\"https://" + APP_HOST + "/kitchen/meeting#" + sec.id + "\">Open the deck at " + APP_HOST + "/kitchen/meeting</a>";
+        frame.parentElement.appendChild(b);
+      }
+      return;
+    }
+    if (!frame.getAttribute("src")) frame.src = url;
+  }
+  function show(i) {
+    cur = Math.min(secs.length - 1, Math.max(0, i));
+    secs.forEach((s, k) => s.classList.toggle("on", k === cur));
+    dots.forEach((d, k) => d.classList.toggle("on", k === cur));
+    menuLinks.forEach((d, k) => d.classList.toggle("on", k === cur));
+    count.textContent = (cur + 1) + " / " + secs.length;
+    loadApp(secs[cur]);
+    try { history.replaceState(null, "", "#" + secs[cur].id); } catch (e) {}
+  }
+  function openMenu(open) { menu.hidden = !open; if (open) menuLinks[cur]?.scrollIntoView({ block: "center" }); }
+  dots.forEach((d, k) => d.addEventListener("click", (ev) => { ev.preventDefault(); show(k); }));
+  menuLinks.forEach((d, k) => d.addEventListener("click", (ev) => { ev.preventDefault(); show(k); openMenu(false); }));
+  document.getElementById("menu-open").addEventListener("click", () => openMenu(true));
+  document.getElementById("menu-close").addEventListener("click", () => openMenu(false));
+  menu.addEventListener("click", (ev) => { if (ev.target === menu) openMenu(false); });
+  document.getElementById("prev").addEventListener("click", () => show(cur - 1));
+  document.getElementById("next").addEventListener("click", () => show(cur + 1));
+  document.querySelectorAll("section.show .tools button").forEach((b) => b.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    const sec = b.closest("section");
+    if (b.dataset.act === "reload") { const f = sec.querySelector("iframe"); f.src = f.src || sec.dataset.app; }
+    if (b.dataset.act === "big") { sec.classList.toggle("big-frame"); b.textContent = sec.classList.contains("big-frame") ? "Smaller" : "Bigger"; }
+  }));
+  // Click anywhere on a plain slide to go forward, like PowerPoint. Left fifth goes back.
+  // App slides only advance from their text, never from inside the frame.
+  secs.forEach((s) => s.addEventListener("click", (ev) => {
+    if (ev.target.closest(".ipad, .tools, a, button")) return;
+    if (String(getSelection())) return;
+    show(cur + (ev.clientX < window.innerWidth / 5 ? -1 : 1));
+  }));
+  document.addEventListener("keydown", (ev) => {
+    if (ev.target.tagName === "INPUT" || ev.target.tagName === "TEXTAREA") return;
+    if (ev.key === "Escape") { openMenu(menu.hidden); return; }
+    if (ev.key === "f" || ev.key === "F") { toggleFs(); return; }
+    if (ev.key === "m" || ev.key === "M") { openMenu(menu.hidden); return; }
+    if (ev.key === "Home") { show(0); return; }
+    if (ev.key === "End") { show(secs.length - 1); return; }
+    const fwd = ["ArrowDown", "ArrowRight", "PageDown", " ", "Enter"].includes(ev.key);
+    const back = ["ArrowUp", "ArrowLeft", "PageUp", "Backspace"].includes(ev.key);
+    if (!fwd && !back) return;
+    if (ev.target.tagName === "BUTTON" && (ev.key === " " || ev.key === "Enter")) return;
+    ev.preventDefault();
+    show(cur + (fwd ? 1 : -1));
+  });
+  let tx = null;
+  document.addEventListener("touchstart", (ev) => { tx = ev.target.closest(".ipad") ? null : ev.touches[0].clientX; }, { passive: true });
+  document.addEventListener("touchend", (ev) => {
+    if (tx === null) return;
+    const dx = ev.changedTouches[0].clientX - tx; tx = null;
+    if (Math.abs(dx) > 60) show(cur + (dx < 0 ? 1 : -1));
+  });
+  function toggleFs() {
+    if (!document.fullscreenEnabled) return;
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen().catch(() => {});
+  }
+  if (document.fullscreenEnabled) {
+    fs.hidden = false;
+    fs.addEventListener("click", toggleFs);
+    document.addEventListener("fullscreenchange", () => { fs.textContent = document.fullscreenElement ? "Exit full screen" : "Full screen"; });
+  }
+  show(cur);
+</script>
