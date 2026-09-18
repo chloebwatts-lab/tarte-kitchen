@@ -66,6 +66,14 @@ export const GM_ITEMS: GmItem[] = [
     hint: "Watch, fix, note. Coffee out in under 10 minutes. Cabinet full until 1:30, then restocked or re-plated so it still looks good until 2:30. Tables reset. Do not jump on a section.",
   },
 
+  {
+    slug: "morning-look",
+    theme: "everyday",
+    pillar: "efficient",
+    title: "Morning look: the place is right before the first guest",
+    hint: "Every morning before open. Tables in their spots, chairs straight, every light on, plants out, surfaces clean, walls and floors clean, glass clean, music on, bins hidden, signage straight. Fix it on the spot, then note anything that keeps slipping.",
+  },
+
   // ── Rosters and wages ───────────────────────────────────────
   {
     slug: "roster-2wk",
