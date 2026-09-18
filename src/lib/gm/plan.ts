@@ -51,9 +51,9 @@ export const THEME_LABEL: Record<GmTheme, string> = {
 }
 
 export const THEME_BLURB: Record<Exclude<GmTheme, "everyday">, string> = {
-  rosters: "Two weeks live, inside band, no holes.",
+  rosters: "Two weeks live, inside band, no holes. Then the Monday report.",
   kitchen: "Labels, prep, portions, orders, waste.",
-  people: "One-on-ones, new starters, reviews, the Monday report.",
+  people: "One-on-ones, new starters, reviews, one fix.",
 }
 
 export const GM_ITEMS: GmItem[] = [
@@ -72,7 +72,7 @@ export const GM_ITEMS: GmItem[] = [
     theme: "rosters",
     pillar: "efficient",
     title: "Roster live two full weeks ahead",
-    hint: "Publish on Thursday, before the weekend. The app checks Deputy for you.",
+    hint: "Publish on Monday, before your two days off. The app checks Deputy for you.",
     auto: "roster-horizon",
   },
   {
@@ -206,7 +206,7 @@ export const GM_ITEMS: GmItem[] = [
   },
   {
     slug: "weekly-report",
-    theme: "people",
+    theme: "rosters",
     pillar: "efficient",
     title: "Monday report sent to Chloe by 3pm",
     hint: "Last job before your two days off. The app writes the numbers. You add two lines and press send.",
@@ -231,8 +231,8 @@ export const GM_TASK_SEEDS: GmTaskSeed[] = [
   {
     slug: "rosters-live",
     title: "Two weeks of rosters live, inside band, GM days blocked",
-    doneMeans: "Weeks starting 30 Sep and 7 Oct published. Every dept in band on the forecast. Zero open shifts.",
-    dueOn: "2026-09-24",
+    doneMeans: "Weeks starting 23 Sep and 30 Sep published. Every dept in band on the forecast. Zero open shifts.",
+    dueOn: "2026-09-21",
     sortOrder: 1,
   },
   {
@@ -308,6 +308,6 @@ export const GM_MONTHLY_MANUAL: { slug: string; label: string; target: string }[
 ]
 
 // ── GM days ───────────────────────────────────────────────────
-/** ISO weekday (1 = Mon) to theme. Thursday, Friday, Monday. Editable on the page. */
+/** ISO weekday (1 = Mon) to theme. Thu people, Fri kitchen, Mon rosters + report. Editable on the page. */
 export type GmDays = Partial<Record<"1" | "2" | "3" | "4" | "5" | "6" | "7", Exclude<GmTheme, "everyday">>>
-export const DEFAULT_GM_DAYS: GmDays = { "4": "rosters", "5": "kitchen", "1": "people" }
+export const DEFAULT_GM_DAYS: GmDays = { "4": "people", "5": "kitchen", "1": "rosters" }

@@ -1,8 +1,8 @@
 /**
  * Oliver's week is the Tarte trading week: Wednesday to Tuesday, the same
- * week rosters, payroll, COGS and every report run on. His GM days are
- * Thursday, Friday and Monday; the weekend is on the floor; Tuesday and
- * Wednesday are off. The Monday report is the last thing before days off.
+ * week rosters, payroll, COGS and every report run on. GM days: Thursday
+ * (people), Friday (kitchen and money), Monday (rosters, wages and the
+ * report); the weekend is on the floor; Tuesday and Wednesday are off.
  */
 
 import { addDays, todayAest, ymd } from "@/lib/commitments/weeks"
