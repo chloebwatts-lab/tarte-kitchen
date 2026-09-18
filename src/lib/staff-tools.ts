@@ -49,7 +49,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       { title: "Stock walk", sub: "Tap Low or Out, it goes on the order list", href: "/kitchen/stock", icon: PackageSearch },
       { title: "Prep walk-through", sub: "Tomorrow's prep, one tap at a time", href: "/kitchen/prep", icon: ClipboardList },
       { title: "Ordering", sub: "Your section's order, into one daily order", href: "/kitchen/order", icon: ShoppingCart },
-      { title: "Ordering & supplies", sub: "Where we buy what, who to call", href: "/kitchen/ordering", icon: ShoppingBasket },
+      { title: "Where to buy", sub: "Which shop or supplier for what, who to call", href: "/kitchen/ordering", icon: ShoppingBasket },
       { title: "Coolroom serves", sub: "Tub weight to full serves", href: "/kitchen/serves", icon: Scale },
       { title: "Price check", sub: "What we pay for an item, per venue, off our invoices", href: "/kitchen/prices", icon: Tag },
     ],
