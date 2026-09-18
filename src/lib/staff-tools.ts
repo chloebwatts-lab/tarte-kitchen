@@ -3,7 +3,7 @@ import {
   CalendarCheck, ClipboardCheck, ClipboardList, Croissant, Eye, Lock,
   MessageSquarePlus, PackageOpen, PackageSearch, Printer, Scale, ShieldCheck,
   ShoppingBasket, ShoppingCart, Snowflake, Trash2, Wrench, Megaphone, Sunrise,
-  Handshake, GraduationCap, ListChecks, Compass,
+  Handshake, GraduationCap, ListChecks, Compass, Tag,
 } from "lucide-react"
 
 type Icon = ComponentType<{ className?: string; strokeWidth?: number }>
@@ -51,6 +51,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       { title: "Ordering", sub: "Your section's order, into one daily order", href: "/kitchen/order", icon: ShoppingCart },
       { title: "Ordering & supplies", sub: "Where we buy what, who to call", href: "/kitchen/ordering", icon: ShoppingBasket },
       { title: "Coolroom serves", sub: "Tub weight to full serves", href: "/kitchen/serves", icon: Scale },
+      { title: "Price check", sub: "What we pay for an item, per venue, off our invoices", href: "/kitchen/prices", icon: Tag },
     ],
   },
   {
