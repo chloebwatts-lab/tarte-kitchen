@@ -48,6 +48,7 @@ services:
       # Who hears about broken equipment (report, trade booked, fixed).
       # Comma-separated; defaults in code to hello@ + shawna@ when unset.
       MAINTENANCE_ALERT_TO: ${MAINTENANCE_ALERT_TO:-}
+      ACCOUNTABILITY_TO: ${ACCOUNTABILITY_TO:-}
       # Secrets used at runtime — sourced from the droplet's .env via docker compose
       TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY}
       CRON_SECRET: ${CRON_SECRET}
@@ -208,6 +209,11 @@ services:
         # trap / pest / canopy / fire etc. invoices + booking emails in
         # accounts@ → ServiceVisit rows (needsReview) on /services. Each
         # message is Claude-classified at most once (ServiceEmailSeen).
+        # 17:00 AEST (07:00 UTC) daily — end-of-day accountability email to
+        # Chloe, Shawna and hello@: open fixes, board jobs, orders waiting and
+        # agenda items, per venue, with owner and age. Open items only.
+        # Preview at /api/cron/daily-accountability?preview=1 (office login).
+        0 7 * * * curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/daily-accountability 2>&1
         30 21 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/check-service-emails 2>&1
         # 07:40 AEST (21:40 UTC) — equipment-purchase email sweep: invoices /
         # order confirmations for new machines in accounts@ + hello@ →
