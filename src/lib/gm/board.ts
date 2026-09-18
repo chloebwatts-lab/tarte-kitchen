@@ -71,6 +71,8 @@ export function composeReport(p: {
   items: BoardItem[]
   numbers: { wages: WeekNumbers; cogs: WeekNumbers }
   talks: string[]
+  /** Names of this week's sick calls, with dates. */
+  sick?: string[]
   fixed: string
   need: string
   /** False when Chloe is being told the report never came. */
@@ -107,6 +109,7 @@ export function composeReport(p: {
   const lw = get("label-walk")
   if (lw?.manual && lw.state === "done") lines.push(`Label walk: ${lw.num1 ?? 0} out of date, ${lw.num2 ?? 0} unlabelled.`)
   lines.push(`One-on-ones: ${p.talks.length}${p.talks.length ? ` (${p.talks.join(", ")})` : ""}.`)
+  if (p.sick && p.sick.length) lines.push(`Sick calls this week: ${p.sick.join(", ")}.`)
   const q = get("quality-fix")
   if (q?.note) lines.push(`Quality fix: ${q.note}`)
   lines.push("")
@@ -120,7 +123,7 @@ export function composeReport(p: {
 export async function gmDigestForCron() {
   const weekStart = gmWeekStart()
   const monday = new Date(weekStart)
-  const [built, numbers, talks, gmDays, report, email, tasks] = await Promise.all([
+  const [built, numbers, talks, gmDays, report, email, tasks, sick] = await Promise.all([
     buildItems(weekStart),
     getWeekNumbers(),
     db.gmOneOnOne.findMany({ where: { heldOn: { gte: monday, lte: addDays(monday, 6) } } }),
@@ -128,6 +131,7 @@ export async function gmDigestForCron() {
     db.gmReport.findUnique({ where: { weekStart: monday } }),
     getGmEmail(),
     db.gmTask.findMany({ where: { doneOn: null }, orderBy: { dueOn: "asc" } }),
+    db.gmSickCall.findMany({ where: { calledOn: { gte: monday, lte: addDays(monday, 6) } }, orderBy: { calledOn: "asc" } }),
   ])
   const weekLabel = `${short(monday)} to ${short(addDays(monday, 6))}`
   return {
@@ -140,6 +144,6 @@ export async function gmDigestForCron() {
     reportSent: Boolean(report),
     email,
     openTasks: tasks.map((t) => ({ title: t.title, dueLabel: short(t.dueOn), daysLeft: Math.round((t.dueOn.getTime() - todayAest().getTime()) / 86400000) })),
-    compose: (fixed: string, need: string) => composeReport({ weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), fixed, need, sent: false }),
+    compose: (fixed: string, need: string) => composeReport({ weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), sick: sick.map((c) => `${c.staffName} (${short(c.calledOn)})`), fixed, need, sent: false }),
   }
 }

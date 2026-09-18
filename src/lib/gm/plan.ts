@@ -304,7 +304,6 @@ export const GM_TASK_SEEDS: GmTaskSeed[] = [
 export const GM_MONTHLY_MANUAL: { slug: string; label: string; target: string }[] = [
   { slug: "pulse", label: "Staff pulse, anonymous 1 to 5", target: "4.0 or better" },
   { slug: "leavers", label: "Leavers (not end of visa or study)", target: "1 or fewer" },
-  { slug: "sick-calls", label: "Sick calls this month", target: "3% of shifts or under" },
 ]
 
 // ── GM days ───────────────────────────────────────────────────

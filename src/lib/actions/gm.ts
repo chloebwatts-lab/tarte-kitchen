@@ -110,6 +110,7 @@ export interface GmBoard {
   reviews: { lines: ReviewLine[]; fiveStarThisMonth: number }
   queue: StaffLine[]
   talksThisWeek: { id: string; name: string; when: string }[]
+  sickThisMonth: { id: string; name: string; when: string; today: boolean }[]
   tasks: BoardTask[]
   report: { sent: boolean; sentLabel: string | null; fixed: string; need: string; preview: string }
   /** Null when push keys are not configured on the server. */
@@ -146,6 +147,8 @@ export async function getGmBoard(): Promise<GmBoard> {
     db.gmReport.findUnique({ where: { weekStart: monday } }),
   ])
   const pushDevices = await db.gmPushSub.count()
+  const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1))
+  const sick = await db.gmSickCall.findMany({ where: { calledOn: { gte: monthStart } }, orderBy: { createdAt: "desc" } })
 
   const items = built.items
   const doneCount = items.filter((i) => i.state === "done" || i.state === "auto-ok").length
@@ -169,6 +172,7 @@ export async function getGmBoard(): Promise<GmBoard> {
     reviews,
     queue,
     talksThisWeek: talks.map((t) => ({ id: t.id, name: t.staffName, when: short(t.heldOn) })),
+    sickThisMonth: sick.map((c) => ({ id: c.id, name: c.staffName, when: short(c.calledOn), today: ymd(c.calledOn) === ymd(today) })),
     tasks: tasks.map((t) => ({
       slug: t.slug,
       title: t.title,
@@ -269,6 +273,27 @@ export async function undoOneOnOne(id: string) {
   return { ok: true as const }
 }
 
+// ─── Sick calls ──────────────────────────────────────────────────────
+
+export async function logSickCall(staffName: string, daysAgo = 0) {
+  await guard()
+  const name = staffName.trim()
+  if (!name) return { ok: false as const, error: "Pick a name" }
+  const day = addDays(todayAest(), -Math.min(6, Math.max(0, Math.round(daysAgo))))
+  await db.gmSickCall.create({ data: { staffName: name, calledOn: day } })
+  bust()
+  return { ok: true as const }
+}
+
+/** Only today's entries can be taken back (a mis-tap, not history). */
+export async function undoSickCall(id: string) {
+  await guard()
+  const row = await db.gmSickCall.findUnique({ where: { id } })
+  if (row && ymd(row.calledOn) === ymd(todayAest())) await db.gmSickCall.delete({ where: { id } })
+  bust()
+  return { ok: true as const }
+}
+
 // ─── Friday report ───────────────────────────────────────────────────
 
 export async function sendFridayReport(p: { fixed: string; need: string }) {
@@ -278,13 +303,14 @@ export async function sendFridayReport(p: { fixed: string; need: string }) {
   if (!fixed) return { ok: false as const, error: "Name one thing you fixed this week. One line is enough." }
   const weekStart = gmWeekStart()
   const monday = new Date(weekStart)
-  const [built, numbers, talks] = await Promise.all([
+  const [built, numbers, talks, sick] = await Promise.all([
     buildItems(weekStart),
     getWeekNumbers(),
     db.gmOneOnOne.findMany({ where: { heldOn: { gte: monday, lte: addDays(monday, 6) } } }),
+    db.gmSickCall.findMany({ where: { calledOn: { gte: monday, lte: addDays(monday, 6) } }, orderBy: { calledOn: "asc" } }),
   ])
   const weekLabel = `${short(monday)} to ${short(addDays(monday, 6))}`
-  const body = composeReport({ weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), fixed, need })
+  const body = composeReport({ weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), sick: sick.map((c) => `${c.staffName} (${short(c.calledOn)})`), fixed, need })
   try {
     await sendEmail({ to: REPORT_TO, subject: `Oliver's Monday report, ${weekLabel}`, body })
   } catch {
@@ -313,7 +339,7 @@ export interface GmMonth {
 async function monthFigures(first: Date): Promise<Record<string, string>> {
   const next = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 1))
   const inMonth = { gte: first, lt: next }
-  const [cogs, waste, marks, talks, fives, labourWeeks] = await Promise.all([
+  const [cogs, waste, marks, talks, fives, labourWeeks, sick] = await Promise.all([
     db.weeklyCogs.findMany({ where: { venue: "BURLEIGH", weekStartWed: inMonth, cogsPct: { not: null } }, select: { cogsPct: true } }),
     db.wasteEntry.aggregate({ where: { venue: "BURLEIGH", date: inMonth }, _sum: { estimatedCost: true } }),
     db.gmMark.findMany({ where: { weekStart: inMonth } }),
@@ -325,6 +351,7 @@ async function monthFigures(first: Date): Promise<Record<string, string>> {
       where: { venue: "BURLEIGH", weekStartWed: inMonth, revenueExGst: { not: null } },
       select: { revenueExGst: true, grossWagesExAdmin: true, grossWages: true, wagesAdmin: true },
     }),
+    db.gmSickCall.groupBy({ by: ["staffName"], where: { calledOn: inMonth }, _count: true }),
   ])
   const out: Record<string, string> = {}
   const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null)
@@ -356,6 +383,9 @@ async function monthFigures(first: Date): Promise<Record<string, string>> {
   out.quality = String(marks.filter((m) => m.itemSlug === "quality-fix" && m.met).length || "")
   out.talks = talks ? String(talks) : ""
   out.fives = fives ? String(fives) : ""
+  const sickTotal = sick.reduce((n, r) => n + r._count, 0)
+  const repeat = sick.filter((r) => r._count >= 2).sort((a, b) => b._count - a._count).map((r) => `${r.staffName} ${r._count}`)
+  out.sick = sickTotal ? `${sickTotal}${repeat.length ? ` (${repeat.join(", ")})` : ""}` : "0"
   return out
 }
 
@@ -389,6 +419,7 @@ export async function getGmMonth(): Promise<GmMonth> {
       row("Quality problems found and fixed", "4 or more", "quality"),
       row("One-on-ones", "16 or more", "talks"),
       row("Five-star Google reviews", "20 or more", "fives"),
+      row("Sick calls, all staff (repeat callers in brackets)", "4 or fewer", "sick"),
     ],
     manual: GM_MONTHLY_MANUAL.map((m) => ({ ...m, thisMonth: mval(first, m.slug), lastMonth: mval(prev, m.slug) })),
   }

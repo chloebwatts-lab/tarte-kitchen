@@ -9,12 +9,14 @@ import { cn } from "@/lib/utils"
 import {
   clearGmMark,
   logOneOnOne,
+  logSickCall,
   markGmItem,
   saveGmPush,
   sendFridayReport,
   setGmDays,
   setGmTaskDone,
   undoOneOnOne,
+  undoSickCall,
   type GmBoard,
 } from "@/lib/actions/gm"
 import type { BoardItem } from "@/lib/gm/board"
@@ -167,6 +169,8 @@ function Today({ board, run, busy, nextTask }: { board: GmBoard; run: Run; busy:
       ) : null}
 
       <Numbers board={board} />
+
+      <SickCalls board={board} run={run} busy={busy} />
 
       {finished.length ? (
         <Section title={`Sorted today (${finished.length})`}>
@@ -418,6 +422,7 @@ function Week({ board, run, busy }: { board: GmBoard; run: Run; busy: boolean })
           {board.items.filter((i) => i.theme === th).map((i) => <ItemCard key={i.slug} item={i} run={run} busy={busy} board={board} compact={isDone(i)} />)}
         </Section>
       ))}
+      <SickCalls board={board} run={run} busy={busy} />
       <PhoneAlerts board={board} run={run} />
       <DayPicker board={board} run={run} busy={busy} />
     </div>
@@ -584,6 +589,61 @@ function PhoneAlerts({ board, run }: { board: GmBoard; run: Run }) {
         </KitchenButton>
       </div>
       {msg ? <p className="mt-3 text-[16px] font-medium text-[var(--tk-ink)]">{msg}</p> : null}
+    </section>
+  )
+}
+
+// ─── Sick calls ──────────────────────────────────────────────────────
+
+function SickCalls({ board, run, busy }: { board: GmBoard; run: Run; busy: boolean }) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState("")
+  const [daysAgo, setDaysAgo] = useState(0)
+  const names = board.queue.map((s) => s.name)
+  const shown = names.filter((n) => n.toLowerCase().includes(q.toLowerCase())).slice(0, 12)
+  const counts = new Map<string, number>()
+  for (const c of board.sickThisMonth) counts.set(c.name, (counts.get(c.name) ?? 0) + 1)
+  const total = board.sickThisMonth.length
+  return (
+    <section className="rounded-[16px] border border-[var(--tk-line)] bg-[var(--tk-card)] p-4 md:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-[20px] font-bold text-[var(--tk-ink)]">Sick calls</h2>
+          <p className="text-[15px] text-[var(--tk-ink-soft)]">{total} this month. Target 4 or fewer.</p>
+        </div>
+        <KitchenButton variant={open ? "ghost" : "secondary"} size="md" onClick={() => setOpen(!open)}>{open ? "Cancel" : "Log a sick call"}</KitchenButton>
+      </div>
+      {open ? (
+        <div className="mt-4 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <input id="gm-sick-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Start typing a name" autoFocus className="min-w-[200px] flex-1 rounded-[12px] border-[1.5px] border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 py-3 text-[17px]" />
+            <select id="gm-sick-when" value={daysAgo} onChange={(e) => setDaysAgo(Number(e.target.value))} className="rounded-[12px] border-[1.5px] border-[var(--tk-line)] bg-[var(--tk-bg)] px-3 py-3 text-[16px]">
+              <option value={0}>Today</option>
+              <option value={1}>Yesterday</option>
+              <option value={2}>2 days ago</option>
+              <option value={3}>3 days ago</option>
+            </select>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {shown.map((n) => (
+              <button key={n} disabled={busy} onClick={() => { run(() => logSickCall(n, daysAgo)); setOpen(false); setQ("") }} className="rounded-full border border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 py-2.5 text-[16px] font-semibold text-[var(--tk-ink)] active:scale-[0.98]">
+                {n}{counts.get(n) ? <span className="ml-2 text-[13px] font-normal text-[var(--tk-warn)]">{counts.get(n)} this month</span> : null}
+              </button>
+            ))}
+            {shown.length === 0 ? <p className="text-[15px] text-[var(--tk-ink-mute)]">No one on the Burleigh roster matches that.</p> : null}
+          </div>
+        </div>
+      ) : null}
+      {board.sickThisMonth.length ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {board.sickThisMonth.map((c) => (
+            <span key={c.id} className={cn("inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[14px] font-semibold", (counts.get(c.name) ?? 0) >= 2 ? "bg-[var(--tk-warn-soft)] text-[var(--tk-warn)]" : "bg-[var(--tk-charcoal-soft)] text-[var(--tk-ink-soft)]")}>
+              {c.name} <span className="font-normal">{c.when}</span>
+              {c.today ? <button disabled={busy} onClick={() => run(() => undoSickCall(c.id))} className="ml-1 underline" title="Mis-tap? Take it back">undo</button> : null}
+            </span>
+          ))}
+        </div>
+      ) : null}
     </section>
   )
 }

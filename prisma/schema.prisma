@@ -3077,3 +3077,16 @@ model GmPushSub {
   label     String?
   createdAt DateTime @default(now())
 }
+
+/// A sick call, logged by the GM as it happens. Name is the Deputy
+/// display name. Month totals and repeat callers come from here.
+model GmSickCall {
+  id        String   @id @default(cuid())
+  staffName String
+  calledOn  DateTime @db.Date
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([calledOn])
+  @@index([staffName])
+}
