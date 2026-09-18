@@ -5,13 +5,6 @@ import { getGmLive } from "@/lib/actions/gm"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 
 const money = (n: number) => `$${n.toLocaleString("en-AU")}`
-const PACE: Record<string, { text: string; cls: string }> = {
-  "on-track": { text: "On track", cls: "bg-[var(--tk-done-soft)] text-[var(--tk-done)]" },
-  watch: { text: "Watch it", cls: "bg-[var(--tk-gold-soft)] text-[var(--tk-ink)]" },
-  over: { text: "Heading over", cls: "bg-[var(--tk-warn-soft)] text-[var(--tk-warn)]" },
-  "no-forecast": { text: "No sales forecast yet", cls: "bg-[var(--tk-charcoal-soft)] text-[var(--tk-ink-soft)]" },
-}
-
 export default async function GmLivePage() {
   await requireGm("/kitchen/gm/live")
   const live = await getGmLive()
@@ -27,16 +20,14 @@ export default async function GmLivePage() {
 
       {c ? (
         <section className="space-y-4 rounded-[16px] border border-[var(--tk-line)] bg-[var(--tk-card)] p-4 md:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-[20px] font-bold text-[var(--tk-ink)]">COGS: what we have spent</h2>
-            <span className={`rounded-full px-3 py-1 text-[14px] font-bold ${PACE[c.pace].cls}`}>{PACE[c.pace].text}</span>
-          </div>
+          <h2 className="text-[20px] font-bold text-[var(--tk-ink)]">COGS so far: invoices in against sales in</h2>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Tile label="Spent so far" value={money(c.spent)} />
-            <Tile label={`Budget at ${c.targetPct}%`} value={c.budget != null ? money(c.budget) : "not yet"} />
-            <Tile label="Left to spend" value={c.remaining != null ? money(c.remaining) : "not yet"} warn={c.remaining != null && c.remaining < 0} />
-            <Tile label="Heading for" value={c.projectedPct != null ? `${c.projectedPct}%` : "not yet"} warn={c.projectedPct != null && c.projectedPct > c.targetPct} />
+            <Tile label="Invoiced so far" value={money(c.spent)} />
+            <Tile label={`Sales so far (${c.revenueDays} ${c.revenueDays === 1 ? "day" : "days"} in)`} value={c.revenue != null ? money(c.revenue) : "not in yet"} />
+            <Tile label="So far, % of sales" value={c.actualPct != null ? `${c.actualPct}%` : "not yet"} warn={c.actualPct != null && c.actualPct > c.targetPct} />
+            <Tile label={`Week budget at ${c.targetPct}%`} value={c.budget != null ? money(c.budget) : "no forecast"} />
           </div>
+          <p className="text-[14px] text-[var(--tk-ink-mute)]">Real invoices against real sales, nothing projected. Wednesday and Friday carry the big deliveries, so the % reads high early in the week and settles by Monday. Judge it on Monday, act on the supplier lines below any day.</p>
           <div>
             <div className="mb-2 text-[14px] text-[var(--tk-ink-mute)]">Invoices by day</div>
             <div className="flex items-end gap-2" style={{ height: 120 }}>
@@ -67,13 +58,13 @@ export default async function GmLivePage() {
               </tbody>
             </table>
           </div>
-          <p className="text-[14px] text-[var(--tk-ink-mute)]">A supplier in red is running more than a quarter over its usual week. Ask why before the next order goes in.</p>
+          <p className="text-[14px] text-[var(--tk-ink-mute)]">A supplier in red is already past a quarter over its usual full week. Ask why before the next order goes in.</p>
         </section>
       ) : null}
 
-      <section className="space-y-4 rounded-[16px] border border-[var(--tk-line)] bg-[var(--tk-card)] p-4 md:p-5">
-        <h2 className="text-[20px] font-bold text-[var(--tk-ink)]">Wages: where this week is heading</h2>
-        {live.wages.length ? (
+      {live.wages.length ? (
+        <section className="space-y-4 rounded-[16px] border border-[var(--tk-line)] bg-[var(--tk-card)] p-4 md:p-5">
+          <h2 className="text-[20px] font-bold text-[var(--tk-ink)]">Wages: where this week is heading</h2>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
             {live.wages.map((w) => (
               <div key={w.label} className={`rounded-[14px] border p-4 ${w.status === "red" ? "border-[var(--tk-warn)] bg-[var(--tk-warn-soft)]" : w.status === "amber" ? "border-[var(--tk-gold)] bg-[var(--tk-gold-soft)]" : "border-[var(--tk-line)] bg-[var(--tk-bg)]"}`}>
@@ -83,9 +74,13 @@ export default async function GmLivePage() {
               </div>
             ))}
           </div>
-        ) : <p className="text-[16px] text-[var(--tk-ink-soft)]">No live wage reading yet this week.</p>}
-        <p className="text-[14px] text-[var(--tk-ink-mute)]">An estimate from Deputy: hours worked so far plus the rest of the roster, against sales so far plus forecast. It tends to read a little under final payroll. The settled number is on your desk each week.</p>
-      </section>
+        </section>
+      ) : (
+        <section className="rounded-[16px] border border-[var(--tk-line)] bg-[var(--tk-card)] p-4 md:p-5">
+          <h2 className="text-[20px] font-bold text-[var(--tk-ink)]">Wages, live</h2>
+          <p className="mt-1 text-[16px] text-[var(--tk-ink-soft)]">Coming when Tarte Shifts is running the rosters. Until then the settled weekly wage % is on your desk and the Tracking page, a few days after each week closes.</p>
+        </section>
+      )}
     </div>
   )
 }

@@ -512,49 +512,115 @@ export async function getGmTracking(): Promise<TrackWeek[]> {
 
 export interface GmLive {
   weekLabel: string
+  daysIn: number
   cogs: {
     spent: number
-    budget: number | null
-    remaining: number | null
+    revenue: number | null
+    revenueDays: number
+    actualPct: number | null
     targetPct: number
-    projectedPct: number | null
-    pace: "on-track" | "watch" | "over" | "no-forecast"
-    revenueToDate: number | null
+    budget: number | null
     daily: { day: string; amount: number }[]
     suppliers: { supplier: string; amount: number; usual: number | null }[]
   } | null
+  /** Empty until Tarte Shifts is the source: Deputy's live numbers are not trusted for this. */
   wages: { label: string; pct: string; target: string; status: "ok" | "amber" | "red" | "none" }[]
-  wagesOverall: string | null
 }
 
 export async function getGmLive(): Promise<GmLive> {
   await guard()
-  const [spend, labour] = await Promise.all([getCurrentWeekSpend(), getLiveLabourSnapshot().catch(() => null)])
+  const spend = await getCurrentWeekSpend()
   const b = spend.buckets.find((x) => x.bucket === "BURLEIGH")
-  const v = labour?.venues.find((x) => x.venue === "BURLEIGH")
-  const projRev = b?.projectedRevenueExGst ?? b?.forecastRevenue ?? null
-  return {
-    weekLabel: `${short(new Date(spend.weekStartWed))} to ${short(new Date(spend.weekEndTue))}`,
-    cogs: b
-      ? {
-          spent: Math.round(b.effectiveSpent),
-          budget: b.budget != null ? Math.round(b.budget) : null,
-          remaining: b.remaining != null ? Math.round(b.remaining) : null,
-          targetPct: b.targetPct,
-          projectedPct: projRev && projRev > 0 ? Math.round((b.projectedEndOfWeek / projRev) * 1000) / 10 : null,
-          pace: b.paceStatus,
-          revenueToDate: b.revenueToDateExGst != null ? Math.round(b.revenueToDateExGst) : null,
-          daily: b.daily.map((d) => ({ day: d.dayName, amount: Math.round(d.amount) })),
-          suppliers: [...b.suppliers].sort((x, y) => y.amount - x.amount).slice(0, 10).map((x) => ({ supplier: x.supplier, amount: Math.round(x.amount), usual: x.fourWeekAvg != null ? Math.round(x.fourWeekAvg) : null })),
-        }
-      : null,
-    // Percent only. Dollars and salaries never leave the office side.
-    wages: (v?.buckets ?? []).filter((x) => x.target).map((x) => ({
+  const revenue = b?.revenueToDateExGst ?? null
+  // Only what has actually been invoiced against what has actually been sold.
+  // No projections: early in the week they swing on delivery days and mislead.
+  const actualPct = b && revenue && revenue > 0 ? Math.round((b.spentToDate / revenue) * 1000) / 10 : null
+  let wages: GmLive["wages"] = []
+  if (process.env.GM_LIVE_WAGES === "1") {
+    const labour = await getLiveLabourSnapshot().catch(() => null)
+    const v = labour?.venues.find((x) => x.venue === "BURLEIGH")
+    wages = (v?.buckets ?? []).filter((x) => x.target).map((x) => ({
       label: x.label,
       pct: x.projectedPct != null ? `${x.projectedPct.toFixed(1)}%` : "",
       target: x.target ? `${x.target.min} to ${x.target.max}%` : "",
       status: x.status === "no-target" ? "none" : x.status,
-    })),
-    wagesOverall: v?.overallProjectedPct != null ? `${v.overallProjectedPct.toFixed(1)}%` : null,
+    }))
+  }
+  return {
+    weekLabel: `${short(new Date(spend.weekStartWed))} to ${short(new Date(spend.weekEndTue))}`,
+    daysIn: spend.dayOfWeek,
+    cogs: b
+      ? {
+          spent: Math.round(b.spentToDate),
+          revenue: revenue != null ? Math.round(revenue) : null,
+          revenueDays: b.revenueDaysReported,
+          actualPct,
+          targetPct: b.targetPct,
+          budget: b.budget != null ? Math.round(b.budget) : null,
+          daily: b.daily.map((d) => ({ day: d.dayName, amount: Math.round(d.amount) })),
+          suppliers: [...b.suppliers].sort((x, y) => y.amount - x.amount).slice(0, 10).map((x) => ({ supplier: x.supplier, amount: Math.round(x.amount), usual: x.fourWeekAvg != null ? Math.round(x.fourWeekAvg) : null })),
+        }
+      : null,
+    wages,
+  }
+}
+
+// ─── Reviews, last 4 weeks ───────────────────────────────────────────
+
+export interface GmReviewRow {
+  id: string
+  rating: number
+  who: string
+  when: string
+  text: string
+  themes: string[]
+  staff: string[]
+  replied: boolean
+}
+
+const THEME_WORDS: Record<string, string> = {
+  FOOD_QUALITY: "Food", COFFEE: "Coffee", PASTRY: "Pastry", SERVICE: "Service", SPEED: "Speed", AMBIENCE: "Atmosphere",
+  VALUE: "Value", CLEANLINESS: "Cleanliness", STAFF_PRAISE: "Staff praised", STAFF_COMPLAINT: "Staff complaint", WAIT_TIME: "Wait time",
+  ALLERGEN: "Allergen", KIDS: "Kids", DIETARY: "Dietary", RESERVATION: "Bookings", OTHER: "Other",
+}
+
+export async function getGmReviews(): Promise<{ negative: GmReviewRow[]; positive: GmReviewRow[]; themes: { theme: string; positive: number; negative: number }[]; fiveStarThisMonth: number }> {
+  await guard()
+  const today = todayAest()
+  const since = new Date(addDays(today, -28).getTime() - 10 * 3600000)
+  const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1) - 10 * 3600000)
+  const [rows, fives] = await Promise.all([
+    db.googleReview.findMany({
+      where: { venue: "BURLEIGH", publishTime: { gte: since } },
+      orderBy: { publishTime: "desc" },
+      select: { id: true, rating: true, authorName: true, text: true, publishTime: true, themes: true, staffMentions: true, replyText: true },
+    }),
+    db.googleReview.count({ where: { venue: "BURLEIGH", rating: 5, publishTime: { gte: monthStart } } }),
+  ])
+  const toRow = (r: (typeof rows)[number]): GmReviewRow => ({
+    id: r.id,
+    rating: r.rating,
+    who: (r.authorName ?? "Guest").split(" ")[0],
+    when: short(new Date(r.publishTime.getTime() + 10 * 3600000)),
+    text: r.text ?? "",
+    themes: r.themes.map((t) => THEME_WORDS[t] ?? t),
+    staff: r.staffMentions,
+    replied: Boolean(r.replyText),
+  })
+  const tally = new Map<string, { positive: number; negative: number }>()
+  for (const r of rows) {
+    for (const t of r.themes) {
+      const k = THEME_WORDS[t] ?? t
+      const c = tally.get(k) ?? { positive: 0, negative: 0 }
+      if (r.rating >= 4) c.positive++
+      else c.negative++
+      tally.set(k, c)
+    }
+  }
+  return {
+    negative: rows.filter((r) => r.rating <= 3).sort((a, b) => a.rating - b.rating).map(toRow),
+    positive: rows.filter((r) => r.rating >= 4).map(toRow),
+    themes: [...tally.entries()].map(([theme, c]) => ({ theme, ...c })).sort((a, b) => b.negative - a.negative || b.positive - a.positive),
+    fiveStarThisMonth: fives,
   }
 }

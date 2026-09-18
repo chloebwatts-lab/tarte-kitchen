@@ -63,7 +63,7 @@ export const GM_ITEMS: GmItem[] = [
     theme: "everyday",
     pillar: "efficient",
     title: "Three walks: open, mid-morning, close",
-    hint: "Watch, fix, note. Coffee under 5 minutes, cabinet full to 1pm, tables reset. Do not jump on a section.",
+    hint: "Watch, fix, note. Coffee out in under 10 minutes. Cabinet full until 1:30, then restocked or re-plated so it still looks good until 2:30. Tables reset. Do not jump on a section.",
   },
 
   // ── Rosters and wages ───────────────────────────────────────
@@ -135,8 +135,8 @@ export const GM_ITEMS: GmItem[] = [
     slug: "prep-soldout",
     theme: "kitchen",
     pillar: "efficient",
-    title: "Prep run from the restock counts, nothing sold out before 1pm",
-    hint: "If something ran out, the reason is written down.",
+    title: "Prep is running off the restock counts",
+    hint: "Each night the sections count what is left in the app. Each morning the restock run says what to make. Check the counts were done last night, the morning run was worked through, and nothing sold out before 1pm. If something did, the reason is written down.",
     href: "/kitchen/restock",
   },
   {
@@ -160,8 +160,8 @@ export const GM_ITEMS: GmItem[] = [
     slug: "orders-par",
     theme: "kitchen",
     pillar: "profitable",
-    title: "Orders approved by dept heads against pars",
-    hint: "One order per supplier. Supermarket top-ups under $200 for the week.",
+    title: "Orders went through the app, checked by each dept head",
+    hint: "Each section puts its order in the app. The dept head checks it against the par (the normal amount for a normal week) before it goes. The app joins them into one order per supplier. Your check: every dept ordered through the app this week, nothing was phoned in on the side, and supermarket top-ups stayed under $200.",
     href: "/kitchen/order",
   },
 
@@ -195,6 +195,7 @@ export const GM_ITEMS: GmItem[] = [
     pillar: "efficient",
     title: "Read this week's Google reviews",
     hint: "Replies are drafted for Chloe. Your job is the fix on the floor.",
+    href: "/kitchen/gm/reviews",
   },
   {
     slug: "quality-fix",
