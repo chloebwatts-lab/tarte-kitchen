@@ -67,12 +67,13 @@ export default async function RestockHubPage({
           className="mt-4 max-w-2xl rounded-[16px] px-5 py-4 text-[15px] leading-snug"
           style={{ background: "var(--tk-gold-soft)", color: "#5d4a12" }}
         >
-          <strong>Why we do this here and not by text.</strong> The count is the
-          prep list. If it is on the sheet, with a number, a priority and a
-          needed-by time, it gets made first thing and nobody has to chase.
-          If it is not on the sheet, it is a 6am phone call, a run to the
-          shop, and a dish we cannot serve at lunch. Two minutes at close
-          saves an hour in the morning.
+          <strong>Why the count matters.</strong> It is the prep list, and it
+          is the record. Every count and request is kept per item, per
+          kitchen, per day. After three months the sheet can fill itself in
+          from what each weekday really needs, shortfalls that repeat point
+          to a roster fix, requested against binned sets the pars, and the
+          pars drive the supplier order. Two minutes at close, no 6am call,
+          and about half an hour a day back for each chef.
         </div>
       </div>
 
