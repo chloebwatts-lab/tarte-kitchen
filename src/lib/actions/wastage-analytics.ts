@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { Venue, WasteReason } from "@/generated/prisma/client"
 import { SINGLE_VENUES } from "@/lib/venues"
 import { buildCanonicalizer } from "@/lib/wastage/canonical"
+import { weekStartWedIso } from "@/lib/dates"
 
 // ============================================================================
 // Types
@@ -71,16 +72,10 @@ function startOfAestDay(offsetDays = 0): Date {
 }
 
 function weekStartIso(d: Date): string {
-  // Monday-anchored AEST week. Mirrors the +10h shift pattern of
-  // startOfTarteWeekUtc in src/lib/dates.ts (Monday-anchored to match the
-  // checklist-cycle convention). DB dates are stored as UTC midnight of the
-  // AEST date, so the shift is a no-op for those, but this stays correct
-  // for any real timestamp too.
-  const shifted = new Date(d.getTime() + 10 * 60 * 60 * 1000)
-  shifted.setUTCHours(0, 0, 0, 0)
-  const diff = (shifted.getUTCDay() + 6) % 7
-  shifted.setUTCDate(shifted.getUTCDate() - diff)
-  return shifted.toISOString().split("T")[0]
+  // Tarte trading week (Wed to Tue, AEST), same as COGS, labour and the
+  // digest. DB dates are stored as UTC midnight of the AEST date, so the
+  // +10h shift inside is a no-op for those but stays right for timestamps.
+  return weekStartWedIso(d)
 }
 
 /**

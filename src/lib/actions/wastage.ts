@@ -6,6 +6,7 @@ import Decimal from "decimal.js"
 import { Venue, WasteReason } from "@/generated/prisma/client"
 import { SINGLE_VENUES, VENUE_SHORT_LABEL, type SingleVenue } from "@/lib/venues"
 import { buildCanonicalizer } from "@/lib/wastage/canonical"
+import { startOfTarteWeekUtc, weekStartWedIso } from "@/lib/dates"
 
 // ============================================================
 // WASTE ENTRY CRUD
@@ -213,7 +214,7 @@ export async function getWasteStats(
   venue?: Venue
 ): Promise<WasteStats> {
   const now = new Date()
-  const thisWeekStart = startOfAestMondayWeekUtc(now)
+  const thisWeekStart = startOfTarteWeekUtc(now)
 
   const lastWeekStart = new Date(thisWeekStart)
   lastWeekStart.setUTCDate(lastWeekStart.getUTCDate() - 7)
@@ -555,21 +556,12 @@ export async function getWasteStats(
 }
 
 /**
- * AEST Monday-anchored week start. Mirrors the +10h shift pattern of
- * `startOfTarteWeekUtc` in src/lib/dates.ts, but anchored to Monday (the
- * checklist-cycle convention) for wastage reporting. Returns a UTC-midnight
- * Date whose yyyy-mm-dd is the AEST Monday of the week containing `d`.
+ * Wastage weeks follow Tarte's trading week (Wed to Tue, AEST), the same
+ * week the COGS, labour and digest numbers use, so waste as a % of revenue
+ * lines up with every other weekly figure in the app.
  */
-function startOfAestMondayWeekUtc(d: Date): Date {
-  const shifted = new Date(d.getTime() + 10 * 60 * 60 * 1000)
-  shifted.setUTCHours(0, 0, 0, 0)
-  const offsetFromMon = (shifted.getUTCDay() + 6) % 7
-  shifted.setUTCDate(shifted.getUTCDate() - offsetFromMon)
-  return shifted
-}
-
 function getWeekStart(date: Date): string {
-  return startOfAestMondayWeekUtc(date).toISOString().split("T")[0]
+  return weekStartWedIso(date)
 }
 
 // ============================================================
@@ -808,12 +800,16 @@ export async function exportWasteCsv(filters: WasteFilters = {}): Promise<string
     "Date,Venue,Item,Quantity,Unit,Cost,Revenue (ex GST),Waste % of Revenue,Reason,Notes,Recorded By"
   const rows = entries.map((e) => {
     const date = e.date.toISOString().split("T")[0]
-    const itemName = e.itemName.replace(/"/g, '""')
-    const notes = (e.notes ?? "").replace(/"/g, '""')
+    // Staff-typed text: quote it, double any quotes, and stop a leading
+    // = + - @ from being run as a formula when the file opens in Excel.
+    const cell = (v: string) => {
+      const safe = /^[=+\-@]/.test(v) ? `'${v}` : v
+      return `"${safe.replace(/"/g, '""')}"`
+    }
     const rev = revenueLookup.get(`${date}|${e.venue}`) ?? 0
     const cost = Number(e.estimatedCost)
     const pct = rev > 0 ? ((cost / rev) * 100).toFixed(2) : ""
-    return `${date},${e.venue},"${itemName}",${Number(e.quantity)},${e.unit},${cost},${rev},${pct},${e.reason},"${notes}","${e.recordedBy ?? ""}"`
+    return `${date},${e.venue},${cell(e.itemName)},${Number(e.quantity)},${cell(e.unit)},${cost},${rev},${pct},${e.reason},${cell(e.notes ?? "")},${cell(e.recordedBy ?? "")}`
   })
 
   return [header, ...rows].join("\n")
