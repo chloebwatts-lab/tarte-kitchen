@@ -141,15 +141,3 @@ inbox.tarte.com.au {
 
 	reverse_proxy inbox:8787
 }
-
-# tarte-shifts moved to its own droplet (170.64.133.74) on 17 Sep 2026.
-# This vhost only bridges the DNS change-over: anyone still resolving the
-# old IP is forwarded to the new box. Safe to delete a few days later.
-shifts.tarte.com.au {
-	reverse_proxy https://170.64.133.74 {
-		header_up Host shifts.tarte.com.au
-		transport http {
-			tls_server_name shifts.tarte.com.au
-		}
-	}
-}
