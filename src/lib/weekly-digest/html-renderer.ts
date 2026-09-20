@@ -914,7 +914,7 @@ function shortDate(ymd: string): string {
 }
 
 function fmtClicks(n: number): string {
-  return n >= 10000 ? `${(n / 1000).toFixed(1)}K` : Math.round(n).toLocaleString("en-AU")
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(Math.round(n))
 }
 
 export function seoLines(seo: WeeklyDigestSnapshot["seo"] | undefined): string[] {
@@ -938,7 +938,7 @@ export function seoLines(seo: WeeklyDigestSnapshot["seo"] | undefined): string[]
       `Google rating: ${seo.ratings
         .map(
           (r) =>
-            `${r.label} ${r.exact.toFixed(4)}, shows ${r.displayed.toFixed(1)} (${r.reviewCount.toLocaleString("en-AU")} reviews, ${r.oneStarsToDrop} one-star${r.oneStarsToDrop === 1 ? "" : "s"} from dropping to ${(r.displayed - 0.1).toFixed(1)}${r.fiveStarsToRise != null ? `, ${r.fiveStarsToRise} straight five-stars to show ${(r.displayed + 0.1).toFixed(1)}` : ""})`
+            `${r.label} ${r.exact.toFixed(4)}, shows ${r.displayed.toFixed(1)} (${r.oneStarsToDrop} one-star${r.oneStarsToDrop === 1 ? "" : "s"} from ${(r.displayed - 0.1).toFixed(1)}${r.fiveStarsToRise != null ? `, ${r.fiveStarsToRise} straight five-stars to ${(r.displayed + 0.1).toFixed(1)}` : ""})`
         )
         .join(". ")}.`
     )
