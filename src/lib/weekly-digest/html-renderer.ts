@@ -903,6 +903,78 @@ function maintenanceSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
     <div style="padding:8px 28px 0;font-size:12px;"><a href="https://kitchen.tarte.com.au/maintenance" style="color:${C.accent};text-decoration:none;">Open maintenance</a></div>`
 }
 
+// Search and Google: two or three plain lines, shared by the HTML and the
+// plain-text email. Each line says where its number came from and how old it
+// is, because Search Console is read by hand once a month while ratings and
+// posts arrive from the SEO engine every morning.
+function shortDate(ymd: string): string {
+  const d = new Date(`${ymd}T00:00:00`)
+  if (isNaN(d.getTime())) return ymd
+  return d.toLocaleDateString("en-AU", { day: "numeric", month: "short" })
+}
+
+function fmtClicks(n: number): string {
+  return n >= 10000 ? `${(n / 1000).toFixed(1)}K` : Math.round(n).toLocaleString("en-AU")
+}
+
+export function seoLines(seo: WeeklyDigestSnapshot["seo"] | undefined): string[] {
+  if (!seo) return []
+  if (!seo.available) {
+    return ["No numbers received from the SEO engine yet, so nothing to show here this week."]
+  }
+  const lines: string[] = []
+  const sc = seo.searchConsole
+  if (sc) {
+    const trend =
+      sc.previous && sc.changePct != null
+        ? `, ${sc.changePct >= 0 ? "up" : "down"} ${Math.abs(sc.changePct).toFixed(0)}% on the ${shortDate(sc.previous.windowEnd)} reading (${fmtClicks(sc.previous.clicks3mo)})`
+        : ""
+    lines.push(
+      `Search Console: ${fmtClicks(sc.clicks3mo)} clicks in the 3 months to ${shortDate(sc.windowEnd)}${trend}. ${sc.pagesIndexed} pages indexed, ${sc.pagesNotIndexed} not. Read by hand on ${shortDate(sc.readOn)}, refreshed at the monthly check.`
+    )
+  }
+  if (seo.ratings.length) {
+    lines.push(
+      `Google rating: ${seo.ratings
+        .map(
+          (r) =>
+            `${r.label} ${r.exact.toFixed(4)}, shows ${r.displayed.toFixed(1)} (${r.reviewCount.toLocaleString("en-AU")} reviews, ${r.oneStarsToDrop} one-star${r.oneStarsToDrop === 1 ? "" : "s"} from dropping to ${(r.displayed - 0.1).toFixed(1)}${r.fiveStarsToRise != null ? `, ${r.fiveStarsToRise} straight five-stars to show ${(r.displayed + 0.1).toFixed(1)}` : ""})`
+        )
+        .join(". ")}.`
+    )
+  }
+  if (seo.posts) {
+    const total = seo.posts.published.reduce((t, p) => t + p.count, 0)
+    const split = seo.posts.published.map((p) => `${p.label} ${p.count}`).join(", ")
+    lines.push(
+      `Google posts published in the last ${seo.posts.windowDays} days: ${total}${split ? ` (${split})` : ""}.` +
+        (seo.posts.draftsWaiting > 0
+          ? ` ${seo.posts.draftsWaiting} draft${seo.posts.draftsWaiting === 1 ? " is" : "s are"} waiting for your Approve tap in the Monday email.`
+          : "")
+    )
+  }
+  if (seo.pushAgeDays != null && seo.pushAgeDays > 3 && seo.pushedOn) {
+    lines.push(
+      `Heads up: the SEO engine last sent ratings and posts on ${shortDate(seo.pushedOn)}, ${seo.pushAgeDays} days ago, so those two lines may be out of date.`
+    )
+  }
+  return lines
+}
+
+function seoSection(snapshot: WeeklyDigestSnapshot) {
+  // Digests stored before this section existed have no seo block.
+  const lines = seoLines(snapshot.seo)
+  if (!lines.length) return ""
+  return `
+    ${sectionHeader("Search and Google")}
+    ${lines
+      .map(
+        (l) =>
+          `<div style="padding:8px 28px 0;font-size:13px;color:${C.inkSoft};line-height:1.55;">${escapeHtml(l)}</div>`
+      )
+      .join("")}`
+}
+
 function actionList(narrative: DigestNarrative) {
   if (!narrative.actionItems.length) return ""
   return `
@@ -958,6 +1030,7 @@ export function renderDigestHtml(
         <tr><td style="padding-top:18px;">${priceSpikesSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${topSellersSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${reviewsSection(snapshot, narrative)}</td></tr>
+        ${snapshot.seo ? `<tr><td style="padding-top:18px;">${seoSection(snapshot)}</td></tr>` : ""}
         <tr><td>${actionList(narrative)}</td></tr>
         ${footer(snapshot)}
       </table>
@@ -1102,6 +1175,12 @@ export function renderDigestText(
         `    Still waiting: ${r.venue} ${r.rating}★ ${r.author ?? "Anonymous"} (${r.daysWaiting}d)`
       )
     }
+  }
+  const seoText = seoLines(snapshot.seo)
+  if (seoText.length > 0) {
+    lines.push(``)
+    lines.push(`SEARCH AND GOOGLE`)
+    for (const l of seoText) lines.push(`  ${l}`)
   }
   if (narrative.actionItems.length > 0) {
     lines.push(``)

@@ -26,6 +26,7 @@ import {
   buildMaintenanceSection,
   type MaintenanceSection,
 } from "@/lib/maintenance/digest"
+import { buildSeoSection, type SeoSection } from "@/lib/seo/scoreboard"
 
 const SINGLE_VENUES: Venue[] = [
   Venue.BURLEIGH,
@@ -83,6 +84,10 @@ export interface WeeklyDigestSnapshot {
   /// Equipment: open faults (booked or not, under warranty or not) and
   /// warranties running out in the next 60 days. Live state, not week-bound.
   maintenance: MaintenanceSection
+  /// Search and Google: Search Console clicks and pages indexed (read by
+  /// hand monthly), exact Google ratings and Google posts published (pushed
+  /// daily by the SEO engine). Live state, not week-bound.
+  seo: SeoSection
 }
 
 interface SpendPacingSection {
@@ -1100,7 +1105,7 @@ export async function buildWeeklyDigestSnapshot(
   now = new Date()
 ): Promise<WeeklyDigestSnapshot> {
   const week = lastCompletedTarteWeek(now)
-  const [reviews, priceSpikes, wastage, cogs, labour, topSellers, sales, operations, spendPacing, commitments, maintenance] =
+  const [reviews, priceSpikes, wastage, cogs, labour, topSellers, sales, operations, spendPacing, commitments, maintenance, seo] =
     await Promise.all([
       buildReviewsSection(week),
       buildPriceSpikes(week),
@@ -1113,6 +1118,7 @@ export async function buildWeeklyDigestSnapshot(
       buildSpendPacing(),
       buildCommitmentsSection(),
       buildMaintenanceSection(now),
+      buildSeoSection(now),
     ])
 
   return {
@@ -1133,6 +1139,7 @@ export async function buildWeeklyDigestSnapshot(
     spendPacing,
     commitments,
     maintenance,
+    seo,
   }
 }
 
