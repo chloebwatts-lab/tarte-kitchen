@@ -22,6 +22,10 @@ import {
   buildCommitmentsSection,
   type CommitmentsSection,
 } from "@/lib/commitments/digest"
+import {
+  buildMaintenanceSection,
+  type MaintenanceSection,
+} from "@/lib/maintenance/digest"
 
 const SINGLE_VENUES: Venue[] = [
   Venue.BURLEIGH,
@@ -76,6 +80,9 @@ export interface WeeklyDigestSnapshot {
   /// commitments missed 2+ weeks running (Mon-anchored weeks, unlike
   /// the trading-week sections above).
   commitments: CommitmentsSection
+  /// Equipment: open faults (booked or not, under warranty or not) and
+  /// warranties running out in the next 60 days. Live state, not week-bound.
+  maintenance: MaintenanceSection
 }
 
 interface SpendPacingSection {
@@ -1093,7 +1100,7 @@ export async function buildWeeklyDigestSnapshot(
   now = new Date()
 ): Promise<WeeklyDigestSnapshot> {
   const week = lastCompletedTarteWeek(now)
-  const [reviews, priceSpikes, wastage, cogs, labour, topSellers, sales, operations, spendPacing, commitments] =
+  const [reviews, priceSpikes, wastage, cogs, labour, topSellers, sales, operations, spendPacing, commitments, maintenance] =
     await Promise.all([
       buildReviewsSection(week),
       buildPriceSpikes(week),
@@ -1105,6 +1112,7 @@ export async function buildWeeklyDigestSnapshot(
       buildOperations(week),
       buildSpendPacing(),
       buildCommitmentsSection(),
+      buildMaintenanceSection(now),
     ])
 
   return {
@@ -1124,6 +1132,7 @@ export async function buildWeeklyDigestSnapshot(
     operations,
     spendPacing,
     commitments,
+    maintenance,
   }
 }
 

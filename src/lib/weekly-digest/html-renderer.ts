@@ -30,6 +30,7 @@ export interface DigestNarrative {
     reviews?: string
     operations?: string
     commitments?: string
+    maintenance?: string
   }
   /// 3-6 concrete action bullets, ranked by impact.
   actionItems: string[]
@@ -826,6 +827,82 @@ function commitmentsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
     ${standingList}`
 }
 
+function maintenanceSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative) {
+  // Digests stored before this section existed have no maintenance block.
+  const m = snapshot.maintenance
+  if (!m) return ""
+
+  if (m.openCount === 0 && m.warrantiesEnding.length === 0) {
+    const sub =
+      m.fixedLast7Days > 0
+        ? `No open faults. ${m.fixedLast7Days} fixed this week. No warranties running out in the next 60 days.`
+        : "No open faults and no warranties running out in the next 60 days."
+    return `
+      ${sectionHeader("Equipment", narrative.sectionNotes.maintenance)}
+      <div style="padding:8px 28px 0;color:${C.inkMute};font-size:13px;">${escapeHtml(sub)}</div>`
+  }
+
+  const issueRows = m.openIssues
+    .slice(0, 10)
+    .map((i) => {
+      const ageColor = i.daysOpen >= 7 ? C.red : i.daysOpen >= 3 ? C.amber : C.inkSoft
+      const ageBg = i.daysOpen >= 7 ? C.redSoft : i.daysOpen >= 3 ? C.amberSoft : "transparent"
+      const booked = i.bookedFor
+        ? `<span style="color:${C.green};">Trade booked ${escapeHtml(i.bookedFor)}</span>`
+        : `<span style="color:${C.red};font-weight:600;">Nobody called yet</span>`
+      const warranty = i.underWarranty
+        ? ` · <span style="color:${C.amber};font-weight:600;">Under warranty${i.warrantyProvider ? `, call ${escapeHtml(i.warrantyProvider)} first` : ""}</span>`
+        : ""
+      return `
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.ink};">
+            ${i.isSafety ? `<span style="display:inline-block;padding:1px 6px;margin-right:6px;background:${C.redSoft};color:${C.red};border-radius:4px;font-size:11px;font-weight:700;">SAFETY</span>` : ""}${escapeHtml(i.title)}
+            <div style="margin-top:2px;font-size:11px;color:${C.inkMute};">${escapeHtml(i.venue)}${i.machine ? ` · ${escapeHtml(i.machine)}${i.slug ? ` (${escapeHtml(i.slug)})` : ""}` : ""}</div>
+            <div style="margin-top:2px;font-size:11px;">${booked}${warranty}</div>
+          </td>
+          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};white-space:nowrap;text-align:right;vertical-align:top;">
+            <span style="display:inline-block;padding:2px 8px;background:${ageBg};color:${ageColor};border-radius:4px;font-size:12px;font-weight:600;">${i.daysOpen}d open</span>
+          </td>
+        </tr>`
+    })
+    .join("")
+
+  const issueTable = m.openIssues.length
+    ? `
+    <div style="margin:12px 18px 0;background:${C.card};border:1px solid ${C.border};border-radius:8px;overflow:hidden;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        <thead>
+          <tr style="background:${C.borderSoft};">
+            <th style="padding:9px 14px;text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Open faults (${m.openCount}, ${m.unbookedCount} with no trade booked)</th>
+            <th style="padding:9px 14px;text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Age</th>
+          </tr>
+        </thead>
+        <tbody>${issueRows}</tbody>
+      </table>
+    </div>${m.openIssues.length > 10 ? `<div style="padding:6px 28px 0;font-size:12px;color:${C.inkMute};">Plus ${m.openIssues.length - 10} more on the maintenance page.</div>` : ""}`
+    : `<div style="padding:8px 28px 0;color:${C.inkMute};font-size:13px;">No open faults.</div>`
+
+  const warrantyList = m.warrantiesEnding.length
+    ? `
+    <div style="margin:12px 18px 0;padding:12px 14px;background:${C.amberSoft};border-radius:6px;border:1px solid ${C.amber}33;">
+      <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.amber};font-weight:600;">Warranties running out in the next 60 days</div>
+      ${m.warrantiesEnding
+        .map(
+          (w) => `
+          <div style="margin-top:6px;font-size:13px;color:${C.ink};line-height:1.5;"><strong>${escapeHtml(w.machine)}</strong> (${escapeHtml(w.slug)}, ${escapeHtml(w.venue)}): ends ${escapeHtml(w.endsOn)}, <strong>${w.daysLeft} day${w.daysLeft === 1 ? "" : "s"} left</strong>${w.warrantyProvider ? ` · claims via ${escapeHtml(w.warrantyProvider)}` : ""}${w.hasOpenIssue ? ` · <span style="color:${C.red};font-weight:600;">has an open fault, claim it now</span>` : ""}</div>`
+        )
+        .join("")}
+      <div style="margin-top:8px;font-size:12px;color:${C.inkSoft};">Get any niggles reported and claimed before the date.</div>
+    </div>`
+    : ""
+
+  return `
+    ${sectionHeader("Equipment", narrative.sectionNotes.maintenance)}
+    ${issueTable}
+    ${warrantyList}
+    <div style="padding:8px 28px 0;font-size:12px;"><a href="https://kitchen.tarte.com.au/maintenance" style="color:${C.accent};text-decoration:none;">Open maintenance</a></div>`
+}
+
 function actionList(narrative: DigestNarrative) {
   if (!narrative.actionItems.length) return ""
   return `
@@ -877,6 +954,7 @@ export function renderDigestHtml(
         <tr><td style="padding-top:18px;">${wastageSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${operationsSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${commitmentsSection(snapshot, narrative)}</td></tr>
+        ${snapshot.maintenance ? `<tr><td style="padding-top:18px;">${maintenanceSection(snapshot, narrative)}</td></tr>` : ""}
         <tr><td style="padding-top:18px;">${priceSpikesSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${topSellersSection(snapshot, narrative)}</td></tr>
         <tr><td style="padding-top:18px;">${reviewsSection(snapshot, narrative)}</td></tr>
@@ -972,6 +1050,21 @@ export function renderDigestText(
     for (const s of commitments.standingConcerns) {
       lines.push(
         `  ! ${s.title}, missed ${s.consecutiveMissedWeeks} weeks running${s.lastNote ? ` (${s.lastNote})` : ""}`
+      )
+    }
+  }
+  const maintenance = snapshot.maintenance
+  if (maintenance && (maintenance.openCount > 0 || maintenance.warrantiesEnding.length > 0)) {
+    lines.push(``)
+    lines.push(`EQUIPMENT  ${maintenance.openCount} open fault${maintenance.openCount === 1 ? "" : "s"}, ${maintenance.unbookedCount} with no trade booked`)
+    for (const i of maintenance.openIssues.slice(0, 10)) {
+      lines.push(
+        `  ! ${i.venue}: ${i.isSafety ? "[SAFETY] " : ""}${i.title}${i.machine ? ` (${i.machine})` : ""}, ${i.daysOpen}d open, ${i.bookedFor ? `trade booked ${i.bookedFor}` : "nobody called yet"}${i.underWarranty ? ", under warranty" : ""}`
+      )
+    }
+    for (const w of maintenance.warrantiesEnding) {
+      lines.push(
+        `  Warranty ending: ${w.machine} (${w.slug}, ${w.venue}) on ${w.endsOn}, ${w.daysLeft}d left${w.hasOpenIssue ? ", has an open fault" : ""}`
       )
     }
   }

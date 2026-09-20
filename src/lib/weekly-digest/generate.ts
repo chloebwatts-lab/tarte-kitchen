@@ -40,6 +40,7 @@ Schema:
     "reviews"?: string,       // if responseWatch shows unanswered negatives or median response over 2 days, lead with that
     "operations"?: string,  // 1-2 sentences on checklist completion + any temp/cooling breaches. Lead with breaches if any.
     "commitments"?: string  // Said + Done tracker incl. meeting actions. Only if something is overdue or a standing commitment slipped 2+ weeks, name it plainly, no scolding tone.
+    "maintenance"?: string  // Equipment. Only if there are open faults or a warranty ending within 60 days. Lead with any safety fault or a fault nobody has called a trade for, then the warranty date. Skip it when both lists are empty.
   },
   "actionItems": string[]       // 3-6 concrete actions ranked by impact
 }
@@ -107,6 +108,7 @@ function normaliseNarrative(o: unknown): DigestNarrative {
     "reviews",
     "operations",
     "commitments",
+    "maintenance",
   ] as const
   const sectionNotes: DigestNarrative["sectionNotes"] = {}
   for (const k of noteKeys) {
