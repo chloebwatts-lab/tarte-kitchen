@@ -70,7 +70,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     slug: "managers",
     title: "Managers",
-    sub: "Line-up, morning board, jobs board. Managers and supervisors.",
+    sub: "Line-up, morning board, jobs board. Password.",
     icon: Lock,
     href: "/kitchen/managers",
     locked: true,
@@ -87,7 +87,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     slug: "gm",
     title: "Oliver",
-    sub: "GM desk: today, this week, the numbers. Opens for Oliver.",
+    sub: "GM desk: today, this week, the numbers. Own password.",
     icon: Compass,
     href: "/kitchen/gm",
     locked: true,

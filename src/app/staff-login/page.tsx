@@ -39,8 +39,8 @@ export default async function StaffLoginPage({
         className="mt-3 max-w-sm text-center text-[16px] leading-snug"
         style={{ color: "rgba(255,255,255,0.85)" }}
       >
-        Your own sign in, every time. Same last name and PIN you use on Tarte
-        Shifts. It signs you out after {IDLE_MINUTES} minutes of nothing.
+        Your own sign in. Same last name and PIN you use on Tarte Shifts. It
+        signs you out after {IDLE_MINUTES / 60} hours of not being used.
       </p>
 
       <form

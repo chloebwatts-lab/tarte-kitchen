@@ -5,10 +5,11 @@
  * same name and kiosk PIN they use on Tarte Shifts, every time they use the
  * app, and signs the confidentiality deed once before anything opens.
  *
- * The session is a signed cookie carrying who they are. It is short on
- * purpose: shared iPads mean the next person must not inherit the last
- * person's name. Idle for IDLE_MINUTES and it is gone; ABSOLUTE_HOURS is the
- * hard stop however busy they are.
+ * The session is a signed cookie carrying who they are. Chloe, 20 Sep 2026
+ * (evening): sign out after 6 hours of inactivity, with the managers area
+ * and Oliver's desk back behind their own second passwords (manager-auth,
+ * gm-auth). ABSOLUTE_HOURS is the hard stop so nobody's name carries over
+ * to the next day on a shared iPad.
  *
  * Web Crypto only, so the same code verifies in middleware and in actions.
  */
@@ -16,8 +17,8 @@
 export const PERSON_COOKIE = "tk_person"
 export const DEVICE_COOKIE = "tk_device"
 
-export const IDLE_MINUTES = 20
-export const ABSOLUTE_HOURS = 12
+export const IDLE_MINUTES = 360
+export const ABSOLUTE_HOURS = 24
 
 export type PersonRole = "OWNER" | "MANAGER" | "SUPERVISOR" | "STAFF"
 
