@@ -143,10 +143,17 @@ async function ingestOne(
   const tag = `[gmail:${messageId.slice(0, 12)}]`
   const filename = `${tag} ${origFilename}`
 
+  // Some mail clients label every attachment application/octet-stream.
+  // extractPdfAttachments already lets those through on the filename, so
+  // fall back to the extension here too rather than calling them unknown.
   const kind: AttachmentOutcome["kind"] =
     mimeType === "application/pdf"
       ? "labour-pdf"
       : mimeType.includes("spreadsheet") || mimeType.includes("excel")
+      ? "cogs-xlsx"
+      : mimeType === "application/octet-stream" && /\.pdf$/i.test(origFilename)
+      ? "labour-pdf"
+      : mimeType === "application/octet-stream" && /\.xlsx?$/i.test(origFilename)
       ? "cogs-xlsx"
       : "unknown"
 
