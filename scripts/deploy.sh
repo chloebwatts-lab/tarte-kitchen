@@ -11,6 +11,25 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# One deploy at a time. Every push to main makes GitHub Actions run this
+# script, and the same push is often deployed by hand as well; on 2026-09-20
+# the two runs overlapped twice, both recreated app at once, and the loser
+# died on "Conflict. The container name ... is already in use" with the site
+# on 502. The second run now waits here for the first to finish, then finds
+# nothing left to do. The lock rides on fd 9 across the exec below, so it is
+# only taken once.
+if [ -z "${DEPLOY_LOCKED:-}" ] && command -v flock >/dev/null; then
+  exec 9>/var/lock/tarte-kitchen-deploy.lock
+  if ! flock -n 9; then
+    echo "▶ Another deploy is running, waiting for it to finish..."
+    if ! flock -w 1800 9; then
+      echo "✗ The other deploy is still running after 30 min. Not deployed." >&2
+      exit 1
+    fi
+  fi
+  export DEPLOY_LOCKED=1
+fi
+
 if [ -z "${DEPLOY_PULLED:-}" ]; then
   echo "▶ Pulling latest main..."
   git fetch origin main
@@ -37,7 +56,29 @@ echo "▶ Restarting app..."
 # is already in use", and the OLD image was left running. --no-deps keeps
 # this call to app alone; the dependents come up in their own call below
 # and see app already running.
-docker compose up -d --no-deps app
+#
+# The conflict still turned up twice on 2026-09-20, and with set -e it ended
+# the script right here: caddy and cron never came up, nothing below ran,
+# and the site sat on 502 until someone ran this same command again by
+# hand. So do that here: clear any stopped "<id>_tarte-kitchen-app-1"
+# leftover, wait a moment, try again, three times in all. If it still
+# fails, carry on; the image check below has the last word on "deployed".
+up_app() {
+  local attempt stale
+  for attempt in 1 2 3; do
+    docker compose up -d --no-deps app && return 0
+    echo "  app did not come up (attempt $attempt of 3), clearing stale renamed containers..."
+    stale="$(docker ps -aq --filter name=_tarte-kitchen-app-1 \
+      --filter status=created --filter status=exited --filter status=dead)"
+    if [ -n "$stale" ]; then
+      # shellcheck disable=SC2086
+      docker rm $stale || true
+    fi
+    sleep 5
+  done
+  return 1
+}
+up_app || echo "  app still not up after 3 attempts; the checks below decide." >&2
 
 echo "▶ Bringing up caddy and cron (cron's schedule lives in docker-compose.yml)..."
 # The cron sidecar writes its crontab from the compose file at start-up, so a
