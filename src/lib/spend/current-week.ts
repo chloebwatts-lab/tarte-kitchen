@@ -8,7 +8,8 @@
  *
  * Venue split: most supplier deliveries are for one venue. Genuinely
  * shared invoices (per Chris 2026-07-14, e.g. Breadtop) carry venue
- * BOTH and are split 50/50 between the two buckets. Invoices with a
+ * BOTH and are split between the two buckets, 50/50 unless the supplier
+ * has its own ratio in shared-split.ts (Parallel Roasters 55/45). Invoices with a
  * null `venue` field are surfaced as "unassigned" so they can be
  * assigned manually, not silently lumped into a "Shared" bucket.
  *
@@ -23,6 +24,7 @@ import {
   currentTarteWeekRange,
   weekStartWedIso,
 } from "@/lib/dates"
+import { sharedSplit } from "./shared-split"
 import {
   EXPECTED_SUPPLIERS,
   matchExpectedSupplier,
@@ -206,7 +208,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
         status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION", "REJECTED"] },
         venue: { not: null },
       },
-      select: { invoiceDate: true, venue: true, total: true, subtotal: true, gst: true },
+      select: { invoiceDate: true, venue: true, supplierName: true, total: true, subtotal: true, gst: true },
     }),
   ])
 
@@ -258,12 +260,14 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     // ex-GST to match the budget basis
     const amt = exGstInvoiceAmount(inv)
     // Venue BOTH = genuinely shared spend (per Chris 2026-07-14 Breadtop
-    // is a 50/50 split), half the total lands in each bucket.
+    // is a 50/50 split). The ratio comes from shared-split.ts so a supplier
+    // can carry its own (Parallel Roasters 55/45).
+    const split = sharedSplit(inv.supplierName)
     const targets: Array<{ bucket: SpendBucket; amount: number }> =
       inv.venue === "BOTH"
         ? [
-            { bucket: "BURLEIGH", amount: amt / 2 },
-            { bucket: "CURRUMBIN", amount: amt / 2 },
+            { bucket: "BURLEIGH", amount: amt * split.BURLEIGH },
+            { bucket: "CURRUMBIN", amount: amt * split.CURRUMBIN },
           ]
         : (() => {
             const bucket = venueToBucket(inv.venue)
@@ -373,9 +377,9 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       const idx = tradingDayIndex(row.invoiceDate, true)
       const exGst = exGstInvoiceAmount(row)
       if (row.venue === "BOTH") {
-        const half = exGst / 2
-        spendRows.BURLEIGH.push({ idx, amount: half })
-        spendRows.CURRUMBIN.push({ idx, amount: half })
+        const split = sharedSplit(row.supplierName)
+        spendRows.BURLEIGH.push({ idx, amount: exGst * split.BURLEIGH })
+        spendRows.CURRUMBIN.push({ idx, amount: exGst * split.CURRUMBIN })
         continue
       }
       const bucket = venueToBucket(row.venue)

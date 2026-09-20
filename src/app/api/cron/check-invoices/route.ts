@@ -24,6 +24,7 @@ import {
   isOwnMailbox,
   type SupplierRef,
 } from "@/lib/invoices/supplier-match"
+import { PARALLEL_SINGLE_INVOICE_FROM, sharedSplitLabel } from "@/lib/spend/shared-split"
 import { readFile } from "fs/promises"
 import path from "path"
 
@@ -457,10 +458,14 @@ async function rescueStuckInvoices(stats: ProcessStats): Promise<void> {
  * panel:
  * - Breadtop is genuinely shared spend → venue BOTH (the spend tracker
  *   splits BOTH 50/50 between the Burleigh and Currumbin buckets).
- * - Parallel Roasters invoices arrive as a pair, the LARGER is
- *   Burleigh's coffee order, the smaller Currumbin's. Only fires when
- *   exactly two unassigned invoices are waiting; other counts stay
- *   manual so we never guess.
+ * - Parallel Roasters, invoices dated before 12 Aug 2026: they arrived as
+ *   a pair, the LARGER is Burleigh's coffee order, the smaller Currumbin's.
+ *   Only fires when exactly two unassigned invoices are waiting; other
+ *   counts stay manual so we never guess.
+ * - Parallel Roasters, from 12 Aug 2026: ONE invoice a week covers both
+ *   venues, so it is shared spend → venue BOTH, which the tracker splits
+ *   55% Burleigh, 45% Currumbin (Chloe 2026-09-20, ratio lives in
+ *   src/lib/spend/shared-split.ts).
  */
 async function applyStandingVenueRules(): Promise<string[]> {
   const notes: string[] = []
@@ -474,12 +479,28 @@ async function applyStandingVenueRules(): Promise<string[]> {
   })
   if (breadtop.count > 0) notes.push(`Breadtop: ${breadtop.count} → BOTH (50/50 split)`)
 
+  const parallelShared = await db.invoice.updateMany({
+    where: {
+      supplierName: "Parallel Roasters",
+      venue: null,
+      status: activeStatuses,
+      invoiceDate: { gte: PARALLEL_SINGLE_INVOICE_FROM },
+    },
+    data: { venue: "BOTH" },
+  })
+  if (parallelShared.count > 0) {
+    notes.push(
+      `Parallel Roasters: ${parallelShared.count} → BOTH (${sharedSplitLabel("Parallel Roasters")} Burleigh/Currumbin split)`
+    )
+  }
+
   const parallel = await db.invoice.findMany({
     where: {
       supplierName: "Parallel Roasters",
       venue: null,
       status: activeStatuses,
       total: { not: null },
+      invoiceDate: { lt: PARALLEL_SINGLE_INVOICE_FROM },
     },
     orderBy: { total: "desc" },
     select: { id: true, total: true, invoiceDate: true },

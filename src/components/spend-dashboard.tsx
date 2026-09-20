@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { assignInvoiceVenue } from "@/lib/spend/current-week"
+import { sharedSplitLabel } from "@/lib/spend/shared-split"
 import type {
   CurrentWeekSpendSnapshot,
   BucketSpendData,
@@ -661,8 +662,9 @@ function UnassignedPanel({
         <p className="text-xs text-muted-foreground">
           These invoices came through without a venue tag. Assign each one
           so it counts toward the right bucket. Genuinely shared invoices
-          (like Breadtop) can be split 50/50 across both venues with the
-          Both button.
+          (like Breadtop) can be split across both venues with the Both
+          button, 50/50 unless the supplier has its own ratio (Parallel
+          Roasters coffee is 55 Burleigh, 45 Currumbin).
         </p>
       </CardHeader>
       <CardContent>
@@ -709,7 +711,7 @@ function UnassignedPanel({
                             ? "BH"
                             : v === "TEA_GARDEN"
                             ? "TG"
-                            : "Both (50/50)"}
+                            : `Both (${sharedSplitLabel(r.supplierName)})`}
                         </Button>
                       ))}
                     </div>
