@@ -1,0 +1,44 @@
+[
+  {
+    "id": "cmspolsvv06zk01nepluzoikm",
+    "invoiceNumber": "SI-00009200",
+    "venueBefore": null,
+    "venueAfter": "BOTH"
+  },
+  {
+    "id": "cmsz37vif1j6m01lnyzm5hmol",
+    "invoiceNumber": "SI-00009247",
+    "venueBefore": null,
+    "venueAfter": "BOTH"
+  },
+  {
+    "id": "cmsz382mq1j6u01lnuke9hef6",
+    "invoiceNumber": "SI-00009253",
+    "venueBefore": null,
+    "venueAfter": "BOTH"
+  },
+  {
+    "id": "cmt9kfl49d7vc01mw111l9h5l",
+    "invoiceNumber": "SI-00009291",
+    "venueBefore": null,
+    "venueAfter": "BOTH"
+  },
+  {
+    "id": "cmtkit8uiewhs01lerwj4qw1d",
+    "invoiceNumber": "SI-00009330",
+    "venueBefore": null,
+    "venueAfter": "BOTH"
+  },
+  {
+    "id": "cmu08ol4eewxm01pfte384g1h",
+    "invoiceNumber": "SI-00009374",
+    "venueBefore": null,
+    "venueAfter": "BOTH"
+  },
+  {
+    "id": "cmu3kor2700lk01mttgmtlcnh",
+    "invoiceNumber": "SI-00009413",
+    "venueBefore": null,
+    "venueAfter": "BOTH"
+  }
+]
