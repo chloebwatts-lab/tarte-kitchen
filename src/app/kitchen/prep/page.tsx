@@ -4,6 +4,7 @@ import { cookies } from "next/headers"
 import { getPrepSheet } from "@/lib/actions/prep-sheet"
 import { PrepWalkthrough } from "@/components/kitchen/PrepWalkthrough"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
 
@@ -56,6 +57,7 @@ export default async function KitchenPrepPage({
           {venueLabel}. Tap <strong>Done</strong> as you make each batch, or{" "}
           <strong>Skip</strong> if you already have enough.
         </p>
+        <div className="mt-3"><VenueSwitch current={venue} /></div>
       </div>
 
       <PrepWalkthrough sheet={sheet} venue={venue} />

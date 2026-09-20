@@ -4,6 +4,7 @@ import { cookies } from "next/headers"
 import { getRestockRun } from "@/lib/actions/restock"
 import { RestockRunBoard } from "@/components/kitchen/RestockRunBoard"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
 import { isKitchenStation, stationsForVenue } from "@/lib/stations"
@@ -66,6 +67,7 @@ export default async function RestockRunPage({
           the batch. Log what you actually deliver. Gaps show on the daily
           report.
         </p>
+        <div className="mt-3"><VenueSwitch current={venue} /></div>
       </div>
 
       <RestockRunBoard initialRun={run} initialStation={initialStation} />

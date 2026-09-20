@@ -7,6 +7,7 @@ import {
 } from "@/lib/actions/cooling"
 import { CoolingDashboard } from "@/components/kitchen/CoolingDashboard"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
 
@@ -60,6 +61,7 @@ export default async function CoolingPage({
           checkpoints. Targets:{" "}
           <strong>≤ 21 °C at 2 hr</strong>, <strong>≤ 5 °C at 6 hr</strong>.
         </p>
+        <div className="mt-3"><VenueSwitch current={venue} /></div>
       </div>
 
       <CoolingDashboard venue={venue} initialLogs={logs} />

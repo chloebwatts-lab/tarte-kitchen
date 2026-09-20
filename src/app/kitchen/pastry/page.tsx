@@ -7,6 +7,7 @@ import {
 } from "@/lib/actions/pastry-rotation"
 import { PastryRotationDashboard } from "@/components/kitchen/PastryRotationDashboard"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
 
@@ -67,6 +68,7 @@ export default async function PastryRotationPage({
           Log prepared, sold and discarded for each bake. Tap any cell to
           update. Data feeds the inspection view and the wastage dashboard.
         </p>
+        <div className="mt-3"><VenueSwitch current={venue} /></div>
       </div>
 
       <PastryRotationDashboard initial={day} />

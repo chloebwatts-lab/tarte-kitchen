@@ -4,6 +4,7 @@ import { cookies } from "next/headers"
 import { getServesGuide } from "@/lib/actions/serves-guide"
 import { ServesCalculator } from "@/components/kitchen/ServesCalculator"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
 
@@ -55,6 +56,7 @@ export default async function KitchenServesPage({
           full serves are in it. Serve sizes come straight from the recipe
           cards.
         </p>
+        <div className="mt-3"><VenueSwitch current={venue} /></div>
       </div>
 
       <ServesCalculator entries={entries} />

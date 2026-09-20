@@ -4,6 +4,7 @@ import { cookies } from "next/headers"
 import { getPortionGuide } from "@/lib/actions/portion-guide"
 import { PortionGuide } from "@/components/kitchen/PortionGuide"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
 
@@ -55,6 +56,7 @@ export default async function KitchenPortionsPage({
           costed on, straight off the recipe cards, so they change the moment a
           card does. Weigh it, every service.
         </p>
+        <div className="mt-3"><VenueSwitch current={venue} /></div>
       </div>
 
       <PortionGuide dishes={dishes} />

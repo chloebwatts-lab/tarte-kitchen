@@ -15,7 +15,7 @@
  *  - Monitoring consent, so access logging and owner-only alerts are fair.
  */
 
-export const DEED_VERSION = "2026-09-20.3"
+export const DEED_VERSION = "2026-09-20.4"
 
 export const DEED_TITLE = "Confidentiality and Intellectual Property Deed"
 
@@ -41,7 +41,8 @@ export interface DeedSection {
  *    (injunction) is not resisted on the ground that the signer got nothing;
  *  - a defined, listed subject matter that excludes public information and
  *    general skill, so it is not read down as a disguised restraint;
- *  - the exceptions: terms gagging own pay are unlawful (Fair Work Act pay
+ *  - the one-sentence limits clause (v4, Chloe: no bulleted list of
+ *    permissions): terms gagging own pay are unlawful (Fair Work Act pay
  *    secrecy provisions) and nothing can bar regulator or whistleblower
  *    disclosures; leaving them out would put the rest at risk;
  *  - written assignment + moral rights consent for anything not already the
@@ -78,15 +79,10 @@ export const DEED_SECTIONS: DeedSection[] = [
     ],
   },
   {
-    heading: "3. Exceptions",
-    paragraphs: ["Nothing in this deed stops me from:"],
-    bullets: [
-      "disclosing or discussing my own pay and conditions, or asking others about theirs;",
-      "reporting to, or assisting, a regulator, authority or the police;",
-      "obtaining legal, union or financial advice;",
-      "making a disclosure that is required or protected by law.",
+    heading: "3. Limits",
+    paragraphs: [
+      "This deed does not apply to the extent the law gives me a right to make a disclosure, including about my own pay and conditions, or requires or protects one. It is not a restraint of trade.",
     ],
-    after: ["This deed is not a restraint of trade and does not limit where I work after Tarte."],
   },
   {
     heading: "4. Intellectual property",

@@ -11,6 +11,7 @@ import {
 import { cookies } from "next/headers"
 import { getRestockHub } from "@/lib/actions/restock"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
 import { STATION_LABEL } from "@/lib/stations"
@@ -63,6 +64,7 @@ export default async function RestockHubPage({
           chef runs one consolidated list next morning and restocks both
           kitchens before service.
         </p>
+        <div className="mt-3"><VenueSwitch current={venue} /></div>
         <div
           className="mt-4 max-w-2xl rounded-[16px] px-5 py-4 text-[15px] leading-snug"
           style={{ background: "var(--tk-gold-soft)", color: "#5d4a12" }}
