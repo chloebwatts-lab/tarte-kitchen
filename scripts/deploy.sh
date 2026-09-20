@@ -40,9 +40,25 @@ if [ -z "${DEPLOY_PULLED:-}" ]; then
   DEPLOY_PULLED=1 exec "$0" "$@"
 fi
 
-echo "▶ Rebuilding app + migrate images..."
-docker compose build app
-docker compose --profile tools build migrate
+# A deploy that waited on the lock above usually wakes up to the same commit
+# the first one just shipped. The build is not byte-for-byte repeatable, so
+# rebuilding it made a "new" image and restarted the app a second time for
+# nothing (seen 2026-09-20). Each good deploy leaves its commit in
+# .git/tarte-deployed-sha (reset --hard leaves that alone); when HEAD still
+# matches and the image is there, skip the build, and everything after it
+# finds nothing to change. DEPLOY_FORCE=1 ./scripts/deploy.sh rebuilds anyway.
+head_sha="$(git rev-parse HEAD)"
+deployed_marker=".git/tarte-deployed-sha"
+app_image="$(docker compose config --images | grep -- '-app$' | head -1)"
+if [ -z "${DEPLOY_FORCE:-}" ] \
+  && [ "$(cat "$deployed_marker" 2>/dev/null)" = "$head_sha" ] \
+  && docker image inspect "$app_image" >/dev/null 2>&1; then
+  echo "▶ ${head_sha:0:7} is already built and deployed, skipping the rebuild..."
+else
+  echo "▶ Rebuilding app + migrate images..."
+  docker compose build app
+  docker compose --profile tools build migrate
+fi
 
 echo "▶ Applying pending DB migrations..."
 docker compose --profile tools run --rm migrate
@@ -94,7 +110,6 @@ echo "▶ Checking the running app is the image just built..."
 # "Deployed" has meant "old image still running" more than once. Compare the
 # container's image to the freshly built one and refuse to call it done
 # until they match; one retry covers a recreate that half-happened.
-app_image="$(docker compose config --images | grep -- '-app$' | head -1)"
 want="$(docker image inspect -f '{{.Id}}' "$app_image")"
 # Right after a recreate, `compose ps -q app` can still list the old
 # container while it is being removed, so only a RUNNING app container on
@@ -124,5 +139,6 @@ if ! curl -fsS -o /dev/null --retry 20 --retry-delay 2 --retry-all-errors http:/
   exit 1
 fi
 docker compose ps
+echo "$head_sha" > "$deployed_marker"
 
 echo "✓ Deployed $(git rev-parse --short HEAD), app on image ${want#sha256:}."
