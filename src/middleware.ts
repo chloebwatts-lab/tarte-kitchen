@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
-import { STAFF_COOKIE, isValidStaffCookie } from "@/lib/staff-auth"
+import { DEED_VERSION } from "@/lib/confidentiality/deed"
+import { PERSON_COOKIE, decodePerson, encodePerson, personCookieOptions } from "@/lib/person-auth"
 
 /**
- * Staff areas: gated by the shared staff password (see src/lib/staff-auth.ts),
- * not by next-auth. An admin session gets through too, so nobody signed in to
- * the office side has to log in twice.
+ * Staff areas: every person signs in as themselves (last name + Tarte Shifts
+ * PIN, see src/lib/person-auth.ts) and must have signed the current
+ * confidentiality deed before anything else opens. An office session gets
+ * through too, so Chloe never signs in twice.
  */
 const STAFF_PREFIXES = ["/kitchen", "/staffaccess", "/log"]
 
@@ -21,11 +23,25 @@ export default async function middleware(req: NextRequest) {
 
   if (isStaffPath(pathname)) {
     if (token) return NextResponse.next()
-    const cookie = req.cookies.get(STAFF_COOKIE)?.value
-    if (await isValidStaffCookie(cookie)) return NextResponse.next()
-    const loginUrl = new URL("/staff-login", req.url)
-    loginUrl.searchParams.set("next", pathname + req.nextUrl.search)
-    return NextResponse.redirect(loginUrl)
+    const person = await decodePerson(req.cookies.get(PERSON_COOKIE)?.value)
+    if (!person) {
+      const loginUrl = new URL("/staff-login", req.url)
+      loginUrl.searchParams.set("next", pathname + req.nextUrl.search)
+      return NextResponse.redirect(loginUrl)
+    }
+    // No deed, no app. The deed page and its beacon are the only way through.
+    const deedExempt = pathname.startsWith("/kitchen/confidentiality") || pathname === "/kitchen/beacon"
+    if (person.deed !== DEED_VERSION && !deedExempt) {
+      const deedUrl = new URL("/kitchen/confidentiality", req.url)
+      deedUrl.searchParams.set("next", pathname + req.nextUrl.search)
+      return NextResponse.redirect(deedUrl)
+    }
+    const res = NextResponse.next()
+    // Sliding idle window. Rewritten at most once a minute, not per request.
+    if (Date.now() - person.seen > 60_000) {
+      res.cookies.set(PERSON_COOKIE, await encodePerson({ ...person, seen: Date.now() }), personCookieOptions())
+    }
+    return res
   }
 
   if (!token) {

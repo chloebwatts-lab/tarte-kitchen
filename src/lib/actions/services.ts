@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
+import { isManagerAuthed } from "@/lib/manager-auth"
 import { Venue, ServiceVisitKind } from "@/generated/prisma/client"
 import {
   SERVICE_CATEGORIES,
@@ -85,6 +86,7 @@ export async function getServicePrograms(opts?: {
   includeInactive?: boolean
 }): Promise<ServiceProgramRow[]> {
   await ensureDefaultPrograms()
+  const showCosts = await isManagerAuthed().catch(() => false)
   const programs = await db.serviceProgram.findMany({
     where: {
       ...(opts?.venue ? { venue: opts.venue } : {}),
@@ -122,7 +124,8 @@ export async function getServicePrograms(opts?: {
         kind: v.kind,
         serviceDate: toDateStr(v.serviceDate)!,
         providerName: v.providerName,
-        costCents: v.costCents,
+        // Trade invoice amounts are for managers and the office.
+        costCents: showCosts ? v.costCents : null,
         source: v.source,
         needsReview: v.needsReview,
         emailSubject: v.emailSubject,

@@ -1,8 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import { redirect } from "next/navigation"
-import { gmPasswordIsSet, isGmAuthed } from "@/lib/gm-auth"
-import { GmUnlock } from "@/components/kitchen/GmUnlock"
+import { isGmAuthed } from "@/lib/gm-auth"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 
 export default async function GmUnlockPage({
@@ -13,7 +12,6 @@ export default async function GmUnlockPage({
   const sp = await searchParams
   const next = typeof sp.next === "string" && sp.next.startsWith("/kitchen/gm") ? sp.next : "/kitchen/gm"
   if (await isGmAuthed()) redirect(next)
-  const configured = await gmPasswordIsSet()
 
   return (
     <div className="space-y-6">
@@ -23,10 +21,15 @@ export default async function GmUnlockPage({
           Oliver only
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
-          Your desk. Stays unlocked on this device for 30 days.
+          Your desk. It opens with your own sign in.
         </p>
       </div>
-      <GmUnlock next={next} configured={configured} />
+      <div className="rounded-[20px] border border-[var(--tk-line)] bg-white p-6 text-[16px] leading-snug text-[var(--tk-charcoal)]">
+        <strong>Your sign in does not open this part.</strong>
+        <p className="mt-1 text-[var(--tk-ink-soft)]">
+          Access now comes from your own name and PIN, not a shared password. If you should be able to see this, ask Chloe to update your role.
+        </p>
+      </div>
     </div>
   )
 }

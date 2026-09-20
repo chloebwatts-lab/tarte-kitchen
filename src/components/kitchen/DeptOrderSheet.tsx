@@ -165,9 +165,11 @@ export function DeptOrderSheet({ initialSheet }: { initialSheet: EodSheet }) {
           <div className="tk-caps" style={{ color: "var(--tk-ink-mute)" }}>
             To send
           </div>
-          <div className="text-[15px] font-semibold text-[var(--tk-charcoal)] tabular-nums">
-            ${sheet.grandTotal.toFixed(2)} ex GST
-          </div>
+          {sheet.showPrices ? (
+            <div className="text-[15px] font-semibold text-[var(--tk-charcoal)] tabular-nums">
+              ${sheet.grandTotal.toFixed(2)} ex GST
+            </div>
+          ) : null}
         </div>
       )}
 
@@ -214,9 +216,11 @@ export function DeptOrderSheet({ initialSheet }: { initialSheet: EodSheet }) {
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <div className="text-[17px] font-semibold text-[var(--tk-charcoal)] tabular-nums">
-                  ${supplier.total.toFixed(2)}
-                </div>
+                {sheet.showPrices ? (
+                  <div className="text-[17px] font-semibold text-[var(--tk-charcoal)] tabular-nums">
+                    ${supplier.total.toFixed(2)}
+                  </div>
+                ) : null}
                 <div className="text-[13px] text-[var(--tk-ink-soft)]">
                   {supplier.lines.length} line
                   {supplier.lines.length === 1 ? "" : "s"}
@@ -270,9 +274,11 @@ export function DeptOrderSheet({ initialSheet }: { initialSheet: EodSheet }) {
                         <div className="text-[16px] font-semibold text-[var(--tk-charcoal)]">
                           {line.quantity} ×
                         </div>
-                        <div className="text-[13px] text-[var(--tk-ink-soft)]">
-                          ${line.lineTotal.toFixed(2)}
-                        </div>
+                        {sheet.showPrices ? (
+                          <div className="text-[13px] text-[var(--tk-ink-soft)]">
+                            ${line.lineTotal.toFixed(2)}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   )
@@ -342,9 +348,8 @@ export function DeptOrderSheet({ initialSheet }: { initialSheet: EodSheet }) {
                   {s.supplierName}
                 </div>
                 <div className="text-[13px] text-[var(--tk-ink-soft)]">
-                  ${s.total.toFixed(2)}
-                  {s.sent?.by ? ` · ${s.sent.by}` : ""}
-                  {" · "}
+                  {sheet.showPrices ? `$${s.total.toFixed(2)} · ` : ""}
+                  {s.sent?.by ? `${s.sent.by} · ` : ""}
                   {s.sent?.emailed ? "emailed" : "not emailed yet"}
                 </div>
               </div>

@@ -51,7 +51,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       { title: "Ordering", sub: "Your section's order, into one daily order", href: "/kitchen/order", icon: ShoppingCart },
       { title: "Where to buy", sub: "Which shop or supplier for what, who to call", href: "/kitchen/ordering", icon: ShoppingBasket },
       { title: "Coolroom serves", sub: "Tub weight to full serves", href: "/kitchen/serves", icon: Scale },
-      { title: "Price check", sub: "What we pay for an item, per venue, off our invoices", href: "/kitchen/prices", icon: Tag },
+      { title: "Price check", sub: "Managers. What we pay for an item, per venue, off our invoices", href: "/kitchen/prices", icon: Tag },
     ],
   },
   {
@@ -70,7 +70,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     slug: "managers",
     title: "Managers",
-    sub: "Line-up, morning board, jobs board. Password.",
+    sub: "Line-up, morning board, jobs board. Managers and supervisors.",
     icon: Lock,
     href: "/kitchen/managers",
     locked: true,
@@ -87,7 +87,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     slug: "gm",
     title: "Oliver",
-    sub: "GM desk: today, this week, the numbers. Own password.",
+    sub: "GM desk: today, this week, the numbers. Opens for Oliver.",
     icon: Compass,
     href: "/kitchen/gm",
     locked: true,

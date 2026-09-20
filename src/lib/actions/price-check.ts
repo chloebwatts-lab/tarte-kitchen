@@ -1,5 +1,6 @@
 "use server"
 
+import { assertManager } from "@/lib/manager-auth"
 import { db } from "@/lib/db"
 
 /**
@@ -49,6 +50,7 @@ type Raw = {
  * raw spellings ("Avocados", "AVOCADO HASS #20 TRAY") collapse to one item.
  */
 export async function searchPrices(query: string): Promise<IngredientPrices[]> {
+  await assertManager()
   const q = query.trim()
   if (q.length < 2) return []
 

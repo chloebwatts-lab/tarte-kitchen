@@ -49,6 +49,7 @@ services:
       # Comma-separated; defaults in code to hello@ + shawna@ when unset.
       MAINTENANCE_ALERT_TO: ${MAINTENANCE_ALERT_TO:-}
       ACCOUNTABILITY_TO: ${ACCOUNTABILITY_TO:-}
+      ACCESS_ALERT_TO: ${ACCESS_ALERT_TO:-}
       # Secrets used at runtime — sourced from the droplet's .env via docker compose
       TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY}
       CRON_SECRET: ${CRON_SECRET}
@@ -209,6 +210,13 @@ services:
         # trap / pest / canopy / fire etc. invoices + booking emails in
         # accounts@ → ServiceVisit rows (needsReview) on /services. Each
         # message is Claude-classified at most once (ServiceEmailSeen).
+        # Every 10 min — owner-only access alerts (bulk opening of sensitive
+        # pages, out-of-hours use, PIN guessing, new locations, capture
+        # attempts). Goes to ACCESS_ALERT_TO, default chloe@ only. Never staff.
+        */10 * * * * curl -fsS -m 60 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/access-alerts 2>&1
+        # 17:05 AEST daily — owner-only: who has signed the confidentiality
+        # deed, who has not, and the day's sign-ins.
+        5 7 * * * curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/access-alerts?kind=daily' 2>&1
         # 17:00 AEST (07:00 UTC) daily — end-of-day accountability email to
         # Chloe, Shawna and hello@: open fixes, board jobs, orders waiting and
         # agenda items, per venue, with owner and age. Open items only.

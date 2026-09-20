@@ -3090,3 +3090,80 @@ model GmSickCall {
   @@index([calledOn])
   @@index([staffName])
 }
+
+// ============================================================
+// PER-PERSON ACCESS (20 Sep 2026). Staff sign in to Tarte Kitchen with
+// their Tarte Shifts name + kiosk PIN; nobody shares a password. These
+// tables hold the signed confidentiality deed, the access trail, and the
+// owner-only alerts raised from it. staffId is the Tarte Shifts staff id
+// (the people live in that app's database, not this one).
+// ============================================================
+
+/// One signed Confidentiality and IP Deed. A new DEED_VERSION means a new
+/// row per person; old rows are never edited or deleted.
+model ConfidentialityDeed {
+  id        String @id @default(cuid())
+  staffId   String
+  staffName String
+  /// DEED_VERSION at signing, and SHA-256 of the exact text shown.
+  version   String
+  textHash  String
+
+  /// Full legal name as typed, and the drawn signature (PNG data URL).
+  signedName   String
+  signatureImg String  @db.Text
+  /// Under 18: parent or guardian's typed name and drawn signature.
+  guardianName         String?
+  guardianSignatureImg String? @db.Text
+
+  ip        String?
+  userAgent String?
+  /// Where the emailed copy went, and when.
+  copySentTo String?
+  signedAt  DateTime @default(now())
+
+  @@unique([staffId, version])
+  @@index([staffId])
+}
+
+enum AccessEventKind {
+  LOGIN
+  LOGIN_FAILED
+  LOGOUT
+  VIEW
+  DEED_SIGNED
+  /// Best effort only: a browser cannot see a real screenshot. Raised by
+  /// the PrintScreen key and by a print attempt.
+  CAPTURE_ATTEMPT
+}
+
+/// Who opened what, when, from where. Read by the owner-only alert sweep.
+model AccessEvent {
+  id        String          @id @default(cuid())
+  kind      AccessEventKind
+  staffId   String?
+  staffName String?
+  /// Name as typed on a failed login, so guessing shows up.
+  attemptedName String?
+  path      String?
+  ip        String?
+  userAgent String?
+  /// Stable per-browser id (cookie), so "new device" can be spotted.
+  deviceId  String?
+  at        DateTime        @default(now())
+
+  @@index([staffId, at])
+  @@index([kind, at])
+  @@index([at])
+}
+
+/// An alert already sent to the owner, so the sweep never sends it twice.
+model AccessAlert {
+  id        String   @id @default(cuid())
+  /// Dedupe key, e.g. "bulk:<staffId>:2026-09-20T10" or "newdevice:<staffId>:<deviceId>".
+  key       String   @unique
+  staffId   String?
+  staffName String?
+  summary   String
+  sentAt    DateTime @default(now())
+}

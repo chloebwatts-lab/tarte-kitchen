@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { getServerSession } from "next-auth"
+import { getPerson, isOwnerSession } from "@/lib/person-session"
 import { compare, hash } from "bcryptjs"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
@@ -63,20 +64,22 @@ export async function setGmCookie(): Promise<void> {
 
 export async function isGmAuthed(): Promise<boolean> {
   // Local preview only: lets the desk be checked in dev without a live
-  // password. Ignored in production builds.
+  // sign in. Ignored in production builds.
   if (process.env.NODE_ENV !== "production" && process.env.GM_DEV_BYPASS === "1") return true
-  if (await getServerSession(authOptions)) return true
-  const raw = (await cookies()).get(COOKIE_NAME)?.value
-  if (!raw) return false
-  const idx = raw.indexOf(".")
-  if (idx < 0) return false
-  const payload = raw.slice(0, idx)
-  const sig = raw.slice(idx + 1)
-  const expected = sign(payload)
-  if (sig.length !== expected.length) return false
-  if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false
-  const expiresAt = Number(payload)
-  return Number.isFinite(expiresAt) && expiresAt > Date.now()
+  if (await isOwnerSession()) return true
+  // Since 20 Sep 2026 the desk opens for one person, by their own sign in:
+  // the Tarte Shifts staff id held in AppSetting gmStaffId. No desk password.
+  const person = await getPerson()
+  if (!person) return false
+  const gm = await db.appSetting.findUnique({ where: { key: "gmStaffId" } })
+  if (!gm || gm.value !== person.id) return false
+  // First time he opens it, start the nudges (they wait for this marker).
+  await db.appSetting.upsert({
+    where: { key: "gmFirstUnlockAt" },
+    create: { key: "gmFirstUnlockAt", value: new Date().toISOString() },
+    update: {},
+  })
+  return true
 }
 
 /** Call at the top of every GM desk page. */

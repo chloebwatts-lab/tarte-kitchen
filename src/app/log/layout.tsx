@@ -11,6 +11,8 @@ import "../kitchen/kitchen.css"
 import Link from "next/link"
 import { LayoutGrid } from "lucide-react"
 import { RefreshOnResume } from "@/components/kitchen/RefreshOnResume"
+import { Suspense } from "react"
+import { StaffShell } from "@/components/kitchen/StaffShell"
 
 export default function LogLayout({
   children,
@@ -26,6 +28,9 @@ export default function LogLayout({
     >
       {/* Home-screen iPads resume days-old pages; refetch on resume. */}
       <RefreshOnResume />
+      <Suspense fallback={null}>
+        <StaffShell />
+      </Suspense>
       <div className="mx-auto max-w-[1194px] px-6 py-5 md:px-10 md:py-8">
         <div className="mb-4 flex justify-end">
           <Link

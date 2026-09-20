@@ -10,6 +10,8 @@ export const metadata: Metadata = {
 import "../kitchen/kitchen.css"
 
 import { RefreshOnResume } from "@/components/kitchen/RefreshOnResume"
+import { Suspense } from "react"
+import { StaffShell } from "@/components/kitchen/StaffShell"
 
 export default function StaffAccessLayout({ children }: { children: React.ReactNode }) {
   // Same kiosk shell as /kitchen, no sidebar, no login, iPad-first.
@@ -17,6 +19,9 @@ export default function StaffAccessLayout({ children }: { children: React.ReactN
     <div className="tk-root min-h-screen" style={{ background: "var(--tk-bg)" }}>
       {/* Home-screen iPads resume days-old pages; refetch on resume. */}
       <RefreshOnResume />
+      <Suspense fallback={null}>
+        <StaffShell />
+      </Suspense>
       {children}
     </div>
   )

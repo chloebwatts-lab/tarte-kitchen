@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { getServerSession } from "next-auth"
 import { compare, hash } from "bcryptjs"
+import { personIsManager } from "@/lib/person-session"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 
@@ -77,8 +78,10 @@ async function managerCookieExpiry(): Promise<number | null> {
 }
 
 export async function isManagerAuthed(): Promise<boolean> {
-  if (await getServerSession(authOptions)) return true
-  return (await managerCookieExpiry()) !== null
+  // Since 20 Sep 2026 there is no managers password: the tier comes from the
+  // person's role in Tarte Shifts (MANAGER, OWNER, or SENIOR for supervisors).
+  // An office session still passes.
+  return personIsManager()
 }
 
 /**

@@ -3,12 +3,15 @@ export const dynamic = "force-dynamic"
 import type { Metadata } from "next"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { PriceCheck } from "@/components/kitchen/PriceCheck"
+import { requireManager } from "@/lib/manager-auth"
 
 export const metadata: Metadata = {
   title: "Price check · Tarte",
 }
 
-export default function KitchenPricesPage() {
+export default async function KitchenPricesPage() {
+  // Supplier prices are manager tier (Chloe, 20 Sep 2026).
+  await requireManager("/kitchen/prices")
   return (
     <div className="space-y-6">
       <KitchenBreadcrumb
