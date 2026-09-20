@@ -12,6 +12,9 @@ import { decrypt } from "../src/lib/encryption"
 import { getMessage, getAttachment, extractPdfAttachments, getHeader } from "../src/lib/gmail/client"
 
 const WRITE = process.argv.includes("--write")
+// Stamped on each new row. Was hardcoded to the first run (7 Sep 2026), which
+// would mislabel every later re-run.
+const FILED_ON = new Date().toLocaleDateString("en-AU", { timeZone: "Australia/Brisbane", day: "numeric", month: "short", year: "numeric" })
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 
 ;(async () => {
@@ -43,7 +46,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL })
        values ($1,$2::"Venue",'PEST_CONTROL_REPORT',$3,$4,$5::date,$6,'application/pdf',$7,$8,$9, now())`,
       [randomUUID(), v.venue, `Crisis Pest Management - service invoice #${inv}`,
        "Service visit record (tax invoice from licensed pest controller). Detailed treatment report available from Crisis Pest Management on request.",
-       v.sd, fileName, data.length, data, "Tarte admin (7 Sep 2026, from accounts@ Gmail)"],
+       v.sd, fileName, data.length, data, `Tarte admin (${FILED_ON}, from accounts@ Gmail)`],
     )
     console.log(`  INSERTED ${fileName} (${data.length} B)`)
   }
