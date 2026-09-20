@@ -90,7 +90,7 @@ export async function listActiveStaff(): Promise<ShiftsStaff[] | null> {
 }
 
 /** Ask Shifts to email the PIN to the address already on that person's record. Says nothing either way. */
-export async function remindPin(lastName: string, email: string, ip: string): Promise<void> {
+export async function remindPin(lastName: string, email: string, ip: string, signed = false): Promise<void> {
   const base = shiftsBase()
   const secret = process.env.SHIFTS_SECRET
   if (!base || !secret) return
@@ -98,11 +98,39 @@ export async function remindPin(lastName: string, email: string, ip: string): Pr
     await fetch(`${base}/api/internal/remind-pin`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${secret}` },
-      body: JSON.stringify({ lastName, email, ip }),
+      body: JSON.stringify({ lastName, email, ip, signed }),
       cache: "no-store",
       signal: AbortSignal.timeout(15000),
     })
   } catch (e) {
     console.error("[shifts-staff] remind-pin failed", e)
+  }
+}
+
+
+/** Who is this, by last name + the email on their record? Never returns a PIN. */
+export async function findStaff(lastName: string, email: string, ip: string): Promise<ShiftsStaff | null> {
+  if (process.env.NODE_ENV !== "production" && process.env.PERSON_DEV_LOGIN === "1") {
+    return lastName.trim().toLowerCase() === "dev"
+      ? { id: "dev-staff", firstName: "Dev", lastName: "Tester", role: "STAFF", venue: "BURLEIGH", email }
+      : null
+  }
+  const base = shiftsBase()
+  const secret = process.env.SHIFTS_SECRET
+  if (!base || !secret) return null
+  try {
+    const res = await fetch(`${base}/api/internal/find-staff`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${secret}` },
+      body: JSON.stringify({ lastName, email, ip }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!res.ok) return null
+    const data = (await res.json()) as { ok: boolean; staff?: ShiftsStaff }
+    return data.ok && data.staff ? data.staff : null
+  } catch (e) {
+    console.error("[shifts-staff] find failed", e)
+    return null
   }
 }

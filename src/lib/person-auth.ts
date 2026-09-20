@@ -25,6 +25,8 @@ export interface PersonSession {
   /** Tarte Shifts staff id. */
   id: string
   name: string
+  /** Last name as Shifts holds it, for the PIN email after the deed is signed. */
+  last?: string
   role: PersonRole
   /** For the emailed copy of the deed. Optional: not everyone has one on file. */
   email?: string | null
@@ -114,4 +116,41 @@ export function personCookieOptions() {
 
 export function isManagerRole(role: PersonRole): boolean {
   return role === "OWNER" || role === "MANAGER" || role === "SUPERVISOR"
+}
+
+
+/**
+ * One-time setup link ("set up your sign in"). Emailed to the address on the
+ * person's Shifts record, so opening it proves they own that mailbox. Carries
+ * who they are; good for SETUP_MINUTES.
+ */
+export const SETUP_MINUTES = 60
+
+export interface SetupToken {
+  id: string
+  first: string
+  last: string
+  role: PersonRole
+  email: string
+  minor: boolean
+  exp: number
+}
+
+export async function encodeSetup(t: SetupToken): Promise<string> {
+  const body = toB64Url(JSON.stringify(t))
+  return `${body}.${await signHex(`setup:${body}`)}`
+}
+
+export async function decodeSetup(raw: string | undefined | null, now = Date.now()): Promise<SetupToken | null> {
+  if (!raw) return null
+  const idx = raw.lastIndexOf(".")
+  if (idx < 0) return null
+  const body = raw.slice(0, idx)
+  if (!safeEqual(raw.slice(idx + 1), await signHex(`setup:${body}`))) return null
+  try {
+    const t = JSON.parse(fromB64Url(body)) as SetupToken
+    return t?.id && t.exp > now ? t : null
+  } catch {
+    return null
+  }
 }

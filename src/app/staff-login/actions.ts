@@ -6,9 +6,10 @@ import { redirect } from "next/navigation"
 import { db } from "@/lib/db"
 import { DEED_VERSION } from "@/lib/confidentiality/deed"
 import { callerIp, isLockedOut, recordAttempt } from "@/lib/login-guard"
-import { DEVICE_COOKIE } from "@/lib/person-auth"
+import { DEVICE_COOKIE, SETUP_MINUTES, encodeSetup } from "@/lib/person-auth"
 import { clearPersonCookie, getPerson, logAccess, setPersonCookie } from "@/lib/person-session"
-import { remindPin, toPersonRole, verifyStaff } from "@/lib/shifts-staff"
+import { findStaff, toPersonRole, verifyStaff } from "@/lib/shifts-staff"
+import { sendEmail } from "@/lib/gmail/send"
 
 /** Only ever bounce back into our own app, never to a pasted URL. */
 function safeNext(raw: string): string {
@@ -64,6 +65,7 @@ export async function submitStaffLogin(formData: FormData): Promise<void> {
   await setPersonCookie({
     id: s.id,
     name,
+    last: s.lastName,
     role: toPersonRole(s.role),
     email: s.email ?? null,
     minor: !!s.minor,
@@ -83,14 +85,42 @@ export async function signOut(): Promise<void> {
   redirect("/staff-login")
 }
 
-/** "Forgot your PIN?": Shifts emails it to the address on file. Same answer whether or not anything matched. */
-export async function submitPinReminder(formData: FormData): Promise<void> {
+/**
+ * "Set up your sign in" / "Forgot your PIN": emails a one-time link to the
+ * address on the person's record. The link signs them in, the deed comes
+ * first, and only then is the PIN emailed. Same answer whether or not
+ * anything matched.
+ */
+export async function submitSetupRequest(formData: FormData): Promise<void> {
   const lastName = String(formData.get("lastName") ?? "").trim().slice(0, 80)
   const email = String(formData.get("email") ?? "").trim().slice(0, 160)
   const ip = await callerIp()
   if (lastName && email.includes("@") && !(await isLockedOut("staff", ip))) {
-    await remindPin(lastName, email, ip)
-    await logAccess("LOGIN_FAILED", { attemptedName: `${lastName} (asked for PIN reminder)` })
+    const staff = await findStaff(lastName, email, ip)
+    if (staff?.email) {
+      const token = await encodeSetup({
+        id: staff.id,
+        first: staff.firstName,
+        last: staff.lastName,
+        role: toPersonRole(staff.role),
+        email: staff.email,
+        minor: !!staff.minor,
+        exp: Date.now() + SETUP_MINUTES * 60_000,
+      })
+      const base = (process.env.NEXTAUTH_URL ?? "https://kitchen.tarte.com.au").replace(/\/$/, "")
+      const link = `${base}/staff-login/setup?t=${encodeURIComponent(token)}`
+      try {
+        await sendEmail({
+          to: staff.email,
+          subject: "Set up your Tarte sign in",
+          body: `Hi ${staff.firstName},\n\nTap this link to set up your own Tarte Kitchen sign in. It works for ${SETUP_MINUTES} minutes and only for you:\n\n${link}\n\nYou will be asked to read and sign a confidentiality deed (about three minutes). As soon as it is signed, your PIN is emailed to you.\n\nIf you did not ask for this, ignore it.\n\nChloe`,
+        })
+      } catch (e) {
+        console.error("[setup-link] send failed", e)
+      }
+    } else {
+      await logAccess("LOGIN_FAILED", { attemptedName: `${lastName} (setup link, no match)` })
+    }
   }
-  redirect("/staff-login/pin?sent=1")
+  redirect("/staff-login/start?sent=1")
 }
