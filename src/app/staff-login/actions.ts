@@ -8,7 +8,7 @@ import { DEED_VERSION } from "@/lib/confidentiality/deed"
 import { callerIp, isLockedOut, recordAttempt } from "@/lib/login-guard"
 import { DEVICE_COOKIE } from "@/lib/person-auth"
 import { clearPersonCookie, getPerson, logAccess, setPersonCookie } from "@/lib/person-session"
-import { toPersonRole, verifyStaff } from "@/lib/shifts-staff"
+import { remindPin, toPersonRole, verifyStaff } from "@/lib/shifts-staff"
 
 /** Only ever bounce back into our own app, never to a pasted URL. */
 function safeNext(raw: string): string {
@@ -81,4 +81,16 @@ export async function signOut(): Promise<void> {
   if (p) await logAccess("LOGOUT", { staffId: p.id, staffName: p.name })
   await clearPersonCookie()
   redirect("/staff-login")
+}
+
+/** "Forgot your PIN?": Shifts emails it to the address on file. Same answer whether or not anything matched. */
+export async function submitPinReminder(formData: FormData): Promise<void> {
+  const lastName = String(formData.get("lastName") ?? "").trim().slice(0, 80)
+  const email = String(formData.get("email") ?? "").trim().slice(0, 160)
+  const ip = await callerIp()
+  if (lastName && email.includes("@") && !(await isLockedOut("staff", ip))) {
+    await remindPin(lastName, email, ip)
+    await logAccess("LOGIN_FAILED", { attemptedName: `${lastName} (asked for PIN reminder)` })
+  }
+  redirect("/staff-login/pin?sent=1")
 }

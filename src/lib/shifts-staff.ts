@@ -88,3 +88,21 @@ export async function listActiveStaff(): Promise<ShiftsStaff[] | null> {
     return null
   }
 }
+
+/** Ask Shifts to email the PIN to the address already on that person's record. Says nothing either way. */
+export async function remindPin(lastName: string, email: string, ip: string): Promise<void> {
+  const base = shiftsBase()
+  const secret = process.env.SHIFTS_SECRET
+  if (!base || !secret) return
+  try {
+    await fetch(`${base}/api/internal/remind-pin`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${secret}` },
+      body: JSON.stringify({ lastName, email, ip }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(15000),
+    })
+  } catch (e) {
+    console.error("[shifts-staff] remind-pin failed", e)
+  }
+}

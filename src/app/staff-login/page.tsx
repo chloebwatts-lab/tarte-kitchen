@@ -114,6 +114,9 @@ export default async function StaffLoginPage({
         >
           Sign in
         </button>
+        <a href="/staff-login/pin" className="mt-4 block text-center text-[15px] font-medium text-[var(--tk-charcoal)] underline">
+          Forgot your PIN, or never had one?
+        </a>
         <p className="mt-4 text-center text-[12px] leading-snug text-[var(--tk-ink-mute)]">
           Everything in here is confidential to Tarte. Your sign in is
           personal to you and what you open is recorded.
