@@ -98,6 +98,29 @@ const OWN_ENTITY_PROBES = [
   "tarte currumbin",
 ]
 
+/** True when the parsed "supplier" is really one of our own entities, i.e.
+ * the parser read the customer block, or the PDF is one of OUR invoices (a
+ * function or event invoice Tarte issued). */
+export function isOwnEntityLetterhead(letterhead: string | null): boolean {
+  if (!letterhead) return false
+  const lh = letterhead.toLowerCase()
+  return OWN_ENTITY_PROBES.some((p) => lh.includes(p))
+}
+
+/** Does the letterhead or the sender display name belong to a known
+ * non-food sender? Checked BEFORE supplier matching: the Office of Liquor
+ * and Gaming Regulation licence fee shares the token "liquor" with Paramount
+ * Liquor, so it passed the letterhead check and was booked as $833 of liquor
+ * spend even though "department of justice" was on the ignore list (the list
+ * was only consulted after a failed match). */
+export function isIgnoredSender(
+  parsedSupplierName: string | null,
+  senderDisplayName: string | null
+): boolean {
+  const probeStr = `${parsedSupplierName ?? ""} ${senderDisplayName ?? ""}`.toLowerCase()
+  return IGNORED_SENDER_PROBES.some((p) => probeStr.includes(p))
+}
+
 const NAME_NOISE =
   /\b(pty|ltd|limited|p\/l|inc|incorporated|the|trust|group|holdings|co|company|australia|aust|au|qld|nsw|vic|wholesale|distribution|distributors|trading|t\/a|atf|as trustee for)\b/g
 

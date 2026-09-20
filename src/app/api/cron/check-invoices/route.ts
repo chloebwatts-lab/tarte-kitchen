@@ -19,7 +19,8 @@ import { parseInvoicePdf } from "@/lib/invoices/parser"
 import { processInvoice } from "@/lib/invoices/processor"
 import {
   disambiguateSupplier,
-  IGNORED_SENDER_PROBES,
+  isIgnoredSender,
+  isOwnEntityLetterhead,
   isOwnMailbox,
   type SupplierRef,
 } from "@/lib/invoices/supplier-match"
@@ -289,14 +290,29 @@ async function processMessages(
           continue
         }
 
-        const { supplier, reason } = disambiguateSupplier(
+        // Known non-food senders are skipped before matching, not only
+        // after a failed match (a shared word like "liquor" can pass the
+        // letterhead check).
+        if (isIgnoredSender(parsed.supplierName, senderName)) continue
+
+        let { supplier, reason } = disambiguateSupplier(
           candidates,
           parsed.supplierName,
           senderName
         )
+        // A forward from one of our own mailboxes whose PDF carries OUR
+        // letterhead is one of our own invoices (a function or event
+        // invoice), never supplier spend. The letterhead check calls our
+        // own name "unverifiable" so Breadtop (whose PDFs parse with the
+        // customer block) still gets through the Xero relay, but from a
+        // staff mailbox there is no supplier evidence at all: five Hideout
+        // event invoices were booked as $8,103 of Paramount Liquor spend
+        // this way in May 2026. Park it for review instead.
+        if (supplier && isOwnMailbox(senderEmail) && isOwnEntityLetterhead(parsed.supplierName)) {
+          reason = `staff forward with our own letterhead "${parsed.supplierName}", contradicted by letterhead check (no supplier named on the PDF)`
+          supplier = null
+        }
         if (!supplier) {
-          const probeStr = `${parsed.supplierName ?? ""} ${senderName ?? ""}`.toLowerCase()
-          if (IGNORED_SENDER_PROBES.some((p) => probeStr.includes(p))) continue
           // Park it in the review queue rather than only logging. An
           // unmatched PDF used to be dropped on the floor every sweep with
           // nothing durable to action; these are precisely the documents a
