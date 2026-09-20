@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
 import { DeedReader } from "@/components/kitchen/DeedReader"
 import {
+  DEED_CONSIDERATION,
   DEED_EXECUTION,
   DEED_INTRO,
   DEED_SECTIONS,
@@ -37,7 +38,7 @@ export default async function ConfidentialityPage({
           {DEED_TITLE}
         </h1>
         <p className="mt-2 text-[16px] leading-snug text-[var(--tk-ink-soft)]">
-          Everything in this app is how Tarte works: recipes, portions, prices, numbers. Read this, then sign at the bottom. It takes about three minutes and you get a copy by email.
+          Read this, then sign at the bottom. You get a copy by email.
         </p>
       </div>
 
@@ -48,6 +49,7 @@ export default async function ConfidentialityPage({
           <ul className="list-disc space-y-1 pl-5 text-[15px] text-[var(--tk-ink-soft)]">
             {TARTE_ENTITIES.map((e) => <li key={e}>{e}</li>)}
           </ul>
+          <p>{DEED_CONSIDERATION}</p>
           {DEED_SECTIONS.map((s) => (
             <section key={s.heading} className="space-y-2">
               <h2 className="pt-2 text-[18px] font-semibold">{s.heading}</h2>

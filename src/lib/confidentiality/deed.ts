@@ -15,13 +15,13 @@
  *  - Monitoring consent, so access logging and owner-only alerts are fair.
  */
 
-export const DEED_VERSION = "2026-09-20.2"
+export const DEED_VERSION = "2026-09-20.3"
 
 export const DEED_TITLE = "Confidentiality and Intellectual Property Deed"
 
 export const TARTE_ENTITIES = [
-  "Tarte Pty Ltd as trustee for the CBW Trust (ABN 35 686 638 057), trading as Tarte Bakery, Burleigh Heads",
-  "Tarte Currumbin Pty Ltd (ACN 666 527 920) as trustee for the Saltwater Currumbin Trust (ABN 81 931 246 394), trading as Tarte Beach House and Tarte Tea Garden, Currumbin",
+  "Tarte Pty Ltd as trustee for the CBW Trust (ABN 35 686 638 057)",
+  "Tarte Currumbin Pty Ltd (ACN 666 527 920) as trustee for the Saltwater Currumbin Trust (ABN 81 931 246 394)",
 ]
 
 export interface DeedSection {
@@ -31,93 +31,102 @@ export interface DeedSection {
   after?: string[]
 }
 
+/**
+ * v3 (Chloe, 20 Sep 2026): short and neutral. Nothing that explains why the
+ * information is valuable or what a competitor could do with it. Every
+ * sentence left is doing legal work:
+ *  - deed poll + "executed as a deed" + intention to be bound: binds without
+ *    consideration, enforceable by each named beneficiary;
+ *  - the "in return for" line: consideration as well, so equitable relief
+ *    (injunction) is not resisted on the ground that the signer got nothing;
+ *  - a defined, listed subject matter that excludes public information and
+ *    general skill, so it is not read down as a disguised restraint;
+ *  - the exceptions: terms gagging own pay are unlawful (Fair Work Act pay
+ *    secrecy provisions) and nothing can bar regulator or whistleblower
+ *    disclosures; leaving them out would put the rest at risk;
+ *  - written assignment + moral rights consent for anything not already the
+ *    employer's by law (contractors, out-of-hours work for Tarte);
+ *  - monitoring consent; survival after exit; damages-inadequate
+ *    acknowledgement for urgent injunctions; severance; Queensland law;
+ *    consent to electronic signing.
+ */
 export const DEED_INTRO = [
-  "This is a deed poll. I give it for the benefit of each Tarte business listed below, and any related business that operates a Tarte venue now or in the future (together, Tarte). Each of them can enforce it against me.",
-  "I am signing because Tarte gives me access to information, systems and methods that took years and a great deal of money to build, and which would let a competitor copy Tarte if they got out.",
+  "This deed poll is given by me in favour of each of the following, and each related entity that operates a Tarte venue now or in the future (together, Tarte). Each of them may enforce it.",
 ]
+
+/** Shown after the list of entities. */
+export const DEED_CONSIDERATION =
+  "I give this deed in return for Tarte giving me access to its systems and information, and for my engagement or continued engagement by Tarte."
 
 export const DEED_SECTIONS: DeedSection[] = [
   {
-    heading: "1. What is confidential",
+    heading: "1. Confidential Information",
     paragraphs: [
-      "Confidential Information means everything I see, hear or am given through my work at Tarte that is not public, in any form, including anything in Tarte Kitchen, Tarte Shifts, the tills, shared drives, group chats, emails and on paper. In particular:",
-    ],
-    bullets: [
-      "Recipes, prep cards, methods, portion sizes and weights, plating guides, menu specifications and anything still in development.",
-      "Costings, food cost and wage percentages, prices paid to suppliers, supplier names, terms, quotes and order volumes.",
-      "Sales figures, best sellers, customer and booking information, budgets, targets, reports and anything discussed at management meetings.",
-      "Rosters, other people's pay and personal details, staff records and training material, including the staff handbooks.",
-      "How Tarte's systems work, including checklists, ordering, maintenance, food safety records, logins and passwords.",
-      "Tarte's plans: new venues, new products, negotiations, leases, disputes and anything I am told is private.",
-    ],
-    after: [
-      "Information stops being confidential only if it becomes public without anyone breaking an obligation to Tarte.",
+      "Confidential Information means all information about Tarte's business that is not public and that I obtain through my work with Tarte, in any form. It includes recipes, methods, specifications, portions and menus; costings, pricing, supplier details and terms; sales, financial, customer and booking information; staff, roster and pay records; training material; systems, sign in details and records; and plans, negotiations and disputes.",
+      "It does not include information that is public other than through a breach of duty, or my own general skill and experience.",
     ],
   },
   {
-    heading: "2. What I promise",
-    paragraphs: ["While I work at Tarte and after I leave, I will:"],
+    heading: "2. My obligations",
+    paragraphs: ["During my work with Tarte and after it ends, I must:"],
     bullets: [
-      "Keep Confidential Information secret and use it only to do my job at Tarte.",
-      "Not copy, photograph, screenshot, screen record, download, export, print, forward or send Confidential Information to myself or anyone else, unless my job needs it and a manager or owner has said yes.",
-      "Not show, give or describe Confidential Information to anyone outside Tarte, including other hospitality businesses, suppliers, journalists, friends and family, or on social media.",
-      "Only share it inside Tarte with people who need it for their own job.",
-      "Keep my name and PIN to myself. I will not let anyone use my login and I will not use anyone else's. Anything done under my login is treated as done by me.",
-      "Tell an owner straight away if I think Confidential Information has been lost, copied or shared, or if I see someone else doing it.",
+      "keep Confidential Information confidential and use it only for my work with Tarte;",
+      "not copy, photograph, screenshot, record, download, export, print or send it, except as my work requires;",
+      "not disclose it to anyone outside Tarte, or to anyone inside Tarte who does not need it for their work;",
+      "keep my sign in details to myself and not use anyone else's. Anything done under my sign in is taken to be done by me;",
+      "tell an owner straight away if I become aware of any loss, or any unauthorised use or disclosure, of Confidential Information.",
     ],
   },
   {
-    heading: "3. What this does not stop",
+    heading: "3. Exceptions",
     paragraphs: ["Nothing in this deed stops me from:"],
     bullets: [
-      "Talking about my own pay, hours and conditions, or asking other people about theirs.",
-      "Making a report or complaint to, or answering questions from, a regulator or authority, such as the Fair Work Ombudsman, a food safety or workplace health and safety regulator, the ATO or the police.",
-      "Getting advice from a lawyer, union or accountant, or disclosing something the law requires me to disclose.",
-      "Making a disclosure that is protected by whistleblower laws.",
-      "Working somewhere else in hospitality after Tarte, using the general skills and experience I have built up. This deed is not a restraint of trade. It protects Tarte's information, not my ability to earn a living.",
+      "disclosing or discussing my own pay and conditions, or asking others about theirs;",
+      "reporting to, or assisting, a regulator, authority or the police;",
+      "obtaining legal, union or financial advice;",
+      "making a disclosure that is required or protected by law.",
+    ],
+    after: ["This deed is not a restraint of trade and does not limit where I work after Tarte."],
+  },
+  {
+    heading: "4. Intellectual property",
+    paragraphs: [
+      "All intellectual property in anything I create or contribute to in the course of my work with Tarte belongs to Tarte on creation. I assign to Tarte any such rights I hold, now and in the future, and will sign anything reasonably required to confirm this. To the extent permitted by law, I consent to Tarte using, altering and publishing that work without attribution.",
     ],
   },
   {
-    heading: "4. What I create belongs to Tarte",
+    heading: "5. Monitoring",
     paragraphs: [
-      "Anything I create or contribute to in the course of my work at Tarte belongs to Tarte from the moment it is created. That includes recipes, methods, menus, photos, videos, written content, designs, documents, processes and improvements to any of them. To the extent the law needs an assignment, I assign those rights to Tarte by signing this deed, and I will sign anything reasonably needed to confirm it.",
-      "As far as the law allows, I consent to Tarte using, changing and publishing that work without naming me.",
+      "Tarte records and reviews the use of its systems, including sign ins, devices, pages opened and changes made, and may mark pages with my name and the time. I consent to this.",
     ],
   },
   {
-    heading: "5. Tarte monitors its systems",
+    heading: "6. When my work ends",
     paragraphs: [
-      "I understand and agree that Tarte records and reviews how its systems are used. That includes who signed in, when, from which device, which pages were opened and what was entered or changed. Pages may be marked with my name and the time so that any copy can be traced to me. Tarte can review these records at any time without telling me first.",
+      "When my work with Tarte ends, or earlier on request, I must return or permanently delete all Confidential Information I hold, on any device or account, and confirm this in writing if asked. My obligations continue after my work ends for as long as the information remains confidential.",
     ],
   },
   {
-    heading: "6. When I leave",
+    heading: "7. Breach",
     paragraphs: [
-      "When my work at Tarte ends, or earlier if I am asked, I will return or permanently delete all Confidential Information I hold, including anything on my own phone, email or cloud storage, and confirm in writing that I have done so if asked. My access ends on my last day. My promises in this deed continue after I leave, for as long as the information stays confidential.",
-    ],
-  },
-  {
-    heading: "7. If I break this deed",
-    paragraphs: [
-      "I understand that a breach could cause Tarte serious harm that money alone would not fix. Tarte may go to court for an urgent order to stop me, as well as claiming its losses or any profit made from the breach. While I work at Tarte, a breach may also be treated as serious misconduct.",
+      "I acknowledge that damages may not be an adequate remedy for a breach of this deed. Tarte may seek an injunction or other urgent relief, in addition to damages or an account of profits. A breach during my work with Tarte may be serious misconduct.",
     ],
   },
   {
     heading: "8. General",
     paragraphs: [
-      "This deed is governed by the law of Queensland. If any part of it cannot be enforced, that part is read down or removed and the rest still applies. It adds to, and does not replace, any confidentiality duties in my employment contract or under the general law.",
-      "I agree to sign this deed electronically and to receive a copy by email. If I am under 18, I have had the chance to show this deed to a parent or guardian before signing it.",
-      "I have read this deed, I have had the chance to ask questions and get advice, and I understand it.",
+      "This deed is governed by the law of Queensland and I submit to the courts of Queensland. Any part that is unenforceable is read down or severed and the rest continues. This deed is in addition to my other duties to Tarte under contract or at law.",
+      "I agree to sign this deed electronically and to receive a copy by email. I have read and understood it and have had the opportunity to obtain advice. If I am under 18, I have had the opportunity to show it to a parent or guardian.",
     ],
   },
 ]
 
 export const DEED_EXECUTION =
-  "Executed as a deed poll. By typing my full legal name, drawing my signature and pressing Sign, I sign, seal and deliver this deed and intend to be bound by it immediately."
+  "Executed as a deed poll. By typing my full legal name, drawing my signature and pressing Sign, I sign, seal and deliver this deed and intend to be bound by it from that time."
 
 /** The exact text, flattened. Hashed at signing so the wording can be proved. */
 export function deedPlainText(): string {
-  const out: string[] = [DEED_TITLE, `Version ${DEED_VERSION}`, "", ...DEED_INTRO, "", "Tarte businesses:", ...TARTE_ENTITIES.map((e) => `- ${e}`), ""]
+  const out: string[] = [DEED_TITLE, `Version ${DEED_VERSION}`, "", ...DEED_INTRO, ...TARTE_ENTITIES.map((e) => `- ${e}`), "", DEED_CONSIDERATION, ""]
   for (const s of DEED_SECTIONS) {
     out.push(s.heading, ...s.paragraphs)
     for (const b of s.bullets ?? []) out.push(`- ${b}`)
