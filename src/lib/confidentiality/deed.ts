@@ -15,7 +15,7 @@
  *  - Monitoring consent, so access logging and owner-only alerts are fair.
  */
 
-export const DEED_VERSION = "2026-09-20.1"
+export const DEED_VERSION = "2026-09-20.2"
 
 export const DEED_TITLE = "Confidentiality and Intellectual Property Deed"
 
@@ -106,7 +106,7 @@ export const DEED_SECTIONS: DeedSection[] = [
     heading: "8. General",
     paragraphs: [
       "This deed is governed by the law of Queensland. If any part of it cannot be enforced, that part is read down or removed and the rest still applies. It adds to, and does not replace, any confidentiality duties in my employment contract or under the general law.",
-      "I agree to sign this deed electronically and to receive a copy by email. If I am under 18, a parent or guardian has also read this deed and signs below to confirm they agree to me giving it.",
+      "I agree to sign this deed electronically and to receive a copy by email. If I am under 18, I have had the chance to show this deed to a parent or guardian before signing it.",
       "I have read this deed, I have had the chance to ask questions and get advice, and I understand it.",
     ],
   },
