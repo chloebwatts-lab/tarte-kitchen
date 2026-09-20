@@ -3,6 +3,7 @@ import { db } from "@/lib/db"
 import {
   SEO_SCOREBOARD_KEY,
   buildSeoSection,
+  mirrorRatingsToPlaces,
   parseSeoScoreboardPayload,
 } from "@/lib/seo/scoreboard"
 
@@ -38,7 +39,10 @@ export async function POST(req: NextRequest) {
     create: { key: SEO_SCOREBOARD_KEY, value },
     update: { value },
   })
-  return Response.json({ ok: true, section: await buildSeoSection() })
+  // Same numbers into the Google reviews tiles (the Places feed that used
+  // to fill them is refused by Google, see mirrorRatingsToPlaces).
+  const placesUpdated = await mirrorRatingsToPlaces(parsed)
+  return Response.json({ ok: true, placesUpdated, section: await buildSeoSection() })
 }
 
 export async function GET(req: NextRequest) {

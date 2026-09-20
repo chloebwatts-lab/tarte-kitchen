@@ -661,6 +661,18 @@ function topSellersSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarr
     ${blocks}`
 }
 
+/** " · as at 6 Aug" when a venue's Google rating has not refreshed for more
+ * than 10 days before the digest week ended, so an old number is never
+ * passed off as current. Empty for fresh ratings and for stored digests
+ * from before this field existed. */
+function staleRatingNote(asAt: string | null | undefined, weekEnd: string): string {
+  if (!asAt) return ""
+  const age = (new Date(`${weekEnd}T00:00:00Z`).getTime() - new Date(`${asAt}T00:00:00Z`).getTime()) / 86_400_000
+  if (!(age > 10)) return ""
+  const d = new Date(`${asAt}T00:00:00`)
+  return ` · as at ${d.toLocaleDateString("en-AU", { day: "numeric", month: "short" })}`
+}
+
 function reviewsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative) {
   const venueTiles = `
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:separate;border-spacing:10px 0;">
@@ -671,7 +683,7 @@ function reviewsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrati
             <td style="background:${C.card};border:1px solid ${C.border};border-radius:8px;padding:12px;vertical-align:top;width:33.33%;">
               <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">${escapeHtml(v.venue)}</div>
               <div style="margin-top:6px;font-size:18px;color:${C.ink};font-weight:600;">${v.aggregateRating != null ? v.aggregateRating.toFixed(1) + "★" : "—"}</div>
-              <div style="font-size:11px;color:${C.inkMute};">${v.aggregateTotalRatings != null ? v.aggregateTotalRatings.toLocaleString() + " ratings" : ""}</div>
+              <div style="font-size:11px;color:${C.inkMute};">${v.aggregateTotalRatings != null ? v.aggregateTotalRatings.toLocaleString() + " ratings" : ""}${staleRatingNote(v.aggregateAsAt, snapshot.weekEnd)}</div>
               <div style="margin-top:8px;font-size:12px;color:${C.inkSoft};">${v.count > 0 ? v.count + " new · " + (v.averageThisWeek?.toFixed(1) ?? "—") + "★ this wk" : "no new reviews"}</div>
             </td>`
           )

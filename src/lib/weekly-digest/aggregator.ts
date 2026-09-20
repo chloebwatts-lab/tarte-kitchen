@@ -125,6 +125,9 @@ interface ReviewsSection {
     averageThisWeek: number | null
     aggregateRating: number | null
     aggregateTotalRatings: number | null
+    /// YYYY-MM-DD (Brisbane) the rating above was last refreshed. The tile
+    /// prints it when it is more than a week old, so a dead feed shows.
+    aggregateAsAt?: string | null
     sentimentBreakdown: Record<string, number>
     topThemes: string[]
     staffMentioned: string[]
@@ -361,6 +364,9 @@ async function buildReviewsSection(week: DigestWeek): Promise<ReviewsSection> {
         : null,
       aggregateRating: place?.rating != null ? Number(place.rating) : null,
       aggregateTotalRatings: place?.ratingCount ?? null,
+      aggregateAsAt: place?.lastFetchedAt
+        ? place.lastFetchedAt.toLocaleDateString("en-CA", { timeZone: "Australia/Brisbane" })
+        : null,
       sentimentBreakdown,
       topThemes: Array.from(themeCount.entries())
         .sort((a, b) => b[1] - a[1])

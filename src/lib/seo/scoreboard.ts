@@ -176,6 +176,53 @@ export function ratingLine(r: SeoRating): SeoRatingLine {
   }
 }
 
+/** Rating labels the SEO engine sends, mapped to our venues. Tea Garden has
+ * its own small Google listing that the engine does not track. */
+const RATING_LABEL_TO_VENUE: Record<string, "BEACH_HOUSE" | "BURLEIGH"> = {
+  "beach house": "BEACH_HOUSE",
+  burleigh: "BURLEIGH",
+}
+
+/**
+ * Keep the app's own "what Google shows" numbers alive from the scoreboard.
+ *
+ * GoogleVenuePlace.rating / ratingCount (the Google reviews tiles in the
+ * Friday email and the /reviews page) were only ever written by the Places
+ * API fetch, and that has been refused since 6 Aug 2026: billing is switched
+ * off on the Google Cloud project behind GOOGLE_PLACES_API_KEY, so every call
+ * returns 403 / REQUEST_DENIED. The tiles sat at Beach House 4.5 (1,688)
+ * while Google showed 4.6 (1,739). Each scoreboard push now writes the same
+ * numbers the Search and Google lines print (displayed rating = exact mean
+ * rounded to one decimal, count = every review on the profile) into the place
+ * row plus a GoogleRatingSnapshot history row, so the two can not disagree.
+ * Never overwrites a place row that a working Places fetch refreshed later.
+ */
+export async function mirrorRatingsToPlaces(
+  payload: SeoScoreboardPayload
+): Promise<Array<{ venue: string; rating: number; ratingCount: number }>> {
+  const fetchedAt = new Date(payload.generatedAt)
+  const written: Array<{ venue: string; rating: number; ratingCount: number }> = []
+  for (const r of payload.ratings) {
+    const venue = RATING_LABEL_TO_VENUE[r.label.trim().toLowerCase()]
+    if (!venue) continue
+    const place = await db.googleVenuePlace.findUnique({ where: { venue } })
+    if (!place) continue
+    if (place.lastFetchedAt && place.lastFetchedAt >= fetchedAt) continue
+    const line = ratingLine(r)
+    await db.$transaction([
+      db.googleVenuePlace.update({
+        where: { id: place.id },
+        data: { rating: line.displayed, ratingCount: r.reviewCount, lastFetchedAt: fetchedAt },
+      }),
+      db.googleRatingSnapshot.create({
+        data: { placeId: place.placeId, venue, rating: line.displayed, ratingCount: r.reviewCount, fetchedAt },
+      }),
+    ])
+    written.push({ venue, rating: line.displayed, ratingCount: r.reviewCount })
+  }
+  return written
+}
+
 function brisbaneDate(d: Date): string {
   return d.toLocaleDateString("en-CA", { timeZone: "Australia/Brisbane" })
 }
