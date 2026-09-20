@@ -353,7 +353,7 @@ export default async function CouncilVenuePage({
               </div>
 
               {s.key === "training" && (
-                <TrainingRecordsTable records={trainingRecords} />
+                <TrainingRecordsTable records={trainingRecords} showAll={canManage} />
               )}
 
               {sectionDocs.length === 0 ? (
@@ -464,8 +464,30 @@ function trainingComplete(r: TrainingRow): boolean {
   )
 }
 
-function TrainingRecordsTable({ records }: { records: TrainingRow[] }) {
-  if (records.length === 0) {
+function trainingStarted(r: TrainingRow): boolean {
+  return (
+    !!r.onlineCourseDate ||
+    r.certificateSighted ||
+    !!r.allergenTrainedAt ||
+    !!r.inductionAt ||
+    !!r.illnessPolicyAt ||
+    !!r.recordsTrainedAt ||
+    !!r.verifiedBy
+  )
+}
+
+function TrainingRecordsTable({
+  records: allRecords,
+  showAll,
+}: {
+  records: TrainingRow[]
+  showAll: boolean
+}) {
+  // This page is open without a password, so staff with nothing recorded yet
+  // are counted but only named once signed in.
+  const records = showAll ? allRecords : allRecords.filter(trainingStarted)
+  const notStarted = allRecords.length - records.length
+  if (allRecords.length === 0) {
     return (
       <div className="mb-4 rounded-lg border border-dashed border-input bg-muted/50 px-4 py-4 text-sm text-muted-foreground">
         No staff training records entered yet. Managers add them at{" "}
@@ -487,9 +509,11 @@ function TrainingRecordsTable({ records }: { records: TrainingRow[] }) {
       <p className="mb-2 text-sm text-muted-foreground">
         Live register from the venue iPad:{" "}
         <span className="font-medium">
-          {complete} of {records.length}
+          {complete} of {allRecords.length}
         </span>{" "}
         staff records complete.
+        {notStarted > 0 &&
+          ` ${notStarted} staff have nothing recorded yet, sign in to see their names.`}
       </p>
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full min-w-[720px] text-xs">
