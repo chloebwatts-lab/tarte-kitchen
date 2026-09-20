@@ -803,16 +803,21 @@ Rules:
         weekStartWed = weekStartWedIso(wed)
       }
     }
+    const exAdmin = splitExAdmin({
+      grossWages: numOrNull(w.gross_wages),
+      wagesAdmin: numOrNull(w.wages_admin),
+      lessLeaveBackpay: numOrNull(w.gross_wages_less_leave_backpay),
+      exAdmin: numOrNull(w.gross_wages_ex_admin),
+      exAdminLeaveBackpay: numOrNull(w.gross_wages_ex_admin_leave_backpay),
+    })
     return {
       venue,
       venueRaw,
       weekStartWed,
       revenueExGst: numOrNull(w.revenue_ex_gst),
       grossWages: numOrNull(w.gross_wages),
-      grossWagesExAdmin: numOrNull(w.gross_wages_ex_admin),
-      grossWagesExAdminLeaveBackpay: numOrNull(
-        w.gross_wages_ex_admin_leave_backpay
-      ),
+      grossWagesExAdmin: exAdmin.exAdmin,
+      grossWagesExAdminLeaveBackpay: exAdmin.exAdminLeaveBackpay,
       grossWagesLessLeaveBackpay: numOrNull(w.gross_wages_less_leave_backpay),
       superAmount: numOrNull(w.super_amount),
       totalHours: numOrNull(w.total_hours),
@@ -828,6 +833,35 @@ Rules:
     }
   })
   return { weeks, notes: `Extracted from ${params.filename}` }
+}
+
+/**
+ * The Beach House report has a single "less admin" row that is already net
+ * of leave/toil/backpay, and the extractor files it under ex-admin, which
+ * understates ex-admin wages by that week's leave. The report's own totals
+ * show when that has happened: the figure equals "Total less leave" minus
+ * Admin rather than Total minus Admin. Put each figure in its right field.
+ */
+function splitExAdmin(w: {
+  grossWages: number | null
+  wagesAdmin: number | null
+  lessLeaveBackpay: number | null
+  exAdmin: number | null
+  exAdminLeaveBackpay: number | null
+}): { exAdmin: number | null; exAdminLeaveBackpay: number | null } {
+  const { grossWages, wagesAdmin, lessLeaveBackpay, exAdmin, exAdminLeaveBackpay } = w
+  if (grossWages == null || wagesAdmin == null || lessLeaveBackpay == null || exAdmin == null) {
+    return { exAdmin, exAdminLeaveBackpay }
+  }
+  const trueExAdmin = grossWages - wagesAdmin
+  const isNetOfLeave =
+    Math.abs(exAdmin - trueExAdmin) > 1 &&
+    Math.abs(exAdmin - (lessLeaveBackpay - wagesAdmin)) <= 1
+  if (!isNetOfLeave) return { exAdmin, exAdminLeaveBackpay }
+  return {
+    exAdmin: Math.round(trueExAdmin * 100) / 100,
+    exAdminLeaveBackpay: exAdminLeaveBackpay ?? exAdmin,
+  }
 }
 
 function numOrNull(v: unknown): number | null {

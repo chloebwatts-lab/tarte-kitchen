@@ -30,6 +30,8 @@ import { bucketFor, type Bucket } from "./buckets"
 export const CROSS_VENUE_WEEKLY_TOTAL = 1400.0
 /** Gross portion of the above, appended to Burleigh chefsKp pre-scale. */
 const CROSS_VENUE_WEEKLY_GROSS = 1250.0
+/** Deputy name of the cross-venue role, for when it clocks in (see below). */
+const CROSS_VENUE_MATCH = /^francesc/i
 
 interface KnownWeekly {
   match: RegExp
@@ -182,7 +184,13 @@ export async function recodeLabourWeek(
     }
   }
 
-  // Cross-venue BOH salary: gross into Burleigh chefsKp (no timesheets).
+  // Cross-venue BOH salary: gross into Burleigh chefsKp. The role has
+  // clocked in at Burleigh since w/e 8 Sep 2026 with no Deputy cost, so
+  // zero its worked cells first; otherwise those hours are also priced at
+  // the average kitchen rate below and the salary is counted twice.
+  for (const [name, list] of byPerson) {
+    if (CROSS_VENUE_MATCH.test(name.trim())) for (const c of list) c.dollars = 0
+  }
   cells.push({
     venue: Venue.BURLEIGH,
     bucket: "chefsKp",
