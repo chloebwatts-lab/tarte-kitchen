@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { getServerSession } from "next-auth"
 import { compare, hash } from "bcryptjs"
+import { getPerson } from "@/lib/person-session"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 
@@ -76,8 +77,28 @@ async function managerCookieExpiry(): Promise<number | null> {
   return Number.isFinite(expiresAt) && expiresAt > Date.now() ? expiresAt : null
 }
 
+/**
+ * People the managers area never opens for, whatever the device's unlock
+ * state and even if they know the password (Chloe, 21 Sep 2026). Tarte Shifts
+ * staff ids, JSON array in AppSetting `managerDenyStaffIds`.
+ */
+export async function isManagerDenied(): Promise<boolean> {
+  const person = await getPerson()
+  if (!person) return false
+  const row = await db.appSetting.findUnique({ where: { key: "managerDenyStaffIds" } })
+  if (!row) return false
+  try {
+    return (JSON.parse(row.value) as string[]).includes(person.id)
+  } catch {
+    return false
+  }
+}
+
 export async function isManagerAuthed(): Promise<boolean> {
   if (await getServerSession(authOptions)) return true
+  // The unlock cookie belongs to the device, the block belongs to the person:
+  // a shared iPad a manager unlocked still shuts them out.
+  if (await isManagerDenied()) return false
   return (await managerCookieExpiry()) !== null
 }
 
