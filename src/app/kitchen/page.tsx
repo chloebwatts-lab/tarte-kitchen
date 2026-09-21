@@ -509,7 +509,7 @@ function DepartmentPicker({
   const heading = category === "cleaning" ? "Pick your section" : "Temperature logs by area"
   const subhead =
     category === "cleaning"
-      ? "Barista, FOH, KP, Market, Takeaway. Pick yours to see today's cleaning checklists."
+      ? "Barista, FOH, KP, Market, Pastry, Takeaway. Pick yours to see today's cleaning checklists."
       : "Fridges, freezers and hot-hold readings grouped by area."
 
   return (
