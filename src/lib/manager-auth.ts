@@ -78,26 +78,30 @@ async function managerCookieExpiry(): Promise<number | null> {
 }
 
 /**
- * People the managers area never opens for, whatever the device's unlock
- * state and even if they know the password (Chloe, 21 Sep 2026). Tarte Shifts
- * staff ids, JSON array in AppSetting `managerDenyStaffIds`.
+ * The managers area opens for named people only (Chloe, 21 Sep 2026). The
+ * password is shared, so on its own it says nothing about who is holding the
+ * iPad; the person's own sign in does. AppSetting `managerAllowStaffIds` is a
+ * JSON array of Tarte Shifts staff ids. Anyone signed in who is not on it is
+ * refused, whatever the device's unlock state and even if they know the
+ * password. No list set = nobody is refused (the password alone decides).
  */
 export async function isManagerDenied(): Promise<boolean> {
   const person = await getPerson()
   if (!person) return false
-  const row = await db.appSetting.findUnique({ where: { key: "managerDenyStaffIds" } })
+  const row = await db.appSetting.findUnique({ where: { key: "managerAllowStaffIds" } })
   if (!row) return false
   try {
-    return (JSON.parse(row.value) as string[]).includes(person.id)
+    return !(JSON.parse(row.value) as string[]).includes(person.id)
   } catch {
-    return false
+    // A broken list must fail closed, not open.
+    return true
   }
 }
 
 export async function isManagerAuthed(): Promise<boolean> {
   if (await getServerSession(authOptions)) return true
-  // The unlock cookie belongs to the device, the block belongs to the person:
-  // a shared iPad a manager unlocked still shuts them out.
+  // The unlock cookie belongs to the device, the allow list to the person:
+  // a shared iPad a manager unlocked still refuses everyone not on the list.
   if (await isManagerDenied()) return false
   return (await managerCookieExpiry()) !== null
 }
