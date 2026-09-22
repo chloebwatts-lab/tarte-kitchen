@@ -19,7 +19,7 @@ import {
   type CountSheetLine,
   type SiblingItem,
 } from "@/lib/actions/restock"
-import { STATION_LABEL, STATION_SHORT_LABEL } from "@/lib/stations"
+import { PREP_SECTION_OWNER, prepSectionsFor, stationLabel, STATION_SHORT_LABEL, type PrepSection } from "@/lib/stations"
 import {
   NEEDED_BY_TIMES,
   formatNeededBy,
@@ -51,6 +51,9 @@ export function RestockCountSheet({
   const [savingCount, setSavingCount] = useState(0)
   const [newItemName, setNewItemName] = useState("")
   const [addingItem, setAddingItem] = useState(false)
+  // Beach House's one list: a new prep goes into the section responsible for it.
+  const sections = prepSectionsFor(initialSheet.venue)
+  const [newItemSection, setNewItemSection] = useState<string>(sections[0] ?? "Station restock")
   // Debounce timers per (itemId, field)
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
@@ -187,6 +190,7 @@ export function RestockCountSheet({
       venue: sheet.venue,
       station: sheet.station,
       name: itemName,
+      category: newItemSection,
     })
     setAddingItem(false)
     if (res.ok && res.itemId) {
@@ -197,7 +201,7 @@ export function RestockCountSheet({
             itemId: res.itemId!,
             name: itemName,
             unit: null,
-            category: "Station restock",
+            category: res.category ?? newItemSection,
             parLevel: null,
             itemNotes: null,
             available: null,
@@ -225,7 +229,7 @@ export function RestockCountSheet({
           Sent to prep ✓
         </div>
         <p className="mt-3 text-[16px] text-[var(--tk-ink-soft)]">
-          {STATION_LABEL[sheet.station]} count: {countedCount} item
+          {stationLabel(sheet.venue, sheet.station)} count: {countedCount} item
           {countedCount === 1 ? "" : "s"} counted, {requestedCount} requested
           {sheet.countedBy ? ` · by ${sheet.countedBy}` : ""}.
         </p>
@@ -257,7 +261,7 @@ export function RestockCountSheet({
       {/* Progress strip */}
       <div className="rounded-[20px] border border-[var(--tk-line)] bg-white p-5">
         <div className="flex items-center justify-between text-[12px] font-medium uppercase tracking-widest text-[var(--tk-ink-soft)]">
-          <span>{STATION_LABEL[sheet.station]}</span>
+          <span>{stationLabel(sheet.venue, sheet.station)}</span>
           <span className="flex items-center gap-2 tabular-nums">
             {savingCount > 0 ? (
               <span className="inline-flex items-center gap-1 text-[var(--tk-ink-soft)]">
@@ -295,8 +299,14 @@ export function RestockCountSheet({
 
       {groups.map(([category, groupLines]) => (
         <div key={category} className="space-y-2">
-          <div className="tk-caps px-1" style={{ color: "var(--tk-ink-mute)" }}>
-            {category}
+          <div className="tk-caps flex items-baseline gap-2 px-1" style={{ color: "var(--tk-ink-mute)" }}>
+            <span style={{ color: "var(--tk-charcoal)" }}>{category}</span>
+            {PREP_SECTION_OWNER[category as PrepSection] ? (
+              <span>· {PREP_SECTION_OWNER[category as PrepSection]}</span>
+            ) : sections.length ? (
+              <span>· responsible</span>
+            ) : null}
+            <span className="ml-auto tabular-nums">{groupLines.length}</span>
           </div>
           <div className="overflow-hidden rounded-[18px] border border-[var(--tk-line)] bg-white">
             {/* Column headers */}
@@ -420,25 +430,51 @@ export function RestockCountSheet({
         </div>
       )}
 
-      {/* Add missing item: the blank rows at the bottom of the paper sheet */}
+      {/* Add missing item: the blank rows at the bottom of the paper sheet.
+          Anyone can add a prep; on the one-list venue they say who makes it. */}
       {!readOnly && (
-        <div className="flex items-center gap-2 rounded-[18px] border border-dashed border-[var(--tk-line)] bg-white px-4 py-3">
-          <Plus className="h-5 w-5 shrink-0 text-[var(--tk-ink-soft)]" />
-          <input
-            type="text"
-            value={newItemName}
-            onChange={(e) => setNewItemName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAddItem()}
-            placeholder="Missing something? Add it here"
-            className="min-w-0 flex-1 bg-transparent text-[16px] text-[var(--tk-charcoal)] outline-none placeholder:text-[var(--tk-ink-mute)]"
-          />
-          <button
-            onClick={handleAddItem}
-            disabled={!newItemName.trim() || addingItem}
-            className="shrink-0 rounded-full bg-[var(--tk-charcoal)] px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40"
-          >
-            Add
-          </button>
+        <div className="space-y-3 rounded-[18px] border border-dashed border-[var(--tk-line)] bg-white px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Plus className="h-5 w-5 shrink-0 text-[var(--tk-ink-soft)]" />
+            <input
+              type="text"
+              value={newItemName}
+              onChange={(e) => setNewItemName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddItem()}
+              placeholder="Missing a prep? Add it here"
+              className="min-w-0 flex-1 bg-transparent text-[16px] text-[var(--tk-charcoal)] outline-none placeholder:text-[var(--tk-ink-mute)]"
+            />
+            <button
+              onClick={handleAddItem}
+              disabled={!newItemName.trim() || addingItem}
+              className="shrink-0 rounded-full bg-[var(--tk-charcoal)] px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40"
+            >
+              Add
+            </button>
+          </div>
+          {sections.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 pl-7">
+              <span className="mr-1 text-[12px] text-[var(--tk-ink-soft)]">Who makes it:</span>
+              {sections.map((sec) => {
+                const active = newItemSection === sec
+                return (
+                  <button
+                    key={sec}
+                    type="button"
+                    onClick={() => setNewItemSection(sec)}
+                    className="rounded-full px-3 py-1 text-[12px] font-semibold transition"
+                    style={{
+                      background: active ? "var(--tk-charcoal)" : "var(--tk-charcoal-soft)",
+                      color: active ? "#fff" : "var(--tk-ink-soft)",
+                    }}
+                  >
+                    {sec}
+                    {PREP_SECTION_OWNER[sec] ? ` (${PREP_SECTION_OWNER[sec]})` : ""}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 

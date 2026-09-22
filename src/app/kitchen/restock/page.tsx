@@ -14,7 +14,7 @@ import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
-import { STATION_LABEL } from "@/lib/stations"
+import { prepSectionsFor, stationLabel } from "@/lib/stations"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
 
@@ -60,9 +60,9 @@ export default async function RestockHubPage({
           Restock &amp; prep
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
-          Closing chefs count each kitchen at the end of the shift. The prep
-          chef runs one consolidated list next morning and restocks both
-          kitchens before service.
+          {prepSectionsFor(venue).length > 0
+            ? "One prep list for both kitchens. Each item names who makes it (Restaurant, Café, KP, or Michelle's main prep), and anyone can add a prep. Closing chefs count it at the end of the shift; the prep chef runs it next morning."
+            : "Closing chefs count each kitchen at the end of the shift. The prep chef runs one consolidated list next morning and restocks both kitchens before service."}
         </p>
         <div className="mt-3"><VenueSwitch current={venue} /></div>
         <div
@@ -111,7 +111,7 @@ export default async function RestockHubPage({
                   className="text-[19px] font-semibold leading-snug text-[var(--tk-charcoal)]"
                   style={{ letterSpacing: "-0.01em" }}
                 >
-                  {STATION_LABEL[station]}
+                  {stationLabel(venue, station)}
                 </div>
                 <div className="mt-0.5 text-[14px] text-[var(--tk-ink-soft)]">
                   {todaySheet
