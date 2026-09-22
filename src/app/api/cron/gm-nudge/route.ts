@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic"
 
 import { db } from "@/lib/db"
-import { sendEmail } from "@/lib/gmail/send"
+import { sendHtmlEmail } from "@/lib/gmail/send"
+import { renderAfternoonNudgeHtml, renderMorningNudgeHtml, renderReportDueHtml } from "@/lib/gm/report-email"
 import { todayAest } from "@/lib/commitments/weeks"
 import { gmDigestForCron } from "@/lib/gm/board"
 import { gmPasswordIsSet } from "@/lib/gm-auth"
@@ -45,10 +46,10 @@ export async function GET(request: Request) {
     const isoDay = today.getUTCDay() === 0 ? 7 : today.getUTCDay()
     const open = (i: (typeof d.items)[number]) => !(i.state === "done" || i.state === "auto-ok" || i.state === "couldnt")
 
-    async function tellOliver(subject: string, short: string, body: string) {
+    async function tellOliver(subject: string, short: string, body: string, html: string) {
       if (preview) return { push: "preview", email: d.email || null }
       const push = await sendGmPush(subject, short)
-      if (d.email) await sendEmail({ to: d.email, subject, body })
+      if (d.email) await sendHtmlEmail({ to: d.email, subject, text: body, html })
       return { push, email: d.email || null }
     }
 
@@ -65,7 +66,8 @@ export async function GET(request: Request) {
         const subject = `${todays.length} still open today`
         const short = todays.slice(0, 3).map((i) => i.title).join(". ") + (todays.length > 3 ? ` and ${todays.length - 3} more.` : ".")
         const body = ["Still open today:", ...todays.map((i) => `- ${i.title}`), "", `Tick them off here: ${DESK}`].join("\n")
-        return Response.json({ ok: true, kind, preview, out: await tellOliver(subject, short, body), body })
+        const html = renderAfternoonNudgeHtml({ todays: todays.map((i) => ({ title: i.title })) })
+        return Response.json({ ok: true, kind, preview, out: await tellOliver(subject, short, body, html), body })
       }
 
       const lines = [`GM day: ${THEME_LABEL[theme]}.`, "", "Today:", ...todays.map((i) => `- ${i.title}${i.auto_?.detail ? ` (${i.auto_.detail})` : ""}`)]
@@ -74,19 +76,26 @@ export async function GET(request: Request) {
       lines.push("", `Tick them off here: ${DESK}`)
       const subject = `Today: ${THEME_LABEL[theme]} (${todays.length} to do)`
       const short = todays.slice(0, 3).map((i) => i.title).join(". ") + (todays.length > 3 ? ` and ${todays.length - 3} more.` : ".")
-      return Response.json({ ok: true, kind, preview, out: await tellOliver(subject, short, lines.join("\n")), body: lines.join("\n") })
+      const html = renderMorningNudgeHtml({
+        theme,
+        todays: todays.map((i) => ({ title: i.title, detail: i.auto_?.detail })),
+        carried: carried.map((i) => ({ title: i.title })),
+        next: next ?? null,
+      })
+      return Response.json({ ok: true, kind, preview, out: await tellOliver(subject, short, lines.join("\n"), html), body: lines.join("\n") })
     }
 
     if (kind === "report-due") {
       if (d.reportSent) return Response.json({ ok: true, skipped: "already sent" })
       const body = `Your Monday report to Chloe is due at 3pm, before your two days off.\n\nThe numbers are already filled in. Add two lines and press send:\n${DESK}\n\nStill open this week: ${d.items.filter(open).length}.`
-      return Response.json({ ok: true, kind, preview, out: await tellOliver("Monday report due 3pm", "Numbers are filled in. Add two lines and press send.", body), body })
+      const html = renderReportDueHtml({ stillOpen: d.items.filter(open).length })
+      return Response.json({ ok: true, kind, preview, out: await tellOliver("Monday report due 3pm", "Numbers are filled in. Add two lines and press send.", body, html), body })
     }
 
     if (kind === "wrap") {
       if (d.reportSent) return Response.json({ ok: true, skipped: "report was sent" })
       const body = `Oliver has not sent his Monday report. This is what the app can see.\n\n${d.compose("(not sent)", "(not sent)")}`
-      if (!preview) await sendEmail({ to: CHLOE, subject: `No Monday report from Oliver, ${d.weekLabel}`, body })
+      if (!preview) await sendHtmlEmail({ to: CHLOE, subject: `No Monday report from Oliver, ${d.weekLabel}`, text: body, html: d.composeHtml("(not sent)", "(not sent)") })
       return Response.json({ ok: true, kind, preview, to: CHLOE, body })
     }
 

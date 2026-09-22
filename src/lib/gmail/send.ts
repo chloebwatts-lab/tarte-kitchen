@@ -1,6 +1,7 @@
 import { getActiveGmailConnection, getValidGmailAccessToken } from "@/lib/gmail/token"
 import { VENUE_SHORT_LABEL } from "@/lib/venues"
 import type { Venue } from "@/generated/prisma/client"
+import { APP_URL, button, list, para, rows, section, shell, subhead, table, tiles, type ListItem, type Tone } from "@/lib/email/brand"
 
 const GMAIL_API = "https://www.googleapis.com/gmail/v1/users/me"
 
@@ -136,6 +137,11 @@ export async function sendHtmlEmail(params: {
   }
 }
 
+/** A call-to-action row, indented to line up with the card text. */
+function cta(...buttons: string[]): string {
+  return `<div style="padding:0 4px;">${buttons.join("")}</div>`
+}
+
 export async function sendFoodSafetyEmail(params: {
   venue: Venue
   templateName: string
@@ -202,7 +208,54 @@ export async function sendFoodSafetyEmail(params: {
       ? `[Tarte] HACCP ${params.templateName} - ${venueLabel} - ${params.runDate} - ${breaches.length} BREACH`
       : `[Tarte] HACCP ${params.templateName} - ${venueLabel} - ${params.runDate} - All pass`
 
-  return sendEmail({ to: "accounts@tarte.com.au", subject, body })
+  const resultTile =
+    breaches.length === 0
+      ? { label: "Result", value: "All pass", sub: "Within safe limits", tone: "done" as const }
+      : {
+          label: "Result",
+          value: `${breaches.length} breach${breaches.length !== 1 ? "es" : ""}`,
+          sub: "Cold storage must be kept at 5°C or below",
+          tone: "red" as const,
+        }
+  const tempTable = table(
+    [{ header: "Product" }, { header: "Temp", align: "right" }, { header: "Status", align: "right" }],
+    tempItems.map((i) => {
+      const name = i.label.replace(/(?: — |, )temperature check$/i, "")
+      const temp = i.tempCelsius !== null ? `${i.tempCelsius}°C` : "—"
+      const status = i.passed === true ? "PASS" : i.passed === false ? "FAIL" : "—"
+      const tone: Tone | undefined = i.passed === true ? "done" : i.passed === false ? "red" : undefined
+      return [{ text: i.note ? `${name}\n${i.note}` : name }, temp, { text: status, tone, strong: i.passed === false }]
+    })
+  )
+  const recordRows = rows(
+    [
+      params.staffNames.length > 0 ? { label: "Staff", value: params.staffNames.join(", ") } : null,
+      { label: "Checklist", value: params.templateName },
+      { label: "Venue", value: venueLabel },
+      { label: "Date", value: params.runDate },
+      { label: "Completed", value: timeStr },
+    ].filter((r): r is { label: string; value: string } => r !== null)
+  )
+  const html = shell({
+    kicker: "Food safety",
+    title: "HACCP temperature record",
+    subtitle: `${venueLabel} · ${params.templateName} · ${params.runDate}`,
+    preheader:
+      breaches.length === 0
+        ? "All temperatures within safe limits."
+        : `${breaches.length} temperature breach${breaches.length !== 1 ? "es" : ""} recorded.`,
+    sections: [
+      tiles([resultTile, { label: "Completed", value: timeStr, sub: params.runDate }]),
+      section("Temperatures", tempTable, {
+        tone: breaches.length ? "red" : "done",
+        note: "Cold storage must be kept at 5°C or below.",
+      }),
+      section("Record", recordRows),
+      cta(button("Open records", `${APP_URL}/checklists/food-safety`)),
+    ],
+  })
+
+  return sendHtmlEmail({ to: "accounts@tarte.com.au", subject, text: body, html })
 }
 
 export async function sendChecklistAlertEmail(params: {
@@ -231,10 +284,25 @@ export async function sendChecklistAlertEmail(params: {
     ``,
     `Tarte Kitchen alerts`,
   ].join("\n")
-  return sendEmail({
+  const html = shell({
+    kicker: "Checklist alert",
+    title: `${params.templateName} is overdue`,
+    subtitle: `${venueLabel} · ${params.runDate}`,
+    preheader: `${params.completedItems} of ${params.totalItems} items ticked, overdue by ${overdueHuman}.`,
+    sections: [
+      tiles([
+        { label: "Ticked", value: `${params.completedItems} of ${params.totalItems}`, sub: "items", tone: "warn" },
+        { label: "Overdue by", value: overdueHuman, sub: params.runDate, tone: "red" },
+      ]),
+      section(null, para(`The ${params.templateName} checklist at ${venueLabel} is incomplete.`), { tone: "warn" }),
+      cta(button("Open checklists", `${APP_URL}/checklists`)),
+    ],
+  })
+  return sendHtmlEmail({
     to: params.to,
     subject: `[Tarte] ${params.templateName} - ${venueLabel} - overdue`,
-    body,
+    text: body,
+    html,
   })
 }
 
@@ -269,6 +337,14 @@ export async function sendChecklistCycleEmail(params: {
     )
   }
   const plural = (n: number) => (n === 1 ? "" : "s")
+  const closesText = (r: (typeof params.rows)[number]) =>
+    r.cadence === "WEEKLY"
+      ? r.daysLeft === 0
+        ? "closes today (Sunday)"
+        : `closes Sunday, ${r.daysLeft} day${plural(r.daysLeft)} left`
+      : r.daysLeft === 0
+      ? `last day of ${r.cycleLabel}`
+      : `${r.daysLeft} day${plural(r.daysLeft)} left in ${r.cycleLabel}`
 
   const byVenue = new Map<string, typeof params.rows>()
   for (const r of params.rows) {
@@ -284,14 +360,7 @@ export async function sendChecklistCycleEmail(params: {
     blocks.push("─".repeat(48))
     for (const r of rows) {
       const done = r.totalItems - r.openItems.length
-      const closes =
-        r.cadence === "WEEKLY"
-          ? r.daysLeft === 0
-            ? "closes today (Sunday)"
-            : `closes Sunday, ${r.daysLeft} day${plural(r.daysLeft)} left`
-          : r.daysLeft === 0
-          ? `last day of ${r.cycleLabel}`
-          : `${r.daysLeft} day${plural(r.daysLeft)} left in ${r.cycleLabel}`
+      const closes = closesText(r)
       blocks.push(`  ${r.templateName}  (${done}/${r.totalItems} done, ${closes})`)
       for (const it of r.openItems) {
         blocks.push(`    ✗ ${it.label}  (${fmtLastDone(it.lastDone)})`)
@@ -316,7 +385,43 @@ export async function sendChecklistCycleEmail(params: {
 
   const subject = `[Tarte] Checklists closing soon - ${totalOpen} item${plural(totalOpen)} still open`
 
-  return sendEmail({ to: "chloe@tarte.com.au", subject, body })
+  const soonest = params.rows.length ? Math.min(...params.rows.map((r) => r.daysLeft)) : null
+  const venueSections: string[] = []
+  for (const v of VENUE_ORDER) {
+    const rows = byVenue.get(v)
+    if (!rows || rows.length === 0) continue
+    const inner = rows
+      .map((r) => {
+        const done = r.totalItems - r.openItems.length
+        return (
+          subhead(r.templateName, `${done}/${r.totalItems} done · ${closesText(r)}`, r.daysLeft === 0 ? "warn" : "gold") +
+          list(r.openItems.map((it) => ({ text: it.label, detail: fmtLastDone(it.lastDone), tone: "warn" as const })))
+        )
+      })
+      .join("")
+    venueSections.push(section(VENUE_LABEL[v] ?? v, inner))
+  }
+  const html = shell({
+    kicker: "Checklists",
+    title: "Checklists closing soon",
+    subtitle: `${totalOpen} item${plural(totalOpen)} still open across ${nLists} checklist${plural(nLists)}`,
+    preheader: `${totalOpen} item${plural(totalOpen)} still open across ${nLists} checklist${plural(nLists)} that roll over shortly.`,
+    sections: [
+      tiles([
+        { label: "Still open", value: String(totalOpen), sub: `across ${nLists} checklist${plural(nLists)}`, tone: totalOpen ? "warn" : "done" },
+        {
+          label: "Closing soonest",
+          value: soonest === null ? "—" : soonest === 0 ? "Today" : `${soonest} day${plural(soonest)}`,
+          sub: "roll over shortly",
+          tone: soonest === 0 ? "warn" : "gold",
+        },
+      ]),
+      ...venueSections,
+      cta(button("Tick them off", `${APP_URL}/checklists`)),
+    ],
+  })
+
+  return sendHtmlEmail({ to: "chloe@tarte.com.au", subject, text: body, html })
 }
 
 export async function sendDailySummaryEmail(params: {
@@ -391,5 +496,37 @@ export async function sendDailySummaryEmail(params: {
       ? `[Tarte] Daily checklists - ${dateHuman} - All done`
       : `[Tarte] Daily checklists - ${dateHuman} - ${params.totalIncomplete} incomplete`
 
-  return sendEmail({ to: "chloe@tarte.com.au", subject, body })
+  const completedCount = params.totalTemplates - params.totalIncomplete
+  const allDone = params.totalIncomplete === 0
+  const venueSections = params.venues.map((v) => {
+    const label = VENUE_LABEL[v.venue] ?? v.venue
+    const items: ListItem[] = v.rows.map((r) =>
+      r.status === "COMPLETED"
+        ? {
+            text: r.name,
+            tone: "done" as const,
+            detail: [r.completedAt, r.staffNames.length ? r.staffNames.join(", ") : null].filter(Boolean).join(" · "),
+          }
+        : r.status === "PARTIAL"
+          ? { text: r.name, tone: "gold" as const, detail: `${r.completedItems}/${r.totalItems} items` }
+          : { text: r.name, tone: "warn" as const, detail: "Not started" }
+    )
+    return section(label, list(items))
+  })
+  const html = shell({
+    kicker: "Daily checklists",
+    title: "Daily checklists",
+    subtitle: dateHuman,
+    preheader: allDone ? "All checklists completed." : `${params.totalIncomplete} of ${params.totalTemplates} checklists incomplete.`,
+    sections: [
+      tiles([
+        { label: "Completed", value: `${completedCount} of ${params.totalTemplates}`, tone: allDone ? "done" : "gold" },
+        { label: "Incomplete", value: String(params.totalIncomplete), tone: allDone ? "done" : "warn" },
+      ]),
+      ...venueSections,
+      cta(button("Full records", `${APP_URL}/checklists`)),
+    ],
+  })
+
+  return sendHtmlEmail({ to: "chloe@tarte.com.au", subject, text: body, html })
 }

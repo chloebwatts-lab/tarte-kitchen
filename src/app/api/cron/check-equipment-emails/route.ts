@@ -4,7 +4,8 @@ export const maxDuration = 600
 import { db } from "@/lib/db"
 import { getActiveGmailConnection, getValidGmailAccessToken } from "@/lib/gmail/token"
 import { getHelloAccessToken } from "@/lib/gmail/hello-token"
-import { sendEmail } from "@/lib/gmail/send"
+import { sendHtmlEmail } from "@/lib/gmail/send"
+import { button, list, section, shell } from "@/lib/email/brand"
 import {
   searchMessages,
   getMessage,
@@ -375,19 +376,39 @@ export async function GET(request: Request) {
     // signal, not noise. Chloe confirms details on /maintenance.
     if (created.length > 0 && !auditMode) {
       try {
-        await sendEmail({
+        const venueName = (v: string) => (v === "BURLEIGH" ? "Burleigh" : "Beach House")
+        await sendHtmlEmail({
           to: "chloe@tarte.com.au",
           subject: `Maintenance register: ${created.length} new machine${created.length === 1 ? "" : "s"} added from purchase emails`,
-          body:
+          text:
             `Added automatically from purchase invoices, marked "check details":\n\n` +
             created
               .map(
                 (c) =>
-                  `  ${c.slug}  ${c.name} (${c.venue === "BURLEIGH" ? "Burleigh" : "Beach House"}${c.supplier ? `, from ${c.supplier}` : ""})`
+                  `  ${c.slug}  ${c.name} (${venueName(c.venue)}${c.supplier ? `, from ${c.supplier}` : ""})`
               )
               .join("\n") +
             `\n\nConfirm details: ${BASE_URL}/maintenance` +
             `\nPrint QR labels: ${BASE_URL}/maintenance/labels\n`,
+          html: shell({
+            kicker: "Maintenance register",
+            title: `${created.length} new machine${created.length === 1 ? "" : "s"} added`,
+            subtitle: 'Added automatically from purchase invoices, marked "check details"',
+            preheader: created.map((c) => c.name).join(", "),
+            sections: [
+              section(
+                null,
+                list(
+                  created.map((c) => ({
+                    text: c.name,
+                    detail: `${venueName(c.venue)}${c.supplier ? `, from ${c.supplier}` : ""} · ${c.slug}`,
+                    tone: "gold" as const,
+                  }))
+                )
+              ),
+              `<div style="padding:0 4px;">${button("Confirm details", `${BASE_URL}/maintenance`)}${button("Print QR labels", `${BASE_URL}/maintenance/labels`, { secondary: true })}</div>`,
+            ],
+          }),
         })
       } catch (e) {
         console.error("[check-equipment-emails] notification email failed:", e)

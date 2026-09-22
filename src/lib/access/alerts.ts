@@ -1,6 +1,7 @@
 import { db } from "@/lib/db"
 import { DEED_VERSION } from "@/lib/confidentiality/deed"
 import { listActiveStaff } from "@/lib/shifts-staff"
+import { list, para, rows, section, shell, subhead, tiles } from "@/lib/email/brand"
 
 /**
  * Owner-only access alerts. Chloe, 20 Sep 2026: tell me, never them.
@@ -116,7 +117,7 @@ export async function markAlertsSent(alerts: NewAlert[]): Promise<void> {
 }
 
 /** Once a day, owner only: who has signed, who has not, and the day's traffic. */
-export async function dailyAccessSummary(now = new Date()): Promise<{ subject: string; body: string }> {
+export async function dailyAccessSummary(now = new Date()): Promise<{ subject: string; body: string; html: string }> {
   const dayStart = new Date(bris(now).toISOString().slice(0, 10) + "T00:00:00Z")
   const dayStartUtc = new Date(dayStart.getTime() - 10 * 3_600_000)
   const [staff, deeds, logins, views, fails, alerts] = await Promise.all([
@@ -131,22 +132,74 @@ export async function dailyAccessSummary(now = new Date()): Promise<{ subject: s
   const signedToday = deeds.filter((d) => d.signedAt >= dayStartUtc)
   const people = new Set(logins.map((l) => l.staffId))
   const lines: string[] = []
+  const venueLabel: Record<string, string> = { BURLEIGH: "Burleigh", BEACH_HOUSE: "Beach House", TEA_GARDEN: "Tea Garden" }
+  /** The deed card, built alongside the text lines from the same facts. */
+  let deedHtml = ""
+  let deedTile: { value: string; sub: string; tone: "done" | "gold" | "neutral" }
   if (staff) {
     const unsigned = staff.filter((s) => !signedIds.has(s.id))
     lines.push(`CONFIDENTIALITY DEED: ${staff.length - unsigned.length} of ${staff.length} active staff have signed (${signedToday.length} today).`)
     if (signedToday.length) lines.push(`Signed today: ${signedToday.map((d) => d.staffName).join(", ")}.`)
-    const venueLabel: Record<string, string> = { BURLEIGH: "Burleigh", BEACH_HOUSE: "Beach House", TEA_GARDEN: "Tea Garden" }
+    deedTile = {
+      value: `${staff.length - unsigned.length} of ${staff.length}`,
+      sub: `active staff, ${signedToday.length} today`,
+      tone: unsigned.length ? "gold" : "done",
+    }
+    if (signedToday.length) {
+      deedHtml += subhead("Signed today", String(signedToday.length), "done")
+      deedHtml += list(signedToday.map((d) => ({ text: d.staffName, tone: "done" as const })))
+    }
     for (const v of ["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN"]) {
       const u = unsigned.filter((s) => s.venue === v)
       if (u.length) lines.push(`Not signed, ${venueLabel[v]} (${u.length}): ${u.map((s) => `${s.firstName} ${s.lastName}`).join(", ")}.`)
+      if (u.length) {
+        deedHtml += subhead(`Not signed, ${venueLabel[v]}`, String(u.length), "warn")
+        deedHtml += list(u.map((s) => ({ text: `${s.firstName} ${s.lastName}`, tone: "warn" as const })))
+      }
     }
+    if (!deedHtml) deedHtml = para("Every active staff member has signed.")
   } else {
     lines.push(`CONFIDENTIALITY DEED: ${deeds.length} signed. (Could not reach Tarte Shifts for the staff list.)`)
+    deedTile = { value: String(deeds.length), sub: "Could not reach Tarte Shifts for the staff list", tone: "neutral" }
+    deedHtml = para(`${deeds.length} signed. Could not reach Tarte Shifts for the staff list, so nobody can be listed as unsigned.`, { muted: true })
   }
   lines.push("", `TODAY: ${people.size} people signed in, ${views} pages opened, ${fails} failed sign ins.`)
   lines.push("", alerts.length ? `ALERTS TODAY (${alerts.length}):` : "No alerts today.")
   for (const a of alerts) lines.push(`- ${a.summary}`)
   lines.push("", "Only you get this email. Nobody is told when an alert fires.")
   const date = new Intl.DateTimeFormat("en-AU", { weekday: "long", day: "numeric", month: "long", timeZone: "Australia/Brisbane" }).format(now)
-  return { subject: `Tarte Kitchen access, ${date}: ${alerts.length} alert${alerts.length === 1 ? "" : "s"}, ${signedIds.size} deeds signed`, body: lines.join("\n") }
+
+  const html = shell({
+    kicker: "Access",
+    title: "Daily access summary",
+    subtitle: date,
+    preheader: `${alerts.length} alert${alerts.length === 1 ? "" : "s"}, ${signedIds.size} deeds signed. ${people.size} people signed in today.`,
+    sections: [
+      tiles([
+        { label: "Alerts today", value: String(alerts.length), sub: alerts.length ? "listed below" : "nothing unusual", tone: alerts.length ? "red" : "done" },
+        { label: "Deeds signed", ...deedTile },
+      ]),
+      section("Confidentiality deed", deedHtml),
+      section(
+        "Today",
+        rows([
+          { label: "People signed in", value: String(people.size) },
+          { label: "Pages opened", value: String(views) },
+          { label: "Failed sign ins", value: String(fails), tone: fails ? "warn" : undefined },
+        ])
+      ),
+      section(
+        alerts.length ? `Alerts today (${alerts.length})` : "Alerts today",
+        alerts.length ? list(alerts.map((a) => ({ text: a.summary, tone: "red" as const }))) : para("No alerts today.", { muted: true }),
+        { tone: alerts.length ? "red" : "done" }
+      ),
+    ],
+    footer: "Only you get this email. Nobody is told when an alert fires.",
+  })
+
+  return {
+    subject: `Tarte Kitchen access, ${date}: ${alerts.length} alert${alerts.length === 1 ? "" : "s"}, ${signedIds.size} deeds signed`,
+    body: lines.join("\n"),
+    html,
+  }
 }

@@ -17,6 +17,7 @@
 import { getCurrentWeekSpend } from "./current-week"
 import type { BucketSpendData, CurrentWeekSpendSnapshot } from "./types"
 import { sendHtmlEmail } from "@/lib/gmail/send"
+import { button, callout, list, section, shell, table, type Tone } from "@/lib/email/brand"
 
 const money0 = (n: number | null): string => {
   if (n == null) return "—"
@@ -33,11 +34,11 @@ const PACE_LABEL: Record<BucketSpendData["paceStatus"], string> = {
   "no-forecast": "No forecast",
 }
 
-const PACE_COLOUR: Record<BucketSpendData["paceStatus"], string> = {
-  "on-track": "#1a7f37",
-  watch: "#9a6700",
-  over: "#cf222e",
-  "no-forecast": "#57606a",
+const PACE_TONE: Record<BucketSpendData["paceStatus"], Tone> = {
+  "on-track": "done",
+  watch: "gold",
+  over: "warn",
+  "no-forecast": "neutral",
 }
 
 /** Pretty "10 Jun" from an AEST yyyy-mm-dd. */
@@ -101,7 +102,7 @@ export interface WeeklySpendEmailResult {
   html: string
 }
 
-function render(snapshot: CurrentWeekSpendSnapshot): {
+export function render(snapshot: CurrentWeekSpendSnapshot): {
   subject: string
   text: string
   html: string
@@ -145,82 +146,72 @@ function render(snapshot: CurrentWeekSpendSnapshot): {
   const text = textLines.join("\n")
 
   // ---- HTML ----
-  const rows = snapshot.buckets
-    .map((b) => {
-      const remaining = b.remaining
-      const remainColour =
-        remaining == null
-          ? "#57606a"
-          : remaining <= 0
-            ? "#cf222e"
-            : "#1a7f37"
-      const cogs = projectedCogsPct(b)
-      const cogsColour =
-        cogs == null
-          ? "#57606a"
-          : cogs <= Number(b.targetPct) + 0.5
-            ? "#1a7f37"
-            : cogs <= Number(b.targetPct) + 2.5
-              ? "#9a6700"
-              : "#cf222e"
-      return `
-      <tr>
-        <td style="padding:12px 10px;border-top:1px solid #eaeef2;font-weight:600;">${b.label}</td>
-        <td style="padding:12px 10px;border-top:1px solid #eaeef2;text-align:right;">${money0(b.spentToDate)}</td>
-        <td style="padding:12px 10px;border-top:1px solid #eaeef2;text-align:right;">${money0(b.budget)}</td>
-        <td style="padding:12px 10px;border-top:1px solid #eaeef2;text-align:right;font-weight:700;color:${remainColour};">${money0(b.remaining)}</td>
-        <td style="padding:12px 10px;border-top:1px solid #eaeef2;text-align:right;color:${PACE_COLOUR[b.paceStatus]};font-weight:600;">${PACE_LABEL[b.paceStatus]}</td>
-        <td style="padding:12px 10px;border-top:1px solid #eaeef2;text-align:right;color:${cogsColour};font-weight:700;">${cogs == null ? "n/a" : `${cogs.toFixed(1)}%`}<span style="color:#57606a;font-weight:400;"> / ${Number(b.targetPct).toFixed(0)}%</span></td>
-      </tr>`
-    })
-    .join("")
+  const daysLabel = `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`
+  const tableRows = snapshot.buckets.map((b) => {
+    const remaining = b.remaining
+    const remainTone: Tone = remaining == null ? "neutral" : remaining <= 0 ? "red" : "done"
+    const cogs = projectedCogsPct(b)
+    const cogsTone: Tone =
+      cogs == null
+        ? "neutral"
+        : cogs <= Number(b.targetPct) + 0.5
+          ? "done"
+          : cogs <= Number(b.targetPct) + 2.5
+            ? "gold"
+            : "red"
+    return [
+      { text: b.label, strong: true },
+      money0(b.spentToDate),
+      money0(b.budget),
+      { text: money0(b.remaining), tone: remainTone, strong: true },
+      { text: PACE_LABEL[b.paceStatus], tone: PACE_TONE[b.paceStatus], strong: true },
+      { text: `${cogs == null ? "n/a" : `${cogs.toFixed(1)}%`} / ${Number(b.targetPct).toFixed(0)}%`, tone: cogsTone, strong: true },
+    ]
+  })
 
-  const lineItems = snapshot.buckets
-    .map((b) => {
+  const spendTable = table(
+    [
+      { header: "Venue" },
+      { header: "Spent", align: "right" },
+      { header: "Budget", align: "right" },
+      { header: "Left", align: "right" },
+      { header: "Pace", align: "right" },
+      { header: "COGS proj.", align: "right" },
+    ],
+    tableRows
+  )
+
+  const lineItems = list(
+    snapshot.buckets.map((b) => {
       const takings = takingsLine(b)
-      return `<li style="margin:6px 0;color:#24292f;">${bucketLine(b, daysLeft)}${takings ? `<br><span style="color:#57606a;">${takings}</span>` : ""}</li>`
+      return { text: bucketLine(b, daysLeft), detail: takings || undefined, tone: PACE_TONE[b.paceStatus] }
     })
-    .join("")
+  )
 
   const unassignedNote =
     unassignedTotal > 0
-      ? `<p style="margin:16px 0 0;font-size:13px;color:#57606a;">Note: ${money0(
-          unassignedTotal
-        )} of invoices this week aren't tagged to a venue yet (${snapshot.unassigned
-          .map((u) => u.supplierName)
-          .filter((v, i, a) => a.indexOf(v) === i)
-          .join(
-            ", "
-          )}), usually liquor, so they're not in the per-venue figures.</p>`
+      ? `<div style="margin-top:14px;">${callout(
+          `Note: ${money0(unassignedTotal)} of invoices this week aren't tagged to a venue yet (${snapshot.unassigned
+            .map((u) => u.supplierName)
+            .filter((v, i, a) => a.indexOf(v) === i)
+            .join(", ")}), usually liquor, so they're not in the per-venue figures.`,
+          "gold"
+        )}</div>`
       : ""
 
-  const html = `<!doctype html><html><body style="margin:0;background:#f6f8fa;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
-  <div style="max-width:600px;margin:0 auto;padding:24px;">
-    <h1 style="margin:0 0 4px;font-size:20px;color:#1f2328;">Spend left this week</h1>
-    <p style="margin:0 0 20px;color:#57606a;font-size:14px;">Trading week ${range} (Wed→Tue) · <strong>${daysLeft} day${daysLeft === 1 ? "" : "s"} left</strong></p>
-
-    <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #eaeef2;border-radius:8px;font-size:14px;">
-      <thead>
-        <tr style="background:#f6f8fa;">
-          <th style="padding:10px;text-align:left;color:#57606a;font-weight:600;">Venue</th>
-          <th style="padding:10px;text-align:right;color:#57606a;font-weight:600;">Spent</th>
-          <th style="padding:10px;text-align:right;color:#57606a;font-weight:600;">Budget</th>
-          <th style="padding:10px;text-align:right;color:#57606a;font-weight:600;">Left</th>
-          <th style="padding:10px;text-align:right;color:#57606a;font-weight:600;">Pace</th>
-          <th style="padding:10px;text-align:right;color:#57606a;font-weight:600;">COGS proj.</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-
-    <ul style="margin:18px 0 0;padding-left:18px;font-size:14px;line-height:1.5;">${lineItems}</ul>
-    ${unassignedNote}
-
-    <p style="margin:22px 0 0;font-size:13px;">
-      <a href="https://kitchen.tarte.com.au/spend" style="color:#0969da;">Open the live spend tracker →</a>
-    </p>
-  </div>
-</body></html>`
+  const html = shell({
+    kicker: "Weekly spend",
+    title: "Spend left this week",
+    subtitle: `Trading week ${range} (Wed→Tue) · ${daysLabel}`,
+    preheader: `${daysLabel} in the trading week ${range}`,
+    sections: [
+      section("Where each venue sits", spendTable),
+      section(
+        "What that means",
+        lineItems + unassignedNote + button("Open the live spend tracker →", "https://kitchen.tarte.com.au/spend")
+      ),
+    ],
+  })
 
   return { subject, text, html }
 }

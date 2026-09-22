@@ -9,6 +9,7 @@ import { addDays, todayAest } from "@/lib/commitments/weeks"
 import { gmWeekStart } from "./week"
 import { DEFAULT_GM_DAYS, GM_ITEMS, type GmDays, type GmItem } from "./plan"
 import { dayLabel, getAutoReadings, getWeekNumbers, type AutoReading, type WeekNumbers } from "./readings"
+import { renderGmReportHtml } from "./report-email"
 
 const DAYS_KEY = "gmDays"
 const EMAIL_KEY = "gmEmail"
@@ -145,5 +146,6 @@ export async function gmDigestForCron() {
     email,
     openTasks: tasks.map((t) => ({ title: t.title, dueLabel: short(t.dueOn), daysLeft: Math.round((t.dueOn.getTime() - todayAest().getTime()) / 86400000) })),
     compose: (fixed: string, need: string) => composeReport({ weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), sick: sick.map((c) => `${c.staffName} (${short(c.calledOn)})`), fixed, need, sent: false }),
+    composeHtml: (fixed: string, need: string) => renderGmReportHtml({ weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), sick: sick.map((c) => `${c.staffName} (${short(c.calledOn)})`), fixed, need, sent: false }),
   }
 }
