@@ -14,6 +14,7 @@
  */
 
 import type { WeeklyDigestSnapshot } from "./aggregator"
+import { BRAND, FONT_BODY, FONT_DISPLAY, esc as escapeHtml } from "@/lib/email/brand"
 
 export interface DigestNarrative {
   /// 1-2 sentence headline, lead-with-action.
@@ -37,22 +38,24 @@ export interface DigestNarrative {
 }
 
 // ─── Design tokens ─────────────────────────────────────────────────
+// Mapped onto the shared brand palette (src/lib/email/brand.ts) so the
+// digest reads as one family with the other owner emails.
 const C = {
-  bg: "#f5f3ef", // Tarte stone background
-  card: "#ffffff",
-  border: "#e7e2db",
-  borderSoft: "#f1ede6",
-  ink: "#1f1d1b",
-  inkSoft: "#5a544c",
-  inkMute: "#928a80",
-  accent: "#3f6b46", // muted forest
-  accentSoft: "#e8efe9",
-  red: "#9a2a2a",
-  redSoft: "#fbeaea",
-  amber: "#8a5a14",
-  amberSoft: "#fbf1de",
-  green: "#2f6037",
-  greenSoft: "#e6efe6",
+  bg: BRAND.bg,
+  card: BRAND.card,
+  border: BRAND.line,
+  borderSoft: "#f1efeb",
+  ink: BRAND.ink,
+  inkSoft: BRAND.inkSoft,
+  inkMute: BRAND.inkMute,
+  accent: BRAND.sageDeep,
+  accentSoft: BRAND.sageSoft,
+  red: BRAND.redDeep,
+  redSoft: BRAND.redSoft,
+  amber: BRAND.goldDeep,
+  amberSoft: BRAND.goldSoft,
+  green: BRAND.done,
+  greenSoft: BRAND.doneSoft,
 }
 
 function fmtMoney(n: number | null | undefined, opts?: { signed?: boolean }) {
@@ -87,15 +90,6 @@ function fmtPct(n: number | null | undefined, opts?: { signed?: boolean; decimal
   return `${sign}${n.toFixed(d)}%`
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;")
-}
-
 function statusTone(status: "ok" | "amber" | "red" | "no-target"): {
   bg: string
   ink: string
@@ -109,7 +103,7 @@ function statusTone(status: "ok" | "amber" | "red" | "no-target"): {
     case "red":
       return { bg: C.redSoft, ink: C.red, label: "Off target" }
     default:
-      return { bg: "#f4f1ec", ink: C.inkMute, label: "No target" }
+      return { bg: BRAND.charcoalSoft, ink: C.inkMute, label: "No target" }
   }
 }
 
@@ -119,10 +113,12 @@ function header(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative) {
   const range = `${formatDateRange(snapshot.weekStart, snapshot.weekEnd)}`
   return `
     <tr>
-      <td style="padding:28px 28px 18px 28px;">
-        <div style="font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Tarte Kitchen · Weekly digest</div>
-        <div style="margin-top:6px;font-size:24px;line-height:1.2;color:${C.ink};font-weight:600;font-family:Georgia,'Times New Roman',serif;">${escapeHtml(range)}</div>
-        <div style="margin-top:14px;padding:14px 16px;background:${C.accentSoft};border-left:3px solid ${C.accent};border-radius:4px;color:${C.ink};font-size:15px;line-height:1.5;">${escapeHtml(narrative.headline)}</div>
+      <td style="padding:8px 28px 18px 28px;">
+        <div style="font-family:${FONT_BODY};font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:${BRAND.sageDeep};font-weight:700;">Tarte Kitchen &middot; Weekly digest</div>
+        <div style="margin-top:6px;font-family:${FONT_DISPLAY};font-size:28px;line-height:1.15;color:${BRAND.charcoal};font-weight:600;letter-spacing:-0.01em;">${escapeHtml(range)}</div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;background:${C.accentSoft};border-radius:10px;border-left:4px solid ${BRAND.sage};">
+          <tr><td style="padding:12px 14px;font-family:${FONT_BODY};font-size:15px;line-height:1.5;color:${C.ink};">${escapeHtml(narrative.headline)}</td></tr>
+        </table>
       </td>
     </tr>`
 }
@@ -188,9 +184,9 @@ function snapshotTiles(snapshot: WeeklyDigestSnapshot) {
             ${tiles
               .map(
                 (t) => `
-                <td style="background:${C.card};border:1px solid ${C.border};border-radius:8px;padding:14px 12px;vertical-align:top;width:20%;">
+                <td style="background:${C.card};border:1px solid ${C.border};border-radius:14px;padding:14px 12px;vertical-align:top;width:20%;">
                   <div style="font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">${escapeHtml(t.label)}</div>
-                  <div style="margin-top:6px;font-size:18px;color:${C.ink};font-weight:600;">${escapeHtml(t.value)}</div>
+                  <div style="margin-top:6px;font-family:${FONT_DISPLAY};font-size:20px;line-height:1.1;color:${BRAND.charcoal};font-weight:600;">${escapeHtml(t.value)}</div>
                   <div style="margin-top:4px;font-size:11px;${toneStyle(t.tone)}">${escapeHtml(t.sub)}</div>
                 </td>`
               )
@@ -205,7 +201,7 @@ function snapshotTiles(snapshot: WeeklyDigestSnapshot) {
 function sectionHeader(title: string, subtitle?: string) {
   return `
     <div style="padding:0 28px;margin-top:8px;">
-      <div style="font-family:Georgia,'Times New Roman',serif;font-size:18px;color:${C.ink};font-weight:600;letter-spacing:-0.01em;">${escapeHtml(title)}</div>
+      <div style="font-family:${FONT_DISPLAY};font-size:18px;line-height:1.2;color:${BRAND.charcoal};font-weight:600;letter-spacing:-0.01em;">${escapeHtml(title)}</div>
       ${subtitle ? `<div style="margin-top:4px;font-size:13px;color:${C.inkSoft};line-height:1.5;">${escapeHtml(subtitle)}</div>` : ""}
     </div>`
 }
@@ -222,7 +218,7 @@ function salesSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative
           <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:14px;color:${C.ink};text-align:right;font-variant-numeric:tabular-nums;">${fmtMoney(v.thisWeek)}</td>
           <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:14px;color:${C.inkSoft};text-align:right;font-variant-numeric:tabular-nums;">${fmtMoney(v.lastWeek)}</td>
           <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};text-align:right;">
-            <span style="display:inline-block;padding:2px 8px;background:${wowBg};color:${wowColor};border-radius:4px;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;">${wow == null ? "—" : fmtPct(wow, { signed: true })}</span>
+            <span style="display:inline-block;padding:2px 8px;background:${wowBg};color:${wowColor};border-radius:999px;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;">${wow == null ? "—" : fmtPct(wow, { signed: true })}</span>
           </td>
         </tr>`
     })
@@ -231,7 +227,7 @@ function salesSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative
   return `
     ${sectionHeader("Sales movement", narrative.sectionNotes.sales)}
     <div style="padding:14px 18px 4px;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:8px;border-collapse:collapse;overflow:hidden;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:14px;border-collapse:collapse;overflow:hidden;">
         <thead>
           <tr style="background:${C.borderSoft};">
             <th style="padding:9px 14px;text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Venue</th>
@@ -267,7 +263,7 @@ function wagesSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative
               <td style="padding:8px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.ink};text-align:right;font-variant-numeric:tabular-nums;font-weight:600;">${g.pct != null ? fmtPct(g.pct, { decimals: 2 }) : "—"}</td>
               <td style="padding:8px 14px;border-bottom:1px solid ${C.borderSoft};font-size:12px;color:${C.inkSoft};text-align:right;">${escapeHtml(targetCell)}</td>
               <td style="padding:8px 14px;border-bottom:1px solid ${C.borderSoft};text-align:right;">
-                <span style="display:inline-block;padding:2px 8px;background:${tone.bg};color:${tone.ink};border-radius:4px;font-size:11px;font-weight:600;letter-spacing:0.02em;">${escapeHtml(tone.label)}</span>
+                <span style="display:inline-block;padding:2px 8px;background:${tone.bg};color:${tone.ink};border-radius:999px;font-size:11px;font-weight:600;letter-spacing:0.02em;">${escapeHtml(tone.label)}</span>
               </td>
             </tr>`
         })
@@ -278,7 +274,7 @@ function wagesSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative
           : "—"
       return `
         <div style="margin:0 18px 12px;">
-          <div style="background:${C.card};border:1px solid ${C.border};border-radius:8px;overflow:hidden;">
+          <div style="background:${C.card};border:1px solid ${C.border};border-radius:14px;overflow:hidden;">
             <div style="padding:10px 14px;background:${C.borderSoft};">
               <span style="font-size:13px;font-weight:600;color:${C.ink};">${escapeHtml(v.venue)}</span>
               <span style="margin-left:8px;font-size:12px;color:${C.inkSoft};">${escapeHtml(overall)}</span>
@@ -319,7 +315,7 @@ function cogsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative)
           <td style="padding:10px 14px;${v.note ? "" : `border-bottom:1px solid ${C.borderSoft};`}font-size:14px;color:${C.ink};text-align:right;font-variant-numeric:tabular-nums;">${v.cogsPct != null ? fmtPct(v.cogsPct, { decimals: 2 }) : "—"}</td>
           <td style="padding:10px 14px;${v.note ? "" : `border-bottom:1px solid ${C.borderSoft};`}font-size:13px;color:${C.inkSoft};text-align:right;font-variant-numeric:tabular-nums;">${v.targetPct != null ? fmtPct(v.targetPct, { decimals: 2 }) : "—"}</td>
           <td style="padding:10px 14px;${v.note ? "" : `border-bottom:1px solid ${C.borderSoft};`}text-align:right;">
-            ${delta == null ? `<span style="color:${C.inkMute};">—</span>` : `<span style="display:inline-block;padding:2px 8px;background:${toneBg};color:${toneColor};border-radius:4px;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;">${fmtPct(delta, { signed: true, decimals: 2 })}</span>`}
+            ${delta == null ? `<span style="color:${C.inkMute};">—</span>` : `<span style="display:inline-block;padding:2px 8px;background:${toneBg};color:${toneColor};border-radius:999px;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;">${fmtPct(delta, { signed: true, decimals: 2 })}</span>`}
           </td>
           <td style="padding:10px 14px;${v.note ? "" : `border-bottom:1px solid ${C.borderSoft};`}font-size:13px;color:${C.inkSoft};text-align:right;font-variant-numeric:tabular-nums;">${v.nonFoodFoh != null ? fmtMoney(v.nonFoodFoh) : "—"}</td>
           <td style="padding:10px 14px;${v.note ? "" : `border-bottom:1px solid ${C.borderSoft};`}font-size:12px;color:${C.inkSoft};text-align:right;">${v.biggestCategory ? `${escapeHtml(v.biggestCategory.name)} ${fmtMoney(v.biggestCategory.dollars)}` : "—"}</td>
@@ -330,7 +326,7 @@ function cogsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative)
   return `
     ${sectionHeader("COGS", narrative.sectionNotes.cogs)}
     <div style="padding:14px 18px 4px;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:8px;border-collapse:collapse;overflow:hidden;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:14px;border-collapse:collapse;overflow:hidden;">
         <thead>
           <tr style="background:${C.borderSoft};">
             <th style="padding:9px 14px;text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Venue</th>
@@ -370,7 +366,7 @@ function spendPacingSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
           <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:14px;color:${C.ink};text-align:right;font-variant-numeric:tabular-nums;">${fmtMoney(b.remaining)}${remainingPctOfBudget != null ? `<div style="font-size:11px;color:${C.inkMute};">${remainingPctOfBudget.toFixed(0)}% of cap</div>` : ""}</td>
           <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};text-align:right;">
             <div style="font-size:14px;color:${C.ink};font-variant-numeric:tabular-nums;font-weight:600;">${fmtMoney(b.projectedEndOfWeek)}</div>
-            <div style="display:inline-block;margin-top:2px;padding:2px 8px;background:${p.bg};color:${p.fg};border-radius:4px;font-size:11px;font-weight:600;">${p.label}</div>
+            <div style="display:inline-block;margin-top:2px;padding:2px 8px;background:${p.bg};color:${p.fg};border-radius:999px;font-size:11px;font-weight:600;">${p.label}</div>
           </td>
         </tr>`
     })
@@ -394,7 +390,7 @@ function spendPacingSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
       narrative.sectionNotes.cogs ? undefined : "Pacing on this week's invoice spend vs forecasted revenue × COGS target."
     )}
     <div style="padding:14px 18px 4px;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:8px;border-collapse:collapse;overflow:hidden;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:14px;border-collapse:collapse;overflow:hidden;">
         <thead>
           <tr style="background:${C.borderSoft};">
             <th style="padding:9px 14px;text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Bucket</th>
@@ -410,7 +406,7 @@ function spendPacingSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
       ${
         sp.coverageProblems.length > 0
           ? `
-        <div style="margin-top:14px;background:${C.redSoft};border:1px solid ${C.red};border-radius:8px;padding:10px 14px;">
+        <div style="margin-top:14px;background:${C.redSoft};border:1px solid ${C.red};border-radius:14px;padding:10px 14px;">
           <div style="font-size:12px;color:${C.red};font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Coverage gaps (${sp.coverageProblems.length})</div>
           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:collapse;">
             ${problemRows}
@@ -439,7 +435,7 @@ function wastageSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrati
 
   const offenders =
     snapshot.wastage.recurringOffenders.length > 0
-      ? `<div style="margin:12px 18px 0;padding:12px 14px;background:${C.amberSoft};border-radius:6px;border:1px solid ${C.amber}33;">
+      ? `<div style="margin:12px 18px 0;padding:12px 14px;background:${C.amberSoft};border-radius:10px;border:1px solid ${C.amber}33;">
           <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.amber};font-weight:600;">Recurring offenders</div>
           <div style="margin-top:6px;font-size:13px;color:${C.ink};line-height:1.5;">
             ${snapshot.wastage.recurringOffenders.map((o) => `<strong>${escapeHtml(o.name)}</strong>: ${o.daysSeen} days · ${o.venues.map(escapeHtml).join(", ")}`).join("<br/>")}
@@ -450,7 +446,7 @@ function wastageSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrati
   return `
     ${sectionHeader("Wastage", narrative.sectionNotes.wastage)}
     <div style="padding:14px 18px 0;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:8px;border-collapse:collapse;overflow:hidden;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:14px;border-collapse:collapse;overflow:hidden;">
         <thead>
           <tr style="background:${C.borderSoft};">
             <th style="padding:9px 14px;text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Item</th>
@@ -489,7 +485,7 @@ function operationsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarr
 
   const tempBreachList =
     allTempBreaches.length > 0
-      ? `<div style="margin:12px 18px 0;padding:12px 14px;background:${C.redSoft};border-radius:6px;border:1px solid ${C.red}33;">
+      ? `<div style="margin:12px 18px 0;padding:12px 14px;background:${C.redSoft};border-radius:10px;border:1px solid ${C.red}33;">
           <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.red};font-weight:600;">Temp breaches</div>
           <div style="margin-top:6px;font-size:13px;color:${C.ink};line-height:1.5;">
             ${allTempBreaches
@@ -506,7 +502,7 @@ function operationsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarr
 
   const coolingBreachList =
     snapshot.operations.cooling.breaches.length > 0
-      ? `<div style="margin:12px 18px 0;padding:12px 14px;background:${C.redSoft};border-radius:6px;border:1px solid ${C.red}33;">
+      ? `<div style="margin:12px 18px 0;padding:12px 14px;background:${C.redSoft};border-radius:10px;border:1px solid ${C.red}33;">
           <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.red};font-weight:600;">Cooling-log breaches (FSANZ 3.2.2A)</div>
           <div style="margin-top:6px;font-size:13px;color:${C.ink};line-height:1.5;">
             ${snapshot.operations.cooling.breaches
@@ -529,7 +525,7 @@ function operationsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarr
   return `
     ${sectionHeader("Food safety & ops", narrative.sectionNotes.operations)}
     <div style="padding:14px 18px 0;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:8px;border-collapse:collapse;overflow:hidden;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:14px;border-collapse:collapse;overflow:hidden;">
         <thead>
           <tr style="background:${C.borderSoft};">
             <th style="padding:9px 14px;text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Venue</th>
@@ -575,7 +571,7 @@ function priceAlertTable(
       const toneBg =
         tone === "red" ? C.redSoft : tone === "amber" ? C.amberSoft : tone === "green" ? C.greenSoft : "transparent"
       const newBadge = p.isNew
-        ? ` <span style="display:inline-block;padding:1px 6px;background:${C.accentSoft};color:${C.accent};border-radius:4px;font-size:10px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;vertical-align:1px;">new</span>`
+        ? ` <span style="display:inline-block;padding:1px 6px;background:${C.accentSoft};color:${C.accent};border-radius:999px;font-size:10px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;vertical-align:1px;">new</span>`
         : ""
       return `
         <tr>
@@ -584,7 +580,7 @@ function priceAlertTable(
           <td style="padding:8px 10px;border-bottom:1px solid ${C.borderSoft};font-size:12px;color:${C.inkSoft};text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;">${fmtUnitPrice(p.oldPrice, p.unit)}</td>
           <td style="padding:8px 10px;border-bottom:1px solid ${C.borderSoft};font-size:12px;color:${C.ink};text-align:right;font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;">${fmtUnitPrice(p.newPrice, p.unit)}</td>
           <td style="padding:8px 10px;border-bottom:1px solid ${C.borderSoft};text-align:right;">
-            <span style="display:inline-block;padding:2px 8px;background:${toneBg};color:${toneColor};border-radius:4px;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;">${fmtPct(p.changePct, { signed: true })}</span>
+            <span style="display:inline-block;padding:2px 8px;background:${toneBg};color:${toneColor};border-radius:999px;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;">${fmtPct(p.changePct, { signed: true })}</span>
           </td>
           <td style="padding:8px 10px;border-bottom:1px solid ${C.borderSoft};font-size:12px;color:${p.weeklyImpactDollars != null && p.weeklyImpactDollars < 0 ? C.green : C.inkSoft};text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;">${fmtImpact(p.weeklyImpactDollars)}</td>
         </tr>`
@@ -593,7 +589,7 @@ function priceAlertTable(
   return `
     <div style="padding:14px 18px 0;">
       <div style="padding:0 2px 6px;font-size:13px;font-weight:600;color:${C.ink};">${escapeHtml(title)} <span style="font-weight:400;color:${C.inkMute};font-size:12px;">· ${escapeHtml(countLabel)}</span></div>
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:8px;border-collapse:collapse;overflow:hidden;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:14px;border-collapse:collapse;overflow:hidden;">
         <thead>
           <tr style="background:${C.borderSoft};">
             <th style="padding:9px 10px;text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Ingredient</th>
@@ -642,7 +638,7 @@ function topSellersSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarr
         : ""
       return `
         <div style="margin:0 18px 12px;">
-          <div style="background:${C.card};border:1px solid ${C.border};border-radius:8px;overflow:hidden;">
+          <div style="background:${C.card};border:1px solid ${C.border};border-radius:14px;overflow:hidden;">
             <div style="padding:10px 14px;background:${C.borderSoft};font-size:13px;font-weight:600;color:${C.ink};">${escapeHtml(v.venue)}</div>
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse:collapse;">
               ${list}
@@ -680,9 +676,9 @@ function reviewsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrati
         ${snapshot.reviews.perVenue
           .map(
             (v) => `
-            <td style="background:${C.card};border:1px solid ${C.border};border-radius:8px;padding:12px;vertical-align:top;width:33.33%;">
+            <td style="background:${C.card};border:1px solid ${C.border};border-radius:14px;padding:12px;vertical-align:top;width:33.33%;">
               <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">${escapeHtml(v.venue)}</div>
-              <div style="margin-top:6px;font-size:18px;color:${C.ink};font-weight:600;">${v.aggregateRating != null ? v.aggregateRating.toFixed(1) + "★" : "—"}</div>
+              <div style="margin-top:6px;font-family:${FONT_DISPLAY};font-size:22px;line-height:1.1;color:${BRAND.charcoal};font-weight:600;">${v.aggregateRating != null ? v.aggregateRating.toFixed(1) + "★" : "—"}</div>
               <div style="font-size:11px;color:${C.inkMute};">${v.aggregateTotalRatings != null ? v.aggregateTotalRatings.toLocaleString() + " ratings" : ""}${staleRatingNote(v.aggregateAsAt, snapshot.weekEnd)}</div>
               <div style="margin-top:8px;font-size:12px;color:${C.inkSoft};">${v.count > 0 ? v.count + " new · " + (v.averageThisWeek?.toFixed(1) ?? "—") + "★ this wk" : "no new reviews"}</div>
             </td>`
@@ -698,7 +694,7 @@ function reviewsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrati
           ${snapshot.reviews.overallNegatives
             .map(
               (r) => `
-              <div style="margin-bottom:10px;padding:12px 14px;background:${C.redSoft};border-radius:6px;border-left:3px solid ${C.red};">
+              <div style="margin-bottom:10px;padding:12px 14px;background:${C.redSoft};border-radius:10px;border-left:3px solid ${C.red};">
                 <div style="font-size:12px;color:${C.inkSoft};">${escapeHtml(r.venue)} · ${r.rating}★ · ${escapeHtml(r.author ?? "Anonymous")}</div>
                 ${r.summary ? `<div style="margin-top:4px;font-size:13px;font-weight:600;color:${C.ink};">${escapeHtml(r.summary)}</div>` : ""}
                 ${r.text ? `<div style="margin-top:4px;font-size:13px;color:${C.ink};line-height:1.5;font-style:italic;">“${escapeHtml(r.text)}”</div>` : ""}
@@ -718,7 +714,7 @@ function reviewsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrati
       : `No negative reviews in the last ${watch.windowDays} days`
   const watchColor = watch.unanswered.length > 0 ? C.red : C.inkSoft
   const responseWatch = `
-    <div style="margin:12px 18px 0;padding:10px 14px;background:${C.card};border:1px solid ${C.border};border-radius:6px;">
+    <div style="margin:12px 18px 0;padding:10px 14px;background:${C.card};border:1px solid ${C.border};border-radius:10px;">
       <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${watchColor};font-weight:600;">Reply watch</div>
       <div style="margin-top:4px;font-size:13px;color:${C.ink};">${escapeHtml(watchSummary)}</div>
       ${watch.unanswered
@@ -765,7 +761,7 @@ function commitmentsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
           </td>
           <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.inkSoft};white-space:nowrap;">${escapeHtml(o.saidBy.charAt(0) + o.saidBy.slice(1).toLowerCase())}</td>
           <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};white-space:nowrap;text-align:right;">
-            <span style="display:inline-block;padding:2px 8px;background:${C.redSoft};color:${C.red};border-radius:4px;font-size:12px;font-weight:600;">${o.daysOverdue}d overdue</span>
+            <span style="display:inline-block;padding:2px 8px;background:${C.redSoft};color:${C.red};border-radius:999px;font-size:12px;font-weight:600;">${o.daysOverdue}d overdue</span>
           </td>
         </tr>`
     )
@@ -774,7 +770,7 @@ function commitmentsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
   const overdueTable = c.overdueOneOffs.length
     ? `
     <div style="padding:14px 18px 4px;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:8px;border-collapse:collapse;overflow:hidden;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:14px;border-collapse:collapse;overflow:hidden;">
         <thead>
           <tr style="background:${C.borderSoft};">
             <th style="padding:9px 14px;text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Overdue promise</th>
@@ -797,7 +793,7 @@ function commitmentsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
           </td>
           <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.inkSoft};white-space:nowrap;">${escapeHtml(a.owner)}</td>
           <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};white-space:nowrap;text-align:right;">
-            <span style="display:inline-block;padding:2px 8px;background:${C.redSoft};color:${C.red};border-radius:4px;font-size:12px;font-weight:600;">${a.daysOverdue}d overdue</span>
+            <span style="display:inline-block;padding:2px 8px;background:${C.redSoft};color:${C.red};border-radius:999px;font-size:12px;font-weight:600;">${a.daysOverdue}d overdue</span>
           </td>
         </tr>`
     )
@@ -806,7 +802,7 @@ function commitmentsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
   const meetingTable = c.overdueMeetingActions.length
     ? `
     <div style="padding:14px 18px 4px;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:8px;border-collapse:collapse;overflow:hidden;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:14px;border-collapse:collapse;overflow:hidden;">
         <thead>
           <tr style="background:${C.borderSoft};">
             <th style="padding:9px 14px;text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">Overdue meeting action</th>
@@ -821,7 +817,7 @@ function commitmentsSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
 
   const standingList = c.standingConcerns.length
     ? `
-    <div style="margin:12px 18px 0;padding:10px 14px;background:${C.card};border:1px solid ${C.border};border-radius:6px;">
+    <div style="margin:12px 18px 0;padding:10px 14px;background:${C.card};border:1px solid ${C.border};border-radius:10px;">
       <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.red};font-weight:600;">Standing commitments slipping</div>
       ${c.standingConcerns
         .map(
@@ -868,12 +864,12 @@ function maintenanceSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
       return `
         <tr>
           <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.ink};">
-            ${i.isSafety ? `<span style="display:inline-block;padding:1px 6px;margin-right:6px;background:${C.redSoft};color:${C.red};border-radius:4px;font-size:11px;font-weight:700;">SAFETY</span>` : ""}${escapeHtml(i.title)}
+            ${i.isSafety ? `<span style="display:inline-block;padding:1px 6px;margin-right:6px;background:${C.redSoft};color:${C.red};border-radius:999px;font-size:11px;font-weight:700;">SAFETY</span>` : ""}${escapeHtml(i.title)}
             <div style="margin-top:2px;font-size:11px;color:${C.inkMute};">${escapeHtml(i.venue)}${i.machine ? ` · ${escapeHtml(i.machine)}${i.slug ? ` (${escapeHtml(i.slug)})` : ""}` : ""}</div>
             <div style="margin-top:2px;font-size:11px;">${booked}${warranty}</div>
           </td>
           <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};white-space:nowrap;text-align:right;vertical-align:top;">
-            <span style="display:inline-block;padding:2px 8px;background:${ageBg};color:${ageColor};border-radius:4px;font-size:12px;font-weight:600;">${i.daysOpen}d open</span>
+            <span style="display:inline-block;padding:2px 8px;background:${ageBg};color:${ageColor};border-radius:999px;font-size:12px;font-weight:600;">${i.daysOpen}d open</span>
           </td>
         </tr>`
     })
@@ -881,7 +877,7 @@ function maintenanceSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
 
   const issueTable = m.openIssues.length
     ? `
-    <div style="margin:12px 18px 0;background:${C.card};border:1px solid ${C.border};border-radius:8px;overflow:hidden;">
+    <div style="margin:12px 18px 0;background:${C.card};border:1px solid ${C.border};border-radius:14px;overflow:hidden;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         <thead>
           <tr style="background:${C.borderSoft};">
@@ -896,7 +892,7 @@ function maintenanceSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
 
   const warrantyList = m.warrantiesEnding.length
     ? `
-    <div style="margin:12px 18px 0;padding:12px 14px;background:${C.amberSoft};border-radius:6px;border:1px solid ${C.amber}33;">
+    <div style="margin:12px 18px 0;padding:12px 14px;background:${C.amberSoft};border-radius:10px;border:1px solid ${C.amber}33;">
       <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.amber};font-weight:600;">Warranties running out in the next 60 days</div>
       ${m.warrantiesEnding
         .map(
@@ -990,7 +986,7 @@ function seoSection(snapshot: WeeklyDigestSnapshot) {
 function actionList(narrative: DigestNarrative) {
   if (!narrative.actionItems.length) return ""
   return `
-    <div style="margin:24px 18px 0;padding:16px 18px;background:${C.accentSoft};border-radius:8px;border:1px solid ${C.accent}33;">
+    <div style="margin:24px 18px 0;padding:16px 18px;background:${C.accentSoft};border-radius:14px;border:1px solid ${C.accent}33;">
       <div style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:${C.accent};font-weight:700;">This week's actions</div>
       <ol style="margin:10px 0 0 18px;padding:0;color:${C.ink};font-size:14px;line-height:1.6;">
         ${narrative.actionItems.map((a) => `<li style="margin-bottom:4px;">${escapeHtml(a)}</li>`).join("")}
@@ -1022,9 +1018,9 @@ export function renderDigestHtml(
   narrative: DigestNarrative
 ): string {
   return `<!doctype html>
-<html>
-<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Tarte weekly digest</title></head>
-<body style="margin:0;padding:0;background:${C.bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${C.ink};">
+<html lang="en">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><meta name="color-scheme" content="light"/><title>Tarte weekly digest</title></head>
+<body style="margin:0;padding:0;background:${C.bg};font-family:${FONT_BODY};color:${C.ink};-webkit-text-size-adjust:100%;">
 <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.bg};">
   <tr>
     <td align="center" style="padding:24px 12px;">

@@ -13,7 +13,7 @@ import {
   type CatalogItem,
   type RestockReport,
 } from "@/lib/actions/restock"
-import { STATION_LABEL, STATION_SHORT_LABEL, VENUE_STATIONS } from "@/lib/stations"
+import { PREP_SECTIONS, prepSectionsFor, STATION_LABEL, STATION_SHORT_LABEL, VENUE_STATIONS } from "@/lib/stations"
 import type { KitchenStation } from "@/generated/prisma/client"
 import { Check, Loader2, Plus, Star } from "lucide-react"
 
@@ -269,7 +269,8 @@ function AddItemRow({
   const router = useRouter()
   const [name, setName] = useState("")
   const [unit, setUnit] = useState("")
-  const [category, setCategory] = useState("Station restock")
+  const sections = prepSectionsFor(venue)
+  const [category, setCategory] = useState<string>(sections[0] ?? "Station restock")
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
@@ -314,8 +315,14 @@ function AddItemRow({
         onChange={(e) => setCategory(e.target.value)}
         className="h-9 rounded-md border bg-transparent px-2 text-sm"
       >
-        <option>Station restock</option>
-        <option>Daily prep</option>
+        {sections.length > 0 ? (
+          PREP_SECTIONS.map((sec) => <option key={sec}>{sec}</option>)
+        ) : (
+          <>
+            <option>Station restock</option>
+            <option>Daily prep</option>
+          </>
+        )}
       </select>
       <Button size="sm" onClick={add} disabled={pending || !name.trim()}>
         {pending ? (

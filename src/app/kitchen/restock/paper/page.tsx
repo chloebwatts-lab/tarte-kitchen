@@ -6,7 +6,7 @@ import { RestockPaperSheet } from "@/components/kitchen/RestockPaperSheet"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
-import { STATION_LABEL, isKitchenStation } from "@/lib/stations"
+import { isKitchenStation, stationLabel } from "@/lib/stations"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
 
@@ -49,7 +49,7 @@ export default async function RestockPaperPage({
           { label: "Venues", href: "/kitchen" },
           { label: venueLabel, href: `/kitchen?venue=${venue}` },
           { label: "Restock & prep", href: `/kitchen/restock?venue=${venue}` },
-          { label: `${STATION_LABEL[station]} paper sheet` },
+          { label: "Paper sheet" },
         ]}
       />
 
@@ -58,7 +58,7 @@ export default async function RestockPaperPage({
           className="tk-display leading-none text-[var(--tk-charcoal)]"
           style={{ fontSize: 40, fontWeight: 700, letterSpacing: "-0.025em" }}
         >
-          {STATION_LABEL[station]} restock sheet
+          {venue === "BEACH_HOUSE" ? "Restock sheet, both kitchens" : `${stationLabel(venue, station)} restock sheet`}
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
           The paper sheet, on the iPad. Write straight into the boxes with the

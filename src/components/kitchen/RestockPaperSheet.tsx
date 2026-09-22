@@ -9,7 +9,7 @@ import {
   submitCountSheet,
   type CountSheet,
 } from "@/lib/actions/restock"
-import { STATION_SHORT_LABEL } from "@/lib/stations"
+import { STATION_SHORT_LABEL, stationShortLabel } from "@/lib/stations"
 
 /**
  * Paper facsimile of the printed "Kitchen Restock Request": one ruled
@@ -202,7 +202,7 @@ export function RestockPaperSheet({
               itemId: id,
               name: itemName,
               unit: null,
-              category: "Station restock",
+              category: res.category ?? "Station restock",
               available: "",
               requested: "",
               rank: "",
@@ -288,7 +288,7 @@ export function RestockPaperSheet({
               Kitchen Restock Request
             </div>
             <div className="text-[13px] text-[var(--tk-ink-soft)]">
-              {STATION_SHORT_LABEL[sheet.station]} · {sheet.sheetDate}
+              {stationShortLabel(sheet.venue, sheet.station)} · {sheet.sheetDate}
             </div>
           </div>
           <div className="text-[13px] tabular-nums text-[var(--tk-ink-soft)]">

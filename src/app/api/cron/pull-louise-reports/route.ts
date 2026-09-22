@@ -26,6 +26,7 @@ import {
   getHeader,
 } from "@/lib/gmail/client"
 import { sendHtmlEmail } from "@/lib/gmail/send"
+import { button, callout, para, section, shell, table, tiles, type Tone } from "@/lib/email/brand"
 import {
   parseLabourPdfRich,
   commitLabourMgePdf,
@@ -75,7 +76,14 @@ export async function GET(req: NextRequest) {
       await sendHtmlEmail({
         to: NOTIFY_RECIPIENT,
         subject: "Tarte: no Reports email from Louise this week",
-        html: `<p>Heads up, the Thursday auto-pull didn't find a Reports email from Louise this week, so Friday's digest may be missing the wages and COGS actuals. If she's sent it somewhere else, forward it to accounts@ or upload the files at <a href="https://kitchen.tarte.com.au/labour/upload">kitchen.tarte.com.au/labour/upload</a> and the digest will pick them up.</p>`,
+        html: shell({
+          kicker: "Louise's reports",
+          title: "No Reports email this week",
+          preheader: noReportText,
+          sections: [
+            section(null, para(noReportText) + button("Upload the files", "https://kitchen.tarte.com.au/labour/upload"), { tone: "gold" }),
+          ],
+        }),
         text: noReportText,
       })
       return Response.json({ ok: true, messagesFound: 0, notified: true })
@@ -119,9 +127,21 @@ export async function GET(req: NextRequest) {
       await sendHtmlEmail({
         to: NOTIFY_RECIPIENT,
         subject: "Tarte: Louise's report auto-pull failed",
-        html: `<p>The Thursday auto-pull of Louise's reports hit an error.</p>
-               <p><strong>Error:</strong> ${escape(errMsg)}</p>
-               <p>You can still upload the files manually at <a href="https://kitchen.tarte.com.au/labour/upload">kitchen.tarte.com.au/labour/upload</a>.</p>`,
+        html: shell({
+          kicker: "Louise's reports",
+          title: "Auto-pull failed",
+          preheader: `Auto-pull failed: ${errMsg}`,
+          sections: [
+            section(
+              null,
+              para("The Thursday auto-pull of Louise's reports hit an error.") +
+                callout(errMsg, "red", { label: "Error" }) +
+                `<div style="margin-top:12px;">${para("You can still upload the files manually at kitchen.tarte.com.au/labour/upload.")}</div>` +
+                button("Upload manually", "https://kitchen.tarte.com.au/labour/upload"),
+              { tone: "red" }
+            ),
+          ],
+        }),
         text: `Auto-pull failed: ${errMsg}\nUpload manually at https://kitchen.tarte.com.au/labour/upload`,
       })
     } catch {
@@ -312,38 +332,50 @@ async function sendNotification(
     ? `Tarte: Louise's reports auto-pull: ${summary.failed + summary.unknown} need your eyes`
     : `Tarte: Louise's reports ingested (${summary.ingested}/${summary.attachmentsTotal})`
 
-  const rows = allOutcomes
-    .flatMap((m) =>
-      m.outcomes.map(
-        (o) => `<tr>
-          <td style="padding:6px 10px;border-bottom:1px solid #eee;">${escape(o.filename)}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #eee;">${escape(o.kind)}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #eee;">${escape(o.status)}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #eee;">${o.weeks ?? ""}</td>
-          <td style="padding:6px 10px;border-bottom:1px solid #eee;color:#9a2a2a;">${o.error ? escape(o.error) : ""}</td>
-        </tr>`
-      )
-    )
-    .join("")
+  const statusTone = (status: AttachmentOutcome["status"]): Tone =>
+    status === "ingested" ? "done" : status === "failed" ? "red" : status === "skipped-unknown" ? "warn" : "neutral"
 
-  const html = `
-    <p>Auto-pull of Louise's weekly reports ran from <code>${escape(SENDER)}</code>.</p>
-    <p><strong>Summary:</strong> ${summary.ingested} ingested · ${summary.duplicates} duplicate (already in) · ${summary.failed} failed · ${summary.unknown} unsupported.</p>
-    ${
+  const rows = allOutcomes.flatMap((m) =>
+    m.outcomes.map((o) => [
+      o.filename,
+      o.kind,
+      { text: o.status, tone: statusTone(o.status), strong: true },
+      o.weeks != null ? String(o.weeks) : "",
+      { text: o.error ?? "", tone: "red" as Tone },
+    ])
+  )
+
+  const html = shell({
+    kicker: "Louise's reports",
+    title: hasFailure
+      ? `${summary.failed + summary.unknown} need your eyes`
+      : `${summary.ingested} of ${summary.attachmentsTotal} ingested`,
+    subtitle: `Auto-pull of Louise's weekly reports ran from ${SENDER}.`,
+    preheader: `${summary.ingested} ingested, ${summary.duplicates} duplicate, ${summary.failed} failed, ${summary.unknown} unsupported`,
+    sections: [
+      tiles([
+        { label: "Ingested", value: String(summary.ingested), tone: summary.ingested > 0 ? "done" : "neutral" },
+        { label: "Duplicate (already in)", value: String(summary.duplicates) },
+        { label: "Failed", value: String(summary.failed), tone: summary.failed > 0 ? "red" : "neutral" },
+        { label: "Unsupported", value: String(summary.unknown), tone: summary.unknown > 0 ? "warn" : "neutral" },
+      ]),
       hasFailure
-        ? `<p style="color:#9a2a2a;"><strong>Action needed:</strong> upload the failed files manually at <a href="https://kitchen.tarte.com.au/labour/upload">kitchen.tarte.com.au/labour/upload</a>.</p>`
-        : `<p>Friday digest will pick these up automatically.</p>`
-    }
-    <table style="border-collapse:collapse;font-size:13px;font-family:-apple-system,sans-serif;">
-      <thead><tr style="background:#f5f3ef;">
-        <th style="padding:6px 10px;text-align:left;">Filename</th>
-        <th style="padding:6px 10px;text-align:left;">Kind</th>
-        <th style="padding:6px 10px;text-align:left;">Status</th>
-        <th style="padding:6px 10px;text-align:left;">Weeks</th>
-        <th style="padding:6px 10px;text-align:left;">Note</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`
+        ? section(
+            null,
+            callout("Action needed: upload the failed files manually at kitchen.tarte.com.au/labour/upload.", "red") +
+              button("Upload manually", "https://kitchen.tarte.com.au/labour/upload"),
+            { tone: "red" }
+          )
+        : callout("Friday digest will pick these up automatically.", "done"),
+      section(
+        "Attachments",
+        table(
+          [{ header: "Filename" }, { header: "Kind" }, { header: "Status" }, { header: "Weeks" }, { header: "Note" }],
+          rows
+        )
+      ),
+    ],
+  })
 
   const text = allOutcomes
     .flatMap((m) =>
@@ -363,10 +395,3 @@ async function sendNotification(
   })
 }
 
-function escape(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-}

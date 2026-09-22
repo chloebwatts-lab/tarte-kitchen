@@ -9,7 +9,7 @@ import {
   type RestockRun,
   type RunStationLine,
 } from "@/lib/actions/restock"
-import { STATION_SHORT_LABEL } from "@/lib/stations"
+import { PREP_SECTION_OWNER, prepSectionsFor, sectionRank, STATION_SHORT_LABEL, type PrepSection } from "@/lib/stations"
 import { formatNeededBy, isLate } from "@/lib/restock-needed-by"
 import type { KitchenStation } from "@/generated/prisma/client"
 
@@ -283,6 +283,23 @@ export function RestockRunBoard({
         )
   const priorityItems = visibleItems.filter((i) => i.priority)
   const normalItems = visibleItems.filter((i) => !i.priority)
+  // On the one-list venue, everything that is not a priority is grouped by
+  // who is responsible for making it, in the list's section order.
+  const sectioned = prepSectionsFor(run.venue).length > 0
+  const normalGroups: [string, typeof normalItems][] = []
+  if (sectioned) {
+    const map = new Map<string, typeof normalItems>()
+    for (const i of normalItems) {
+      const arr = map.get(i.category) ?? []
+      arr.push(i)
+      map.set(i.category, arr)
+    }
+    normalGroups.push(
+      ...Array.from(map.entries()).sort(
+        (a, b) => sectionRank(a[0]) - sectionRank(b[0]) || a[0].localeCompare(b[0])
+      )
+    )
+  }
 
   return (
     <div className="space-y-6 pb-24">
@@ -436,7 +453,28 @@ export function RestockRunBoard({
         </div>
       )}
 
-      {normalItems.length > 0 && (
+      {sectioned &&
+        normalGroups.map(([category, items]) => (
+          <div key={category} className="space-y-2">
+            <div className="tk-caps flex items-baseline gap-2 px-1" style={{ color: "var(--tk-ink-mute)" }}>
+              <span style={{ color: "var(--tk-charcoal)" }}>{category}</span>
+              <span>· {PREP_SECTION_OWNER[category as PrepSection] ?? "responsible"}</span>
+              <span className="ml-auto tabular-nums">{items.length}</span>
+            </div>
+            {items.map((item) => (
+              <RunItemCard
+                key={item.name}
+                item={item}
+                today={today}
+                latestDate={latestDate}
+                onToggle={toggleSupplied}
+                onAdjust={adjustSupplied}
+              />
+            ))}
+          </div>
+        ))}
+
+      {!sectioned && normalItems.length > 0 && (
         <div className="space-y-2">
           {priorityItems.length > 0 && (
             <div className="tk-caps px-1" style={{ color: "var(--tk-ink-mute)" }}>

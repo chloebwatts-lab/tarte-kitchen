@@ -1,3 +1,7 @@
+// SUPERSEDED 2026-09-22: Beach House now runs ONE prep list for both kitchens
+// (station MAIN, items sectioned by who is responsible). The list itself is
+// loaded by prisma/migrations/20260922000000_beach_house_one_prep_list. This
+// script seeds the old per-kitchen catalogues and should not be run again.
 /**
  * Seed the PrepStockItem catalogue from the head chef's paper sheets
  * (July 2026): "KITCHEN RESTOCK REQUEST (Restaurant)", "kitchen restock

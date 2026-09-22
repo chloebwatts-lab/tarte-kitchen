@@ -7,7 +7,7 @@ import {
   RestockSheetStatus,
   Venue,
 } from "@/generated/prisma/client"
-import { stationsForVenue } from "@/lib/stations"
+import { prepSectionsFor, sectionRank, stationsForVenue } from "@/lib/stations"
 
 // ------------------------------------------------------------------
 // The head chef's paper system, digitised:
@@ -258,9 +258,8 @@ export async function getCountSheet(params: {
   // "Station restock" leads (that's the paper sheet the chefs know);
   // other categories follow alphabetically.
   items.sort((a, b) => {
-    const rank = (c: string) => (c === "Station restock" ? 0 : 1)
     return (
-      rank(a.category) - rank(b.category) ||
+      sectionRank(a.category) - sectionRank(b.category) ||
       a.category.localeCompare(b.category) ||
       a.sortOrder - b.sortOrder ||
       a.name.localeCompare(b.name)
@@ -470,7 +469,7 @@ export async function addCatalogItem(params: {
   station: KitchenStation
   name: string
   category?: string
-}): Promise<{ ok: boolean; itemId?: string; error?: string }> {
+}): Promise<{ ok: boolean; itemId?: string; category?: string; error?: string }> {
   const name = params.name.trim()
   if (!name) return { ok: false, error: "Item needs a name" }
 
@@ -490,24 +489,31 @@ export async function addCatalogItem(params: {
         data: { isActive: true },
       })
     }
-    return { ok: true, itemId: existing.id }
+    return { ok: true, itemId: existing.id, category: existing.category }
   }
 
   const maxSort = await db.prepStockItem.aggregate({
     where: { venue: params.venue, station: params.station },
     _max: { sortOrder: true },
   })
+  // On a sectioned list (Beach House) a new prep lands in the section the
+  // chef picked, or the first one; elsewhere it joins the station restock.
+  const sections = prepSectionsFor(params.venue)
+  const category =
+    params.category && (!sections.length || (sections as readonly string[]).includes(params.category))
+      ? params.category
+      : sections[0] ?? "Station restock"
   const item = await db.prepStockItem.create({
     data: {
       venue: params.venue,
       station: params.station,
       name,
-      category: params.category ?? "Station restock",
+      category,
       sortOrder: (maxSort._max.sortOrder ?? 0) + 1,
     },
   })
   revalidatePath("/kitchen/restock")
-  return { ok: true, itemId: item.id }
+  return { ok: true, itemId: item.id, category }
 }
 
 // ------------------------------------------------------------------
@@ -590,7 +596,7 @@ export async function getRestockRun(venue: Venue): Promise<RestockRun> {
     }
   }
 
-  const catRank = (c: string) => (c === "Station restock" ? 0 : 1)
+  const catRank = sectionRank
   const items = Array.from(itemsByKey.values()).sort(
     (a, b) =>
       Number(b.priority) - Number(a.priority) ||

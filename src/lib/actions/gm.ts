@@ -8,7 +8,8 @@ import { db } from "@/lib/db"
 import { checkGmPassword, isGmAuthed, setGmCookie, storeGmPassword } from "@/lib/gm-auth"
 import { addDays, todayAest, ymd } from "@/lib/commitments/weeks"
 import { gmWeekPos, gmWeekStart, gmWeekStartOf } from "@/lib/gm/week"
-import { sendEmail } from "@/lib/gmail/send"
+import { sendHtmlEmail } from "@/lib/gmail/send"
+import { renderGmReportHtml } from "@/lib/gm/report-email"
 import { guardedCheck, LOCKED_MESSAGE } from "@/lib/login-guard"
 import { pushPublicKey, sendGmPush } from "@/lib/gm/push"
 import { getCurrentWeekSpend } from "@/lib/spend/current-week"
@@ -310,9 +311,10 @@ export async function sendFridayReport(p: { fixed: string; need: string }) {
     db.gmSickCall.findMany({ where: { calledOn: { gte: monday, lte: addDays(monday, 6) } }, orderBy: { calledOn: "asc" } }),
   ])
   const weekLabel = `${short(monday)} to ${short(addDays(monday, 6))}`
-  const body = composeReport({ weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), sick: sick.map((c) => `${c.staffName} (${short(c.calledOn)})`), fixed, need })
+  const report = { weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), sick: sick.map((c) => `${c.staffName} (${short(c.calledOn)})`), fixed, need }
+  const body = composeReport(report)
   try {
-    await sendEmail({ to: REPORT_TO, subject: `Oliver's Monday report, ${weekLabel}`, body })
+    await sendHtmlEmail({ to: REPORT_TO, subject: `Oliver's Monday report, ${weekLabel}`, text: body, html: renderGmReportHtml(report) })
   } catch {
     return { ok: false as const, error: "The email did not send. Try again in a minute, or tell Chloe." }
   }

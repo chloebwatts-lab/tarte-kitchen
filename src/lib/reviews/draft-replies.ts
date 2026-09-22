@@ -28,8 +28,7 @@ import { db } from "@/lib/db"
 import { sendHtmlEmail } from "@/lib/gmail/send"
 import { VENUE_SHORT_LABEL } from "@/lib/venues"
 import type { Venue } from "@/generated/prisma/enums"
-
-const APP_URL = "https://kitchen.tarte.com.au"
+import { APP_URL, BRAND, FONT_BODY, button, callout, para, section, shell, type Tone } from "@/lib/email/brand"
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -96,16 +95,10 @@ function ratingLabel(rating: number): string {
   return "negative"
 }
 
-function ratingColor(rating: number): string {
-  if (rating >= 4) return "#4f5b3f"  // sage green
-  if (rating === 3) return "#b45309"  // amber
-  return "#b91c1c"                    // red
-}
-
-function ratingBg(rating: number): string {
-  if (rating >= 4) return "#eef2e7"
-  if (rating === 3) return "#fef3c7"
-  return "#fee2e2"
+function ratingTone(rating: number): Tone {
+  if (rating >= 4) return "done"
+  if (rating === 3) return "gold"
+  return "warn"
 }
 
 type DraftedReview = {
@@ -148,64 +141,39 @@ function buildEmailHtml(reviews: DraftedReview[]): { html: string; text: string 
     const approveUrl = `${APP_URL}/api/reviews/reply?token=${r.replyToken}&action=approve`
     const editUrl = `${APP_URL}/api/reviews/reply?token=${r.replyToken}&action=edit`
     const skipUrl = `${APP_URL}/api/reviews/reply?token=${r.replyToken}&action=skip`
-    const color = ratingColor(r.rating)
-    const bg = ratingBg(r.rating)
+    const tone = ratingTone(r.rating)
+    const meta = `${stars(r.rating)} ${r.rating}/5 · ${date}${r.authorName ? ` · ${r.authorName}` : ""}`
 
-    return `
-    <div style="margin-bottom:24px;border:1px solid #d9d2c4;border-radius:8px;overflow:hidden;font-family:sans-serif;">
-      <div style="background:${color};color:#fff;padding:10px 16px;display:flex;align-items:center;gap:8px;">
-        <strong>${venueName}</strong>
-        &nbsp;·&nbsp;${stars(r.rating)} (${r.rating}/5)
-        &nbsp;·&nbsp;<span style="opacity:.85;font-size:13px;">${date}</span>
-        ${r.authorName ? `&nbsp;·&nbsp;<em style="opacity:.85;">${r.authorName}</em>` : ""}
-      </div>
-      <div style="padding:14px 16px;background:#fff;">
-        <p style="margin:0 0 12px;color:#1f1d1a;line-height:1.55;font-size:14px;">${(r.text || "<em>Rating only, no written text</em>").replace(/\n/g, "<br>")}</p>
-        <div style="background:${bg};border:1px solid #d9d2c4;border-radius:6px;padding:12px 14px;margin-bottom:14px;">
-          <div style="font-size:11px;color:#8a857c;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;">Suggested reply</div>
-          <p style="margin:0;color:#1f1d1a;line-height:1.6;font-size:14px;">${r.draftReply.replace(/\n/g, "<br>")}</p>
-        </div>
-        <div>
-          <a href="${approveUrl}"
-             style="display:inline-block;padding:8px 18px;background:${color};color:#fff;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;margin-right:6px;">
-            ✓ Approve &amp; Post
-          </a>
-          <a href="${editUrl}"
-             style="display:inline-block;padding:8px 18px;background:#fff;color:${color};text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;border:1px solid ${color};margin-right:6px;">
-            ✏️ Edit
-          </a>
-          <a href="${skipUrl}"
-             style="display:inline-block;padding:8px 18px;background:#fff;color:#4a4641;text-decoration:none;border-radius:6px;font-size:13px;border:1px solid #d9d2c4;">
-            Skip
-          </a>
-        </div>
-      </div>
-    </div>`
-  }).join("")
+    const reviewText = r.text
+      ? para(r.text)
+      : `<div style="font-family:${FONT_BODY};font-size:15px;line-height:1.5;color:${BRAND.inkMute};font-style:italic;margin:0 0 8px 0;">Rating only, no written text</div>`
 
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-</head>
-<body style="margin:0;padding:24px;background:#f5f0e8;">
-  <div style="max-width:600px;margin:0 auto;">
-    <h2 style="font-family:sans-serif;color:#1f1d1a;margin:0 0 4px;">
-      Tarte: ${count} review${count !== 1 ? "s" : ""} to reply to
-    </h2>
-    <p style="font-family:sans-serif;color:#8a857c;margin:0 0 6px;font-size:14px;">${parts.join(" · ")}</p>
-    <p style="font-family:sans-serif;color:#8a857c;margin:0 0 24px;font-size:13px;">
-      Replying to every review (positive and negative) boosts your Google local ranking.
-      Negatives are listed first.
-    </p>
-    ${htmlItems}
-    <p style="font-family:sans-serif;color:#8a857c;font-size:12px;margin-top:16px;">
-      <a href="${APP_URL}/reviews" style="color:#4f5b3f;">View all reviews in Tarte Kitchen</a>
-    </p>
-  </div>
-</body>
-</html>`
+    const actions = `<table role="presentation" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding:0 8px 0 0;">${button("Approve & Post", approveUrl)}</td>
+        <td style="padding:0 8px 0 0;">${button("Edit", editUrl, { secondary: true })}</td>
+        <td>${button("Skip", skipUrl, { secondary: true })}</td>
+      </tr>
+    </table>`
+
+    return section(
+      venueName,
+      `${reviewText}<div style="margin-top:4px;">${callout(r.draftReply, tone, { label: "Suggested reply" })}</div>${actions}`,
+      { tone, note: meta }
+    )
+  })
+
+  const html = shell({
+    kicker: "Reviews",
+    title: `${count} review${count !== 1 ? "s" : ""} to reply to`,
+    subtitle: parts.join(" · "),
+    preheader: parts.join(" · "),
+    sections: [
+      `<div style="padding:0 4px;">${para("Replying to every review (positive and negative) boosts your Google local ranking. Negatives are listed first.", { muted: true })}</div>`,
+      ...htmlItems,
+    ],
+    footer: `<a href="${APP_URL}/reviews" style="color:${BRAND.sageDeep};">View all reviews in Tarte Kitchen</a>`,
+  })
 
   const textItems = sorted.map((r) => {
     const venueName = VENUE_SHORT_LABEL[r.venue] ?? r.venue

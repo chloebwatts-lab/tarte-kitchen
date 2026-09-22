@@ -2,6 +2,7 @@ import { db } from "@/lib/db"
 import { DEPT_LABEL } from "@/lib/departments"
 import { VENUE_SHORT_LABEL } from "@/lib/venues"
 import type { Venue } from "@/generated/prisma/client"
+import { BRAND, FONT_BODY, FONT_DISPLAY, callout, section as card, shell, tiles, toneColours, type Tone } from "@/lib/email/brand"
 
 /**
  * End-of-day accountability email. Chloe, 18 Sep 2026: "an email end of
@@ -183,52 +184,64 @@ export function renderDailyAccountability(d: DailyAccountability): { subject: st
   const subject = `End of day ${d.date}: ${open} open, ${t.unowned} with nobody on them`
   const url = baseUrl()
 
-  const INK = "#13202c", MUTED = "#6b7680", LINE = "#e3e8ee", RED = "#a8231c", RED_BG = "#fbe3e0", ACCENT = "#1d4f7c"
-  const VENUE_COLOUR: Partial<Record<Venue, string>> = { BURLEIGH: "#1d4f7c", BEACH_HOUSE: "#14684b", TEA_GARDEN: "#8a5200" }
+  // Red = needs a name or a phone call; rust = it has sat too long.
+  const flagTone = (flag: string): Tone =>
+    flag === "SAFETY" || flag === "no owner" || flag === "nobody called yet" || flag === "urgent" || flag === "overdue" ? "red" : "warn"
 
-  const tile = (n: number, label: string, red = false) =>
-    `<td style="padding:0 6px 0 0;width:25%"><div style="background:${red && n > 0 ? RED_BG : "#f5f7fa"};border-radius:10px;padding:12px 14px">
-<div style="font-size:30px;font-weight:700;line-height:1;color:${red && n > 0 ? RED : INK}">${n}</div>
-<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:${red && n > 0 ? RED : MUTED};margin-top:4px">${esc(label)}</div></div></td>`
-
-  const row = (l: Line) => `<tr>
-<td style="padding:8px 0;border-top:1px solid ${LINE};vertical-align:top;width:120px">${l.flag ? `<span style="display:inline-block;background:${RED_BG};color:${RED};font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.03em;padding:3px 8px;border-radius:999px;white-space:nowrap">${esc(l.flag)}</span>` : `<span style="color:${MUTED};font-size:12px">&nbsp;</span>`}</td>
-<td style="padding:8px 8px;border-top:1px solid ${LINE};vertical-align:top"><div style="font-size:15px;font-weight:700;color:${INK}">${esc(l.text)}</div>${l.who ? `<div style="font-size:13px;color:${MUTED};margin-top:2px">${esc(l.who)}</div>` : ""}</td>
-<td style="padding:8px 0 8px 8px;border-top:1px solid ${LINE};vertical-align:top;text-align:right;white-space:nowrap;font-size:13px;color:${MUTED};width:70px">${esc(l.age)}</td>
-</tr>`
-
-  const section = (title: string, lines: Line[], href: string) => {
-    if (!lines.length) return ""
-    return `<tr><td colspan="3" style="padding:16px 0 4px"><a href="${url}${href}" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${ACCENT};text-decoration:none">${esc(title)} &middot; ${lines.length}</a></td></tr>${lines.map(row).join("")}`
+  const flagPill = (flag: string) => {
+    const c = toneColours(flagTone(flag))
+    return `<span style="display:inline-block;background:${c.bg};color:${c.ink};font-family:${FONT_BODY};font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.03em;padding:3px 9px;border-radius:999px;white-space:nowrap">${esc(flag)}</span>`
   }
 
-  const venueCard = (label: string, colour: string, inner: string, count: number) => `
-<div style="border:1px solid ${LINE};border-left:6px solid ${colour};border-radius:12px;padding:14px 18px 18px;margin:18px 0;background:#fff">
-<div style="font-size:18px;font-weight:700;color:${INK}">${esc(label)} <span style="color:${MUTED};font-weight:400;font-size:14px">${count === 0 ? "nothing open" : `${count} open`}</span></div>
-${count ? `<table style="border-collapse:collapse;width:100%">${inner}</table>` : ""}
-</div>`
+  const row = (l: Line) => `<tr>
+<td style="padding:8px 0;border-top:1px solid ${BRAND.line};vertical-align:top;width:120px">${l.flag ? flagPill(l.flag) : `<span style="color:${BRAND.inkMute};font-size:12px">&nbsp;</span>`}</td>
+<td style="padding:8px 8px;border-top:1px solid ${BRAND.line};vertical-align:top"><div style="font-family:${FONT_BODY};font-size:15px;line-height:1.4;font-weight:700;color:${BRAND.ink}">${esc(l.text)}</div>${l.who ? `<div style="font-family:${FONT_BODY};font-size:13px;line-height:1.4;color:${BRAND.inkSoft};margin-top:2px">${esc(l.who)}</div>` : ""}</td>
+<td style="padding:8px 0 8px 8px;border-top:1px solid ${BRAND.line};vertical-align:top;text-align:right;white-space:nowrap;font-family:${FONT_BODY};font-size:13px;color:${BRAND.inkSoft};width:70px">${esc(l.age)}</td>
+</tr>`
+
+  const group = (title: string, lines: Line[], href: string) => {
+    if (!lines.length) return ""
+    return `<tr><td colspan="3" style="padding:12px 0 4px"><a href="${url}${href}" style="font-family:${FONT_BODY};font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:${BRAND.sageDeep};text-decoration:none">${esc(title)} &middot; ${lines.length}</a></td></tr>${lines.map(row).join("")}`
+  }
+
+  const venueCard = (label: string, inner: string, count: number) =>
+    card(
+      label,
+      count ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse">${inner}</table>` : "",
+      { note: count === 0 ? "nothing open" : `${count} open` }
+    )
 
   const blocks = d.venues.map((v) => {
     const count = v.fixes.length + v.jobs.length + v.orders.length + v.agenda.length
     const inner =
-      section("Needs fixing", v.fixes, `/kitchen/fix?venue=${v.venue}`) +
-      section("Board jobs", v.jobs, `/kitchen/managers/board?venue=${v.venue}`) +
-      section("Needs ordering", v.orders, `/kitchen/order?venue=${v.venue}`) +
-      section("Meeting agenda", v.agenda, "/kitchen/managers/agenda")
-    return venueCard(VENUE_SHORT_LABEL[v.venue], VENUE_COLOUR[v.venue] ?? "#55646f", inner, count)
-  }).join("")
+      group("Needs fixing", v.fixes, `/kitchen/fix?venue=${v.venue}`) +
+      group("Board jobs", v.jobs, `/kitchen/managers/board?venue=${v.venue}`) +
+      group("Needs ordering", v.orders, `/kitchen/order?venue=${v.venue}`) +
+      group("Meeting agenda", v.agenda, "/kitchen/managers/agenda")
+    return venueCard(VENUE_SHORT_LABEL[v.venue], inner, count)
+  })
   const groupBlock = d.groupAgenda.length
-    ? venueCard("All venues", "#55646f", section("Meeting agenda", d.groupAgenda, "/kitchen/managers/agenda"), d.groupAgenda.length)
+    ? venueCard("All venues", group("Meeting agenda", d.groupAgenda, "/kitchen/managers/agenda"), d.groupAgenda.length)
     : ""
 
-  const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;color:${INK};max-width:680px;margin:0 auto;line-height:1.35;background:#faf9f5;padding:20px">
-<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${ACCENT}">Tarte Kitchen, end of day</div>
-<div style="font-size:24px;font-weight:700;margin:2px 0 14px">${esc(d.date)}</div>
-<table style="border-collapse:collapse;width:100%"><tr>${tile(t.fixes, "To fix")}${tile(t.jobs, "Board jobs")}${tile(t.orders, "To order")}${tile(t.agenda, "Agenda")}</tr></table>
-<div style="margin:12px 0 0;font-size:14px;${t.unowned ? `color:${RED};font-weight:700` : `color:${MUTED}`}">${t.unowned ? `${t.unowned} of these have nobody on them.` : "Everything open has a name on it."}</div>
-${open === 0 ? `<div style="margin:24px 0;font-size:18px;font-weight:700">Nothing open anywhere. Good day.</div>` : blocks + groupBlock}
-<div style="margin:24px 0 0;font-size:12px;color:${MUTED}">Open items only. Red tags need a name or a phone call. Ages are since it was reported. Sent 5pm daily by Tarte Kitchen.</div>
-</div>`
+  const html = shell({
+    kicker: "End of day",
+    title: d.date,
+    preheader: `${open} open, ${t.unowned} with nobody on them`,
+    sections: [
+      tiles([
+        { label: "To fix", value: String(t.fixes) },
+        { label: "Board jobs", value: String(t.jobs) },
+        { label: "To order", value: String(t.orders) },
+        { label: "Agenda", value: String(t.agenda) },
+      ]),
+      callout(t.unowned ? `${t.unowned} of these have nobody on them.` : "Everything open has a name on it.", t.unowned ? "red" : "done"),
+      ...(open === 0
+        ? [card(null, `<div style="font-family:${FONT_DISPLAY};font-size:20px;line-height:1.2;color:${BRAND.charcoal};font-weight:600">Nothing open anywhere. Good day.</div>`)]
+        : [...blocks, groupBlock].filter(Boolean)),
+    ],
+    footer: "Open items only. Red tags need a name or a phone call. Ages are since it was reported. Sent 5pm daily by Tarte Kitchen.",
+  })
 
   const textLines: string[] = [
     `Tarte end of day, ${d.date}`,
