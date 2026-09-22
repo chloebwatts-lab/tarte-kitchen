@@ -13,6 +13,7 @@
 
 import { db } from "@/lib/db"
 import { postGbpReply } from "@/lib/gbp/post-reply"
+import { checkAlreadyAnswered } from "@/lib/reviews/already-answered"
 import { revalidatePath } from "next/cache"
 
 export type ReplyActionResult =
@@ -31,6 +32,7 @@ export async function approveReply(
       googleReviewId: true,
       draftReply: true,
       replyStatus: true,
+      replyText: true,
     },
   })
   if (!review) return { ok: false, error: "Review not found" }
@@ -40,6 +42,20 @@ export async function approveReply(
 
   const finalText = (editedText?.trim() || review.draftReply?.trim()) ?? ""
   if (!finalText) return { ok: false, error: "No reply text to post" }
+
+  // tarte-seo-engine replies to these same reviews and GBP's reply
+  // endpoint is an upsert, so check what is live before we post.
+  const guard = await checkAlreadyAnswered(review, finalText)
+  if (guard.blocked) {
+    revalidatePath("/reviews")
+    if (guard.kind === "already-ours") return { ok: true, posted: true }
+    return {
+      ok: true,
+      posted: false,
+      reason:
+        "This review already has a reply live on Google (posted from the SEO engine), so nothing was sent. Posting here would have replaced it.",
+    }
+  }
 
   // Persist any edit + mark approved BEFORE the API call. If the API
   // call fails we still want the edit saved and the row APPROVED so a

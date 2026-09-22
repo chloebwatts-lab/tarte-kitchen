@@ -217,6 +217,28 @@ function buildEmailHtml(reviews: DraftedReview[]): { html: string; text: string 
  * Returns the number of drafts sent.
  */
 export async function draftAndNotifyNewReviews(): Promise<number> {
+  // Retire any draft whose review has since been answered on Google.
+  // tarte-seo-engine replies to the same reviews from its own dashboard,
+  // and the sync mirrors whatever is live into `replyText`. Without this
+  // sweep those drafts sit in the queue and the approval email with an
+  // Approve button that would overwrite the published reply.
+  // A live reply that matches our own draft means our post landed and
+  // only the status write missed, so that one becomes POSTED, not
+  // ANSWERED_ELSEWHERE.
+  await db.$executeRaw`
+    UPDATE "GoogleReview"
+       SET "replyStatus" = CASE
+             WHEN btrim("replyText") = btrim("draftReply") THEN 'POSTED'::"ReviewReplyStatus"
+             ELSE 'ANSWERED_ELSEWHERE'::"ReviewReplyStatus"
+           END,
+           "replyPostedAt" = CASE
+             WHEN btrim("replyText") = btrim("draftReply")
+               THEN COALESCE("replyPostedAt", "replyTime", NOW())
+             ELSE "replyPostedAt"
+           END
+     WHERE "replyStatus" IN ('DRAFTED', 'APPROVED')
+       AND "replyText" IS NOT NULL`
+
   // Only draft replies for reviews from the last 30 days. Backfilling
   // years of historical GBP reviews would flood Chloe with thousands of
   // drafts she'd never reply to. New reviews land daily anyway.

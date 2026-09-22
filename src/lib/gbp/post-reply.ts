@@ -83,3 +83,57 @@ export async function postGbpReply(
 
   return { posted: true }
 }
+
+/**
+ * Read the owner reply that is CURRENTLY live on Google for one review.
+ *
+ * Two systems post owner replies to the same Google reviews: this app
+ * (draft email + /reviews page) and tarte-seo-engine (its own dashboard
+ * + hourly publish sweep). GBP's reply endpoint is a PUT upsert, so the
+ * second system to post silently REPLACES the first system's reply.
+ * Before posting anything we ask Google what is actually live, so an
+ * approval here can never overwrite a reply someone already published.
+ *
+ * Returns `unknown: true` when we can't tell (no GBP connection, token
+ * failure, API error). Callers should fall back to the synced
+ * `replyText` mirror rather than treating unknown as "no reply".
+ */
+export async function fetchLiveGbpReply(
+  googleReviewId: string
+): Promise<
+  | { unknown: true; reason: string }
+  | { unknown: false; comment: string | null; updateTime: string | null }
+> {
+  if (!isGbpReviewName(googleReviewId)) {
+    return { unknown: true, reason: "not a GBP review name" }
+  }
+
+  const connection = await getActiveGbpConnection()
+  if (!connection) return { unknown: true, reason: "GBP not connected" }
+
+  let accessToken: string
+  try {
+    accessToken = await getValidGbpAccessToken()
+  } catch (e) {
+    return {
+      unknown: true,
+      reason: `token refresh failed: ${e instanceof Error ? e.message : String(e)}`,
+    }
+  }
+
+  const res = await fetch(`${GBP_V4}/${googleReviewId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!res.ok) {
+    return { unknown: true, reason: `GBP API returned ${res.status}` }
+  }
+
+  const data = (await res.json()) as {
+    reviewReply?: { comment?: string; updateTime?: string }
+  }
+  return {
+    unknown: false,
+    comment: data.reviewReply?.comment ?? null,
+    updateTime: data.reviewReply?.updateTime ?? null,
+  }
+}

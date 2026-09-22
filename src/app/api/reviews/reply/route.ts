@@ -19,6 +19,7 @@ export const dynamic = "force-dynamic"
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { postGbpReply } from "@/lib/gbp/post-reply"
+import { checkAlreadyAnswered } from "@/lib/reviews/already-answered"
 import { VENUE_SHORT_LABEL } from "@/lib/venues"
 import type { Venue } from "@/generated/prisma/enums"
 
@@ -92,6 +93,14 @@ function alreadyActionedPage(review: { replyStatus: string | null; replyPostedAt
       <a class="btn" href="https://kitchen.tarte.com.au/reviews">View reviews</a>`
     )
   }
+  if (review.replyStatus === "ANSWERED_ELSEWHERE") {
+    return htmlPage(
+      "Already answered",
+      `<h2>Already answered on Google</h2>
+      <p>This review already has a reply live on Google, posted from the SEO engine, so nothing was sent from here.</p>
+      <a class="btn" href="https://kitchen.tarte.com.au/reviews">View reviews</a>`
+    )
+  }
   if (review.replyStatus === "SKIPPED") {
     return htmlPage(
       "Already skipped",
@@ -119,6 +128,34 @@ async function runApprove(
   replyText: string,
 ) {
   const venueName = VENUE_SHORT_LABEL[review.venue as Venue] ?? review.venue
+
+  // tarte-seo-engine replies to these same reviews and GBP's reply
+  // endpoint is an upsert, so check what is live before we post. Without
+  // this an approval here silently replaces the published reply.
+  const guard = await checkAlreadyAnswered(review, replyText)
+  if (guard.blocked && guard.kind === "answered-elsewhere") {
+    return htmlPage(
+      "Already answered",
+      `<h2>Already answered on Google</h2>
+      <span class="tag grey">Nothing sent</span>
+      <p>${escapeHtml(venueName)} · ${review.rating}/5${review.authorName ? ` · ${escapeHtml(review.authorName)}` : ""}</p>
+      <p>This review already has a reply live on Google, posted from the SEO engine. We did not send yours, because posting here would have replaced it.</p>
+      <p style="margin-bottom:8px;">The reply currently live:</p>
+      <div class="reply-box">${escapeHtml(guard.liveComment)}</div>
+      <a class="btn" href="https://kitchen.tarte.com.au/reviews">View reviews</a>`
+    )
+  }
+  if (guard.blocked && guard.kind === "already-ours") {
+    return htmlPage(
+      "Already posted",
+      `<h2>Already posted ✓</h2>
+      <span class="tag green">Posted</span>
+      <p>${escapeHtml(venueName)} · ${review.rating}/5${review.authorName ? ` · ${escapeHtml(review.authorName)}` : ""}</p>
+      <p>This reply is already live on Google, so we didn't send it twice.</p>
+      <div class="reply-box">${escapeHtml(guard.liveComment)}</div>
+      <a class="btn" href="https://kitchen.tarte.com.au/reviews">View reviews</a>`
+    )
+  }
 
   // Persist the (possibly edited) text + mark APPROVED before we post,
   // so a double-submit doesn't post twice.

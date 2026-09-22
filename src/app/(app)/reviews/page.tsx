@@ -106,10 +106,15 @@ export default async function ReviewsPage({
     }),
     // Pending = DRAFTED + venue matches current filter. Show negatives
     // first (need more care), then newest first within each rating.
+    //
+    // `replyText: null` is load-bearing: tarte-seo-engine replies to the
+    // same reviews, and a draft here for a review it already answered is
+    // a button that would overwrite the published reply.
     db.googleReview.findMany({
       where: {
         replyStatus: "DRAFTED",
         draftReply: { not: null },
+        replyText: null,
         ...(venueFilter !== "ALL" ? { venue: venueFilter } : {}),
       },
       orderBy: [{ rating: "asc" }, { publishTime: "desc" }],

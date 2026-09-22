@@ -1579,6 +1579,10 @@ enum ReviewReplyStatus {
   APPROVED  // approved — will post to Google (or posted already)
   POSTED    // successfully posted to Google via GBP API
   SKIPPED   // Chloe chose not to reply
+  /// A reply was already live on Google when we went to post (tarte-seo-engine
+  /// replies to the same reviews). Our draft is kept but never posted, so
+  /// approving here can't overwrite the published reply.
+  ANSWERED_ELSEWHERE
 }
 
 /// **DEPRECATED** — superseded by `WeeklyDigest`. Kept in the schema
