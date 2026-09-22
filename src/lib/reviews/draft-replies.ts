@@ -28,6 +28,7 @@ import { db } from "@/lib/db"
 import { sendHtmlEmail } from "@/lib/gmail/send"
 import { VENUE_SHORT_LABEL } from "@/lib/venues"
 import type { Venue } from "@/generated/prisma/enums"
+import { scrubReply, isUsableName } from "./scrub-reply"
 import { APP_URL, BRAND, FONT_BODY, button, callout, para, section, shell, type Tone } from "@/lib/email/brand"
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -65,7 +66,10 @@ async function generateDraftReply(review: {
   const prompt = [
     `Venue: ${venueName}`,
     `Rating: ${review.rating}/5`,
-    review.authorName ? `Reviewer: ${review.authorName}` : null,
+    // Google truncates some display names to a single word ("The"), and a
+    // reply opening "Hey The," went live on a 1-star review in Sep 2026.
+    // Withhold the name rather than trust the model to spot a bad one.
+    isUsableName(review.authorName) ? `Reviewer: ${review.authorName}` : null,
     ``,
     `Review:`,
     review.text ?? "(rating only, no written text)",
@@ -82,7 +86,9 @@ async function generateDraftReply(review: {
 
   const block = res.content[0]
   if (block.type !== "text") throw new Error("Unexpected Claude response type")
-  return block.text.trim()
+  // Enforce the voice rules the prompt keeps slipping on before the draft is
+  // stored, emailed or shown.
+  return scrubReply(block.text)
 }
 
 function stars(rating: number): string {
