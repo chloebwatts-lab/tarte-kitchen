@@ -58,7 +58,11 @@ export default async function RestockPaperPage({
           className="tk-display leading-none text-[var(--tk-charcoal)]"
           style={{ fontSize: 40, fontWeight: 700, letterSpacing: "-0.025em" }}
         >
-          {venue === "BEACH_HOUSE" ? "Restock sheet, both kitchens" : `${stationLabel(venue, station)} restock sheet`}
+          {venue === "BEACH_HOUSE"
+            ? "Restock sheet, both kitchens"
+            : venue === "BURLEIGH"
+              ? "Restock sheet, all stations"
+              : `${stationLabel(venue, station)} restock sheet`}
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
           The paper sheet, on the iPad. Write straight into the boxes with the

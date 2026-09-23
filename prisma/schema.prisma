@@ -1976,7 +1976,9 @@ model PrepStockItem {
 
   lines RestockLine[]
 
-  @@unique([venue, station, name])
+  /// A name is unique within its section, not the station: Burleigh's Main
+  /// kitchen grill and Market grill each count their own "Bottle Goji Mayo".
+  @@unique([venue, station, category, name])
   @@index([venue, station, isActive])
 }
 

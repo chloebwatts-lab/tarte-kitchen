@@ -52,7 +52,11 @@ export default async function RestockCountPage({
           className="tk-display leading-none text-[var(--tk-charcoal)]"
           style={{ fontSize: 40, fontWeight: 700, letterSpacing: "-0.025em" }}
         >
-          {venue === "BEACH_HOUSE" ? "Evening count, both kitchens" : `${stationLabel(venue, station)} evening count`}
+          {venue === "BEACH_HOUSE"
+            ? "Evening count, both kitchens"
+            : venue === "BURLEIGH"
+              ? "Evening count, all stations"
+              : `${stationLabel(venue, station)} evening count`}
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
           Count your <strong>backup prep in the coolroom</strong>, not

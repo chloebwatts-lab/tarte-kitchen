@@ -14,7 +14,7 @@ import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
-import { prepSectionsFor, stationLabel } from "@/lib/stations"
+import { prepListDescription, stationLabel } from "@/lib/stations"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
 
@@ -60,9 +60,7 @@ export default async function RestockHubPage({
           Restock &amp; prep
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
-          {prepSectionsFor(venue).length > 0
-            ? "One prep list for both kitchens. Each item names who makes it (Restaurant, Café, KP, or Michelle's main prep), and anyone can add a prep. Closing chefs count it at the end of the shift; the prep chef runs it next morning."
-            : "Closing chefs count each kitchen at the end of the shift. The prep chef runs one consolidated list next morning and restocks both kitchens before service."}
+          {prepListDescription(venue)}
         </p>
         <div className="mt-3"><VenueSwitch current={venue} /></div>
         <div

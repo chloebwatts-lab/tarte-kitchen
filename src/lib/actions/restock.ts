@@ -88,6 +88,7 @@ export interface RunStationLine {
 }
 
 export interface RunItem {
+  itemId: string
   name: string
   unit: string | null
   category: string
@@ -255,8 +256,9 @@ export async function getCountSheet(params: {
     where: { venue, station, isActive: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   })
-  // "Station restock" leads (that's the paper sheet the chefs know);
-  // other categories follow alphabetically.
+  // Sectioned lists (Beach House, Burleigh) run in their section order;
+  // elsewhere "Station restock" leads (that's the paper sheet the chefs
+  // know) and other categories follow alphabetically.
   items.sort((a, b) => {
     return (
       sectionRank(a.category) - sectionRank(b.category) ||
@@ -473,15 +475,26 @@ export async function addCatalogItem(params: {
   const name = params.name.trim()
   if (!name) return { ok: false, error: "Item needs a name" }
 
-  const existing = await db.prepStockItem.findUnique({
-    where: {
-      venue_station_name: {
-        venue: params.venue,
-        station: params.station,
-        name,
-      },
-    },
+  // On a sectioned list (Beach House, Burleigh) a new prep lands in the
+  // section the chef picked, or the first one; elsewhere it joins the
+  // station restock.
+  const sections = prepSectionsFor(params.venue)
+  const category =
+    params.category && (!sections.length || (sections as readonly string[]).includes(params.category))
+      ? params.category
+      : sections[0] ?? "Station restock"
+
+  // A name is unique within its section: on a sectioned list the same prep
+  // can sit on two stations' lists (both Burleigh grills fill Bottle Goji
+  // Mayo), so only a match in the chosen section counts as "already there".
+  // On a plain list any category matches, as before.
+  const sameName = await db.prepStockItem.findMany({
+    where: { venue: params.venue, station: params.station, name },
+    orderBy: { createdAt: "asc" },
   })
+  const existing = sections.length
+    ? sameName.find((i) => i.category === category)
+    : sameName[0]
   if (existing) {
     if (!existing.isActive) {
       await db.prepStockItem.update({
@@ -496,13 +509,6 @@ export async function addCatalogItem(params: {
     where: { venue: params.venue, station: params.station },
     _max: { sortOrder: true },
   })
-  // On a sectioned list (Beach House) a new prep lands in the section the
-  // chef picked, or the first one; elsewhere it joins the station restock.
-  const sections = prepSectionsFor(params.venue)
-  const category =
-    params.category && (!sections.length || (sections as readonly string[]).includes(params.category))
-      ? params.category
-      : sections[0] ?? "Station restock"
   const item = await db.prepStockItem.create({
     data: {
       venue: params.venue,
@@ -521,11 +527,13 @@ export async function addCatalogItem(params: {
 // ------------------------------------------------------------------
 
 /**
- * Every count waiting for the venue, consolidated by item name so the prep
- * chef makes each thing ONCE and splits it across stations. Includes both
- * SUBMITTED sheets and unsent IN_PROGRESS sheets that contain real entries
- *, a closing chef forgetting to tap "Send" must never lose the count.
- * Sheets older than 3 days are ignored as stale.
+ * Every count waiting for the venue, one line per catalogue item so the
+ * prep chef makes each thing ONCE, with the nights that asked for it under
+ * it. The same prep listed on two stations (Burleigh's grills each count
+ * their own bottles) stays two lines, each under its own section. Includes
+ * both SUBMITTED sheets and unsent IN_PROGRESS sheets that contain real
+ * entries, a closing chef forgetting to tap "Send" must never lose the
+ * count. Sheets older than 3 days are ignored as stale.
  */
 export async function getRestockRun(venue: Venue): Promise<RestockRun> {
   const staleCutoff = new Date(todayAest().getTime() - 3 * 24 * 60 * 60 * 1000)
@@ -554,8 +562,9 @@ export async function getRestockRun(venue: Venue): Promise<RestockRun> {
     for (const line of sheet.lines) {
       const requested = num(line.requested)
       if (!requested || requested <= 0) continue
-      const key = line.item.name.toLowerCase().trim()
+      const key = line.itemId
       const entry = itemsByKey.get(key) ?? {
+        itemId: line.itemId,
         name: line.item.name,
         unit: line.item.unit,
         category: line.item.category,
@@ -925,7 +934,7 @@ export async function upsertPrepStockItem(params: {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     if (msg.includes("Unique constraint"))
-      return { ok: false, error: `"${name}" already exists at that station` }
+      return { ok: false, error: `"${name}" already exists in that section` }
     throw e
   }
   revalidatePath("/restock")
