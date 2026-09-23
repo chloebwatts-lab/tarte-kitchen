@@ -12,13 +12,20 @@ const CATEGORIES: { k: VenueTaskCategory; label: string }[] = [
   { k: "LOW_STOCK", label: "Low on something" },
   { k: "RUBBISH_REMOVAL", label: "Rubbish needs going" },
   { k: "CLEANING", label: "Needs a clean" },
-  { k: "FURNITURE", label: "Tables, chairs, furniture" },
-  { k: "BUILDING", label: "Building, plumbing, lights" },
   { k: "MISC", label: "Something else" },
 ]
 
+// Georgia's ask (23 Sep): one Maintenance button that keeps the broken,
+// furniture and building things together instead of three separate tiles.
+const MAINTENANCE: { k: VenueTaskCategory; label: string }[] = [
+  { k: "FURNITURE", label: "Tables, chairs, furniture" },
+  { k: "BUILDING", label: "Building, plumbing, lights" },
+]
+const isMaintenance = (c: VenueTaskCategory | null) => c === "FURNITURE" || c === "BUILDING"
+
 export function ReportForm({ venue }: { venue: Venue }) {
   const [category, setCategory] = useState<VenueTaskCategory | null>(null)
+  const [maintenanceOpen, setMaintenanceOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [priority, setPriority] = useState<VenueTaskPriority>("NORMAL")
   const [name, setName] = useRememberedName()
@@ -31,6 +38,7 @@ export function ReportForm({ venue }: { venue: Venue }) {
       await reportTask({ venue, category, title, priority, reportedBy: name })
       setTitle("")
       setCategory(null)
+      setMaintenanceOpen(false)
       setPriority("NORMAL")
       setDone(true)
       setTimeout(() => setDone(false), 5000)
@@ -51,15 +59,49 @@ export function ReportForm({ venue }: { venue: Venue }) {
           What is it?
         </p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <Link href={`/kitchen/fix?venue=${venue}`} className={tile(false)}>
-            Something broken <span className="block text-[13px] font-normal text-[var(--tk-ink-soft)]">Goes to the maintenance page</span>
-          </Link>
+          <button
+            onClick={() => {
+              setMaintenanceOpen((o) => !o)
+              if (isMaintenance(category)) setCategory(null)
+            }}
+            className={tile(maintenanceOpen || isMaintenance(category))}
+          >
+            Maintenance{" "}
+            <span className={`block text-[13px] font-normal ${maintenanceOpen || isMaintenance(category) ? "text-white/80" : "text-[var(--tk-ink-soft)]"}`}>
+              Broken, furniture, building
+            </span>
+          </button>
           {CATEGORIES.map((c) => (
-            <button key={c.k} onClick={() => setCategory(c.k)} className={tile(category === c.k)}>
+            <button
+              key={c.k}
+              onClick={() => {
+                setCategory(c.k)
+                setMaintenanceOpen(false)
+              }}
+              className={tile(category === c.k)}
+            >
               {c.label}
             </button>
           ))}
         </div>
+        {maintenanceOpen || isMaintenance(category) ? (
+          <div className="mt-2 rounded-[16px] border border-[var(--tk-line)] bg-[var(--tk-bg)] p-2">
+            <p className="mb-2 px-2 pt-1 text-[13px] font-semibold uppercase tracking-[0.08em] text-[var(--tk-ink-soft)]">
+              Maintenance: which kind?
+            </p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <Link href={`/kitchen/fix?venue=${venue}`} className={tile(false)}>
+                Something broken{" "}
+                <span className="block text-[13px] font-normal text-[var(--tk-ink-soft)]">A machine. Goes to the maintenance page</span>
+              </Link>
+              {MAINTENANCE.map((c) => (
+                <button key={c.k} onClick={() => setCategory(c.k)} className={tile(category === c.k)}>
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {category ? (
