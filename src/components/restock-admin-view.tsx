@@ -13,7 +13,7 @@ import {
   type CatalogItem,
   type RestockReport,
 } from "@/lib/actions/restock"
-import { PREP_SECTIONS, prepSectionsFor, STATION_LABEL, STATION_SHORT_LABEL, VENUE_STATIONS } from "@/lib/stations"
+import { prepSectionsFor, sectionRank, STATION_LABEL, STATION_SHORT_LABEL, VENUE_STATIONS } from "@/lib/stations"
 import type { KitchenStation } from "@/generated/prisma/client"
 import { Check, Loader2, Plus, Star } from "lucide-react"
 
@@ -214,10 +214,10 @@ function CatalogueTab({ venue, items }: { venue: Venue; items: CatalogItem[] }) 
       arr.push(i)
       map.set(i.category, arr)
     }
-    // Same order as the kiosk count sheet: Station restock leads.
-    const rank = (c: string) => (c === "Station restock" ? 0 : 1)
+    // Same order as the kiosk count sheet: the venue's sections in order,
+    // then Station restock, then the rest.
     return Array.from(map.entries()).sort(
-      (a, b) => rank(a[0]) - rank(b[0]) || a[0].localeCompare(b[0])
+      (a, b) => sectionRank(a[0]) - sectionRank(b[0]) || a[0].localeCompare(b[0])
     )
   }, [stationItems])
 
@@ -316,7 +316,7 @@ function AddItemRow({
         className="h-9 rounded-md border bg-transparent px-2 text-sm"
       >
         {sections.length > 0 ? (
-          PREP_SECTIONS.map((sec) => <option key={sec}>{sec}</option>)
+          sections.map((sec) => <option key={sec}>{sec}</option>)
         ) : (
           <>
             <option>Station restock</option>

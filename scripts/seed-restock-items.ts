@@ -86,10 +86,8 @@ async function seedStation(
       seen.add(key)
       sort += 1
 
-      const found = await db.prepStockItem.findUnique({
-        where: {
-          venue_station_name: { venue: "BEACH_HOUSE", station, name },
-        },
+      const found = await db.prepStockItem.findFirst({
+        where: { venue: "BEACH_HOUSE", station, name },
       })
       if (found) {
         existing += 1

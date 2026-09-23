@@ -19,7 +19,7 @@ import {
   type CountSheetLine,
   type SiblingItem,
 } from "@/lib/actions/restock"
-import { PREP_SECTION_OWNER, prepSectionsFor, stationLabel, STATION_SHORT_LABEL, type PrepSection } from "@/lib/stations"
+import { PREP_SECTION_OWNER, prepSectionsFor, sectionHint, sectionPrompt, stationLabel, STATION_SHORT_LABEL } from "@/lib/stations"
 import {
   NEEDED_BY_TIMES,
   formatNeededBy,
@@ -51,7 +51,8 @@ export function RestockCountSheet({
   const [savingCount, setSavingCount] = useState(0)
   const [newItemName, setNewItemName] = useState("")
   const [addingItem, setAddingItem] = useState(false)
-  // Beach House's one list: a new prep goes into the section responsible for it.
+  // A sectioned list (Beach House, Burleigh): a new prep goes into the
+  // section the chef picks, who makes it or which station it is for.
   const sections = prepSectionsFor(initialSheet.venue)
   const [newItemSection, setNewItemSection] = useState<string>(sections[0] ?? "Station restock")
   // Debounce timers per (itemId, field)
@@ -301,11 +302,9 @@ export function RestockCountSheet({
         <div key={category} className="space-y-2">
           <div className="tk-caps flex items-baseline gap-2 px-1" style={{ color: "var(--tk-ink-mute)" }}>
             <span style={{ color: "var(--tk-charcoal)" }}>{category}</span>
-            {PREP_SECTION_OWNER[category as PrepSection] ? (
-              <span>· {PREP_SECTION_OWNER[category as PrepSection]}</span>
-            ) : sections.length ? (
-              <span>· responsible</span>
-            ) : null}
+            {sectionHint(sheet.venue, category) && (
+              <span>· {sectionHint(sheet.venue, category)}</span>
+            )}
             <span className="ml-auto tabular-nums">{groupLines.length}</span>
           </div>
           <div className="overflow-hidden rounded-[18px] border border-[var(--tk-line)] bg-white">
@@ -431,7 +430,7 @@ export function RestockCountSheet({
       )}
 
       {/* Add missing item: the blank rows at the bottom of the paper sheet.
-          Anyone can add a prep; on the one-list venue they say who makes it. */}
+          Anyone can add a prep; on a sectioned list they say which section. */}
       {!readOnly && (
         <div className="space-y-3 rounded-[18px] border border-dashed border-[var(--tk-line)] bg-white px-4 py-3">
           <div className="flex items-center gap-2">
@@ -454,7 +453,7 @@ export function RestockCountSheet({
           </div>
           {sections.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5 pl-7">
-              <span className="mr-1 text-[12px] text-[var(--tk-ink-soft)]">Who makes it:</span>
+              <span className="mr-1 text-[12px] text-[var(--tk-ink-soft)]">{sectionPrompt(sheet.venue)}</span>
               {sections.map((sec) => {
                 const active = newItemSection === sec
                 return (

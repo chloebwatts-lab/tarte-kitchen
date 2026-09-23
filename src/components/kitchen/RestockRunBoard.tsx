@@ -9,7 +9,7 @@ import {
   type RestockRun,
   type RunStationLine,
 } from "@/lib/actions/restock"
-import { PREP_SECTION_OWNER, prepSectionsFor, sectionRank, STATION_SHORT_LABEL, type PrepSection } from "@/lib/stations"
+import { prepSectionsFor, sectionHint, sectionRank, STATION_SHORT_LABEL } from "@/lib/stations"
 import { formatNeededBy, isLate } from "@/lib/restock-needed-by"
 import type { KitchenStation } from "@/generated/prisma/client"
 
@@ -283,8 +283,9 @@ export function RestockRunBoard({
         )
   const priorityItems = visibleItems.filter((i) => i.priority)
   const normalItems = visibleItems.filter((i) => !i.priority)
-  // On the one-list venue, everything that is not a priority is grouped by
-  // who is responsible for making it, in the list's section order.
+  // On a sectioned list, everything that is not a priority is grouped by
+  // its section (who makes it at Beach House, which station at Burleigh),
+  // in the list's order.
   const sectioned = prepSectionsFor(run.venue).length > 0
   const normalGroups: [string, typeof normalItems][] = []
   if (sectioned) {
@@ -442,8 +443,9 @@ export function RestockRunBoard({
           </div>
           {priorityItems.map((item) => (
             <RunItemCard
-              key={item.name}
+              key={item.itemId}
               item={item}
+              section={sectioned ? item.category : undefined}
               today={today}
               latestDate={latestDate}
               onToggle={toggleSupplied}
@@ -458,12 +460,12 @@ export function RestockRunBoard({
           <div key={category} className="space-y-2">
             <div className="tk-caps flex items-baseline gap-2 px-1" style={{ color: "var(--tk-ink-mute)" }}>
               <span style={{ color: "var(--tk-charcoal)" }}>{category}</span>
-              <span>· {PREP_SECTION_OWNER[category as PrepSection] ?? "responsible"}</span>
+              {sectionHint(run.venue, category) && <span>· {sectionHint(run.venue, category)}</span>}
               <span className="ml-auto tabular-nums">{items.length}</span>
             </div>
             {items.map((item) => (
               <RunItemCard
-                key={item.name}
+                key={item.itemId}
                 item={item}
                 today={today}
                 latestDate={latestDate}
@@ -483,7 +485,7 @@ export function RestockRunBoard({
           )}
           {normalItems.map((item) => (
             <RunItemCard
-              key={item.name}
+              key={item.itemId}
               item={item}
               today={today}
               latestDate={latestDate}
@@ -538,12 +540,16 @@ export function RestockRunBoard({
 
 function RunItemCard({
   item,
+  section,
   today,
   latestDate,
   onToggle,
   onAdjust,
 }: {
   item: RestockRun["items"][number]
+  /// Shown when the card sits outside its section group (the priority
+  /// block), so two stations' copies of one prep stay tellable apart.
+  section?: string
   today: string
   latestDate: string
   onToggle: (line: RunStationLine) => void
@@ -588,6 +594,14 @@ function RunItemCard({
             {item.unit && (
               <span className="text-[13px] text-[var(--tk-ink-soft)]">
                 {item.unit}
+              </span>
+            )}
+            {section && (
+              <span
+                className="shrink-0 rounded-full px-2.5 py-0.5 text-[12px] font-semibold"
+                style={{ background: "var(--tk-charcoal-soft)", color: "var(--tk-ink-soft)" }}
+              >
+                {section}
               </span>
             )}
             {item.neededBy && !allDone && (
