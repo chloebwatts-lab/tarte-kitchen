@@ -56,13 +56,16 @@
 		not path /api/reviews/reply
 		not path /api/reviews/reply/*
 		# SEO engine digest approve/skip links — HMAC-signed tokens, same
-		# model as /api/reviews/reply. The rest of /seo stays behind the
-		# main tarte basic auth.
+		# model as /api/reviews/reply.
 		not path /seo/api/approve/*
 		not path /seo/api/reject/*
 		# Hashed Next build artefacts for the SEO dashboard, same reasoning
 		# as /_next/static above (the /seo basePath prefixes them).
 		not path /seo/_next/static/*
+		# The rest of the SEO dashboard has its own basic_auth below, shared
+		# with Shawna: it is where Google posts and most review replies get
+		# approved, and it holds nothing financial.
+		not path /seo /seo/*
 	}
 	basic_auth @protected {
 		tarte {$BASIC_AUTH_HASH}
@@ -87,6 +90,20 @@
 	# pop a Tarte password prompt that her shawna creds can't satisfy.
 	@reviews path /reviews /reviews/* /api/reviews/reply /api/reviews/reply/*
 	basic_auth @reviews {
+		tarte {$BASIC_AUTH_HASH}
+		shawna {$SHAWNA_AUTH_HASH}
+		Shawna {$SHAWNA_AUTH_HASH}
+	}
+
+	# SEO engine dashboard (Google posts + review reply approvals) — shared
+	# with Shawna, same credentials as /reviews. The signed approve/reject
+	# links and the static build files are excluded from @protected above
+	# and stay open; everything else under /seo asks for one of these.
+	@seoauth {
+		path /seo /seo/*
+		not path /seo/api/approve/* /seo/api/reject/* /seo/_next/static/*
+	}
+	basic_auth @seoauth {
 		tarte {$BASIC_AUTH_HASH}
 		shawna {$SHAWNA_AUTH_HASH}
 		Shawna {$SHAWNA_AUTH_HASH}
