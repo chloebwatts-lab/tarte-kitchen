@@ -1,4 +1,4 @@
--- Burleigh stock walk: four storage locations and what is in them, from
+-- Burleigh stock walk: five storage locations and what is in them, from
 -- Georgia's stocktake (23 Sep 2026). Every item is counted (QUANTITY) with
 -- her count as the opening on-hand, written as a COUNT movement so the
 -- ledger explains the number. Pars are a starting point for her to adjust
@@ -14,7 +14,8 @@ INSERT INTO g_area VALUES
   ('Tarte Market cupboards', 1, 'Mediterranean Markets crockery, boxes on hand'),
   ('Carpark garden shed', 2, NULL),
   ('Carpark storage units', 3, 'Plasdene retail jars and bottles'),
-  ('Location tbc', 4, 'Georgia to confirm where these live');
+  ('Carpark storage: big room', 4, NULL),
+  ('Market: stainless bench area', 5, NULL);
 
 CREATE TEMP TABLE g_item (area text, name text, unit text, on_hand numeric, par numeric, sort_order int, notes text);
 INSERT INTO g_item VALUES
@@ -32,14 +33,14 @@ INSERT INTO g_item VALUES
   ('Carpark storage units', 'Tarte bottles', 'box', 4, 1, 2, 'Plasdene'),
   ('Carpark storage units', 'Bottle lids', NULL, 40, 10, 3, 'Plasdene'),
   ('Carpark storage units', 'Jar lids', NULL, 30, 10, 4, 'Plasdene'),
-  ('Location tbc', 'A4 printing paper', 'packet', 2, 1, 1, 'Premium 160gsm A4 Digital Copy Paper'),
-  ('Location tbc', 'Toner, black (BLK)', NULL, 1, 0, 2, NULL),
-  ('Location tbc', 'Toner, cyan (C)', NULL, 1, 0, 3, NULL),
-  ('Location tbc', 'Toner, magenta (M)', NULL, 1, 0, 4, NULL),
-  ('Location tbc', 'Toner, yellow (Y)', NULL, 1, 0, 5, NULL),
-  ('Location tbc', 'Dinner plates and side B&E plates', 'box', 3, 1, 6, NULL),
-  ('Location tbc', 'Cutlery', 'box', 5, 1, 7, NULL),
-  ('Location tbc', 'Iced latte / market juice glasses', 'box', 3, 1, 8, NULL);
+  ('Market: stainless bench area', 'A4 printing paper', 'packet', 2, 1, 1, 'Premium 160gsm A4 Digital Copy Paper'),
+  ('Market: stainless bench area', 'Toner, black (BLK)', NULL, 1, 0, 2, NULL),
+  ('Market: stainless bench area', 'Toner, cyan (C)', NULL, 1, 0, 3, NULL),
+  ('Market: stainless bench area', 'Toner, magenta (M)', NULL, 1, 0, 4, NULL),
+  ('Market: stainless bench area', 'Toner, yellow (Y)', NULL, 1, 0, 5, NULL),
+  ('Market: stainless bench area', 'Iced latte / market juice glasses', 'box', 3, 1, 6, NULL),
+  ('Carpark storage: big room', 'Dinner plates and side B&E plates', 'box', 3, 1, 1, NULL),
+  ('Carpark storage: big room', 'Cutlery', 'box', 5, 1, 2, NULL);
 
 -- Areas go on the end of Burleigh's walk, in Georgia's order.
 INSERT INTO "VenueStockArea" (id, venue, name, "sortOrder", "isActive", "createdAt", "updatedAt")
