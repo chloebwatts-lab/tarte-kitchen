@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Pushing to main deploys to kitchen.tarte.com.au, so run the gate first.
+# Emergency bypass: git push --no-verify (CI still runs the same checks).
+exec "$(git rev-parse --show-toplevel)/scripts/check.sh"
