@@ -132,7 +132,7 @@ export function looksLikeStatement(parsed: ParsedInvoice): boolean {
  * followed by a digit or separator so real invoice numbers that merely start
  * with those letters (e.g. Marrow's "CNR..." branch codes) don't get swept
  * in. */
-const CREDIT_NOTE_NUMBER_RE = /^(cm|cn|crd)[-\s.]?\d/i
+const CREDIT_NOTE_NUMBER_RE = /^(cm|cmbr|cn|crd)[-\s.]?\d/i
 
 /** Bidfood is the awkward one: it numbers credit notes "C7139711.GOL" and
  * invoices "I71183386", i.e. the only difference is the leading letter, and

@@ -73,10 +73,11 @@ export function normalizeVenueSlug(input: string | null | undefined): Venue | nu
   // "Tarte Pty Ltd" is the bakery's legal name in the Lightspeed Revenue
   // summary table, even though the breakdown section labels the same site
   // "Tarte Burleigh". Map it to BURLEIGH so the EOD email lands cleanly.
+  // "Tarte Currumbin Pty Ltd" is also a legal name, so check it first.
+  if (s.includes("CURRUMBIN")) return "BEACH_HOUSE"
   if (s.includes("PTY LTD") || s.includes("PTY. LTD")) return "BURLEIGH"
   // "Tarte Market" is Lightspeed's site name for Tarte Tea Garden.
   if (s.includes("MARKET")) return "TEA_GARDEN"
-  if (s.includes("CURRUMBIN")) return "BEACH_HOUSE"
 
   return null
 }

@@ -25,7 +25,8 @@ function secret(): string {
 }
 
 function sign(value: string): string {
-  return createHmac("sha256", secret()).update(value).digest("hex")
+  // Gate-specific prefix, see manager-auth.ts.
+  return createHmac("sha256", secret()).update(`gm:${value}`).digest("hex")
 }
 
 export async function gmPasswordIsSet(): Promise<boolean> {

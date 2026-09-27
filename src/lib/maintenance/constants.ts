@@ -358,9 +358,8 @@ export function warrantyMonthsLeft(asset: {
   purchaseDate: Date | null
   warrantyMonths: number | null
 }): number | null {
-  if (!asset.purchaseDate || !asset.warrantyMonths) return null
-  const end = new Date(asset.purchaseDate)
-  end.setMonth(end.getMonth() + asset.warrantyMonths)
+  const end = warrantyEndDate(asset)
+  if (!end) return null
   const msLeft = end.getTime() - Date.now()
   if (msLeft <= 0) return 0
   return Math.ceil(msLeft / (30.44 * 24 * 3600 * 1000))
@@ -371,8 +370,14 @@ export function warrantyEndDate(asset: {
   warrantyMonths: number | null
 }): Date | null {
   if (!asset.purchaseDate || !asset.warrantyMonths) return null
-  const end = new Date(asset.purchaseDate)
-  end.setMonth(end.getMonth() + asset.warrantyMonths)
+  const start = new Date(asset.purchaseDate)
+  const end = new Date(start)
+  // setMonth overflows: 31 Aug + 6 months lands on 3 Mar. Clamp to the last
+  // day of the target month so cover never shows as live after it lapsed.
+  end.setDate(1)
+  end.setMonth(start.getMonth() + asset.warrantyMonths)
+  const lastDay = new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate()
+  end.setDate(Math.min(start.getDate(), lastDay))
   return end
 }
 

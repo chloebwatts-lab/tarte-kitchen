@@ -10,7 +10,7 @@
 // data. Canonical priority is Dish name → bare Prep name → "- Each"-stripped
 // input.
 
-const PER_PIECE_SUFFIX = /\s*-?\s*each\s*$/i
+const PER_PIECE_SUFFIX = /\s*-?\s*\beach\s*$/i
 
 function tokens(name: string): { words: string[]; isMini: boolean } {
   const stripped = name.toLowerCase().trim().replace(PER_PIECE_SUFFIX, "")

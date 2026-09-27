@@ -127,7 +127,11 @@ export function defaultDeptForItem(item: {
     return "COFFEE_BAR"
   }
   // Alt milks show up under Pantry or Beverages on some forms.
-  if (BAR_MILK.test(name) && !COOKING_MILK.test(name) && category !== "dairy") {
+  if (
+    (category === "pantry" || category === "beverages") &&
+    BAR_MILK.test(name) &&
+    !COOKING_MILK.test(name)
+  ) {
     return "COFFEE_BAR"
   }
 

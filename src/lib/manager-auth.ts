@@ -26,7 +26,9 @@ function secret(): string {
 }
 
 function sign(value: string): string {
-  return createHmac("sha256", secret()).update(value).digest("hex")
+  // Gate-specific prefix so a managers cookie is never a valid GM or
+  // council cookie (they share NEXTAUTH_SECRET and the same payload shape).
+  return createHmac("sha256", secret()).update(`manager:${value}`).digest("hex")
 }
 
 export async function managerPasswordIsSet(): Promise<boolean> {

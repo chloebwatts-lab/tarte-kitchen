@@ -175,6 +175,7 @@ export function parsePackSize(rawDescription: string): ParsedPackSize | null {
     raw = m[3].toLowerCase()
   }
   const qty = b !== null ? a * b : a
+  if (!Number.isFinite(qty) || qty <= 0) return null
 
   if (/^(kg|kilo|kilogram)/.test(raw)) return { qty, unit: "kg" }
   if (/^(g|gr|gram)/.test(raw)) return { qty: qty / 1000, unit: "kg" }
@@ -208,6 +209,10 @@ export function inferConversionFromPack(
   _storedQuantity: number
 ): number | null {
   const stored = normaliseUnit(storedUnit)
+
+  // "SUGAR 1,000g" parses as 000g -> qty 0; 1/0 would be Infinity and flow
+  // into normalisedUnitPrice. A zero or non-finite pack is "no pack size".
+  if (!Number.isFinite(pack.qty) || pack.qty <= 0) return null
 
   // The invoice line is priced per PACK (unit didn't match the stored unit,
   // e.g. "bag"/"CTN"/"PKT") and the description tells us how much the pack
