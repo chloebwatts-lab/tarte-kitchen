@@ -5,6 +5,7 @@ import { assertManager } from "@/lib/manager-auth"
 import { revalidatePath } from "next/cache"
 import { Venue } from "@/generated/prisma/client"
 import { valueForDate, type TarteValue } from "@/lib/lineup/tarte-ten"
+import { aestDay } from "@/lib/dates"
 
 // ------------------------------------------------------------------
 // The daily line-up, assembled.
@@ -92,6 +93,11 @@ export async function getLineUp(venue: Venue, now = new Date()): Promise<LineUp>
   const today = aestDateOnly(now)
   const yesterday = addDays(today, -1)
   const weekAgo = addDays(today, -7)
+  // `today` is a date-only key (UTC midnight = 10am AEST). shiftStart is a
+  // real instant, so the roster window must be the true UTC instants of
+  // 00:00 → 24:00 AEST. Querying on `today` directly showed 10am today to
+  // 10am tomorrow: right date on screen, tomorrow's staff on the sheet.
+  const { start: dayStart, end: dayEnd } = aestDay(now)
   // AEST day-of-week: getUTCDay on the shifted date is the local day.
   const isFriday = new Date(now.getTime() + 10 * 60 * 60 * 1000).getUTCDay() === 5
 
@@ -106,7 +112,7 @@ export async function getLineUp(venue: Venue, now = new Date()): Promise<LineUp>
       where: {
         venue,
         source: "ROSTER",
-        shiftStart: { gte: today, lt: addDays(today, 1) },
+        shiftStart: { gte: dayStart, lt: dayEnd },
       },
       orderBy: { shiftStart: "asc" },
     }),

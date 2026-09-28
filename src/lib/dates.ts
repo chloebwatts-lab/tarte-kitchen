@@ -90,6 +90,27 @@ export function liveRosterWindowUnix(now = new Date()): {
   }
 }
 
+/**
+ * The AEST calendar day containing `at`, in the two shapes the DB needs.
+ *
+ * `key` is the date-only UTC-midnight Date used for DATE columns
+ * (LineUp.date, DailySalesSummary.date). `start` / `end` are the **true UTC
+ * instants** of that day's 00:00 and 24:00 AEST, for filtering timestamp
+ * columns such as LabourShift.shiftStart. Using `key` directly as a
+ * timestamp bound is a bug: UTC midnight is 10am in Brisbane, so a
+ * "today" window built from it runs 10am today → 10am tomorrow and every
+ * early bakery shift comes from the wrong day.
+ */
+export function aestDay(at = new Date()): { key: Date; start: Date; end: Date } {
+  const shifted = new Date(at.getTime() + BRISBANE_OFFSET_MS)
+  const key = new Date(
+    Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate())
+  )
+  const start = new Date(key.getTime() - BRISBANE_OFFSET_MS)
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000)
+  return { key, start, end }
+}
+
 /** Human label: "Wed 22 Apr – Tue 28 Apr" */
 export function tarteWeekLabel(weekStartWed: Date): string {
   const end = new Date(weekStartWed)

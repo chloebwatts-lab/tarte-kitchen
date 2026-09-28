@@ -7,6 +7,7 @@ import {
   lastCompletedTarteWeek,
   liveRosterWindowUnix,
   tarteWeekLabel,
+  aestDay,
 } from "./dates"
 
 // Tarte's trading week is Wed -> Tue in Brisbane time (UTC+10, no DST).
@@ -152,4 +153,54 @@ test("tarteWeekLabel prints Wed .. Tue for a Wed UTC-midnight date", () => {
   const label = tarteWeekLabel(new Date("2026-10-07T00:00:00Z"))
   assert.match(label, /^Wed,? 7 Oct/)
   assert.match(label, /Tue,? 13 Oct$/)
+})
+
+// ------------------------------------------------------------------ aestDay
+// The line-up "Today" section filters LabourShift.shiftStart (a real
+// instant) by AEST calendar day. Georgia's report on Mon 28 Sep 2026: right
+// date on screen, wrong staff. The window was built from the date-only key
+// (UTC midnight = 10am AEST), so it ran 10am Mon → 10am Tue and every early
+// shift shown was Tuesday's.
+
+test("aestDay at 7:02am AEST Mon 28 Sep keys to 2026-09-28", () => {
+  // 7:02am AEST = 21:02Z the previous evening.
+  const d = aestDay(new Date("2026-09-27T21:02:00Z"))
+  assert.equal(ymd(d.key), "2026-09-28")
+  assert.equal(d.key.getUTCHours(), 0)
+})
+
+test("aestDay start/end are the true UTC instants of 00:00 and 24:00 AEST", () => {
+  const d = aestDay(new Date("2026-09-27T21:02:00Z"))
+  assert.equal(d.start.toISOString(), "2026-09-27T14:00:00.000Z")
+  assert.equal(d.end.toISOString(), "2026-09-28T14:00:00.000Z")
+})
+
+test("a 5:30am AEST shift today falls inside today's window, not outside it", () => {
+  const d = aestDay(new Date("2026-09-27T21:02:00Z"))
+  const shift = new Date("2026-09-27T19:30:00Z") // 5:30am AEST Mon 28 Sep
+  assert.ok(shift >= d.start && shift < d.end)
+  // The old bound (the date-only key) would have excluded it.
+  assert.ok(shift < d.key)
+})
+
+test("tomorrow's 6am shift is excluded from today's window", () => {
+  const d = aestDay(new Date("2026-09-27T21:02:00Z"))
+  const tomorrow = new Date("2026-09-28T20:00:00Z") // 6am AEST Tue 29 Sep
+  assert.ok(tomorrow >= d.end)
+  // The old bound (key + 1 day = 10am AEST Tue) would have included it.
+  assert.ok(tomorrow < new Date(d.key.getTime() + 86_400_000))
+})
+
+test("aestDay just before and after AEST midnight lands on different days", () => {
+  const lateSun = aestDay(new Date("2026-09-27T13:59:59Z")) // 23:59:59 AEST Sun
+  const earlyMon = aestDay(new Date("2026-09-27T14:00:00Z")) // 00:00 AEST Mon
+  assert.equal(ymd(lateSun.key), "2026-09-27")
+  assert.equal(ymd(earlyMon.key), "2026-09-28")
+  assert.equal(lateSun.end.getTime(), earlyMon.start.getTime())
+})
+
+test("aestDay defaults to now and spans exactly 24 hours", () => {
+  const d = aestDay()
+  assert.equal(d.end.getTime() - d.start.getTime(), 24 * 60 * 60 * 1000)
+  assert.ok(d.start <= new Date() && new Date() < d.end)
 })
