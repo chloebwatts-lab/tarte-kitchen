@@ -175,9 +175,18 @@ export default async function ReviewsPage({
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Live feed across all 3 venues. New reviews are pulled and tagged
-            daily; the Friday email digest summarises patterns.
+            daily; the Friday email digest summarises patterns. 5-star reviews
+            with no comment are thanked automatically.
           </p>
         </div>
+        {/* Google posts and most reply approvals live on the SEO engine
+            dashboard (same login). Linked here because nobody could find it. */}
+        <a
+          href="/seo/posts"
+          className="shrink-0 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
+        >
+          Approve Google posts &rarr;
+        </a>
       </header>
 
       {/* Pending replies, edit + approve inline */}

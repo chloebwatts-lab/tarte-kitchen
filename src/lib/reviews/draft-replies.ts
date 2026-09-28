@@ -29,6 +29,7 @@ import { sendHtmlEmail } from "@/lib/gmail/send"
 import { VENUE_SHORT_LABEL } from "@/lib/venues"
 import type { Venue } from "@/generated/prisma/enums"
 import { scrubReply, isUsableName, flagsComp } from "./scrub-reply"
+import { autoPostReply, qualifiesForAutoReply } from "./auto-reply"
 import { APP_URL, BRAND, FONT_BODY, button, callout, para, section, shell, type Tone } from "@/lib/email/brand"
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -304,8 +305,8 @@ export async function draftAndNotifyNewReviews(): Promise<number> {
   }
   const needsDraft = Array.from(byCluster.values())
 
-  if (needsDraft.length === 0) return 0
-
+  // No early return here: the rating-only 5-star sweep below must run even
+  // on a day with nothing new to draft, or the backlog never clears.
   const drafted = await Promise.all(
     needsDraft.map(async (r) => {
       try {
@@ -333,8 +334,63 @@ export async function draftAndNotifyNewReviews(): Promise<number> {
     })
   )
 
-  const ready = drafted.filter(Boolean) as DraftedReview[]
-  if (ready.length === 0) return 0
+  const freshlyDrafted = drafted.filter(Boolean) as DraftedReview[]
+
+  // Rating-only 5-star rule (Chloe, 2026-09-28): post these without a tap.
+  // Covers what was drafted just now AND anything already sitting DRAFTED
+  // from before the rule, so the queue clears itself. Anything the auto
+  // path holds back stays in the approval email as before.
+  const autoCandidates = await db.googleReview.findMany({
+    where: {
+      replyStatus: "DRAFTED",
+      draftReply: { not: null },
+      replyText: null,
+      rating: 5,
+      googleReviewId: { startsWith: "accounts/" },
+      OR: [{ text: null }, { text: "" }],
+    },
+    select: {
+      id: true,
+      venue: true,
+      googleReviewId: true,
+      rating: true,
+      text: true,
+      authorName: true,
+      replyText: true,
+      draftReply: true,
+      publishTime: true,
+    },
+    orderBy: { publishTime: "asc" },
+    take: 60,
+  })
+  const autoPosted: AutoPostedReview[] = []
+  const autoPostedIds = new Set<string>()
+  for (const r of autoCandidates) {
+    if (!qualifiesForAutoReply(r)) continue
+    try {
+      const res = await autoPostReply(r)
+      if (res.outcome === "posted") {
+        autoPosted.push({
+          venue: r.venue,
+          authorName: r.authorName,
+          publishTime: r.publishTime,
+          replyText: res.replyText,
+        })
+        autoPostedIds.add(r.id)
+      }
+    } catch {
+      // Held: stays DRAFTED, lands in the approval list below.
+    }
+    // Keep well under GBP's write rate.
+    await new Promise((res) => setTimeout(res, 250))
+  }
+
+  const ready = freshlyDrafted.filter((r) => !autoPostedIds.has(r.id))
+  if (ready.length === 0 && autoPosted.length === 0) return 0
+  if (ready.length === 0) {
+    await sendAutoOnlyEmail(autoPosted)
+    return autoPosted.length
+  }
 
   const count = ready.length
   const negCount = ready.filter(r => r.rating <= 3).length
@@ -349,14 +405,67 @@ export async function draftAndNotifyNewReviews(): Promise<number> {
     subject = `[Tarte] ${count} positive review${count !== 1 ? "s" : ""} to reply to`
   }
 
-  const { html, text } = buildEmailHtml(ready)
+  const built = buildEmailHtml(ready)
+  const auto = autoPostedSection(autoPosted)
+  const html = built.html.includes("</body>")
+    ? built.html.replace("</body>", `${auto.html}</body>`)
+    : built.html + auto.html
+  const text = built.text + auto.text
 
   await sendHtmlEmail({
     to: process.env.REVIEW_SUMMARY_RECIPIENT ?? "chloe@tarte.com.au",
-    subject,
+    subject: autoPosted.length
+      ? `${subject}, ${autoPosted.length} five-star thank-you${autoPosted.length === 1 ? "" : "s"} posted for you`
+      : subject,
     html,
     text,
   })
 
-  return ready.length
+  return ready.length + autoPosted.length
+}
+
+type AutoPostedReview = {
+  venue: Venue
+  authorName: string | null
+  publishTime: Date
+  replyText: string
+}
+
+/** The "posted for you" block appended to the approval email. */
+function autoPostedSection(items: AutoPostedReview[]): { html: string; text: string } {
+  if (items.length === 0) return { html: "", text: "" }
+  const rows = items
+    .map((r) => {
+      const who = r.authorName ? escapeHtml(r.authorName) : "Anonymous"
+      const venue = escapeHtml(VENUE_SHORT_LABEL[r.venue] ?? r.venue)
+      return `<div style="padding:10px 0;border-top:1px solid #eee7da;">
+        <div style="font-size:12px;color:#8a857c;margin-bottom:4px;">${venue} · 5 stars, no comment · ${who}</div>
+        <div style="font-size:13px;color:#1f1d1a;line-height:1.5;">${escapeHtml(r.replyText)}</div>
+      </div>`
+    })
+    .join("")
+  const html = `<div style="max-width:640px;margin:24px auto 0;padding:0 24px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+    <h3 style="margin:0 0 4px;font-size:15px;color:#4f5b3f;">Posted for you: ${items.length} five-star thank-you${items.length === 1 ? "" : "s"}</h3>
+    <p style="margin:0 0 8px;font-size:12px;color:#8a857c;">5-star reviews with no written comment go out without a tap. Nothing to do here, just so you have seen them.</p>
+    ${rows}
+  </div>`
+  const text =
+    `\n\nPosted for you (5-star, no comment):\n` +
+    items.map((r) => `- ${VENUE_SHORT_LABEL[r.venue] ?? r.venue}, ${r.authorName ?? "Anonymous"}: ${r.replyText}`).join("\n")
+  return { html, text }
+}
+
+/** When everything this run was auto-posted, a short note rather than an approval email. */
+async function sendAutoOnlyEmail(items: AutoPostedReview[]): Promise<void> {
+  const { html, text } = autoPostedSection(items)
+  await sendHtmlEmail({
+    to: process.env.REVIEW_SUMMARY_RECIPIENT ?? "chloe@tarte.com.au",
+    subject: `[Tarte] ${items.length} five-star thank-you${items.length === 1 ? "" : "s"} posted for you, nothing to approve`,
+    html,
+    text,
+  })
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
 }

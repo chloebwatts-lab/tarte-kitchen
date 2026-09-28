@@ -1564,6 +1564,9 @@ model GoogleReview {
   approvedAt        DateTime?
   /// When the reply was successfully posted back to Google via GBP API.
   replyPostedAt     DateTime?
+  /// Posted without a human tap under the rating-only 5-star rule
+  /// (src/lib/reviews/auto-reply.ts). Shown in the approval email for the record.
+  autoApproved      Boolean   @default(false)
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
