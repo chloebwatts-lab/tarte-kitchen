@@ -27,6 +27,11 @@ import {
   type MaintenanceSection,
 } from "@/lib/maintenance/digest"
 import { buildSeoSection, type SeoSection } from "@/lib/seo/scoreboard"
+import {
+  beachHouseCogsRows,
+  resolveTeaGardenRevenue,
+  type CogsVenueRow,
+} from "./cogs-rows"
 
 const SINGLE_VENUES: Venue[] = [
   Venue.BURLEIGH,
@@ -211,23 +216,9 @@ interface WastageSection {
 
 interface CogsSection {
   weekStartWed: string | null
-  perVenue: Array<{
-    venue: string
-    revenueExGst: number | null
-    totalCogs: number
-    cogsPct: number | null
-    targetPct: number | null
-    delta: number | null
-    biggestCategory: { name: string; dollars: number } | null
-    /// Non-food (FOH) spend = Total COGS − Food cost. Null when the food
-    /// line is missing for the week. Derived from the directly-read total
-    /// so it also captures any FOH/sundries line outside the named cats.
-    nonFoodFoh: number | null
-    /// Optional human-readable note shown below the venue row. Used to
-    /// flag combined accounting (Beach House row covers BH+TG, Tea
-    /// Garden row points back at BH).
-    note?: string
-  }>
+  /// Row shape lives in cogs-rows.ts (pure, unit-tested) so the Beach
+  /// House + Tea Garden combine step can run without Prisma.
+  perVenue: CogsVenueRow[]
 }
 
 interface LabourSection {
@@ -656,18 +647,37 @@ async function buildCogs(): Promise<CogsSection> {
   // Tea Garden has no separate COGS report: Louise's "Currumbin" xlsx
   // covers Beach House + Tea Garden combined ingredient/coffee costs.
   // To get a meaningful BH cogs%, we add the Tea Garden weekly revenue
-  // (pulled separately from the Tea Garden Mge PDF into LabourWeekActual)
   // to the Beach House denominator before computing pct. The xlsx's own
   // pct is left as the "as-reported" number; we override with the
   // combined-revenue pct so the digest reflects reality.
-  const labour = await db.labourWeekActual.findMany({
-    where: { weekStartWed: latest.weekStartWed },
-    select: { venue: true, revenueExGst: true },
+  //
+  // Tea Garden revenue comes from the same two sources, in the same
+  // order, as the SALES section (`buildSales`): the Tea Garden Mge PDF
+  // (LabourWeekActual.revenueExGst) first, then DailySalesSummary summed
+  // over the Tarte week (Wed → Tue) when the PDF row is missing or has
+  // no revenue. The 2026-09-24 digest dropped the combined row because
+  // only the PDF was consulted; the fallback keeps the headline % present.
+  const weekStart = latest.weekStartWed
+  const weekEndExclusive = new Date(weekStart)
+  weekEndExclusive.setUTCDate(weekEndExclusive.getUTCDate() + 7)
+  const [tgLabour, tgDailySales] = await Promise.all([
+    db.labourWeekActual.findFirst({
+      where: { weekStartWed: weekStart, venue: Venue.TEA_GARDEN },
+      select: { revenueExGst: true },
+    }),
+    db.dailySalesSummary.findMany({
+      where: {
+        venue: Venue.TEA_GARDEN,
+        date: { gte: weekStart, lt: weekEndExclusive },
+      },
+      select: { totalRevenueExGst: true },
+    }),
+  ])
+  const teaGarden = resolveTeaGardenRevenue({
+    labourRevenueExGst:
+      tgLabour?.revenueExGst != null ? Number(tgLabour.revenueExGst) : null,
+    dailySalesRevenueExGst: tgDailySales.map((r) => Number(r.totalRevenueExGst)),
   })
-  const tgRevenue =
-    labour.find((l) => l.venue === "TEA_GARDEN")?.revenueExGst != null
-      ? Number(labour.find((l) => l.venue === "TEA_GARDEN")!.revenueExGst)
-      : null
 
   // 3-line layout per Chloe 2026-05-22:
   //   1. Burleigh
@@ -726,36 +736,21 @@ async function buildCogs(): Promise<CogsSection> {
       continue
     }
 
-    // Beach House, push the combined row first (primary), then the
-    // standalone row for reference.
-    if (xlsxRevenue != null && tgRevenue != null) {
-      const combined = xlsxRevenue + tgRevenue
-      const combinedPct = Math.round((totalCogs / combined) * 1000) / 10
-      perVenue.push({
-        venue: `${VENUE_LABEL[v]} + Tea Garden`,
-        revenueExGst: combined,
+    // Beach House: the combined row first (primary, always rendered so a
+    // missing Tea Garden revenue is visible rather than silent), then
+    // Louise's standalone as-reported row for reference.
+    perVenue.push(
+      ...beachHouseCogsRows({
+        label: VENUE_LABEL[v],
+        xlsxRevenue,
         totalCogs,
-        cogsPct: combinedPct,
+        xlsxPct,
         targetPct,
-        delta: targetPct != null ? combinedPct - targetPct : null,
         biggestCategory: sorted[0] ?? null,
         nonFoodFoh,
-        note: `BH $${xlsxRevenue.toLocaleString()} + TG $${tgRevenue.toLocaleString()} = $${combined.toLocaleString()} ex-GST. Kitchen shares stock across both venues, combined view is the operationally meaningful one.`,
+        teaGarden,
       })
-    }
-    perVenue.push({
-      venue: `${VENUE_LABEL[v]} (BH only, as-reported)`,
-      revenueExGst: xlsxRevenue,
-      totalCogs,
-      cogsPct: xlsxPct,
-      targetPct,
-      delta: xlsxPct != null && targetPct != null ? xlsxPct - targetPct : null,
-      biggestCategory: sorted[0] ?? null,
-      nonFoodFoh,
-      note: tgRevenue != null
-        ? "Reference only: Louise's Currumbin xlsx with BH revenue only."
-        : undefined,
-    })
+    )
   }
 
   return {

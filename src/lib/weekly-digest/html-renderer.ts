@@ -1084,6 +1084,7 @@ export function renderDigestText(
     lines.push(
       `  ${v.venue.padEnd(14)} ${v.cogsPct != null ? fmtPct(v.cogsPct) : "—"}   target ${v.targetPct != null ? fmtPct(v.targetPct) : "—"}   non-food ${v.nonFoodFoh != null ? fmtMoney(v.nonFoodFoh) : "—"}`
     )
+    if (v.note) lines.push(`    ${v.note}`)
   }
   lines.push(``)
   lines.push(

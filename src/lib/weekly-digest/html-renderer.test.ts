@@ -419,6 +419,37 @@ test("COGS delta pills and the BH-only reference row do not pull the tile averag
   assert.ok(!html.includes(">30.5%<"))
 })
 
+test("COGS combined row with no Tea Garden revenue still renders, with its note, in html and text", () => {
+  const unavailable = snapshot()
+  unavailable.cogs = {
+    ...unavailable.cogs,
+    perVenue: [
+      unavailable.cogs.perVenue[0],
+      {
+        venue: "Beach House + Tea Garden",
+        revenueExGst: null,
+        totalCogs: 18900,
+        cogsPct: null,
+        targetPct: 29,
+        delta: null,
+        biggestCategory: { name: "Food", dollars: 15200 },
+        nonFoodFoh: 3700,
+        note: "Combined % not computed: Tea Garden revenue was unavailable for this week.",
+      },
+      unavailable.cogs.perVenue[2],
+    ],
+  }
+  const html = renderDigestHtml(unavailable, narrative)
+  assert.ok(html.includes("Beach House + Tea Garden"))
+  assert.ok(html.includes("Tea Garden revenue was unavailable for this week."))
+  // Tile average falls back to Burleigh alone; the reference row still excluded.
+  assert.ok(html.includes(">29.2%<"))
+  assert.ok(!html.includes(">31.5%<"))
+  const text = renderDigestText(unavailable, narrative)
+  assert.match(text, /Beach House \+ Tea Garden\s+—\s+target 29\.0%/)
+  assert.ok(text.includes("Tea Garden revenue was unavailable for this week."))
+})
+
 // ------------------------------------------------------------- price alerts
 
 test("price alerts: per-base-unit prices, signed change, savings, and 'top N of M'", () => {
