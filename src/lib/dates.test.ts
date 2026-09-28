@@ -204,3 +204,75 @@ test("aestDay defaults to now and spans exactly 24 hours", () => {
   assert.equal(d.end.getTime() - d.start.getTime(), 24 * 60 * 60 * 1000)
   assert.ok(d.start <= new Date() && new Date() < d.end)
 })
+
+// Independent oracle: Intl knows Australia/Brisbane. The helper must agree
+// with it for every hour of a week, and the window must contain its input.
+const brisbaneYmd = (d: Date) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Brisbane",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d)
+
+test("aestDay key matches Intl's Australia/Brisbane date for every hour of a week, and start <= at < end", () => {
+  for (let h = 0; h < 7 * 24; h++) {
+    // Off the hour on purpose so the test is not only exercising boundaries.
+    const at = new Date(Date.UTC(2026, 8, 21, 0, 17, 43) + h * 3_600_000)
+    const d = aestDay(at)
+    assert.equal(ymd(d.key), brisbaneYmd(at), at.toISOString())
+    assert.ok(d.start <= at && at < d.end, `${at.toISOString()} outside its own day`)
+    assert.equal(d.end.getTime() - d.start.getTime(), 86_400_000)
+  }
+})
+
+test("aestDay key (DATE column) and start (timestamp window) describe the same day: start is key minus 10h", () => {
+  const d = aestDay(new Date("2026-09-27T21:02:00Z"))
+  assert.equal(d.key.getTime() - d.start.getTime(), 10 * 3_600_000)
+  // So the LineUp.date row and the shiftStart window can never disagree.
+  assert.equal(ymd(d.key), brisbaneYmd(d.start))
+  assert.equal(ymd(d.key), brisbaneYmd(new Date(d.end.getTime() - 1)))
+})
+
+test("aestDay at exactly UTC midnight (10am AEST) keys to that same date, not the day before", () => {
+  const d = aestDay(new Date("2026-09-28T00:00:00Z"))
+  assert.equal(ymd(d.key), "2026-09-28")
+  assert.equal(d.start.toISOString(), "2026-09-27T14:00:00.000Z")
+  // The old bound was the key itself: 10 hours into the day, so a 5am
+  // shift was already behind it.
+  assert.ok(d.start < d.key)
+})
+
+test("aestDay year end: 00:30 AEST New Year's Day 2027 is 2027-01-01 with a window starting 31 Dec 14:00Z", () => {
+  const d = aestDay(new Date("2026-12-31T14:30:00Z"))
+  assert.equal(ymd(d.key), "2027-01-01")
+  assert.equal(d.start.toISOString(), "2026-12-31T14:00:00.000Z")
+  assert.equal(d.end.toISOString(), "2027-01-01T14:00:00.000Z")
+  // And 23:30 AEST on New Year's Eve is still 2026.
+  assert.equal(ymd(aestDay(new Date("2026-12-31T13:30:00Z")).key), "2026-12-31")
+})
+
+test("aestDay leap day: 3am AEST 29 Feb 2028 (28 Feb 17:00Z) keys to 2028-02-29 and ends at 1 Mar 00:00 AEST", () => {
+  const d = aestDay(new Date("2028-02-28T17:00:00Z"))
+  assert.equal(ymd(d.key), "2028-02-29")
+  assert.equal(d.end.toISOString(), "2028-02-29T14:00:00.000Z")
+  assert.equal(ymd(aestDay(d.end).key), "2028-03-01")
+})
+
+test("aestDay days chain: each day's end is exactly the next day's start across a month boundary", () => {
+  let cursor = aestDay(new Date("2026-09-28T02:00:00Z"))
+  for (let i = 0; i < 10; i++) {
+    const next = aestDay(cursor.end)
+    assert.equal(next.start.getTime(), cursor.end.getTime())
+    assert.equal(next.key.getTime() - cursor.key.getTime(), 86_400_000)
+    cursor = next
+  }
+  assert.equal(ymd(cursor.key), "2026-10-08")
+})
+
+test("aestDay does not mutate its input", () => {
+  const input = new Date("2026-09-27T21:02:00Z")
+  const before = input.getTime()
+  aestDay(input)
+  assert.equal(input.getTime(), before)
+})

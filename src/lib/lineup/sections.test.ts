@@ -116,3 +116,83 @@ test("sectionOf normalises Deputy area names", () => {
   assert.equal(sectionOf(null), "Unassigned")
   assert.equal(sectionOf("Burleigh"), "Unassigned")
 })
+
+// ------------------------------------------------------------ edges
+
+test("no roster synced: groupShifts of nothing is no sections, not a crash", () => {
+  assert.deepEqual(groupShifts([]), [])
+})
+
+test("a day that is only salary cards renders no sections at all (no empty headings)", () => {
+  const sections = groupShifts([
+    shift("Salary Chefs Burleigh", "Salary Chefs Burleigh", "9:00", "10:00"),
+    shift("  salary FOH Burleigh", "Salary FOH Burleigh", "9:00", "10:00"),
+  ])
+  assert.deepEqual(sections, [])
+})
+
+test("a real person on a salary FOH area is re-homed to FOH and still reads first, ahead of the kitchen", () => {
+  const sections = groupShifts([
+    shift("Chef One", "Kitchen Burleigh", "5:00", "13:00"),
+    shift("Georgia Farquhar", "Salary FOH Burleigh", "7:30", "15:30"),
+  ])
+  assert.deepEqual(sections.map(([n]) => n), ["FOH", "Kitchen"])
+  assert.equal(sections[0][1][0].name, "Georgia Farquhar")
+})
+
+test("nobody's area (null) lands in Unassigned, after every known section, alphabetically among unknowns", () => {
+  const sections = groupShifts([
+    shift("Mystery", null, "9:00", "12:00"),
+    shift("Z", "Zebra Burleigh", "9:00", "12:00"),
+    shift("A", "Admin Burleigh", "9:00", "12:00"),
+    shift("Pastry One", "Pastry Burleigh", "4:00", "12:00"),
+  ])
+  assert.deepEqual(sections.map(([n]) => n), ["Pastry", "Admin", "Unassigned", "Zebra"])
+})
+
+test("input order does not matter: the roster reversed groups and sorts identically", () => {
+  const forward = groupShifts(foh)
+  const backward = groupShifts([...foh].reverse())
+  assert.deepEqual(
+    forward.map(([n, l]) => [n, l.map((s) => s.name)]),
+    backward.map(([n, l]) => [n, l.map((s) => s.name)])
+  )
+})
+
+test("groupShifts does not reorder or shrink the array it was given", () => {
+  const input = [
+    shift("Salary Chefs Burleigh", "Salary Chefs Burleigh", "9:00", "10:00"),
+    shift("Lacey Corby", "FOH Burleigh", "9:00", "13:30"),
+    shift("Savannah Hjorth", "FOH Burleigh", "6:00", "13:30"),
+  ]
+  const snapshot = input.map((s) => s.name)
+  groupShifts(input)
+  assert.deepEqual(input.map((s) => s.name), snapshot)
+  assert.equal(input.length, 3)
+})
+
+test("a close shift that runs past AEST midnight sorts by its start instant and its tie-break uses the real end", () => {
+  // Both start 10pm Mon 28 Sep AEST; one finishes 1am Tue, the other midnight.
+  const longClose = { ...shift("Long Close", "Kitchen", "22:00", "23:00"), end: aest("1:00", 29) }
+  const shortClose = { ...shift("Short Close", "Kitchen", "22:00", "23:00"), end: aest("0:00", 29) }
+  const earlyBake = shift("Baker", "Kitchen", "4:00", "12:00")
+  const [[, list]] = groupShifts([shortClose, longClose, earlyBake])
+  assert.deepEqual(list.map((s) => s.name), ["Baker", "Long Close", "Short Close"])
+  assert.ok(compareShifts(longClose, shortClose) < 0)
+})
+
+test("each section is sorted on its own: a late FOH starter does not push an early kitchen starter around", () => {
+  const sections = groupShifts([
+    shift("Lacey Corby", "FOH Burleigh", "9:00", "13:30"),
+    shift("Chef Two", "Kitchen Burleigh", "7:00", "15:00"),
+    shift("Savannah Hjorth", "FOH Burleigh", "6:00", "13:30"),
+    shift("Chef One", "Kitchen Burleigh", "5:00", "13:00"),
+  ])
+  assert.deepEqual(
+    sections.map(([n, l]) => [n, l.map((s) => s.name)]),
+    [
+      ["FOH", ["Savannah Hjorth", "Lacey Corby"]],
+      ["Kitchen", ["Chef One", "Chef Two"]],
+    ]
+  )
+})
