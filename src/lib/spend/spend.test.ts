@@ -4,7 +4,75 @@ import { sharedSplit, sharedSplitLabel, PARALLEL_SINGLE_INVOICE_FROM } from "./s
 import { venueToBucket, SPEND_BUCKETS } from "./types"
 import { EXPECTED_SUPPLIERS, matchExpectedSupplier } from "./expected-suppliers"
 import { render } from "./weekly-email"
+import { budgetOnPace, louiseBasisPct, projectWeekRevenue, remainingOnPace } from "./derived"
 import type { BucketSpendData, CurrentWeekSpendSnapshot } from "./types"
+
+// ---------------------------------------------------- pace derivations
+
+test("budgetOnPace is projected revenue × target %, null until revenue is in", () => {
+  // Currumbin 23-29 Sep: forecast $40,000, pacing 109% => $43,600 projected
+  assert.equal(budgetOnPace(43600, 28), 12208)
+  assert.equal(budgetOnPace(null, 28), null)
+  // cents, not floating dust
+  assert.equal(budgetOnPace(12345.67, 27), 3333.33)
+})
+
+test("remainingOnPace is budgetOnPace − effectiveSpent and goes negative honestly", () => {
+  assert.equal(remainingOnPace(12208, 9000), 3208)
+  assert.equal(remainingOnPace(12208, 12500.5), -292.5)
+  assert.equal(remainingOnPace(null, 9000), null)
+})
+
+test("above-forecast week: the pace allowance is wider than the forecast budget", () => {
+  const forecast = 40000
+  const targetPct = 28
+  const effectiveSpent = 10500
+  const budget = (forecast * targetPct) / 100 // 11,200 the tracker shows today
+  const remaining = budget - effectiveSpent // 700 reads like a hard cap
+  const paceBudget = budgetOnPace(forecast * 1.12, targetPct)! // Burleigh-style 112%
+  const paceRemaining = remainingOnPace(paceBudget, effectiveSpent)!
+  assert.equal(paceBudget, 12544)
+  assert.equal(paceRemaining, 2044)
+  assert.ok(paceBudget > budget && paceRemaining > remaining)
+})
+
+test("louiseBasisPct divides combined spend by Beach House revenue only, one decimal", () => {
+  // combined Currumbin spend $12,000; combined revenue $43,600 (27.5%),
+  // Beach House alone $40,000 => 30.0%, about two points higher
+  assert.equal(louiseBasisPct(12000, 40000), 30)
+  assert.equal(Math.round((12000 / 43600) * 1000) / 10, 27.5)
+  assert.equal(louiseBasisPct(12345, 40000), 30.9)
+  // no Beach House revenue => no percentage, never Infinity/NaN
+  assert.equal(louiseBasisPct(12000, null), null)
+  assert.equal(louiseBasisPct(12000, 0), null)
+})
+
+test("projectWeekRevenue: weekday-weighted when the profile covers ≥10%, flat otherwise", () => {
+  // Wed+Thu carry 25% of a normal week; $10,000 so far => $40,000 full week
+  const shares = [0.12, 0.13, 0.15, 0.2, 0.2, 0.1, 0.1]
+  assert.deepEqual(
+    projectWeekRevenue({ revenueToDate: 10000, reportedIdx: [0, 1], shares }),
+    { projected: 40000, method: "weighted" }
+  )
+  // no history => flat ÷days×7
+  assert.deepEqual(
+    projectWeekRevenue({ revenueToDate: 10000, reportedIdx: [0, 1], shares: null }),
+    { projected: 35000, method: "flat" }
+  )
+  // a reported day with a negligible share falls back to flat
+  assert.deepEqual(
+    projectWeekRevenue({ revenueToDate: 500, reportedIdx: [5], shares: [0.3, 0.2, 0.2, 0.1, 0.1, 0.05, 0.05] }),
+    { projected: 3500, method: "flat" }
+  )
+  assert.deepEqual(
+    projectWeekRevenue({ revenueToDate: null, reportedIdx: [], shares }),
+    { projected: null, method: null }
+  )
+  assert.deepEqual(
+    projectWeekRevenue({ revenueToDate: 0, reportedIdx: [], shares }),
+    { projected: null, method: null }
+  )
+})
 
 // -------------------------------------------------------- shared split
 
@@ -115,6 +183,10 @@ function bucket(over: Partial<BucketSpendData> & { bucket: BucketSpendData["buck
     lastRevenueDate: null,
     projectedRevenueExGst: null,
     revenueDaily: [],
+    budgetOnPace: null,
+    remainingOnPace: null,
+    projectedBeachHouseRevenueExGst: null,
+    louiseBasisPct: null,
     ...over,
   }
 }
@@ -153,6 +225,142 @@ test("Sunday send: 3 days to go, remaining spread per day", () => {
   assert.match(text, /pace: On track, projected full-week spend \$9,800 vs \$10,000 budget\./)
   // no takings line when no EOD report has landed
   assert.doesNotMatch(text, /Takings so far/)
+  // and no pace allowance or basis note either
+  assert.doesNotMatch(text, /allowance at target/)
+  assert.doesNotMatch(text, /Louise/)
+})
+
+test("above-forecast week: the email states the allowance on current takings after left-to-spend", () => {
+  const snap = snapshot({
+    buckets: [
+      bucket({
+        bucket: "BURLEIGH",
+        spentToDate: 10500,
+        effectiveSpent: 10500,
+        budget: 10800,
+        remaining: 300,
+        forecastRevenue: 40000,
+        projectedEndOfWeek: 11900,
+        paceStatus: "over",
+        revenueToDateExGst: 26000,
+        revenueDaysReported: 4,
+        projectedRevenueExGst: 44800, // pacing 112%
+        revenueProjectionMethod: "weighted",
+        budgetOnPace: 12096,
+        remainingOnPace: 1596,
+      }),
+    ],
+  })
+  const { text, html } = render(snap)
+  assert.match(
+    text,
+    /Burleigh: \$300 left to spend \(\$10,500 of \$10,800 used\)\. That's about \$100\/day for the 3 days left\. On current takings the allowance at target is \$12,096, so about \$1,596 more\./
+  )
+  // Burleigh never gets the Louise line, and the note stays silent on her when she is not printed
+  assert.doesNotMatch(text, /Louise/)
+  // the one-line explanation appears once the pace figures exist
+  assert.match(text, /allowance at target uses this week's actual takings pace/)
+  assert.match(html, /Two ways to read it/)
+  // HTML table carries the left-on-takings column
+  assert.match(html, /Left on takings/)
+  assert.match(html, /\$1,596/)
+})
+
+test("Currumbin: Louise's Beach House-only percentage is stated with the combined figure", () => {
+  const snap = snapshot({
+    buckets: [
+      bucket({
+        bucket: "CURRUMBIN",
+        targetPct: 28,
+        spentToDate: 9000,
+        effectiveSpent: 9000,
+        budget: 11200,
+        remaining: 2200,
+        forecastRevenue: 40000,
+        projectedEndOfWeek: 12000,
+        paceStatus: "watch",
+        revenueToDateExGst: 25000,
+        revenueDaysReported: 4,
+        projectedRevenueExGst: 43600, // pacing 109%
+        revenueProjectionMethod: "weighted",
+        budgetOnPace: 12208,
+        remainingOnPace: 3208,
+        projectedBeachHouseRevenueExGst: 40000,
+        louiseBasisPct: 30,
+      }),
+    ],
+  })
+  const { text, html } = render(snap)
+  assert.match(text, /On current takings the allowance at target is \$12,208, so about \$3,208 more\./)
+  // combined figure 12000/43600 = 27.5%, Louise 30.0%
+  assert.match(text, /finishes near 27\.5% COGS \(target 28%\)/)
+  assert.match(text, /Louise's sheet will read about 30\.0% \(Beach House sales only\)\./)
+  assert.match(text, /Beach House sales only, so it reads about two points above/)
+  assert.match(html, /Louise&#39;s sheet will read about 30\.0%|Louise's sheet will read about 30\.0%/)
+})
+
+test("pace allowance already spent: the email says how far over, and never prints a minus 'more'", () => {
+  const snap = snapshot({
+    buckets: [
+      bucket({
+        bucket: "BURLEIGH",
+        spentToDate: 12500,
+        effectiveSpent: 12500,
+        budget: 12000,
+        remaining: -500,
+        projectedEndOfWeek: 14000,
+        paceStatus: "over",
+        revenueToDateExGst: 20000,
+        revenueDaysReported: 4,
+        projectedRevenueExGst: 45000,
+        budgetOnPace: 12150,
+        remainingOnPace: -350,
+      }),
+    ],
+  })
+  const { text } = render(snap)
+  // over the forecast budget AND over the pace allowance: both are said, neither as a negative "more"
+  assert.match(text, /\$500 OVER\. Hold all non-essential orders for the rest of the week\. On current takings the allowance at target is \$12,150, so already \$350 over it\./)
+  assert.doesNotMatch(text, /more\./)
+  // over the forecast budget but takings are up: the pace allowance still has room, and the email says so
+  const beating = render(
+    snapshot({
+      buckets: [
+        bucket({
+          bucket: "CURRUMBIN",
+          spentToDate: 11500,
+          effectiveSpent: 11500,
+          budget: 11200,
+          remaining: -300,
+          revenueToDateExGst: 26000,
+          revenueDaysReported: 4,
+          projectedRevenueExGst: 45000,
+          budgetOnPace: 12600,
+          remainingOnPace: 1100,
+        }),
+      ],
+    })
+  ).text
+  assert.match(beating, /\$300 OVER\. Hold all non-essential orders for the rest of the week\. On current takings the allowance at target is \$12,600, so about \$1,100 more\./)
+  const under = snapshot({
+    buckets: [
+      bucket({
+        bucket: "BURLEIGH",
+        spentToDate: 10000,
+        effectiveSpent: 10000,
+        budget: 10800,
+        remaining: 800,
+        revenueToDateExGst: 15000,
+        revenueDaysReported: 4,
+        projectedRevenueExGst: 36000, // pacing 90%: allowance shrinks below spend
+        budgetOnPace: 9720,
+        remainingOnPace: -280,
+      }),
+    ],
+  })
+  const t2 = render(under).text
+  assert.match(t2, /On current takings the allowance at target is \$9,720, so already \$280 over it\./)
+  assert.doesNotMatch(t2, /-\$280 more/)
 })
 
 test("over budget: OVER amount is shown positive and orders are held", () => {

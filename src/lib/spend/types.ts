@@ -101,8 +101,18 @@ export interface BucketSpendData {
   /// Per-supplier composition of estimatedMissingSpend
   missingSpendBreakdown: MissingSpendRow[]
   targetPct: number
+  /// forecastRevenue × targetPct. The planning number managers set the
+  /// week up against; stays as is even when takings beat the forecast.
   budget: number | null
+  /// budget − effectiveSpent (forecast basis)
   remaining: number | null
+  /// projectedRevenueExGst × targetPct: what the same target buys on the
+  /// takings we are actually seeing. Null until an EOD report lands. When
+  /// trade runs above forecast this is the real allowance at target, and
+  /// `remaining` understates it; managers should read both.
+  budgetOnPace: number | null
+  /// budgetOnPace − effectiveSpent (live-takings basis)
+  remainingOnPace: number | null
   /// Full-week spend projection + estimatedMissingSpend. "weighted"
   /// divides spent-to-date by the elapsed weekdays' historical share of
   /// a week's deliveries (8-wk profile); "flat" is spent ÷ days × 7.
@@ -128,6 +138,17 @@ export interface BucketSpendData {
   /// revenueToDateExGst ÷ revenueDaysReported × 7
   projectedRevenueExGst: number | null
   revenueDaily: DailyRevenueCell[]
+
+  // ---- Bookkeeper's basis (CURRUMBIN only; null for Burleigh) ----
+  /// Full-week revenue projection for BEACH_HOUSE rows alone, TEA_GARDEN
+  /// excluded. The denominator Louise's weekly xlsx uses for Currumbin.
+  projectedBeachHouseRevenueExGst: number | null
+  /// projectedEndOfWeek ÷ projectedBeachHouseRevenueExGst × 100: the COGS
+  /// % Louise's sheet will report. Her sheet divides Currumbin's combined
+  /// Beach House + Tea Garden cost by Beach House revenue only, so it reads
+  /// about two points above the tracker's combined figure. Null for the
+  /// Burleigh bucket and until Beach House revenue is in.
+  louiseBasisPct: number | null
 }
 
 export interface CurrentWeekSpendSnapshot {

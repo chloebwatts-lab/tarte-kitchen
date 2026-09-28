@@ -56,7 +56,7 @@ function bucketLine(b: BucketSpendData, daysLeft: number): string {
   }
   const remaining = b.remaining ?? 0
   if (remaining <= 0) {
-    return `${b.label}: ${money0(b.spentToDate)} spent of a ${money0(b.budget)} budget, ${money0(-remaining)} OVER. Hold all non-essential orders for the rest of the week.`
+    return `${b.label}: ${money0(b.spentToDate)} spent of a ${money0(b.budget)} budget, ${money0(-remaining)} OVER. Hold all non-essential orders for the rest of the week.${onPaceLine(b)}`
   }
   const tail =
     daysLeft > 1
@@ -64,7 +64,53 @@ function bucketLine(b: BucketSpendData, daysLeft: number): string {
       : daysLeft === 1
         ? ` That's the whole budget for today, the last day of the week.`
         : ""
-  return `${b.label}: ${money0(remaining)} left to spend (${money0(b.spentToDate)} of ${money0(b.budget)} used).${tail}`
+  return `${b.label}: ${money0(remaining)} left to spend (${money0(b.spentToDate)} of ${money0(b.budget)} used).${tail}${onPaceLine(b)}`
+}
+
+/**
+ * The allowance at target on ACTUAL takings pace, so a forecast-based
+ * "left to spend" is not read as a hard cap in a week that beats forecast.
+ * Empty string until an EOD report has landed. Leading space so it can be
+ * appended to the bucket line.
+ */
+function onPaceLine(b: BucketSpendData): string {
+  if (b.budgetOnPace == null || b.remainingOnPace == null) return ""
+  const more =
+    b.remainingOnPace >= 0
+      ? `so about ${money0(b.remainingOnPace)} more`
+      : `so already ${money0(-b.remainingOnPace)} over it`
+  return ` On current takings the allowance at target is ${money0(b.budgetOnPace)}, ${more}.`
+}
+
+/**
+ * Currumbin only: what the bookkeeper's sheet will show for the same week.
+ * Her xlsx divides the combined Beach House + Tea Garden cost by Beach
+ * House sales alone, so it reads above the tracker's combined figure.
+ */
+function louiseLine(b: BucketSpendData): string {
+  if (b.bucket !== "CURRUMBIN" || b.louiseBasisPct == null) return ""
+  return `Louise's sheet will read about ${b.louiseBasisPct.toFixed(1)}% (Beach House sales only).`
+}
+
+/**
+ * One-line explanation of why the figures above differ. Empty when no
+ * bucket has a pace figure yet; the Louise sentence only appears when her
+ * percentage is actually printed.
+ */
+function basisNote(buckets: BucketSpendData[]): string {
+  const hasPace = buckets.some((b) => b.budgetOnPace != null)
+  const hasLouise = buckets.some((b) => louiseLine(b) !== "")
+  if (!hasPace && !hasLouise) return ""
+  const parts: string[] = []
+  if (hasPace)
+    parts.push(
+      "Budget and left-to-spend use the manager forecast; the allowance at target uses this week's actual takings pace, so it moves with trade."
+    )
+  if (hasLouise)
+    parts.push(
+      "Louise's percentage divides Currumbin's combined Beach House + Tea Garden cost by Beach House sales only, so it reads about two points above the tracker's combined COGS."
+    )
+  return parts.join(" ")
 }
 
 /** Projected full-week COGS % against live revenue pace, else forecast. */
@@ -131,6 +177,13 @@ export function render(snapshot: CurrentWeekSpendSnapshot): {
     )
     const takings = takingsLine(b)
     if (takings) textLines.push(`   ${takings}`)
+    const louise = louiseLine(b)
+    if (louise) textLines.push(`   ${louise}`)
+    textLines.push(``)
+  }
+  const note = basisNote(snapshot.buckets)
+  if (note) {
+    textLines.push(note)
     textLines.push(``)
   }
   if (unassignedTotal > 0) {
@@ -150,6 +203,8 @@ export function render(snapshot: CurrentWeekSpendSnapshot): {
   const tableRows = snapshot.buckets.map((b) => {
     const remaining = b.remaining
     const remainTone: Tone = remaining == null ? "neutral" : remaining <= 0 ? "red" : "done"
+    const onPaceTone: Tone =
+      b.remainingOnPace == null ? "neutral" : b.remainingOnPace <= 0 ? "red" : "done"
     const cogs = projectedCogsPct(b)
     const cogsTone: Tone =
       cogs == null
@@ -164,6 +219,7 @@ export function render(snapshot: CurrentWeekSpendSnapshot): {
       money0(b.spentToDate),
       money0(b.budget),
       { text: money0(b.remaining), tone: remainTone, strong: true },
+      { text: money0(b.remainingOnPace), tone: onPaceTone, strong: true },
       { text: PACE_LABEL[b.paceStatus], tone: PACE_TONE[b.paceStatus], strong: true },
       { text: `${cogs == null ? "n/a" : `${cogs.toFixed(1)}%`} / ${Number(b.targetPct).toFixed(0)}%`, tone: cogsTone, strong: true },
     ]
@@ -175,6 +231,7 @@ export function render(snapshot: CurrentWeekSpendSnapshot): {
       { header: "Spent", align: "right" },
       { header: "Budget", align: "right" },
       { header: "Left", align: "right" },
+      { header: "Left on takings", align: "right" },
       { header: "Pace", align: "right" },
       { header: "COGS proj.", align: "right" },
     ],
@@ -183,10 +240,14 @@ export function render(snapshot: CurrentWeekSpendSnapshot): {
 
   const lineItems = list(
     snapshot.buckets.map((b) => {
-      const takings = takingsLine(b)
-      return { text: bucketLine(b, daysLeft), detail: takings || undefined, tone: PACE_TONE[b.paceStatus] }
+      const detail = [takingsLine(b), louiseLine(b)].filter(Boolean).join("\n")
+      return { text: bucketLine(b, daysLeft), detail: detail || undefined, tone: PACE_TONE[b.paceStatus] }
     })
   )
+
+  const basisCallout = note
+    ? `<div style="margin-top:14px;">${callout(note, "sage", { label: "Two ways to read it" })}</div>`
+    : ""
 
   const unassignedNote =
     unassignedTotal > 0
@@ -208,7 +269,7 @@ export function render(snapshot: CurrentWeekSpendSnapshot): {
       section("Where each venue sits", spendTable),
       section(
         "What that means",
-        lineItems + unassignedNote + button("Open the live spend tracker →", "https://kitchen.tarte.com.au/spend")
+        lineItems + basisCallout + unassignedNote + button("Open the live spend tracker →", "https://kitchen.tarte.com.au/spend")
       ),
     ],
   })

@@ -26,6 +26,12 @@ import {
 } from "@/lib/dates"
 import { sharedSplit } from "./shared-split"
 import {
+  budgetOnPace as budgetOnPaceFor,
+  louiseBasisPct as louiseBasisPctFor,
+  projectWeekRevenue,
+  remainingOnPace as remainingOnPaceFor,
+} from "./derived"
+import {
   EXPECTED_SUPPLIERS,
   matchExpectedSupplier,
   type ExpectedSupplier,
@@ -310,17 +316,26 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     BURLEIGH: new Set(),
     CURRUMBIN: new Set(),
   }
+  // Beach House rows alone (TEA_GARDEN excluded): the denominator the
+  // bookkeeper's xlsx uses for Currumbin, see louiseBasisPct.
+  const beachHouseRevenueByDate = new Map<string, number>()
+  const beachHouseReportedDates = new Set<string>()
   for (const row of salesSummaries) {
     const bucket = venueToBucket(row.venue)
     if (!bucket) continue
     // @db.Date rows sit at UTC midnight of the AEST calendar day.
     const dateKey = row.date.toISOString().split("T")[0]
     const key = `${bucket}::${dateKey}`
-    revenueByBucketDate.set(
-      key,
-      (revenueByBucketDate.get(key) ?? 0) + Number(row.totalRevenueExGst)
-    )
+    const amt = Number(row.totalRevenueExGst)
+    revenueByBucketDate.set(key, (revenueByBucketDate.get(key) ?? 0) + amt)
     revenueReportedDates[bucket].add(dateKey)
+    if (row.venue === "BEACH_HOUSE") {
+      beachHouseRevenueByDate.set(
+        dateKey,
+        (beachHouseRevenueByDate.get(dateKey) ?? 0) + amt
+      )
+      beachHouseReportedDates.add(dateKey)
+    }
   }
 
   // ------- Weekday-share weights (last 8 weeks) for projections.
@@ -356,18 +371,23 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     BURLEIGH: null,
     CURRUMBIN: null,
   }
+  let beachHouseRevenueShares: number[] | null = null
   {
     const revRows: Record<SpendBucket, Array<{ idx: number; amount: number }>> =
       { BURLEIGH: [], CURRUMBIN: [] }
+    const beachHouseRevRows: Array<{ idx: number; amount: number }> = []
     for (const row of salesHistory) {
       const bucket = venueToBucket(row.venue)
       if (!bucket) continue
-      revRows[bucket].push({
+      const rev = {
         // @db.Date at UTC midnight, weekday is directly readable.
         idx: tradingDayIndex(row.date, false),
         amount: Number(row.totalRevenueExGst),
-      })
+      }
+      revRows[bucket].push(rev)
+      if (row.venue === "BEACH_HOUSE") beachHouseRevRows.push(rev)
     }
+    beachHouseRevenueShares = buildShares(beachHouseRevRows)
     const spendRows: Record<
       SpendBucket,
       Array<{ idx: number; amount: number }>
@@ -594,22 +614,44 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       revenueDaysReported > 0 ? Array.from(reportedDates).sort().pop()! : null
     // Full-week revenue pace: divide takings-so-far by the share of a
     // typical week those reported weekdays represent (8-wk history);
-    // flat ÷days×7 as fallback.
-    const revShare = revenueShares[bucket]
-    const reportedRevShare = revShare
-      ? revenueDaily.reduce(
-          (sum, cell, i) => (cell.reported ? sum + revShare[i] : sum),
-          0
-        )
-      : 0
-    const revenueWeighted = revShare != null && reportedRevShare >= 0.1
-    const projectedRevenueExGst =
-      revenueToDateExGst == null
-        ? null
-        : revenueWeighted
-        ? Math.round((revenueToDateExGst / reportedRevShare) * 100) / 100
-        : Math.round(((revenueToDateExGst / revenueDaysReported) * 7) * 100) /
-          100
+    // flat ÷days×7 as fallback. revenueDaily is in trading-day order
+    // (index 0 = Wed), the same order as the share profile.
+    const { projected: projectedRevenueExGst, method: revenueProjectionMethod } =
+      projectWeekRevenue({
+        revenueToDate: revenueToDateExGst,
+        reportedIdx: revenueDaily.flatMap((cell, i) => (cell.reported ? [i] : [])),
+        shares: revenueShares[bucket],
+      })
+
+    // Allowance at target on the takings we are actually seeing. The
+    // forecast-based budget/remaining above are left untouched.
+    const budgetOnPace = budgetOnPaceFor(projectedRevenueExGst, targetPct)
+    const remainingOnPace = remainingOnPaceFor(budgetOnPace, effectiveSpent)
+
+    // Bookkeeper's basis (Currumbin only): combined spend over Beach House
+    // revenue alone, projected the same way but from BEACH_HOUSE rows.
+    let projectedBeachHouseRevenueExGst: number | null = null
+    let louiseBasisPct: number | null = null
+    if (bucket === "CURRUMBIN") {
+      let beachHouseRunning = 0
+      const beachHouseReportedIdx: number[] = []
+      agg.daily.forEach((cell, i) => {
+        beachHouseRunning += beachHouseRevenueByDate.get(cell.date) ?? 0
+        if (beachHouseReportedDates.has(cell.date)) beachHouseReportedIdx.push(i)
+      })
+      projectedBeachHouseRevenueExGst = projectWeekRevenue({
+        revenueToDate:
+          beachHouseReportedIdx.length > 0
+            ? Math.round(beachHouseRunning * 100) / 100
+            : null,
+        reportedIdx: beachHouseReportedIdx,
+        shares: beachHouseRevenueShares,
+      }).projected
+      louiseBasisPct = louiseBasisPctFor(
+        projectedEndOfWeek,
+        projectedBeachHouseRevenueExGst
+      )
+    }
 
     const suppliers: SupplierSpendCell[] = Array.from(
       agg.supplierMap.entries()
@@ -649,14 +691,11 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       targetPct,
       budget: budget == null ? null : Math.round(budget * 100) / 100,
       remaining,
+      budgetOnPace,
+      remainingOnPace,
       projectedEndOfWeek,
       spendProjectionMethod: spendWeighted ? ("weighted" as const) : ("flat" as const),
-      revenueProjectionMethod:
-        revenueToDateExGst == null
-          ? null
-          : revenueWeighted
-          ? ("weighted" as const)
-          : ("flat" as const),
+      revenueProjectionMethod,
       paceStatus,
       invoiceCount: agg.invoiceCount,
       daily: agg.daily,
@@ -666,6 +705,8 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       lastRevenueDate,
       projectedRevenueExGst,
       revenueDaily,
+      projectedBeachHouseRevenueExGst,
+      louiseBasisPct,
     }
   })
 

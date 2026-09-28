@@ -277,6 +277,76 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
                   valueTone={cogsTone(liveCogsPct)}
                 />
               </div>
+              {bucket.budgetOnPace != null && (
+                <>
+                  <div
+                    className={cn(
+                      "mb-2 grid gap-3",
+                      bucket.bucket === "CURRUMBIN" ? "grid-cols-3" : "grid-cols-2"
+                    )}
+                  >
+                    <Tile
+                      label="Allowance on takings"
+                      value={fmt(bucket.budgetOnPace)}
+                      sub={`@ ${Number(bucket.targetPct).toFixed(0)}% of ${fmt(bucket.projectedRevenueExGst)} pace${
+                        bucket.budget != null
+                          ? ` · ${fmt(bucket.budget)} on forecast`
+                          : ""
+                      }`}
+                    />
+                    <Tile
+                      label="Left on takings"
+                      value={fmt(bucket.remainingOnPace)}
+                      sub={
+                        bucket.remaining == null
+                          ? "allowance on takings − spent"
+                          : `vs ${fmt(bucket.remaining)} left on forecast`
+                      }
+                      valueTone={
+                        bucket.remainingOnPace == null
+                          ? undefined
+                          : bucket.remainingOnPace < 0
+                          ? "red"
+                          : bucket.budgetOnPace > 0 &&
+                            bucket.remainingOnPace / bucket.budgetOnPace < 0.1
+                          ? "amber"
+                          : "green"
+                      }
+                    />
+                    {bucket.bucket === "CURRUMBIN" && (
+                      <Tile
+                        label="Louise's sheet basis"
+                        value={
+                          bucket.louiseBasisPct == null
+                            ? "—"
+                            : `${bucket.louiseBasisPct.toFixed(1)}%`
+                        }
+                        sub={
+                          bucket.projectedBeachHouseRevenueExGst == null
+                            ? "needs a Beach House EOD report"
+                            : `combined cost ÷ ${fmt(bucket.projectedBeachHouseRevenueExGst)} Beach House sales only`
+                        }
+                        valueTone={cogsTone(bucket.louiseBasisPct)}
+                      />
+                    )}
+                  </div>
+                  <p className="mb-2 text-[11px] text-muted-foreground">
+                    Budget and Remaining use the manager forecast, so they
+                    are not a hard cap when takings run above it: the
+                    allowance on takings is what the same target buys on
+                    this week&apos;s actual revenue pace.
+                    {bucket.bucket === "CURRUMBIN" && (
+                      <>
+                        {" "}
+                        Louise&apos;s weekly sheet divides Currumbin&apos;s combined
+                        Beach House + Tea Garden cost by Beach House sales
+                        only, so her percentage reads about two points above
+                        the combined figure here.
+                      </>
+                    )}
+                  </p>
+                </>
+              )}
               <div className="overflow-x-auto rounded-md border border-border">
                 <table className="w-full text-xs">
                   <thead className="bg-muted/30">
