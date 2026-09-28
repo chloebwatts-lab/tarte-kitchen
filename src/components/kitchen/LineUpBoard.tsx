@@ -6,6 +6,7 @@ import { KitchenButton } from "@/components/kitchen/KitchenButton"
 import { useRememberedName } from "@/components/kitchen/use-remembered-name"
 import { saveLineUp, markLineUpRan } from "@/lib/actions/lineup"
 import type { LineUp } from "@/lib/actions/lineup"
+import { groupShifts } from "@/lib/lineup/sections"
 import type { Venue } from "@/generated/prisma/client"
 
 const time = new Intl.DateTimeFormat("en-AU", {
@@ -25,32 +26,6 @@ function shortTime(iso: string): string {
   const m = parts.find((x) => x.type === "minute")?.value ?? "00"
   const p = (parts.find((x) => x.type === "dayPeriod")?.value ?? "").replace(/\./g, "").toLowerCase()
   return `${h}${m === "00" ? "" : `:${m}`}${p}`
-}
-
-/**
- * Deputy's salary "cards" are rostered as if they were people ("Salary Chefs
- * Burleigh 9–10am") so payroll can allocate. At line-up they are noise, so
- * they are dropped; a real person rostered onto a salary area is re-homed to
- * the section the area name implies.
- */
-const SALARY_PLACEHOLDER = /^salary\b/i
-const VENUE_WORDS = /\b(burleigh|currumbin|beach house|tea garden|bakery)\b/gi
-
-function sectionOf(area: string | null): string {
-  if (!area) return "Unassigned"
-  let a = area.replace(SALARY_PLACEHOLDER, "").replace(VENUE_WORDS, "").replace(/\s+/g, " ").trim()
-  if (!a) return "Unassigned"
-  if (/^boh$/i.test(a)) a = "Kitchen"
-  if (/^foh$/i.test(a)) a = "FOH"
-  if (/^kp/i.test(a)) a = "KP"
-  return a.charAt(0).toUpperCase() + a.slice(1)
-}
-
-/** Read out front to back: floor first, then the kitchen, then the pastry team. */
-const SECTION_ORDER = ["FOH", "Barista", "Takeaway area", "Juice bar", "Kitchen", "Prep", "Pastry", "KP"]
-function sectionRank(name: string): number {
-  const i = SECTION_ORDER.findIndex((s) => s.toLowerCase() === name.toLowerCase())
-  return i === -1 ? SECTION_ORDER.length : i
 }
 
 const money = new Intl.NumberFormat("en-AU", {
@@ -127,18 +102,10 @@ export function LineUpBoard({
     })
   }
 
-  const shifts = lineUp.shifts.filter((s) => s.unfilled || !SALARY_PLACEHOLDER.test(s.name.trim()))
-  const byArea = new Map<string, typeof lineUp.shifts>()
-  for (const s of shifts) {
-    const key = sectionOf(s.area)
-    const list = byArea.get(key) ?? []
-    list.push(s)
-    byArea.set(key, list)
-  }
-  const sections = [...byArea.entries()].sort(
-    ([a], [b]) => sectionRank(a) - sectionRank(b) || a.localeCompare(b)
-  )
-  for (const [, list] of sections) list.sort((a, b) => a.start.localeCompare(b.start))
+  // Sections front to back, and within each section the first starter
+  // first. See src/lib/lineup/sections.ts (tested).
+  const sections = groupShifts(lineUp.shifts)
+  const shifts = sections.flatMap(([, list]) => list)
   const unfilled = shifts.filter((s) => s.unfilled).length
 
   return (
