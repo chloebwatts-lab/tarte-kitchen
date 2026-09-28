@@ -66,8 +66,11 @@ test("cookies, scrolls and the rest", () => {
 // Any croissant flavour the matcher does not know falls through to "Plain
 // croissant" (the bought-in Bridor line), so a pistachio or savoury-special
 // croissant inflates plain sell-through. Recorded as todo, see report.
-test("an unknown croissant flavour should not be counted as a plain croissant", { todo: true }, () => {
+test("an unknown croissant flavour is not counted as a plain croissant", () => {
   assert.equal(matchProduct("Pistachio Croissant"), null)
+  assert.equal(matchProduct("Plain Croissant"), "Plain croissant")
+  assert.equal(matchProduct("Butter Croissant"), "Plain croissant")
+  assert.equal(matchProduct("Croissants"), "Plain croissant")
 })
 
 test("non-pastry POS names are ignored", () => {

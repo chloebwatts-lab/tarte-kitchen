@@ -3,6 +3,7 @@
 import { createHash } from "node:crypto"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
+import { safeNext } from "@/lib/safe-next"
 import { db } from "@/lib/db"
 import { DEED_TITLE, DEED_VERSION, TARTE_ENTITIES, deedPlainText } from "@/lib/confidentiality/deed"
 import { getPerson, logAccess, setPersonCookie } from "@/lib/person-session"
@@ -21,7 +22,7 @@ export async function signDeed(formData: FormData): Promise<void> {
   const signedName = String(formData.get("signedName") ?? "").trim().replace(/\s+/g, " ")
   const signatureImg = String(formData.get("signatureImg") ?? "")
   const agreed = formData.get("agreed") === "on"
-  const next = String(formData.get("next") ?? "/staffaccess")
+  const next = safeNext(String(formData.get("next") ?? ""), "/staffaccess")
 
   if (!agreed || signedName.split(" ").length < 2 || !okSignature(signatureImg)) {
     redirect(`/kitchen/confidentiality?error=1&next=${encodeURIComponent(next)}`)
@@ -66,5 +67,5 @@ export async function signDeed(formData: FormData): Promise<void> {
     }
   }
 
-  redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/staffaccess")
+  redirect(next)
 }

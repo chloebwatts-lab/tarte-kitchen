@@ -33,6 +33,42 @@ export function isUsableName(name: string | null | undefined): boolean {
   return /[A-Za-z]{3}/.test(n)
 }
 
+/**
+ * Phrases that read as a freebie, voucher or comp. Tarte never offers these
+ * in a review reply (standing rule from Chloe: invite them back at full
+ * price). The prompt says so, and this is the code backstop.
+ */
+const COMP_PHRASES: RegExp[] = [
+  /\bon (us|the house)\b/i,
+  // "free" as a giveaway, not "feel free", "free range" or "gluten free".
+  /(?<!\b(?:feel|gluten|dairy|nut|sugar|lactose|hands)[ -])\bfree\b(?![ -](?:range|to\b|from\b))/i,
+  /\bvouchers?\b/i,
+  /\bgift ?cards?\b/i,
+  /\bcomplimentary\b/i,
+  /\bcomp(ed|s)?\b/i,
+  /\bno charge\b/i,
+  /\bat no cost\b/i,
+  /\bour (shout|treat)\b/i,
+  /\bwe'?ll (cover|pay for|take care of) (it|that|the)\b/i,
+  /\brefund/i,
+  /\bmoney back\b/i,
+  /\bdiscount/i,
+  /\b\d{1,3} ?% off\b/i,
+  /\breplace (it|that|your)\b/i,
+]
+
+/**
+ * The first freebie-style phrase in a reply, or null when it is clean.
+ * Exported so the approve route can refuse to post a flagged reply.
+ */
+export function flagsComp(text: string): string | null {
+  for (const re of COMP_PHRASES) {
+    const m = text.match(re)
+    if (m) return m[0]
+  }
+  return null
+}
+
 export function scrubReply(text: string): string {
   let out = text
 

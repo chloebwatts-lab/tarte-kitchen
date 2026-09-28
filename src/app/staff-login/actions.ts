@@ -10,12 +10,13 @@ import { DEVICE_COOKIE, SETUP_MINUTES, encodeSetup } from "@/lib/person-auth"
 import { clearPersonCookie, getPerson, logAccess, setPersonCookie } from "@/lib/person-session"
 import { findStaff, toPersonRole, verifyStaff } from "@/lib/shifts-staff"
 import { sendEmail } from "@/lib/gmail/send"
+import { safeNext as safeNextPath } from "@/lib/safe-next"
 
 /** Only ever bounce back into our own app, never to a pasted URL. */
 function safeNext(raw: string): string {
-  if (!raw.startsWith("/") || raw.startsWith("//")) return "/staffaccess"
-  if (raw.startsWith("/staff-login")) return "/staffaccess"
-  return raw
+  const next = safeNextPath(raw, "/staffaccess")
+  if (next.startsWith("/staff-login")) return "/staffaccess"
+  return next
 }
 
 /**

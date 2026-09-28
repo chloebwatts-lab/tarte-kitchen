@@ -145,6 +145,8 @@ export async function recodeLabourWeek(
 
   type Cell = { venue: Venue; bucket: Bucket; hours: number; dollars: number | null }
   const cells: Cell[] = []
+  /** Cells priced at $0 by a standing allocation; excluded from the rate pool. */
+  const zeroed = new Set<Cell>()
   const byPerson = new Map<string, Cell[]>()
   for (const s of shifts) {
     const cell: Cell = {
@@ -166,9 +168,14 @@ export async function recodeLabourWeek(
     for (const [name, list] of byPerson) if (k.match.test(name.trim())) owned.push(...list)
     const totalHours = owned.reduce((s, c) => s + c.hours, 0)
     if (k.split && (totalHours > 0 || k.salaried)) {
-      // Standing allocation: zero out the worked cells (hours stay, for
-      // the rate pool) and post the agreed shares instead.
-      for (const c of owned) c.dollars = 0
+      // Standing allocation: zero out the worked cells and post the agreed
+      // shares instead. Zeroed cells stay out of the rate pool below, else
+      // their hours at $0 drag the bucket's average rate down and every
+      // uncosted person in that bucket is under-estimated.
+      for (const c of owned) {
+        c.dollars = 0
+        zeroed.add(c)
+      }
       for (const part of k.split) {
         cells.push({
           venue: part.venue,
@@ -189,7 +196,12 @@ export async function recodeLabourWeek(
   // zero its worked cells first; otherwise those hours are also priced at
   // the average kitchen rate below and the salary is counted twice.
   for (const [name, list] of byPerson) {
-    if (CROSS_VENUE_MATCH.test(name.trim())) for (const c of list) c.dollars = 0
+    if (CROSS_VENUE_MATCH.test(name.trim())) {
+      for (const c of list) {
+        c.dollars = 0
+        zeroed.add(c)
+      }
+    }
   }
   cells.push({
     venue: Venue.BURLEIGH,
@@ -201,7 +213,7 @@ export async function recodeLabourWeek(
   // Estimate leftovers at the venue+bucket average hourly rate.
   const pool = new Map<string, { dollars: number; hours: number }>()
   for (const c of cells) {
-    if (c.dollars != null && c.hours > 0) {
+    if (c.dollars != null && c.hours > 0 && !zeroed.has(c)) {
       const key = `${c.venue}/${c.bucket}`
       const p = pool.get(key) ?? { dollars: 0, hours: 0 }
       p.dollars += c.dollars

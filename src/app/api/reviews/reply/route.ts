@@ -20,6 +20,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { postGbpReply } from "@/lib/gbp/post-reply"
 import { checkAlreadyAnswered } from "@/lib/reviews/already-answered"
+import { flagsComp } from "@/lib/reviews/scrub-reply"
 import { VENUE_SHORT_LABEL } from "@/lib/venues"
 import type { Venue } from "@/generated/prisma/enums"
 
@@ -366,6 +367,20 @@ export async function POST(req: NextRequest) {
     return htmlPage(
       "No draft found",
       `<h2>No draft reply found</h2><p>Something went wrong: the draft reply is missing. Please reply manually in Google Maps.</p>`
+    )
+  }
+
+  // Standing rule: never offer free goods, vouchers, refunds or discounts in
+  // a review reply. Applies to edited text too, so nothing slips through.
+  const comp = flagsComp(replyText)
+  if (comp) {
+    return htmlPage(
+      "Not posted",
+      `<h2>Not posted</h2>
+      <span class="tag grey">Held</span>
+      <p>The reply says "${escapeHtml(comp)}", which reads as a freebie, refund or discount. Tarte replies never offer these.</p>
+      <p>Go back, edit that line out, and approve again.</p>
+      <div class="reply-box">${escapeHtml(replyText)}</div>`
     )
   }
 

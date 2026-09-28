@@ -1,6 +1,6 @@
 import { test, describe } from "node:test"
 import assert from "node:assert/strict"
-import { isUsableName, scrubReply } from "./scrub-reply"
+import { isUsableName, scrubReply, flagsComp } from "./scrub-reply"
 
 describe("scrubReply voice guards", () => {
   test("em and en dashes become commas, with no double spacing", () => {
@@ -83,4 +83,38 @@ describe("isUsableName", () => {
     assert.equal(isUsableName("Jo-Anne"), true)
     assert.equal(isUsableName("  Kai Tanaka "), true)
   })
+})
+
+// ---------------------------------------------------------------- flagsComp
+
+test("flagsComp catches every way a reply can offer a freebie", () => {
+  for (const t of [
+    "Your next coffee is on us.",
+    "Come back for a free cruller.",
+    "We'd like to offer you a voucher.",
+    "Pop in and we'll have a complimentary tea waiting.",
+    "Happy to comp your next visit.",
+    "We'll cover it next time.",
+    "We can arrange a refund.",
+    "Here's 20% off your next order.",
+    "We will replace it, no charge.",
+    "It's our shout next time.",
+    "Let us send you a gift card.",
+  ]) {
+    assert.ok(flagsComp(t), t)
+  }
+})
+
+test("flagsComp leaves ordinary replies alone", () => {
+  for (const t of [
+    "Thanks Sam, glad the crullers hit the spot. See you at Burleigh soon.",
+    "We use free range eggs in everything at Beach House.",
+    "Sorry the coffee wasn't right. Come back and give us another go.",
+    "We're actually priced under most cafes in our bracket given everything is made on site daily.",
+    "Feel free to email hello@tarte.com.au so we can understand what went wrong.",
+    "The gluten free brownie is baked fresh every morning.",
+    "Our pastry chef is free from 2pm if you'd like to chat.",
+  ]) {
+    assert.equal(flagsComp(t), null, t)
+  }
 })

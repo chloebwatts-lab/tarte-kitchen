@@ -42,7 +42,10 @@ export function matchProduct(raw: string): string | null {
     if (/almond/.test(n)) return "Almond croissant"
     if (/chocolate|choc\b/.test(n)) return "Chocolate croissant"
     if (/ham|cheese/.test(n)) return null
-    return "Plain croissant"
+    // Only a bare "croissant" (or one called plain/butter) is the bought-in
+    // Bridor line. An unknown flavour must not inflate plain sell-through.
+    if (/\b(plain|butter)\b/.test(n) || /^\s*croissants?\s*$/.test(n)) return "Plain croissant"
+    return null
   }
   if (/scroll/.test(n) && /cinnamon/.test(n)) return "Cinnamon scroll"
   if (/^cinnamon scroll/.test(n)) return "Cinnamon scroll"

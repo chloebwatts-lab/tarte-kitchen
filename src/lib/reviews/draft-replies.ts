@@ -28,7 +28,7 @@ import { db } from "@/lib/db"
 import { sendHtmlEmail } from "@/lib/gmail/send"
 import { VENUE_SHORT_LABEL } from "@/lib/venues"
 import type { Venue } from "@/generated/prisma/enums"
-import { scrubReply, isUsableName } from "./scrub-reply"
+import { scrubReply, isUsableName, flagsComp } from "./scrub-reply"
 import { APP_URL, BRAND, FONT_BODY, button, callout, para, section, shell, type Tone } from "@/lib/email/brand"
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -77,18 +77,33 @@ async function generateDraftReply(review: {
     .filter(Boolean)
     .join("\n")
 
-  const res = await client.messages.create({
-    model: "claude-haiku-4-5",
-    max_tokens: 200,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: prompt }],
-  })
+  const draftOnce = async (extra?: string) => {
+    const res = await client.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 200,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: "user", content: extra ? `${prompt}\n\n${extra}` : prompt }],
+    })
+    const block = res.content[0]
+    if (block.type !== "text") throw new Error("Unexpected Claude response type")
+    // Enforce the voice rules the prompt keeps slipping on before the draft is
+    // stored, emailed or shown.
+    return scrubReply(block.text)
+  }
 
-  const block = res.content[0]
-  if (block.type !== "text") throw new Error("Unexpected Claude response type")
-  // Enforce the voice rules the prompt keeps slipping on before the draft is
-  // stored, emailed or shown.
-  return scrubReply(block.text)
+  let draft = await draftOnce()
+  // Code backstop for the no-freebies rule: one retry with the slip named,
+  // then give up on this review for this run rather than store a comp.
+  // It stays undrafted and is picked up next hour.
+  const slip = flagsComp(draft)
+  if (slip) {
+    draft = await draftOnce(
+      `Your previous draft said "${slip}", which offers something free or discounted. That is not allowed. Rewrite it with no freebie, voucher, refund, discount or replacement of any kind. Invite them back at full price.`
+    )
+    const again = flagsComp(draft)
+    if (again) throw new Error(`draft still offers a comp ("${again}")`)
+  }
+  return draft
 }
 
 function stars(rating: number): string {

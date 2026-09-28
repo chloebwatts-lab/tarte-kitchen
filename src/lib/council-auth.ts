@@ -18,7 +18,8 @@ function getCouncilPassword(): string {
 }
 
 function sign(value: string): string {
-  return createHmac("sha256", getSecret()).update(value).digest("hex")
+  // Gate-specific prefix, see manager-auth.ts.
+  return createHmac("sha256", getSecret()).update(`council:${value}`).digest("hex")
 }
 
 export function checkCouncilPassword(input: string): boolean {
