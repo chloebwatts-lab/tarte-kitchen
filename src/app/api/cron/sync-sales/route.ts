@@ -11,6 +11,7 @@ import {
   calculateTheoreticalUsage,
 } from "@/lib/sales/enrich"
 import { normalizeVenueSlug } from "@/lib/venues"
+import { isSquareVenueOn } from "@/lib/pos"
 
 export async function GET(request: Request) {
   // Verify cron secret
@@ -81,6 +82,19 @@ export async function GET(request: Request) {
     try {
       const venue = (normalizeVenueSlug(location.venue) ??
         (location.venue as Venue)) as Venue
+
+      // Venue has moved to Square (Currumbin from 1 Oct 2026): the
+      // Lightspeed API only sees the fallback tills, so its figure is noise.
+      if (isSquareVenueOn(venue, dateStr)) {
+        results.push({
+          venue: location.venue,
+          date: dateStr,
+          itemCount: 0,
+          skipped: true,
+          reason: "venue on Square",
+        })
+        continue
+      }
 
       // Source-of-truth rule: if a Lightspeed EOD email has already landed
       // for this date/venue, the email numbers are authoritative, don't

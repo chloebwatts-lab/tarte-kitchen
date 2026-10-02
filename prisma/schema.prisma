@@ -484,10 +484,42 @@ model DailySalesSummary {
   totalVoids        Int
   totalComps        Int
   theoreticalCogs   Decimal? @db.Decimal(12, 2) // sales x recipe costs
+  /// Square only: processing fees incl GST for the day, as the daily
+  /// summary email reports them. Null for Lightspeed-sourced days.
+  fees              Decimal? @db.Decimal(12, 2)
+  /// Square only: closed orders for the day (covers is a separate figure).
+  totalOrders       Int?
   source            SalesSource @default(API)
   createdAt         DateTime @default(now())
 
   @@unique([date, venue])
+}
+
+// Idempotency record for Square daily-summary email imports (one email per
+// location per day, see src/lib/square/email-parser.ts).
+model SquareReportImport {
+  id             String   @id @default(cuid())
+  gmailMessageId String   @unique
+  reportDate     DateTime @db.Date
+  venue          Venue
+  createdAt      DateTime @default(now())
+
+  @@index([reportDate, venue])
+}
+
+// Per-category sales for a venue/day, from the Square daily summary email's
+// "Sales breakdown" table (items sold + net sales ex GST per category).
+model DailyCategorySales {
+  id            String   @id @default(cuid())
+  date          DateTime @db.Date
+  venue         Venue
+  categoryName  String
+  itemsSold     Decimal  @db.Decimal(10, 2)
+  netSalesExGst Decimal  @db.Decimal(12, 2)
+  createdAt     DateTime @default(now())
+
+  @@unique([date, venue, categoryName])
+  @@index([date, venue])
 }
 
 // Idempotency record for Lightspeed EOD email imports

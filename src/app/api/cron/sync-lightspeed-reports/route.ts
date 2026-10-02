@@ -10,6 +10,7 @@ import { parseLightspeedPdf, type LightspeedPdfReport } from "@/lib/lightspeed/p
 import { normalizeVenueSlug } from "@/lib/venues"
 import { Venue } from "@/generated/prisma/client"
 import Decimal from "decimal.js"
+import { isSquareVenueOn } from "@/lib/pos"
 import {
   matchSalesToDishes,
   estimateEmailItemRevenue,
@@ -213,6 +214,13 @@ export async function GET(request: Request) {
             continue
           }
           if (!firstVenue) firstVenue = venue
+
+          // Venue has moved to Square: Lightspeed keeps emailing a $0 (or
+          // fallback-till) figure for it, which must not replace the Square
+          // daily summary. See src/lib/pos.ts.
+          if (isSquareVenueOn(venue, dateKey)) {
+            continue
+          }
 
           const revenue = site.totalIncTax
           const revenueExGst = site.totalExTax.isZero()

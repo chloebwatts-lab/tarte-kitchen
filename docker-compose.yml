@@ -151,6 +151,11 @@ services:
         cat > /etc/crontabs/root <<'CRON'
         # 08:00 AEST — pull Lightspeed end-of-day email(s) from Gmail
         0 22 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/sync-lightspeed-reports 2>&1
+        # 01:15 + 07:15 AEST — Square daily sales summary emails (Currumbin
+        # from 1 Oct 2026; Burleigh when it cuts over). Square sends ~00:30
+        # AEST; the second run catches a late email. Re-scans are free.
+        15 15 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/sync-square-reports 2>&1
+        15 21 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/sync-square-reports 2>&1
         # Every 2 hours — incremental supplier-invoice scan (Gmail after:
         # lastScanAt). Was once-daily — bumped 2026-05-22 so a stale
         # watermark or rate-limit hiccup can't cost us a whole day.
