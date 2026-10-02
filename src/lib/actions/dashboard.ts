@@ -5,6 +5,7 @@ import type { Dish, PriceHistory, Ingredient } from "@/generated/prisma/client"
 import { SINGLE_VENUES, VENUE_SHORT_LABEL, type SingleVenue } from "@/lib/venues"
 import { startOfTarteWeekUtc } from "@/lib/dates"
 import { buildCanonicalizer } from "@/lib/wastage/canonical"
+import { compareSales, type SalesComparison } from "@/lib/sales/compare"
 
 export interface DashboardHighlights {
   // --- Sales today vs forecast (week-prorated) -----------------------
@@ -17,9 +18,13 @@ export interface DashboardHighlights {
       dailyTarget: number | null
       // % of target hit so far today; null when no forecast.
       pctOfTarget: number | null
+      // Today vs same weekday last week / 4-wk avg, week to date vs last week.
+      compare: SalesComparison
     }[]
     totalRevenue: number
     totalDailyTarget: number | null
+    totalCompare: SalesComparison
+    todayKey: string
   }
   // --- Waste this week ------------------------------------------------
   waste: {
@@ -58,8 +63,12 @@ export async function getDashboardHighlights(): Promise<DashboardHighlights> {
   const nextWeekWed = new Date(thisWeekWed)
   nextWeekWed.setUTCDate(nextWeekWed.getUTCDate() + 7)
 
+  // 5 weeks + a few days of history for the comparison lines.
+  const historyStart = new Date(todayStart.getTime() - 36 * 24 * 60 * 60 * 1000)
+
   const [
     todaySales,
+    salesHistory,
     weekForecasts,
     thisWeekWaste,
     lastWeekWaste,
@@ -69,6 +78,10 @@ export async function getDashboardHighlights(): Promise<DashboardHighlights> {
   ] = await Promise.all([
     db.dailySalesSummary.findMany({
       where: { date: todayStart },
+    }),
+    db.dailySalesSummary.findMany({
+      where: { date: { gte: historyStart, lte: todayStart } },
+      select: { venue: true, date: true, totalRevenueExGst: true },
     }),
     db.managerSalesForecast.findMany({
       where: { weekStartWed: thisWeekWed },
@@ -110,7 +123,15 @@ export async function getDashboardHighlights(): Promise<DashboardHighlights> {
       forecastByVenue.set(v, Number(f.amount))
     }
   }
+  const historyRows = salesHistory
+    .filter((r) => (SINGLE_VENUES as readonly string[]).includes(r.venue))
+    .map((r) => ({
+      venue: r.venue as SingleVenue,
+      date: r.date.toISOString().split("T")[0],
+      revenueExGst: Number(r.totalRevenueExGst),
+    }))
   const perVenue = SINGLE_VENUES.map((v) => {
+    const compare = compareSales(historyRows.filter((r) => r.venue === v), todayKey)
     const revenueExGst = Math.round((todayByVenue.get(v) ?? 0) * 100) / 100
     const weekly = forecastByVenue.get(v)
     const dailyTarget = weekly !== undefined ? Math.round((weekly / 7) * 100) / 100 : null
@@ -118,8 +139,9 @@ export async function getDashboardHighlights(): Promise<DashboardHighlights> {
       dailyTarget && dailyTarget > 0
         ? Math.round((revenueExGst / dailyTarget) * 1000) / 10
         : null
-    return { venue: v, label: VENUE_SHORT_LABEL[v], revenueExGst, dailyTarget, pctOfTarget }
+    return { venue: v, label: VENUE_SHORT_LABEL[v], revenueExGst, dailyTarget, pctOfTarget, compare }
   })
+  const totalCompare = compareSales(historyRows, todayKey)
   const totalRevenue = perVenue.reduce((s, v) => s + v.revenueExGst, 0)
   const totalDailyTarget = perVenue.some((v) => v.dailyTarget !== null)
     ? perVenue.reduce((s, v) => s + (v.dailyTarget ?? 0), 0)
@@ -212,6 +234,8 @@ export async function getDashboardHighlights(): Promise<DashboardHighlights> {
       totalRevenue: Math.round(totalRevenue * 100) / 100,
       totalDailyTarget:
         totalDailyTarget !== null ? Math.round(totalDailyTarget * 100) / 100 : null,
+      totalCompare,
+      todayKey,
     },
     waste: {
       totalCost: Math.round(totalCost * 100) / 100,

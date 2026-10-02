@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { fmtPctChange, weekdayShort } from "@/lib/sales/compare"
 import {
   TrendingUp,
   Trash2,
@@ -69,6 +70,7 @@ export function DashboardHighlights({
             No weekly forecast set. Enter one on the Labour upload page.
           </p>
         )}
+        <CompareLines c={salesToday.totalCompare} todayKey={salesToday.todayKey} />
         <div className="mt-2 space-y-0.5">
           {salesToday.perVenue.map((v) => (
             <div
@@ -83,6 +85,11 @@ export function DashboardHighlights({
                     className={`ml-1 text-[10px] ${pctColor(v.pctOfTarget, "sales")}`}
                   >
                     ({v.pctOfTarget.toFixed(0)}%)
+                  </span>
+                )}
+                {v.compare.todayVsLastWeekPct !== null && (
+                  <span className={`ml-1 text-[10px] ${changeColor(v.compare.todayVsLastWeekPct)}`}>
+                    {fmtPctChange(v.compare.todayVsLastWeekPct)} vs last wk
                   </span>
                 )}
               </span>
@@ -178,6 +185,65 @@ export function DashboardHighlights({
           </>
         )}
       </Link>
+    </div>
+  )
+}
+
+function changeColor(pct: number | null): string {
+  if (pct === null) return "text-muted-foreground"
+  if (pct >= 0) return "text-green-text"
+  if (pct <= -10) return "text-red-text"
+  return "text-amber-text"
+}
+
+/**
+ * Two comparison lines under the sales headline: today vs the same weekday
+ * last week and the 4-week average of that weekday, then week to date vs
+ * the same Wed-to-today span last week.
+ */
+function CompareLines({
+  c,
+  todayKey,
+}: {
+  c: import("@/lib/sales/compare").SalesComparison
+  todayKey: string
+}) {
+  const day = weekdayShort(todayKey)
+  const money = (n: number) => `$${Math.round(n).toLocaleString()}`
+  return (
+    <div className="mt-1 space-y-0.5 text-[11px] text-muted-foreground">
+      <p>
+        {c.sameDayLastWeek !== null ? (
+          <>
+            Last {day} {money(c.sameDayLastWeek)}
+            <span className={`ml-1 ${changeColor(c.todayVsLastWeekPct)}`}>
+              {fmtPctChange(c.todayVsLastWeekPct)}
+            </span>
+          </>
+        ) : (
+          <>No sales row for last {day}</>
+        )}
+        {c.fourWeekAvgSameDay !== null && (
+          <>
+            {" · "}4-wk {day} avg {money(c.fourWeekAvgSameDay)}
+            <span className={`ml-1 ${changeColor(c.todayVsFourWeekPct)}`}>
+              {fmtPctChange(c.todayVsFourWeekPct)}
+            </span>
+          </>
+        )}
+      </p>
+      <p>
+        Week to date {money(c.weekToDate)}
+        {c.lastWeekSameDays !== null && (
+          <>
+            {" "}vs {money(c.lastWeekSameDays)} same days last wk
+            <span className={`ml-1 ${changeColor(c.weekToDateVsLastWeekPct)}`}>
+              {fmtPctChange(c.weekToDateVsLastWeekPct)}
+            </span>
+          </>
+        )}
+        {c.lastWeekTotal !== null && <>{" · "}last wk total {money(c.lastWeekTotal)}</>}
+      </p>
     </div>
   )
 }

@@ -3,6 +3,7 @@
 import { db } from "@/lib/db"
 import { Venue } from "@/generated/prisma/client"
 import { currentTarteWeekRange, tarteWeekLabel, startOfTarteWeekUtc } from "@/lib/dates"
+import { compareSales, type SalesComparison } from "@/lib/sales/compare"
 
 export interface TopSeller {
   name: string
@@ -21,6 +22,9 @@ export interface VenueSalesSnapshot {
     label: string // e.g. "Wed 29 Apr – Tue 5 May"
   }
   last28: { revenueExGst: number; covers: number; averageSpend: number }
+  /** Today vs same weekday last week / 4-wk avg; week to date vs last week. */
+  compare: SalesComparison
+  todayKey: string
   topSellersQty: TopSeller[]
   topSellersRevenue: TopSeller[]
   dailyRevenue: { date: string; revenueExGst: number }[] // last 14 days
@@ -43,6 +47,8 @@ export async function getVenueSalesSnapshot(
   const today = startOfAestDay(0)
   const d28 = startOfAestDay(28)
   const d14 = startOfAestDay(14)
+  const d36 = startOfAestDay(36)
+  const todayKey = today.toISOString().split("T")[0]
   const { start: weekStart, end: weekEnd } = currentTarteWeekRange()
 
   const [
@@ -50,6 +56,7 @@ export async function getVenueSalesSnapshot(
     thisWeekSummaries,
     last28Summaries,
     last14Summaries,
+    last36Summaries,
     topByQty,
     topByRevenue,
   ] = await Promise.all([
@@ -65,6 +72,10 @@ export async function getVenueSalesSnapshot(
     db.dailySalesSummary.findMany({
       where: { venue, date: { gte: d14 } },
       orderBy: { date: "asc" },
+    }),
+    db.dailySalesSummary.findMany({
+      where: { venue, date: { gte: d36, lte: today } },
+      select: { date: true, totalRevenueExGst: true },
     }),
     db.dailySales.groupBy({
       by: ["menuItemName"],
@@ -114,6 +125,14 @@ export async function getVenueSalesSnapshot(
       label: tarteWeekLabel(startOfTarteWeekUtc(new Date())),
     },
     last28: sumSummaries(last28Summaries),
+    compare: compareSales(
+      last36Summaries.map((r) => ({
+        date: r.date.toISOString().split("T")[0],
+        revenueExGst: Number(r.totalRevenueExGst),
+      })),
+      todayKey
+    ),
+    todayKey,
     topSellersQty: topByQty.map((r) => ({
       name: r.menuItemName,
       qty: r._sum.quantitySold ?? 0,

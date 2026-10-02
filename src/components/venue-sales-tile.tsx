@@ -17,6 +17,7 @@ import {
 } from "recharts"
 import type { VenueSalesSnapshot } from "@/lib/actions/venue-metrics"
 import { VENUE_LABEL, VENUE_CHART_COLOR } from "@/lib/venues"
+import { fmtPctChange, weekdayShort } from "@/lib/sales/compare"
 
 export function VenueSalesTile({ snapshot }: { snapshot: VenueSalesSnapshot }) {
   const color = VENUE_CHART_COLOR[snapshot.venue]
@@ -46,6 +47,22 @@ export function VenueSalesTile({ snapshot }: { snapshot: VenueSalesSnapshot }) {
             <p className="text-xs text-muted-foreground">
               {snapshot.today ? `${snapshot.today.covers} covers` : "no sales"}
             </p>
+            {snapshot.compare.sameDayLastWeek !== null && (
+              <p className="text-xs text-muted-foreground">
+                last {weekdayShort(snapshot.todayKey)} ${snapshot.compare.sameDayLastWeek.toFixed(0)}
+                <span className={changeClass(snapshot.compare.todayVsLastWeekPct)}>
+                  {" "}{fmtPctChange(snapshot.compare.todayVsLastWeekPct)}
+                </span>
+              </p>
+            )}
+            {snapshot.compare.fourWeekAvgSameDay !== null && (
+              <p className="text-xs text-muted-foreground">
+                4-wk avg ${snapshot.compare.fourWeekAvgSameDay.toFixed(0)}
+                <span className={changeClass(snapshot.compare.todayVsFourWeekPct)}>
+                  {" "}{fmtPctChange(snapshot.compare.todayVsFourWeekPct)}
+                </span>
+              </p>
+            )}
           </div>
           <div>
             <p className="text-xs text-muted-foreground" title={snapshot.thisWeek.label}>
@@ -58,6 +75,19 @@ export function VenueSalesTile({ snapshot }: { snapshot: VenueSalesSnapshot }) {
               {snapshot.thisWeek.covers} covers · ${snapshot.thisWeek.averageSpend.toFixed(1)}
               /cover
             </p>
+            {snapshot.compare.lastWeekSameDays !== null && (
+              <p className="text-xs text-muted-foreground">
+                same days last wk ${snapshot.compare.lastWeekSameDays.toFixed(0)}
+                <span className={changeClass(snapshot.compare.weekToDateVsLastWeekPct)}>
+                  {" "}{fmtPctChange(snapshot.compare.weekToDateVsLastWeekPct)}
+                </span>
+              </p>
+            )}
+            {snapshot.compare.lastWeekTotal !== null && (
+              <p className="text-xs text-muted-foreground">
+                last wk total ${snapshot.compare.lastWeekTotal.toFixed(0)}
+              </p>
+            )}
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Last 28d</p>
@@ -166,4 +196,11 @@ export function VenueSalesTile({ snapshot }: { snapshot: VenueSalesSnapshot }) {
       </CardContent>
     </Card>
   )
+}
+
+function changeClass(pct: number | null): string {
+  if (pct === null) return ""
+  if (pct >= 0) return "text-green-text"
+  if (pct <= -10) return "text-red-text"
+  return "text-amber-text"
 }

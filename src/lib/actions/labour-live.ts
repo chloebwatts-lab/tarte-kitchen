@@ -3,6 +3,7 @@
 import { db } from "@/lib/db"
 import { currentTarteWeekRange, tarteWeekLabel, startOfTarteWeekUtc } from "@/lib/dates"
 import { SINGLE_VENUES, VENUE_LABEL } from "@/lib/venues"
+import { compareSales } from "@/lib/sales/compare"
 import {
   bucketFor,
   bucketStatus,
@@ -37,6 +38,11 @@ export interface LiveVenueSnapshot {
   revenueToDate: number
   /** Revenue: + today's running total + forecast for remaining days. */
   revenueProjected: number
+  /** Same Wed-to-today span last week (null when no rows). */
+  revenueLastWeekSameDays: number | null
+  revenueVsLastWeekPct: number | null
+  /** Last week's full Wed-to-Tue revenue. */
+  revenueLastWeekTotal: number | null
   /** Headline = labourProjected / revenueProjected × 100. */
   overallProjectedPct: number | null
   buckets: LiveBucketRow[]
@@ -273,6 +279,16 @@ export async function getLiveLabourSnapshot(
     void todayDow // referenced for readability; computed but not used directly
     const revenueProjected = revenueToDate + remainingForecast
 
+    // Week to date vs the same span last week, from the same rows the
+    // forecast uses (history covers the prior 4+ weeks).
+    const compareRows = [...salesSummaries, ...history]
+      .filter((r) => r.venue === venue)
+      .map((r) => ({
+        date: r.date.toISOString().split("T")[0],
+        revenueExGst: Number(r.totalRevenueExGst),
+      }))
+    const compare = compareSales(compareRows, todayAest)
+
     const overallProjectedPct =
       revenueProjected > 0 ? (labourProjected / revenueProjected) * 100 : null
 
@@ -303,6 +319,9 @@ export async function getLiveLabourSnapshot(
       labourProjected: round2(labourProjected),
       revenueToDate: round2(revenueToDate),
       revenueProjected: round2(revenueProjected),
+      revenueLastWeekSameDays: compare.lastWeekSameDays,
+      revenueVsLastWeekPct: compare.weekToDateVsLastWeekPct,
+      revenueLastWeekTotal: compare.lastWeekTotal,
       overallProjectedPct,
       buckets,
       coverage: {

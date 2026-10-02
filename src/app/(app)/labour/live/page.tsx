@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { BackLink } from "@/components/ui/back-link"
 import { cn } from "@/lib/utils"
+import { fmtPctChange } from "@/lib/sales/compare"
 
 function fmtMoney(n: number, opts?: { sign?: boolean }) {
   const sign = opts?.sign && n > 0 ? "+" : ""
@@ -96,6 +97,26 @@ export default async function LiveLabourPage() {
                   <p className="text-[10px] text-muted-foreground">
                     {fmtMoney(v.revenueProjected)} projected EOW
                   </p>
+                  {v.revenueLastWeekSameDays !== null && (
+                    <p className="text-[10px] text-muted-foreground">
+                      same days last wk {fmtMoney(v.revenueLastWeekSameDays)}
+                      <span
+                        className={cn(
+                          "ml-1",
+                          (v.revenueVsLastWeekPct ?? 0) >= 0
+                            ? "text-green-text"
+                            : (v.revenueVsLastWeekPct ?? 0) <= -10
+                              ? "text-red-text"
+                              : "text-amber-text"
+                        )}
+                      >
+                        {fmtPctChange(v.revenueVsLastWeekPct)}
+                      </span>
+                      {v.revenueLastWeekTotal !== null && (
+                        <> · last wk total {fmtMoney(v.revenueLastWeekTotal)}</>
+                      )}
+                    </p>
+                  )}
                 </div>
               </div>
 
