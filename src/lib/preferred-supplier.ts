@@ -68,6 +68,14 @@ export function productTokens(name: string): Set<string> {
   return new Set(words)
 }
 
+/** Category and descriptor words that many unrelated products share. */
+const GENERIC = new Set([
+  "cheese", "milk", "oil", "cream", "cold", "hot", "uht", "shredded", "sliced", "frozen",
+  "dried", "ground", "whole", "raw", "plain", "iqf", "powder", "paste", "sauce", "juice",
+  "seeds", "seed", "cups", "lids", "bags", "white", "black", "brown", "pure", "mix",
+  "fresh", "organic", "premium", "barista", "flakes", "pieces", "halves", "kernels",
+])
+
 function unitKey(unit: string | null): string {
   return (unit ?? "").trim().toLowerCase()
 }
@@ -89,8 +97,13 @@ export function bestReplacement(row: FormRow, candidates: FormRow[]): FormRow | 
     const theirs = productTokens(c.name)
     let shared = 0
     for (const t of mine) if (theirs.has(t)) shared++
-    const smaller = Math.min(mine.size, theirs.size)
-    const qualifies = shared >= 2 || (smaller > 0 && shared / smaller >= 0.5 && shared >= 1 && smaller <= 2)
+    // Two shared product words with at least one that names the product
+    // ("sugar caster", "olive oil"), or both names are the one same word
+    // ("Oregano"). Shared category words alone ("cheese shredded", "milk
+    // uht", "cups cold") do not make it the same product.
+    let specific = 0
+    for (const t of mine) if (theirs.has(t) && !GENERIC.has(t)) specific++
+    const qualifies = (shared >= 2 && specific >= 1) || (shared === 1 && mine.size === 1 && theirs.size === 1)
     if (!qualifies) continue
     const jaccard = shared / (mine.size + theirs.size - shared)
     // Tie-break on the cheaper per-unit price so the recommendation is the

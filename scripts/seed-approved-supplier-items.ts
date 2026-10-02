@@ -21,6 +21,7 @@ const db = new PrismaClient({
 /** JSON names that changed; the DB row keeps its id so dept order history survives. */
 const RENAMES: Record<string, Record<string, string>> = {
   Fermex: { "Almond Flakes / Sliced Blanched 9kg": "Almond Flakes / Sliced Blanched" },
+  "The Provedores": { "Cheese Holy Cow Mozarella Shredded": "Cheese Holy Cow Mozzarella Shredded" },
 }
 
 type FormItem = {
