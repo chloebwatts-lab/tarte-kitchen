@@ -7,19 +7,22 @@ import { getXeroStatus } from "@/lib/actions/xero"
 import { getDeputyStatus } from "@/lib/actions/deputy"
 import { getGbpConnectionStatus } from "@/lib/gbp/token"
 import { LightspeedConnection } from "@/components/lightspeed-connection"
+import { SquareConnection } from "@/components/square-connection"
+import { getSquareConnectionStatus } from "@/lib/actions/square"
 import { GmailConnection } from "@/components/gmail-connection"
 import { XeroConnection } from "@/components/xero-connection"
 import { DeputyConnection } from "@/components/deputy-connection"
 import { GbpConnection } from "@/components/gbp-connection"
 
 export default async function IntegrationsPage() {
-  const [lightspeedStatus, gmailStatus, xeroStatus, deputyStatus, gbpStatus] =
+  const [lightspeedStatus, gmailStatus, xeroStatus, deputyStatus, gbpStatus, squareStatus] =
     await Promise.all([
       getLightspeedStatus(),
       getGmailStatus(),
       getXeroStatus(),
       getDeputyStatus(),
       getGbpConnectionStatus(),
+      getSquareConnectionStatus(),
     ])
 
   const googleOauthConfigured = Boolean(
@@ -38,6 +41,7 @@ export default async function IntegrationsPage() {
       <XeroConnection status={xeroStatus} />
       <GmailConnection status={gmailStatus} configured={googleOauthConfigured} />
       <GbpConnection status={gbpStatus} configured={googleOauthConfigured} />
+      <SquareConnection status={squareStatus} />
       <LightspeedConnection status={lightspeedStatus} />
       <DeputyConnection
         status={deputyStatus}
