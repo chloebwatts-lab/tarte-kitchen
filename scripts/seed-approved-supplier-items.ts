@@ -8,11 +8,20 @@
  * Usage (locally with prod DATABASE_URL set, or on the prod droplet):
  *   npx tsx scripts/seed-approved-supplier-items.ts
  */
-import { PrismaClient } from "@/generated/prisma"
+import { PrismaClient } from "../src/generated/prisma/client"
+import { PrismaPg } from "@prisma/adapter-pg"
+import { Pool } from "pg"
 import * as fs from "node:fs"
 import * as path from "node:path"
 
-const db = new PrismaClient()
+const db = new PrismaClient({
+  adapter: new PrismaPg(new Pool({ connectionString: process.env.DATABASE_URL })),
+})
+
+/** JSON names that changed; the DB row keeps its id so dept order history survives. */
+const RENAMES: Record<string, Record<string, string>> = {
+  Fermex: { "Almond Flakes / Sliced Blanched 9kg": "Almond Flakes / Sliced Blanched" },
+}
 
 type FormItem = {
   category: string
@@ -56,14 +65,22 @@ async function main() {
         packSize: it.packSize || null,
         packPrice: it.packPrice,
         unit: it.unit || null,
+        unitPrice: it.unitPrice ?? null,
         category: it.category || null,
         notes: it.notes || null,
         active: it.active !== false,
         sortOrder: idx,
       }
-      const existing = await db.approvedSupplierItem.findUnique({
-        where: { supplierId_name: { supplierId: supplier.id, name: it.name } },
-      })
+      const oldName = Object.entries(RENAMES[form.supplier] ?? {}).find(([, to]) => to === it.name)?.[0]
+      const existing =
+        (await db.approvedSupplierItem.findUnique({
+          where: { supplierId_name: { supplierId: supplier.id, name: it.name } },
+        })) ??
+        (oldName
+          ? await db.approvedSupplierItem.findUnique({
+              where: { supplierId_name: { supplierId: supplier.id, name: oldName } },
+            })
+          : null)
       if (existing) {
         await db.approvedSupplierItem.update({
           where: { id: existing.id },
@@ -77,6 +94,12 @@ async function main() {
         created++
       }
     }
+    const jsonNames = new Set(form.items.map((i) => i.name))
+    const orphans = await db.approvedSupplierItem.findMany({
+      where: { supplierId: supplier.id, name: { notIn: [...jsonNames] } },
+      select: { name: true, active: true },
+    })
+    for (const o of orphans) console.warn(`  ! in DB but not in JSON (left untouched): ${form.supplier} · ${o.name}${o.active ? " (ACTIVE)" : ""}`)
     console.log(`✓ ${form.supplier}: processed ${form.items.length} items`)
   }
 

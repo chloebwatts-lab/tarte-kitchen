@@ -62,6 +62,11 @@ model ApprovedSupplierItem {
   packSize     String?   // e.g. "2kg", "12.5kg bag", "case of 6"
   packPrice    Decimal   @db.Decimal(10, 2)
   unit         String?   // normalized unit, e.g. "kg", "each", "L"
+  /// Price per `unit` (per kg / L / each), hand-curated in
+  /// scripts/order-forms.json because pack sizes like "2kg (6)" or
+  /// "4 x 2.5 kg" don't parse reliably. Lets two suppliers' packs of the
+  /// same thing be compared like for like.
+  unitPrice    Decimal?  @db.Decimal(10, 4)
   category     String?   // free-text grouping for the form UI
   notes        String?
   active       Boolean   @default(true)

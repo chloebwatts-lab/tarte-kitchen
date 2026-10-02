@@ -101,7 +101,7 @@ footer{{margin-top:1.5em;padding-top:.7em;border-top:1px solid #ddd;font-size:.8
 <div class="meta"><div><strong>Date</strong>: ___________________</div><div><strong>Venue</strong>: Burleigh ☐ Beach House ☐ Tea Garden ☐</div><div><strong>Ordered by</strong>: ___________________</div></div></header>
 {rebate_html}<table><thead><tr><th>Item</th><th>Pack</th><th>Qty</th><th>✓</th></tr></thead><tbody>
 {chr(10).join(rows_html)}
-</tbody></table><footer><div>{html.escape(sup)} · {total_items} items · {len(cats)} categories · 2026-06-08</div><div>Submit by: ___________________</div></footer></body></html>'''
+</tbody></table><footer><div>{html.escape(sup)} · {total_items} items · {len(cats)} categories · prices as at {html.escape(forms.get('_updated', ''))}</div><div>Submit by: ___________________</div></footer></body></html>'''
 
     slug = sup.lower().replace(' ', '-').replace('the-', '')
     out_path = REPO / f'order-easy-{slug}.html'

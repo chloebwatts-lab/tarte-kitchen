@@ -82,6 +82,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       { title: "Meeting agenda", sub: "What people have raised, and what was decided", href: "/kitchen/managers/agenda", icon: MessageSquarePlus },
       { title: "Staff training", sub: "Food handler records", href: "/kitchen/training", icon: GraduationCap },
       { title: "Stock list", sub: "Set up what the stock walk asks about", href: "/kitchen/managers/stock-setup", icon: PackageSearch },
+      { title: "Where to order it", sub: "Type a product. The supplier we chose, and the dearer one we didn't", href: "/kitchen/managers/preferred", icon: ShoppingCart },
     ],
   },
   {
