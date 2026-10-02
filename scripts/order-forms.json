@@ -188,8 +188,8 @@
      "packPrice": 4.16,
      "unitPrice": 10.53,
      "unit": "kg",
-     "active": false,
-     "notes": "Rose +15.9% Jul. Use Provedores 1.2kg tubs $10.60 ($8.83/kg), or their 395g can at $3.60 if a can is essential"
+     "active": true,
+     "notes": "DULCE DE LECHE ONLY: the can is what gets boiled. $4.16 gross, $3.99 after rebate, cheaper than the Provedores can at $4.10. For everything else use the Provedores 1.2kg tub at $8.83/kg"
     },
     {
      "category": "Dairy",
@@ -2902,7 +2902,7 @@
      "unitPrice": 8.833,
      "unit": "kg",
      "active": true,
-     "notes": "Cheapest per-kg condensed milk option, verified 21 May 2026. Not bought since 25 Aug: kitchens took 216 Bidfood 395g cans plus 72 Provedores cans Aug to Sep instead"
+     "notes": "Cheapest per-kg condensed milk for anything that is not dulce de leche (dulce needs the sealed can). Verified 21 May 2026, not bought since 25 Aug"
     },
     {
      "category": "Dairy",
@@ -2921,8 +2921,8 @@
      "packPrice": 4.1,
      "unitPrice": 10.38,
      "unit": "kg",
-     "active": true,
-     "notes": "Rose to $4.10 on 24 Sep and 1 Oct 2026 (was $3.60). Still under the Bidfood can at $4.16, but the 1.2kg tub at $8.83/kg is the buy"
+     "active": false,
+     "notes": "Rose to $4.10 on 24 Sep and 1 Oct 2026 (was $3.60). Dulce cans now come from Bidfood ($3.99 net). Other uses: the 1.2kg tub at $8.83/kg"
     }
    ],
    "rebatePct": 0,
