@@ -62,11 +62,23 @@ test("no history at all gives nulls, never NaN or division errors", () => {
   assert.equal(c.weekToDate, 500)
 })
 
-test("no row for today reads as $0 today but still compares against history", () => {
-  const data = rows("2026-09-01", 30, () => 1000)
+test("no row for today: $0 today, no fake -100%, week to date compared up to yesterday", () => {
+  const data = rows("2026-09-01", 30, () => 1000) // through 30 Sep
   const c = compareSales(data, "2026-10-01")
   assert.equal(c.today, 0)
   assert.equal(c.sameDayLastWeek, 1000)
+  assert.equal(c.fourWeekAvgSameDay, 1000)
+  assert.equal(c.todayVsLastWeekPct, null)
+  assert.equal(c.todayVsFourWeekPct, null)
+  // Week to date = Wed 30 Sep only; last week same days = Wed 23 Sep only.
+  assert.equal(c.weekToDate, 1000)
+  assert.equal(c.lastWeekSameDays, 1000)
+  assert.equal(c.weekToDateVsLastWeekPct, 0)
+})
+
+test("a real $0 row for today (closed early, no sales) is still a true drop", () => {
+  const data = [...rows("2026-09-01", 30, () => 1000), { date: "2026-10-01", revenueExGst: 0 }]
+  const c = compareSales(data, "2026-10-01")
   assert.equal(c.todayVsLastWeekPct, -100)
 })
 

@@ -62,6 +62,10 @@ export function compareSales(rows: DayRevenue[], today: string): SalesComparison
   for (const r of rows) byDate.set(r.date, (byDate.get(r.date) ?? 0) + r.revenueExGst)
   const get = (d: string): number | null => (byDate.has(d) ? byDate.get(d)! : null)
 
+  // No row for today yet (POS not synced): show today as $0 but do not
+  // call it a 100% drop, and compare week-to-date against last week up to
+  // yesterday only, so the missing day does not read as a collapse.
+  const todayPresent = byDate.has(today)
   const todayRev = get(today) ?? 0
   const sameDayLastWeek = get(shiftDate(today, -7))
 
@@ -81,6 +85,7 @@ export function compareSales(rows: DayRevenue[], today: string): SalesComparison
   let lastWeekSeen = false
   for (let d = weekStart; d <= today; d = shiftDate(d, 1)) {
     weekToDate += get(d) ?? 0
+    if (d === today && !todayPresent) continue
     const lw = get(shiftDate(d, -7))
     if (lw !== null) {
       lastWeekSameDays += lw
@@ -102,8 +107,8 @@ export function compareSales(rows: DayRevenue[], today: string): SalesComparison
     today: round2(todayRev),
     sameDayLastWeek: sameDayLastWeek === null ? null : round2(sameDayLastWeek),
     fourWeekAvgSameDay: fourWeekAvg,
-    todayVsLastWeekPct: pctChange(todayRev, sameDayLastWeek),
-    todayVsFourWeekPct: pctChange(todayRev, fourWeekAvg),
+    todayVsLastWeekPct: todayPresent ? pctChange(todayRev, sameDayLastWeek) : null,
+    todayVsFourWeekPct: todayPresent ? pctChange(todayRev, fourWeekAvg) : null,
     weekToDate: round2(weekToDate),
     lastWeekSameDays: lastWeekSeen ? round2(lastWeekSameDays) : null,
     weekToDateVsLastWeekPct: pctChange(weekToDate, lastWeekSeen ? lastWeekSameDays : null),
