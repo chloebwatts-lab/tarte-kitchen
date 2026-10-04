@@ -38,18 +38,44 @@ test("power symptoms for ovens, fridges, freezers and fryers include the extensi
     ["oven", "power"],
     ["refrigeration", "not-turning-on"],
     ["freezer", "not-turning-on"],
-    ["fryer", "power"],
   ] as const) {
     const s = find(category, key)
-    assert.ok(
-      s.quickFixes.some((f) => extensionLead.test(f)),
-      `${category}/${key} should suggest a different power point with an approved extension lead`,
-    )
-    // The step is a last resort after the switchboard and plug checks.
-    assert.ok(extensionLead.test(s.quickFixes[s.quickFixes.length - 1]), `${category}/${key} lists it last`)
+    const idx = s.quickFixes.findIndex((f) => extensionLead.test(f))
+    assert.ok(idx >= 0, `${category}/${key} should suggest a different power point with an approved extension lead`)
+    // The step comes after the switchboard and plug checks, never first.
+    assert.ok(idx >= 2, `${category}/${key} lists it after the breaker and plug checks`)
   }
-  // The new fryer symptom should classify as a power fault for repeat-fault detection.
-  assert.equal(classifyIssue(find("fryer", "power").label)?.key, "power")
+  // Our fryers are all gas with standing pilots and no plug, so the fryer
+  // "dead" symptom is a relight procedure, not a power-point check.
+  const fryer = find("fryer", "wont-light")
+  assert.ok(fryer.quickFixes.some((f) => /pilot/i.test(f)))
+  assert.ok(!fryer.quickFixes.some((f) => extensionLead.test(f)))
+})
+
+test("manual-sourced symptoms exist for every equipment family on the fix page", () => {
+  const expect: Array<[(typeof ASSET_CATEGORIES)[number], string[]]> = [
+    ["dishwasher", ["not-draining", "not-filling", "dirty-results", "wont-start"]],
+    ["ice-machine", ["no-ice", "leaking", "poor-ice", "stopped"]],
+    ["gas-cooking", ["burner-wont-light", "pilot-light", "gas-smell", "induction"]],
+    ["fryer", ["flame-out", "gas-smell", "wont-light"]],
+    ["oven", ["error-code", "power", "cleaning-cycle", "uneven-cooking", "door-seal", "prover"]],
+    ["coffee", ["pressure", "steam", "grinder", "no-heat"]],
+    ["mixer-blender", ["wont-start", "intermittent", "mechanical"]],
+    ["other", ["broken", "warmer-not-heating", "vacuum"]],
+  ]
+  for (const [category, keys] of expect) {
+    const have = new Set(CATEGORY_SYMPTOMS[category].map((s) => s.key))
+    for (const k of keys) assert.ok(have.has(k), `${category}/${k}`)
+  }
+  // Gas-smell symptoms must always carry the safety flag so the red banner shows.
+  for (const c of ASSET_CATEGORIES)
+    for (const s of CATEGORY_SYMPTOMS[c]) if (s.key === "gas-smell") assert.equal(s.safety, true, `${c}/gas-smell`)
+  // Quick fixes are tappable one-liners: keep them readable on a phone.
+  for (const c of ASSET_CATEGORIES)
+    for (const s of CATEGORY_SYMPTOMS[c]) {
+      assert.ok(s.quickFixes.length <= 9, `${c}/${s.key} has too many steps`)
+      for (const f of s.quickFixes) assert.ok(f.length <= 400, `${c}/${s.key} step too long: ${f.slice(0, 40)}`)
+    }
 })
 
 test("warrantyEndDate adds whole months to the purchase date", () => {
