@@ -127,6 +127,7 @@ const COLD_SYMPTOMS: SymptomDef[] = [
     quickFixes: [
       "Check the plug and the outlet, test the outlet with something else.",
       "Check the switchboard for a tripped breaker before calling anyone.",
+      "Try connecting it to a different power point/circuit, using an approved extension lead if required.",
     ],
   },
 ]
@@ -223,6 +224,15 @@ const FRYER_SYMPTOMS: SymptomDef[] = [
       "Verify the thermostat knob setting hasn't been knocked.",
     ],
   },
+  {
+    key: "power",
+    label: "Not turning on / no power",
+    quickFixes: [
+      "Check the breaker in the switchboard first.",
+      "Check the plug and the wall isolator switch weren't knocked off during cleaning.",
+      "Try connecting it to a different power point/circuit, using an approved extension lead if required.",
+    ],
+  },
 ]
 
 const OVEN_SYMPTOMS: SymptomDef[] = [
@@ -248,6 +258,7 @@ const OVEN_SYMPTOMS: SymptomDef[] = [
     quickFixes: [
       "Check the breaker in the switchboard first.",
       "Check the wall isolator switch wasn't knocked off during cleaning.",
+      "Try connecting it to a different power point/circuit, using an approved extension lead if required.",
     ],
   },
   {
