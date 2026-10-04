@@ -34,6 +34,12 @@ export interface SquareLineItem {
   total_money?: Money
 }
 
+export interface SquareTender {
+  id?: string
+  type?: string // CARD, CASH, OTHER, SQUARE_GIFT_CARD, WALLET, ...
+  amount_money?: Money
+}
+
 export interface SquareOrder {
   id: string
   location_id?: string
@@ -46,6 +52,8 @@ export interface SquareOrder {
   total_discount_money?: Money
   return_amounts?: { total_money?: Money }
   returns?: unknown[]
+  tenders?: SquareTender[]
+  net_amount_due_money?: Money
 }
 
 export interface SquarePayment {
@@ -130,6 +138,85 @@ export async function searchClosedOrders(
     cursor = data.cursor
   } while (cursor)
   return out
+}
+
+/**
+ * OPEN orders created within the day. Bopple online orders land in Square
+ * already paid (an external tender) but stay OPEN until the kitchen marks
+ * them done, sometimes for the whole day, and restaurant tables sit OPEN
+ * until the bill is settled. Square's own dashboard counts the paid ones as
+ * sales straight away, so the sync must too; see isPaidOrder.
+ */
+export async function searchOpenOrders(
+  accessToken: string,
+  locationId: string,
+  dateStr: string
+): Promise<SquareOrder[]> {
+  const { startAt, endAt } = aestDayRange(dateStr)
+  const out: SquareOrder[] = []
+  let cursor: string | undefined
+  do {
+    const data = await squareFetch<{ orders?: SquareOrder[]; cursor?: string }>(
+      accessToken,
+      "/orders/search",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          location_ids: [locationId],
+          limit: 500,
+          return_entries: false,
+          cursor,
+          query: {
+            filter: {
+              state_filter: { states: ["OPEN"] },
+              date_time_filter: { created_at: { start_at: startAt, end_at: endAt } },
+            },
+            sort: { sort_field: "CREATED_AT", sort_order: "ASC" },
+          },
+        }),
+      }
+    )
+    out.push(...(data.orders ?? []))
+    cursor = data.cursor
+  } while (cursor)
+  return out
+}
+
+/**
+ * An order whose tenders cover its total (or that Square says has nothing
+ * left due). Open tables with a part payment are not paid.
+ */
+export function isPaidOrder(o: SquareOrder): boolean {
+  const total = o.total_money?.amount ?? 0
+  if (total <= 0) return false
+  if (o.net_amount_due_money && (o.net_amount_due_money.amount ?? 0) <= 0 && (o.tenders?.length ?? 0) > 0) return true
+  const tendered = (o.tenders ?? []).reduce((s, t) => s + (t.amount_money?.amount ?? 0), 0)
+  return tendered >= total
+}
+
+/**
+ * The day's sales as Square's dashboard counts them: COMPLETED orders closed
+ * in the day plus OPEN orders created in the day that are fully paid.
+ * `openUnpaid` is the open-tables figure (bills opened, not yet settled).
+ */
+export async function fetchDayOrders(
+  accessToken: string,
+  locationId: string,
+  dateStr: string
+): Promise<{ sales: SquareOrder[]; openUnpaid: SquareOrder[] }> {
+  const [completed, open] = await Promise.all([
+    searchClosedOrders(accessToken, locationId, dateStr),
+    searchOpenOrders(accessToken, locationId, dateStr),
+  ])
+  const seen = new Set(completed.map((o) => o.id))
+  const sales = [...completed]
+  const openUnpaid: SquareOrder[] = []
+  for (const o of open) {
+    if (seen.has(o.id)) continue
+    if (isPaidOrder(o)) sales.push(o)
+    else openUnpaid.push(o)
+  }
+  return { sales, openUnpaid }
 }
 
 /** All payments created within the day at one location (any status). */

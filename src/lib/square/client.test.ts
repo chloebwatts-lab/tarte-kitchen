@@ -1,7 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import Decimal from "decimal.js"
-import { aestDayRange, aggregateOrders, aggregatePayments, cleanItemName, feeRatePct, type SquareOrder, type SquarePayment } from "./client"
+import { aestDayRange, aggregateOrders, aggregatePayments, cleanItemName, feeRatePct, isPaidOrder, type SquareOrder, type SquarePayment } from "./client"
 import { aestDates } from "./sync"
 
 test("aestDayRange: Brisbane midnight to midnight in UTC, no daylight saving", () => {
@@ -90,4 +90,18 @@ test("fee check from the real 1 Oct Beach House transfer lands on 0.68% incl GST
   // $73.98 ex GST + $7.31 GST on ~$11.93k of card takings incl refunded payments.
   const rate = feeRatePct(new Decimal("81.29"), new Decimal("11929.59"))!
   assert.ok(rate > 0.675 && rate < 0.69, `rate ${rate}`)
+})
+
+test("isPaidOrder: Bopple order paid by external tender counts, part-paid table and empty order do not", () => {
+  const money = (d: number) => ({ amount: Math.round(d * 100), currency: "AUD" })
+  const bopple: SquareOrder = { id: "b1", state: "OPEN", total_money: money(41.5), tenders: [{ type: "OTHER", amount_money: money(41.5) }], net_amount_due_money: money(0) }
+  const table: SquareOrder = { id: "t1", state: "OPEN", total_money: money(180), tenders: [{ type: "CARD", amount_money: money(60) }], net_amount_due_money: money(120) }
+  const fresh: SquareOrder = { id: "t2", state: "OPEN", total_money: money(95) }
+  const empty: SquareOrder = { id: "t3", state: "OPEN", total_money: money(0), tenders: [] }
+  assert.equal(isPaidOrder(bopple), true)
+  assert.equal(isPaidOrder(table), false)
+  assert.equal(isPaidOrder(fresh), false)
+  assert.equal(isPaidOrder(empty), false)
+  // Tenders covering the total without a net_amount_due field also count.
+  assert.equal(isPaidOrder({ id: "x", state: "OPEN", total_money: money(10), tenders: [{ amount_money: money(10) }] }), true)
 })

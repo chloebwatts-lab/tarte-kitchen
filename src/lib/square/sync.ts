@@ -7,7 +7,7 @@ import {
   calculateTheoreticalCogs,
   calculateTheoreticalUsage,
 } from "@/lib/sales/enrich"
-import { searchClosedOrders, listPayments, aggregateOrders, aggregatePayments } from "./client"
+import { fetchDayOrders, listPayments, aggregateOrders, aggregatePayments, cents } from "./client"
 import { getSquareConnection, getSquareAccessToken, squareLocations } from "./token"
 
 export interface SquareSyncResult {
@@ -16,6 +16,8 @@ export interface SquareSyncResult {
   items: number
   orders: number
   totalIncGst: number
+  /** Bills open and not yet settled at sync time (not counted as sales). */
+  openTablesIncGst: number
   fees: number
   cardTakings: number
   summaryWritten: boolean
@@ -56,14 +58,15 @@ export async function syncSquareSales(dates: string[]): Promise<SquareSyncResult
     for (const loc of locations) {
       const venue = normalizeVenueSlug(loc.venue) as Venue | null
       if (!venue || venue === "BOTH") {
-        results.push({ venue: loc.venue, date: dateStr, items: 0, orders: 0, totalIncGst: 0, fees: 0, cardTakings: 0, summaryWritten: false, skipped: "unmapped location" })
+        results.push({ venue: loc.venue, date: dateStr, items: 0, orders: 0, totalIncGst: 0, openTablesIncGst: 0, fees: 0, cardTakings: 0, summaryWritten: false, skipped: "unmapped location" })
         continue
       }
-      const [orders, payments] = await Promise.all([
-        searchClosedOrders(token, loc.id, dateStr),
+      const [{ sales: orders, openUnpaid }, payments] = await Promise.all([
+        fetchDayOrders(token, loc.id, dateStr),
         listPayments(token, loc.id, dateStr),
       ])
       const agg = aggregateOrders(orders)
+      const openTablesIncGst = openUnpaid.reduce((s, o) => s.plus(cents(o.total_money)), new Decimal(0))
       const pay = aggregatePayments(payments)
 
       // Replace the day's API item rows for this venue in one go so items
@@ -146,6 +149,7 @@ export async function syncSquareSales(dates: string[]): Promise<SquareSyncResult
         items: agg.items.length,
         orders: agg.orderCount,
         totalIncGst: agg.totalIncGst.toDecimalPlaces(2).toNumber(),
+        openTablesIncGst: openTablesIncGst.toDecimalPlaces(2).toNumber(),
         fees: pay.fees.toDecimalPlaces(2).toNumber(),
         cardTakings: pay.cardTakings.toDecimalPlaces(2).toNumber(),
         summaryWritten,
