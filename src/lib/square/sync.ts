@@ -9,6 +9,8 @@ import {
 } from "@/lib/sales/enrich"
 import { fetchDayOrders, listPayments, aggregateOrders, aggregatePayments, cents } from "./client"
 import { getSquareConnection, getSquareAccessToken, squareLocations } from "./token"
+import { computeDayBreakdown } from "./breakdown"
+import { resolveCatalog, resolveTeam, persistDayBreakdown } from "./live"
 
 export interface SquareSyncResult {
   venue: string
@@ -142,6 +144,20 @@ export async function syncSquareSales(dates: string[]): Promise<SquareSyncResult
         summaryWritten = true
       }
       await calculateTheoreticalUsage(dateObj, venue)
+
+      // Hourly shape, cafe/restaurant/online split and surcharge for the
+      // insights page (same orders + payments, no extra Square calls beyond
+      // catalogue/team cache misses).
+      try {
+        const allOrders = [...orders, ...openUnpaid]
+        const variationIds = allOrders.flatMap((o) => (o.line_items ?? []).map((l) => l.catalog_object_id ?? "")).filter(Boolean)
+        const teamIds = (payments as Array<{ team_member_id?: string }>).map((p) => p.team_member_id ?? "").filter(Boolean)
+        const [catalog, team] = await Promise.all([resolveCatalog(token, variationIds), resolveTeam(token, teamIds)])
+        const breakdown = computeDayBreakdown(dateStr, allOrders, payments, (id) => (id ? catalog.get(id) : undefined), (id) => (id ? team.get(id) : undefined))
+        await persistDayBreakdown(venue, dateStr, breakdown)
+      } catch (err) {
+        console.error("[sync-square-sales] breakdown", venue, dateStr, err)
+      }
 
       results.push({
         venue,

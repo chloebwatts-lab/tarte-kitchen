@@ -511,10 +511,63 @@ model DailySalesSummary {
   /// Square API only: card payments taken that day (gross, before refunds),
   /// so fees / cardTakings gives the effective processing rate.
   cardTakings       Decimal? @db.Decimal(12, 2)
+  /// Square only: Sunday / public holiday surcharge collected (inc GST).
+  surchargeIncGst   Decimal? @db.Decimal(12, 2)
   source            SalesSource @default(API)
   createdAt         DateTime @default(now())
 
   @@unique([date, venue])
+}
+
+// Hour-by-hour revenue for the sales insights page. Lightspeed rows seeded
+// from the back-office hourly export (to 16 Sep 2026); ESTIMATE rows spread a
+// known daily total over the venue's usual hourly shape (17-30 Sep 2026);
+// SQUARE rows are written by the Square sync.
+model HourlySales {
+  id            String   @id @default(cuid())
+  date          DateTime @db.Date
+  venue         Venue
+  hour          Int      // 0-23, Brisbane time
+  revenueIncGst Decimal  @db.Decimal(12, 2)
+  orders        Int      @default(0)
+  source        String   // LIGHTSPEED | ESTIMATE | SQUARE
+  createdAt     DateTime @default(now())
+
+  @@unique([date, venue, hour])
+  @@index([venue, date])
+}
+
+// Cafe / restaurant / online split per day (register family on Lightspeed,
+// device name + order source on Square).
+model DailyChannelSales {
+  id            String   @id @default(cuid())
+  date          DateTime @db.Date
+  venue         Venue
+  channel       String   // CAFE | RESTAURANT | ONLINE | OTHER
+  revenueIncGst Decimal  @db.Decimal(12, 2)
+  orders        Int      @default(0)
+  source        String   // LIGHTSPEED | SQUARE
+  createdAt     DateTime @default(now())
+
+  @@unique([date, venue, channel])
+  @@index([venue, date])
+}
+
+// Square catalogue lookups so line items can be grouped by reporting
+// category without a catalogue call per order.
+model SquareCatalogItem {
+  variationId       String   @id
+  itemId            String?
+  itemName          String
+  variationName     String?
+  reportingCategory String?
+  updatedAt         DateTime @updatedAt
+}
+
+model SquareTeamMember {
+  id        String   @id
+  name      String
+  updatedAt DateTime @updatedAt
 }
 
 // Idempotency record for Square daily-summary email imports (one email per

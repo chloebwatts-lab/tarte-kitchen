@@ -3,7 +3,7 @@ import {
   CalendarCheck, ClipboardCheck, ClipboardList, Croissant, Eye, Lock,
   MessageSquarePlus, PackageOpen, PackageSearch, Printer, Scale, ShieldCheck,
   ShoppingBasket, ShoppingCart, Snowflake, Trash2, Wrench, Megaphone, Sunrise,
-  Handshake, GraduationCap, ListChecks, Compass, Tag,
+  Handshake, GraduationCap, ListChecks, Compass, Tag, BarChart3,
 } from "lucide-react"
 
 type Icon = ComponentType<{ className?: string; strokeWidth?: number }>
@@ -75,6 +75,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
     href: "/kitchen/managers",
     locked: true,
     tools: [
+      { title: "Sales insights", sub: "Live from Square vs the same day on earlier weeks", href: "/kitchen/managers/sales", icon: BarChart3 },
       { title: "Line-up", sub: "Five minutes before open, already filled in", href: "/kitchen/lineup", icon: Megaphone },
       { title: "Morning board", sub: "Everything reported, scheduled or below par", href: "/kitchen/managers/board", icon: Sunrise },
       { title: "Jobs board", sub: "What the morning board put on you. Tick it off", href: "/kitchen/jobs", icon: ListChecks },
