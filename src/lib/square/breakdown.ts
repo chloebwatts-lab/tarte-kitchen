@@ -78,10 +78,12 @@ export function channelForDevice(deviceName: string | undefined, sourceName: str
   const src = (sourceName ?? "").toLowerCase()
   if (src.includes("bopple") || src.includes("online") || src.includes("ecom")) return "ONLINE"
   const d = (deviceName ?? "").toLowerCase()
-  if (!d) return src.includes("point of sale") ? "OTHER" : "OTHER"
-  if (d.includes("cafe") || d.includes("market") || d.includes("counter") || d.includes("takeaway")) return "CAFE"
-  if (d.includes("restaurant") || /\bhh\b/.test(d) || d.includes("handheld") || d.includes("floor")) return "RESTAURANT"
-  return "OTHER"
+  if (!d) return "OTHER"
+  // Handhelds ("HH 4 - RESTAURANT", "HH8- TEA GARDEN") are table service.
+  if (/\bhh\s*\d/.test(d) || d.includes("restaurant") || d.includes("handheld") || d.includes("floor")) return "RESTAURANT"
+  if (d.includes("cafe") || d.includes("market") || d.includes("counter") || d.includes("takeaway") || d.includes("pos")) return "CAFE"
+  // Any other named register is a counter till.
+  return "CAFE"
 }
 
 export function isSurchargeName(name: string | undefined): boolean {

@@ -13,6 +13,9 @@ test("channelForDevice: cafe / restaurant / handheld / Bopple / unknown", () => 
   assert.equal(channelForDevice("Register 3 - Cafe", "Bopple"), "ONLINE")
   assert.equal(channelForDevice(undefined, "Point of Sale"), "OTHER")
   assert.equal(channelForDevice("Tea Gardens Market", "Point of Sale"), "CAFE")
+  assert.equal(channelForDevice("Tea Garden POS 4", "Point of Sale"), "CAFE")
+  assert.equal(channelForDevice("HH8- TEA GARDEN", "Point of Sale"), "RESTAURANT")
+  assert.equal(channelForDevice("Register 1 - Restaurant", "Point of Sale"), "RESTAURANT")
 })
 
 test("aestHour converts UTC instants to Brisbane hours", () => {

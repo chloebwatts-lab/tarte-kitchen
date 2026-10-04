@@ -93,17 +93,20 @@ export async function resolveTeam(token: string, ids: string[]): Promise<Map<str
   for (const c of cached) out.set(c.id, c.name)
   const missing = want.filter((id) => !out.has(id))
   if (!missing.length) return out
-  const res = await fetch(`${SQUARE_API}/team-members/bulk-retrieve`, {
-    method: "POST", headers: headers(token), body: JSON.stringify({ team_member_ids: missing.slice(0, 100) }),
-  })
-  if (res.ok) {
-    const data = (await res.json()) as { team_members?: Record<string, { team_member?: { id: string; given_name?: string; family_name?: string } }> }
-    for (const entry of Object.values(data.team_members ?? {})) {
-      const m = entry.team_member
+  // Square has no bulk lookup that takes ids, so one GET per unknown member;
+  // the cache means this only happens the first time someone takes a payment.
+  for (const id of missing.slice(0, 60)) {
+    try {
+      const res = await fetch(`${SQUARE_API}/team-members/${encodeURIComponent(id)}`, { headers: headers(token) })
+      if (!res.ok) continue
+      const data = (await res.json()) as { team_member?: { id: string; given_name?: string; family_name?: string } }
+      const m = data.team_member
       if (!m) continue
       const name = [m.given_name, m.family_name].filter(Boolean).join(" ").trim() || "Team member"
       out.set(m.id, name)
       await db.squareTeamMember.upsert({ where: { id: m.id }, update: { name }, create: { id: m.id, name } })
+    } catch (err) {
+      console.error("[square] team member lookup", id, err)
     }
   }
   return out
