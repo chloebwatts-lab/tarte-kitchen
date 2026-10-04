@@ -50,6 +50,8 @@ test("power symptoms for ovens, fridges, freezers and fryers include the extensi
   const fryer = find("fryer", "wont-light")
   assert.ok(fryer.quickFixes.some((f) => /pilot/i.test(f)))
   assert.ok(!fryer.quickFixes.some((f) => extensionLead.test(f)))
+  // ...and it must still classify so the repeat-fault banner counts it.
+  assert.equal(classifyIssue(fryer.label)?.key, "ignition")
 })
 
 test("manual-sourced symptoms exist for every equipment family on the fix page", () => {

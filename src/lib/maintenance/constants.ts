@@ -570,7 +570,7 @@ export const ISSUE_CLASSES: Array<{ key: string; label: string; test: RegExp }> 
   { key: "leak", label: "leaking", test: /leak|water on floor|filling up with water|water holding|full of water/i },
   { key: "drain", label: "drainage", test: /drain/i },
   { key: "fill", label: "not filling", test: /not filling|error code 202|won'?t fill|no water/i },
-  { key: "ignition", label: "ignition / burner", test: /flame|pilot|ignit|burner|not light|fire line/i },
+  { key: "ignition", label: "ignition / burner", test: /flame|pilot|ignit|burner|not light|won'?t light|fire line/i },
   { key: "cooling", label: "temperature", test: /not cool|too cold|freez|not cold|temperature|degrees|regulat/i },
   { key: "heating", label: "heating", test: /heat|sanitis|thermostop/i },
   { key: "power", label: "power", test: /power|not turning on|turn on|won'?t start|dead screen|not working consistent/i },
