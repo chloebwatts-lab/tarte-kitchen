@@ -27,6 +27,31 @@ test("symptom keys are unique within a category and every symptom has quick fixe
   }
 })
 
+test("power symptoms for ovens, fridges, freezers and fryers include the extension-lead step", () => {
+  const extensionLead = /different power point\/circuit.*approved extension lead/i
+  const find = (category: (typeof ASSET_CATEGORIES)[number], key: string) => {
+    const s = CATEGORY_SYMPTOMS[category].find((x) => x.key === key)
+    assert.ok(s, `${category}/${key} symptom exists`)
+    return s
+  }
+  for (const [category, key] of [
+    ["oven", "power"],
+    ["refrigeration", "not-turning-on"],
+    ["freezer", "not-turning-on"],
+    ["fryer", "power"],
+  ] as const) {
+    const s = find(category, key)
+    assert.ok(
+      s.quickFixes.some((f) => extensionLead.test(f)),
+      `${category}/${key} should suggest a different power point with an approved extension lead`,
+    )
+    // The step is a last resort after the switchboard and plug checks.
+    assert.ok(extensionLead.test(s.quickFixes[s.quickFixes.length - 1]), `${category}/${key} lists it last`)
+  }
+  // The new fryer symptom should classify as a power fault for repeat-fault detection.
+  assert.equal(classifyIssue(find("fryer", "power").label)?.key, "power")
+})
+
 test("warrantyEndDate adds whole months to the purchase date", () => {
   const end = warrantyEndDate({ purchaseDate: new Date(2025, 2, 15, 12), warrantyMonths: 12 })
   assert.equal(end?.getFullYear(), 2026)
