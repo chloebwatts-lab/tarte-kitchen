@@ -8,6 +8,7 @@ import {
   Venue,
 } from "@/generated/prisma/client"
 import { prepSectionsFor, sectionRank, stationsForVenue } from "@/lib/stations"
+import { LEARN_WINDOW_DAYS, orderPrepItems } from "@/lib/restock-order"
 
 // ------------------------------------------------------------------
 // The head chef's paper system, digitised:
@@ -252,21 +253,31 @@ export async function getCountSheet(params: {
     }
   }
 
-  const items = await db.prepStockItem.findMany({
+  const rawItems = await db.prepStockItem.findMany({
     where: { venue, station, isActive: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   })
-  // Sectioned lists (Beach House, Burleigh) run in their section order;
-  // elsewhere "Station restock" leads (that's the paper sheet the chefs
-  // know) and other categories follow alphabetically.
-  items.sort((a, b) => {
-    return (
-      sectionRank(a.category) - sectionRank(b.category) ||
-      a.category.localeCompare(b.category) ||
-      a.sortOrder - b.sortOrder ||
-      a.name.localeCompare(b.name)
-    )
-  })
+  // Sections run in the chefs' own order. Inside a section it is the
+  // paper-sheet order until there are enough nights of lists, then the
+  // most requested prep leads (see restock-order.ts).
+  const since = new Date(today.getTime() - LEARN_WINDOW_DAYS * 86_400_000)
+  const [nights, requested] = await Promise.all([
+    db.restockSheet.findMany({
+      where: { venue, station, sheetDate: { gte: since }, lines: { some: { requested: { gt: 0 } } } },
+      select: { sheetDate: true },
+      distinct: ["sheetDate"],
+    }),
+    db.restockLine.groupBy({
+      by: ["itemId"],
+      where: { requested: { gt: 0 }, sheet: { venue, station, sheetDate: { gte: since } } },
+      _count: { _all: true },
+    }),
+  ])
+  const items = orderPrepItems(
+    rawItems,
+    new Map(requested.map((r) => [r.itemId, r._count._all])),
+    nights.length
+  )
   const lineByItem = new Map(sheet.lines.map((l) => [l.itemId, l]))
 
   // Jose's one-kitchen model: surface the sibling kitchen's items (the ones

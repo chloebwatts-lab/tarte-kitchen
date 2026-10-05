@@ -71,7 +71,6 @@ export function RestockCountSheet({
     return Array.from(map.entries())
   }, [lines])
 
-  const countedCount = lines.filter((l) => l.available != null).length
   const requestedCount =
     lines.filter((l) => l.requested != null && l.requested > 0).length +
     sibs.filter((s) => (s.requested ?? 0) > 0).length
@@ -230,8 +229,8 @@ export function RestockCountSheet({
           Sent to prep ✓
         </div>
         <p className="mt-3 text-[16px] text-[var(--tk-ink-soft)]">
-          {stationLabel(sheet.venue, sheet.station)} count: {countedCount} item
-          {countedCount === 1 ? "" : "s"} counted, {requestedCount} requested
+          {stationLabel(sheet.venue, sheet.station)}: {requestedCount} item
+          {requestedCount === 1 ? "" : "s"} requested
           {sheet.countedBy ? ` · by ${sheet.countedBy}` : ""}.
         </p>
         <p className="mt-1 text-[14px] text-[var(--tk-ink-soft)]">
@@ -273,7 +272,7 @@ export function RestockCountSheet({
                 <Check className="h-3.5 w-3.5" /> saved
               </span>
             )}
-            · {countedCount} counted · {requestedCount} requested
+            · {requestedCount} requested
           </span>
         </div>
       </div>
@@ -309,9 +308,8 @@ export function RestockCountSheet({
           </div>
           <div className="overflow-hidden rounded-[18px] border border-[var(--tk-line)] bg-white">
             {/* Column headers */}
-            <div className="grid grid-cols-[1fr_88px_88px_44px] items-center gap-2 border-b border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--tk-ink-soft)] sm:grid-cols-[1fr_110px_110px_52px]">
+            <div className="grid grid-cols-[1fr_88px_44px] items-center gap-2 border-b border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--tk-ink-soft)] sm:grid-cols-[1fr_110px_52px]">
               <span>Item</span>
-              <span className="text-center">In coolroom</span>
               <span className="text-center">Need</span>
               <span className="text-center">
                 <Star className="mx-auto h-3.5 w-3.5" />
@@ -360,7 +358,7 @@ export function RestockCountSheet({
           </button>
           {sibsOpen && (
             <div>
-              <div className="grid grid-cols-[1fr_88px_88px_44px] items-center gap-2 border-y border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--tk-ink-soft)] sm:grid-cols-[1fr_110px_110px_52px]">
+              <div className="grid grid-cols-[1fr_88px_44px] items-center gap-2 border-y border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--tk-ink-soft)] sm:grid-cols-[1fr_110px_52px]">
                 <span>Item</span>
                 <span className="text-center">They have</span>
                 <span className="text-center">Need</span>
@@ -371,7 +369,7 @@ export function RestockCountSheet({
               {sibs.map((item) => (
                 <div
                   key={item.itemId}
-                  className="grid grid-cols-[1fr_88px_88px_44px] items-center gap-2 border-b border-[var(--tk-line)] px-4 py-3 last:border-b-0 sm:grid-cols-[1fr_110px_110px_52px]"
+                  className="grid grid-cols-[1fr_88px_44px] items-center gap-2 border-b border-[var(--tk-line)] px-4 py-3 last:border-b-0 sm:grid-cols-[1fr_110px_52px]"
                 >
                   <div className="min-w-0">
                     <span className="text-[16px] font-medium leading-snug text-[var(--tk-charcoal)]">
@@ -490,7 +488,7 @@ export function RestockCountSheet({
       {!readOnly && (
         <div className="rounded-[20px] border border-[var(--tk-line)] bg-white p-5">
           <div className="tk-caps mb-3" style={{ color: "var(--tk-ink-mute)" }}>
-            Done counting?
+            Done?
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <input
@@ -517,9 +515,9 @@ export function RestockCountSheet({
           </div>
           <p className="mt-2 text-[13px] text-[var(--tk-ink-soft)]">
             {requestedCount === 0
-              ? "Nothing requested yet. You can still send an all-good count."
+              ? "Nothing requested yet. You can still send it as all good."
               : `${requestedCount} item${requestedCount === 1 ? "" : "s"} will go on the prep chef's morning run.`}{" "}
-            Forget to send? The count still reaches the prep chef. Sending
+            Forget to send? The list still reaches the prep chef. Sending
             just signs it off with your name.
           </p>
         </div>
@@ -557,7 +555,7 @@ function CountRow({
 
   return (
     <div className="border-b border-[var(--tk-line)] last:border-b-0">
-      <div className="grid grid-cols-[1fr_88px_88px_44px] items-center gap-2 px-4 py-3 sm:grid-cols-[1fr_110px_110px_52px]">
+      <div className="grid grid-cols-[1fr_88px_44px] items-center gap-2 px-4 py-3 sm:grid-cols-[1fr_110px_52px]">
         <div className="min-w-0">
           <button
             onClick={() => !readOnly && setShowNote((s) => !s)}
@@ -604,12 +602,6 @@ function CountRow({
             )}
           </button>
         </div>
-        <QtyInput
-          value={line.available}
-          disabled={readOnly}
-          ariaLabel={`${line.name} left now`}
-          onCommit={(v) => onChange({ available: v }, "available")}
-        />
         <QtyInput
           value={line.requested}
           disabled={readOnly}

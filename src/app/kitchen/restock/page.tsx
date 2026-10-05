@@ -86,7 +86,7 @@ export default async function RestockHubPage({
               : status === "SUBMITTED"
                 ? { label: "Sent to prep", bg: "var(--tk-gold-soft)", fg: "#8a6d1f" }
                 : status === "IN_PROGRESS"
-                  ? { label: "Counting…", bg: "var(--tk-charcoal-soft)", fg: "var(--tk-ink-soft)" }
+                  ? { label: "In progress", bg: "var(--tk-charcoal-soft)", fg: "var(--tk-ink-soft)" }
                   : { label: "Not started", bg: "var(--tk-charcoal-soft)", fg: "var(--tk-ink-soft)" }
           return (
             <Link
@@ -109,8 +109,8 @@ export default async function RestockHubPage({
                 </div>
                 <div className="mt-0.5 text-[14px] text-[var(--tk-ink-soft)]">
                   {todaySheet
-                    ? `${todaySheet.countedLines} counted · ${todaySheet.requestedLines} requested${todaySheet.countedBy ? ` · ${todaySheet.countedBy}` : ""}`
-                    : "Tonight's count not started"}
+                    ? `${todaySheet.requestedLines} requested${todaySheet.countedBy ? ` · ${todaySheet.countedBy}` : ""}`
+                    : "Tonight's list not started"}
                 </div>
               </div>
               <div
