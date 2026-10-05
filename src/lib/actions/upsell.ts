@@ -8,7 +8,8 @@ import { fetchLiveDay } from "@/lib/square/live"
 import { loadGroups, persistUpsell } from "@/lib/square/upsell-store"
 import { brisbaneNow } from "@/lib/sales/insights"
 import { shiftDate, tarteWeekStart } from "@/lib/sales/compare"
-import { leaderboard, type BoardRow, type Metric, type GroupDef, type UnassignedModifier } from "@/lib/sales/upsell"
+import { leaderboard, matchHours, perHourBoard, MIN_HOURS_FOR_PER_HOUR, type BoardRow, type Metric, type GroupDef, type UnassignedModifier } from "@/lib/sales/upsell"
+import { aestDayRange } from "@/lib/square/client"
 
 export interface ChallengeView {
   id: string
@@ -23,6 +24,10 @@ export interface ChallengeView {
   daysLeft: number
   board: BoardRow[]
   team: BoardRow
+  daily: boolean
+  /** One entry per day so far (newest first) when `daily`. */
+  days: Array<{ date: string; isToday: boolean; top: BoardRow[] }>
+  minHours: number
 }
 export interface StandingRow {
   groupKey: string
@@ -50,6 +55,21 @@ const D = (s: string) => new Date(`${s}T00:00:00Z`)
 async function rowsFor(venue: Venue, from: string, to: string, groupKey?: string) {
   const rows = await db.dailyStaffUpsell.findMany({ where: { venue, date: { gte: D(from), lte: D(to) }, ...(groupKey ? { groupKey } : {}) } })
   return rows.map((r) => ({ teamMemberId: r.teamMemberId, staffName: r.staffName, groupKey: r.groupKey, eligibleOrders: r.eligibleOrders, ordersWith: r.ordersWith, units: r.units, sales: Number(r.salesIncGst) }))
+}
+
+/** Timesheet hours per name at a venue between two Brisbane dates (shifts in progress count up to now). */
+async function timesheetHours(venue: Venue, from: string, to: string): Promise<Map<string, number>> {
+  const start = new Date(aestDayRange(from).startAt), end = new Date(aestDayRange(to).endAt)
+  const shifts = await db.labourShift.findMany({ where: { venue, source: "TIMESHEET", isOpen: false, shiftStart: { gte: start, lt: end } }, select: { employeeName: true, shiftStart: true, shiftEnd: true, hours: true } })
+  const now = Date.now()
+  const out = new Map<string, number>()
+  for (const s of shifts) {
+    let h = Number(s.hours)
+    const elapsed = Math.max(0, (Math.min(now, s.shiftEnd.getTime() > s.shiftStart.getTime() ? s.shiftEnd.getTime() : now) - s.shiftStart.getTime()) / 3600000)
+    if (s.shiftEnd.getTime() > now || h <= 0) h = Math.min(h > 0 ? h : elapsed, elapsed)
+    out.set(s.employeeName, (out.get(s.employeeName) ?? 0) + h)
+  }
+  return out
 }
 
 export async function getUpsellBoard(venue: Venue, date?: string): Promise<UpsellBoardData> {
@@ -89,12 +109,28 @@ export async function getUpsellBoard(venue: Venue, date?: string): Promise<Upsel
     const start = ymd(c.startDate), end = ymd(c.endDate)
     const to = end < now.date ? end : now.date
     const rows = start <= to ? await rowsFor(venue, start, to, c.groupKey) : []
-    const { board, team } = leaderboard(rows, c.metric as Metric)
+    const lb = leaderboard(rows, c.metric as Metric)
+    const team = lb.team
+    let board = lb.board
+    if (rows.length) {
+      const hours = matchHours(board.map((r) => r.staffName), await timesheetHours(venue, start, to))
+      const withHours = perHourBoard(board, hours)
+      board = c.metric === "PER_HOUR" ? withHours : board.map((r) => { const h = withHours.find((x) => x.teamMemberId === r.teamMemberId); return { ...r, hours: h?.hours ?? null, perHour: h?.perHour ?? null } })
+    }
+    const days: ChallengeView["days"] = []
+    if (c.daily && start <= to) {
+      const all = await db.dailyStaffUpsell.findMany({ where: { venue, groupKey: c.groupKey, date: { gte: D(start), lte: D(to) } } })
+      for (let d = to; d >= start; d = shiftDate(d, -1)) {
+        const dayRows = all.filter((r) => ymd(r.date) === d).map((r) => ({ teamMemberId: r.teamMemberId, staffName: r.staffName, eligibleOrders: r.eligibleOrders, ordersWith: r.ordersWith, units: r.units, sales: Number(r.salesIncGst) }))
+        days.push({ date: d, isToday: d === now.date, top: leaderboard(dayRows, "UNITS").board.filter((r) => r.units > 0).slice(0, 3) })
+      }
+    }
     const status: ChallengeView["status"] = c.endedAt || end < now.date ? "FINISHED" : start > now.date ? "UPCOMING" : "LIVE"
     const daysLeft = Math.max(0, Math.round((D(end).getTime() - D(now.date).getTime()) / 86400000) + 1)
     challenges.push({
       id: c.id, name: c.name, groupKey: c.groupKey, groupLabel: groups.find((g) => g.key === c.groupKey)?.label ?? c.groupKey,
       metric: c.metric as Metric, startDate: start, endDate: end, note: c.note, status, daysLeft, board, team,
+      daily: c.daily, days, minHours: MIN_HOURS_FOR_PER_HOUR,
     })
   }
   challenges.sort((a, b) => (a.status === b.status ? b.startDate.localeCompare(a.startDate) : a.status === "LIVE" ? -1 : b.status === "LIVE" ? 1 : a.status === "UPCOMING" ? -1 : 1))
@@ -103,15 +139,15 @@ export async function getUpsellBoard(venue: Venue, date?: string): Promise<Upsel
   return { venue, date: day, onSquare, groups, challenges, standing, unassigned, weekLabel: `${fmt(weekStart)} to ${fmt(day)}` }
 }
 
-export async function createChallenge(input: { venue: Venue; name: string; groupKey: string; metric: Metric; startDate: string; endDate: string; note?: string }) {
+export async function createChallenge(input: { venue: Venue; name: string; groupKey: string; metric: Metric; startDate: string; endDate: string; note?: string; daily?: boolean }) {
   await assertManager()
   const name = input.name.trim().slice(0, 80)
   if (!name) return { ok: false as const, error: "Give the challenge a name." }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(input.endDate) || input.endDate < input.startDate) return { ok: false as const, error: "Check the dates." }
-  if (!["UNITS", "ATTACH", "SALES"].includes(input.metric)) return { ok: false as const, error: "Pick how it is scored." }
+  if (!["UNITS", "ATTACH", "SALES", "PER_HOUR"].includes(input.metric)) return { ok: false as const, error: "Pick how it is scored." }
   const group = await db.upsellGroup.findUnique({ where: { key: input.groupKey } })
   if (!group) return { ok: false as const, error: "Pick what counts." }
-  await db.salesChallenge.create({ data: { venue: input.venue, name, groupKey: input.groupKey, metric: input.metric, startDate: D(input.startDate), endDate: D(input.endDate), note: input.note?.trim().slice(0, 200) || null } })
+  await db.salesChallenge.create({ data: { venue: input.venue, name, groupKey: input.groupKey, metric: input.metric, daily: Boolean(input.daily), startDate: D(input.startDate), endDate: D(input.endDate), note: input.note?.trim().slice(0, 200) || null } })
   return { ok: true as const }
 }
 

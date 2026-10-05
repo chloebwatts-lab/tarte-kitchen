@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { computeUpsell, leaderboard, DEFAULT_GROUPS, ONLINE_ID, MIN_ORDERS_FOR_ATTACH } from "./upsell"
+import { computeUpsell, leaderboard, matchHours, perHourBoard, DEFAULT_GROUPS, ONLINE_ID, MIN_ORDERS_FOR_ATTACH } from "./upsell"
 import type { SquareOrder, SquarePayment } from "@/lib/square/client"
 
 const money = (d: number) => ({ amount: Math.round(d * 100), currency: "AUD" })
@@ -84,4 +84,36 @@ test("leaderboard: units ranks by volume, attach needs a minimum of eligible ord
   assert.equal(a.board.find((r) => r.staffName === "Ana")!.per100, 24.5)
   const s = leaderboard(rows, "SALES")
   assert.equal(s.board[0].staffName, "Ana"); assert.equal(s.board[0].sales, 173)
+})
+
+test("matchHours: exact, nickname with same surname, first-name-only when unambiguous", () => {
+  const sheet = new Map<string, number>([
+    ["Baily Roberts", 30.19], ["hannah susman", 15.46], ["Anastasia Iacovou", 17.37], ["Matthew", 27.05], ["Maz", 14.82],
+    ["Georgie", 11.93], ["Georgia Rodney", 33.31], ["Georgia Madden", 19.11], ["Hannah", 5], ["Julian Mauricio", 41.39],
+  ])
+  const square = ["Baily Roberts", "Hannah Susman", "Ana Iacovou", "Matthew Scott", "Maz McKern", "Georgia Rodney", "Georgia Madden", "Hannah Summers", "Hannah Dell Vassiliou", "Tim Quintal"]
+  const m = matchHours(square, sheet)
+  assert.equal(m.get("Baily Roberts"), 30.19)
+  assert.equal(m.get("Hannah Susman"), 15.46)
+  assert.equal(m.get("Ana Iacovou"), 17.37)
+  assert.equal(m.get("Matthew Scott"), 27.05)
+  assert.equal(m.get("Maz McKern"), 14.82)
+  assert.equal(m.get("Georgia Rodney"), 33.31)
+  assert.equal(m.get("Georgia Madden"), 19.11)
+  // "Hannah" alone could be either remaining Hannah: nobody gets those hours
+  assert.equal(m.get("Hannah Summers"), undefined)
+  assert.equal(m.get("Hannah Dell Vassiliou"), undefined)
+  assert.equal(m.get("Tim Quintal"), undefined)
+})
+
+test("perHourBoard: ranks by sides per hour, needs minimum hours, missing hours stay unranked", () => {
+  const { board } = leaderboard([
+    { teamMemberId: "a", staffName: "Ana", eligibleOrders: 100, ordersWith: 20, units: 40, sales: 260 },
+    { teamMemberId: "b", staffName: "Baily", eligibleOrders: 60, ordersWith: 20, units: 30, sales: 190 },
+    { teamMemberId: "c", staffName: "Cameo", eligibleOrders: 12, ordersWith: 9, units: 10, sales: 60 },
+    { teamMemberId: "d", staffName: "NoSheet", eligibleOrders: 30, ordersWith: 9, units: 12, sales: 70 },
+  ], "PER_HOUR")
+  const rows = perHourBoard(board, new Map([["Ana", 32], ["Baily", 15], ["Cameo", 3]]), 8)
+  assert.deepEqual(rows.map((r) => [r.staffName, r.perHour, r.rank]), [["Baily", 2, 1], ["Ana", 1.25, 2], ["NoSheet", null, null], ["Cameo", 3.33, null]])
+  assert.equal(rows[0].hours, 15)
 })

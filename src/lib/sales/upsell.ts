@@ -190,7 +190,7 @@ export function computeUpsell(
 
 // ─── Leaderboards ───────────────────────────────────────────────────────────
 
-export type Metric = "UNITS" | "ATTACH" | "SALES"
+export type Metric = "UNITS" | "ATTACH" | "SALES" | "PER_HOUR"
 
 export interface BoardRow {
   teamMemberId: string
@@ -202,6 +202,9 @@ export interface BoardRow {
   attachPct: number | null
   per100: number | null
   rank: number | null
+  /** Hours worked in the period (timesheets), when the board is scored per hour. */
+  hours?: number | null
+  perHour?: number | null
 }
 
 /** Attach-rate rankings ignore anyone with fewer eligible orders than this. */
@@ -230,11 +233,60 @@ export function leaderboard(rows: Array<Omit<UpsellRow, "groupKey">>, metric: Me
     rank: null,
   })
   const people = all.filter((r) => r.teamMemberId !== ONLINE_ID).map(mk)
-  const score = (r: BoardRow) => (metric === "UNITS" ? r.units : metric === "SALES" ? r.sales : r.eligibleOrders >= MIN_ORDERS_FOR_ATTACH ? (r.attachPct ?? -1) : -1)
+  const score = (r: BoardRow) => (metric === "UNITS" || metric === "PER_HOUR" ? r.units : metric === "SALES" ? r.sales : r.eligibleOrders >= MIN_ORDERS_FOR_ATTACH ? (r.attachPct ?? -1) : -1)
   people.sort((a, b) => score(b) - score(a) || b.units - a.units || a.staffName.localeCompare(b.staffName))
   let rank = 0
   for (const p of people) { if (score(p) > 0 || (metric !== "ATTACH" && score(p) === 0 && p.units > 0)) { rank++; p.rank = rank } }
   const t = all.reduce((s, r) => ({ ...s, eligibleOrders: s.eligibleOrders + r.eligibleOrders, ordersWith: s.ordersWith + r.ordersWith, units: s.units + r.units, sales: s.sales + r.sales }),
     { teamMemberId: "TEAM", staffName: "Whole team", eligibleOrders: 0, ordersWith: 0, units: 0, sales: 0 })
   return { board: people, team: mk(t) }
+}
+
+// ─── Per hour worked ────────────────────────────────────────────────────────
+
+/** Weekly per-hour rankings ignore anyone under this many hours in the period. */
+export const MIN_HOURS_FOR_PER_HOUR = 8
+
+const tokens = (name: string) => name.toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/).filter(Boolean)
+
+/**
+ * Match Square team-member names to timesheet names. Timesheets are looser
+ * ("Matthew", "Anastasia Iacovou", "hannah susman") than Square ("Matthew
+ * Scott", "Ana Iacovou"). Order: exact, same surname + first names that share
+ * a 3-letter start, then a first-name-only timesheet name when exactly one
+ * unmatched Square person has that first name. Ambiguity gives no match
+ * rather than someone else's hours.
+ */
+export function matchHours(squareNames: string[], hoursByTimesheetName: Map<string, number>): Map<string, number> {
+  const out = new Map<string, number>()
+  const sheet = [...hoursByTimesheetName.entries()].map(([name, hours]) => ({ name, hours, t: tokens(name), used: false }))
+  const people = squareNames.map((name) => ({ name, t: tokens(name) }))
+  const take = (p: { name: string }, s: { hours: number; used: boolean }) => { out.set(p.name, (out.get(p.name) ?? 0) + s.hours); s.used = true }
+
+  for (const p of people) for (const s of sheet) if (!s.used && s.t.join(" ") === p.t.join(" ")) take(p, s)
+  for (const p of people) {
+    if (out.has(p.name) || p.t.length < 2) continue
+    const hits = sheet.filter((s) => !s.used && s.t.length >= 2 && s.t[s.t.length - 1] === p.t[p.t.length - 1] && (s.t[0].startsWith(p.t[0].slice(0, 3)) || p.t[0].startsWith(s.t[0].slice(0, 3))))
+    if (hits.length === 1) take(p, hits[0])
+  }
+  for (const s of sheet) {
+    if (s.used || s.t.length !== 1) continue
+    const hits = people.filter((p) => !out.has(p.name) && p.t[0] === s.t[0])
+    if (hits.length === 1) take(hits[0], s)
+  }
+  return out
+}
+
+/** Attach hours to a board and re-rank it by units per hour worked. */
+export function perHourBoard(board: BoardRow[], hoursByStaffName: Map<string, number>, minHours = MIN_HOURS_FOR_PER_HOUR): BoardRow[] {
+  const rows = board.map((r) => {
+    const hours = hoursByStaffName.get(r.staffName) ?? null
+    const perHour = hours && hours > 0 ? Math.round((r.units / hours) * 100) / 100 : null
+    return { ...r, hours: hours === null ? null : Math.round(hours * 10) / 10, perHour, rank: null as number | null }
+  })
+  const score = (r: BoardRow) => (r.perHour !== null && r.perHour !== undefined && (r.hours ?? 0) >= minHours ? r.perHour : -1)
+  rows.sort((a, b) => score(b) - score(a) || b.units - a.units || a.staffName.localeCompare(b.staffName))
+  let rank = 0
+  for (const r of rows) if (score(r) > 0) r.rank = ++rank
+  return rows
 }

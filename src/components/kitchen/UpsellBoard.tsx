@@ -10,7 +10,7 @@ import type { BoardRow, Metric } from "@/lib/sales/upsell"
 
 const money0 = (n: number) => `$${Math.round(n).toLocaleString("en-AU")}`
 const pctTxt = (n: number | null) => (n === null ? "n/a" : `${n.toFixed(1)}%`)
-const METRIC_LABEL: Record<Metric, string> = { UNITS: "Most sold", ATTACH: "Best attach rate", SALES: "Most dollars" }
+const METRIC_LABEL: Record<Metric, string> = { UNITS: "Most sold", ATTACH: "Best attach rate", SALES: "Most dollars", PER_HOUR: "Most sold per hour worked" }
 const fmtDay = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })
 const shiftDate = (d: string, n: number) => { const x = new Date(`${d}T00:00:00Z`); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10) }
 const medal = (rank: number | null) => (rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank ? `${rank}` : "")
@@ -18,25 +18,49 @@ const medal = (rank: number | null) => (rank === 1 ? "🥇" : rank === 2 ? "🥈
 function scoreText(r: BoardRow, metric: Metric) {
   if (metric === "UNITS") return `${r.units}`
   if (metric === "SALES") return money0(r.sales)
+  if (metric === "PER_HOUR") return r.perHour !== null && r.perHour !== undefined ? `${r.perHour.toFixed(2)} per hour` : `${r.units}`
   return pctTxt(r.attachPct)
 }
 
 function Leaderboard({ c }: { c: ChallengeView }) {
   const rows = c.board.filter((r) => r.eligibleOrders > 0)
   if (!rows.length) return <p className="mt-3 text-[14px] text-[var(--tk-ink-soft)]">{c.status === "UPCOMING" ? `Starts ${fmtDay(c.startDate)}.` : "No orders counted yet."}</p>
+  const perHour = c.metric === "PER_HOUR"
   return (
     <div className="mt-3">
-      <div className="grid grid-cols-[2rem_1fr_auto_auto_auto] gap-x-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--tk-ink-mute)]">
-        <span /><span>Team member</span><span className="text-right">Sold</span><span className="text-right">Attach</span><span className="text-right">Orders</span>
+      {c.daily && c.days.length > 0 && (
+        <div className="mb-4">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--tk-ink-mute)]">Day by day · most sold</div>
+          <div className="mt-1 divide-y divide-[var(--tk-line)]">
+            {c.days.map((d) => (
+              <div key={d.date} className="grid grid-cols-[6.5rem_1fr] items-baseline gap-x-3 py-2 text-[14px]">
+                <span className="font-semibold">{d.isToday ? "Today" : fmtDay(d.date)}</span>
+                {d.top.length ? (
+                  <span>
+                    <span className="font-semibold">🥇 {d.top[0].staffName} {d.top[0].units}</span>
+                    {d.isToday && <span className="ml-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-800">so far</span>}
+                    {d.top.slice(1).map((r, i) => <span key={r.teamMemberId} className="ml-3 text-[var(--tk-ink-soft)]">{i === 0 ? "🥈" : "🥉"} {r.staffName} {r.units}</span>)}
+                  </span>
+                ) : <span className="text-[var(--tk-ink-soft)]">No sides counted</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {c.daily && <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--tk-ink-mute)]">The week · {METRIC_LABEL[c.metric].toLowerCase()}</div>}
+      <div className={`grid ${perHour ? "grid-cols-[2rem_1fr_auto_auto_auto_auto]" : "grid-cols-[2rem_1fr_auto_auto_auto]"} gap-x-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--tk-ink-mute)]`}>
+        <span /><span>Team member</span><span className="text-right">Sold</span>{perHour && <span className="text-right">Hours</span>}{perHour && <span className="text-right">Per hour</span>}{!perHour && <span className="text-right">Attach</span>}<span className="text-right">{perHour ? "Attach" : "Orders"}</span>
       </div>
       <div className="divide-y divide-[var(--tk-line)]">
         {rows.map((r) => (
-          <div key={r.teamMemberId} className={`grid grid-cols-[2rem_1fr_auto_auto_auto] items-baseline gap-x-4 py-2 text-[15px] ${r.rank === 1 ? "font-semibold" : ""}`}>
+          <div key={r.teamMemberId} className={`grid ${perHour ? "grid-cols-[2rem_1fr_auto_auto_auto_auto]" : "grid-cols-[2rem_1fr_auto_auto_auto]"} items-baseline gap-x-4 py-2 text-[15px] ${r.rank === 1 ? "font-semibold" : ""}`}>
             <span className="text-[17px]">{medal(r.rank)}</span>
             <span>{r.staffName}</span>
             <span className="text-right tabular-nums">{r.units}<span className="ml-1 text-[12px] font-normal text-[var(--tk-ink-soft)]">{money0(r.sales)}</span></span>
-            <span className="text-right tabular-nums">{pctTxt(r.attachPct)}</span>
-            <span className="text-right tabular-nums text-[var(--tk-ink-soft)]">{r.eligibleOrders}</span>
+            {perHour && <span className="text-right tabular-nums">{r.hours ?? "n/a"}</span>}
+            {perHour && <span className="text-right tabular-nums">{r.perHour !== null && r.perHour !== undefined ? r.perHour.toFixed(2) : "n/a"}</span>}
+            {!perHour && <span className="text-right tabular-nums">{pctTxt(r.attachPct)}</span>}
+            <span className="text-right tabular-nums text-[var(--tk-ink-soft)]">{perHour ? pctTxt(r.attachPct) : r.eligibleOrders}</span>
           </div>
         ))}
       </div>
@@ -45,6 +69,7 @@ function Leaderboard({ c }: { c: ChallengeView }) {
         <span className="tabular-nums">{c.team.units} sold · {money0(c.team.sales)} · {pctTxt(c.team.attachPct)} of {c.team.eligibleOrders} orders</span>
       </div>
       {c.metric === "ATTACH" && <p className="mt-1 text-[12px] text-[var(--tk-ink-soft)]">Ranked on attach rate once someone has 10 eligible orders.</p>}
+      {perHour && <p className="mt-1 text-[12px] text-[var(--tk-ink-soft)]">Hours are clocked timesheet hours for the challenge dates. Ranked once someone has {c.minHours} hours. No hours shown means the timesheet name did not match the till name.</p>}
     </div>
   )
 }
@@ -90,7 +115,7 @@ export function UpsellBoard({ initial }: { initial: UpsellBoardData }) {
             action={(fd) => start(async () => {
               const r = await createChallenge({
                 venue: initial.venue, name: String(fd.get("name") ?? ""), groupKey: String(fd.get("group") ?? ""), metric: String(fd.get("metric") ?? "UNITS") as Metric,
-                startDate: String(fd.get("start") ?? ""), endDate: String(fd.get("end") ?? ""), note: String(fd.get("note") ?? ""),
+                startDate: String(fd.get("start") ?? ""), endDate: String(fd.get("end") ?? ""), note: String(fd.get("note") ?? ""), daily: fd.get("daily") === "on",
               })
               if (!r.ok) { setMsg(r.error); return }
               setMsg(null); setShowNew(false); setData(await getUpsellBoard(initial.venue))
@@ -99,10 +124,11 @@ export function UpsellBoard({ initial }: { initial: UpsellBoardData }) {
             <label className="block">Name<input name="name" required placeholder="Sides week" className="mt-1 w-full rounded-lg border border-[var(--tk-line)] bg-white px-3 py-2" /></label>
             <div className="grid grid-cols-2 gap-3">
               <label className="block">What counts<select name="group" className="mt-1 w-full rounded-lg border border-[var(--tk-line)] bg-white px-3 py-2">{data.groups.map((g) => <option key={g.key} value={g.key}>{g.label}</option>)}</select></label>
-              <label className="block">Scored by<select name="metric" className="mt-1 w-full rounded-lg border border-[var(--tk-line)] bg-white px-3 py-2"><option value="UNITS">Most sold</option><option value="ATTACH">Best attach rate</option><option value="SALES">Most dollars</option></select></label>
+              <label className="block">Scored by<select name="metric" className="mt-1 w-full rounded-lg border border-[var(--tk-line)] bg-white px-3 py-2"><option value="UNITS">Most sold</option><option value="PER_HOUR">Most sold per hour worked</option><option value="ATTACH">Best attach rate</option><option value="SALES">Most dollars</option></select></label>
               <label className="block">Starts<input type="date" name="start" defaultValue={today} className="mt-1 w-full rounded-lg border border-[var(--tk-line)] bg-white px-3 py-2" /></label>
               <label className="block">Ends<input type="date" name="end" defaultValue={shiftDate(today, 6)} className="mt-1 w-full rounded-lg border border-[var(--tk-line)] bg-white px-3 py-2" /></label>
             </div>
+            <label className="flex items-center gap-2"><input type="checkbox" name="daily" defaultChecked /> Crown a winner each day too (most sold that day)</label>
             <label className="block">Prize or note (optional)<input name="note" placeholder="Winner picks Friday's playlist" className="mt-1 w-full rounded-lg border border-[var(--tk-line)] bg-white px-3 py-2" /></label>
             {msg && <p className="text-[13px] text-[var(--tk-warn)]">{msg}</p>}
             <div className="flex gap-2"><button type="submit" disabled={pending} className="rounded-full bg-[var(--tk-sage)] px-4 py-2 text-[14px] font-semibold text-white">Start it</button><button type="button" onClick={() => setShowNew(false)} className="rounded-full px-4 py-2 text-[14px]">Cancel</button></div>

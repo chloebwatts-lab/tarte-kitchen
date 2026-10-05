@@ -595,7 +595,9 @@ model SalesChallenge {
   venue     Venue
   name      String
   groupKey  String
-  metric    String    // UNITS | ATTACH | SALES
+  metric    String    // UNITS | ATTACH | SALES | PER_HOUR (units per hour worked)
+  /// Also crown a winner for each day (most sold that day).
+  daily     Boolean   @default(false)
   startDate DateTime  @db.Date
   endDate   DateTime  @db.Date
   note      String?
