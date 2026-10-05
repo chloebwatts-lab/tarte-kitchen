@@ -1,13 +1,13 @@
 {
   "name": "Tarte Prep",
-  "short_name": "PREP",
+  "short_name": "Prep",
   "description": "Prep list for Tarte kitchens",
   "id": "/kitchen/restock",
   "start_url": "/kitchen/restock",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f6f5f2",
-  "theme_color": "#16c43a",
+  "theme_color": "#6fa8a1",
   "icons": [
     {
       "src": "/icons/prep-icon-192.png",

@@ -1,0 +1,17 @@
+{
+  "name": "Tarte Sales",
+  "short_name": "Sales",
+  "description": "Sales insights for Tarte managers",
+  "id": "/kitchen/managers/sales",
+  "start_url": "/kitchen/managers/sales",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f5f2",
+  "theme_color": "#3c3e3f",
+  "icons": [
+    { "src": "/icons/sales-icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/sales-icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/sales-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/sales-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
