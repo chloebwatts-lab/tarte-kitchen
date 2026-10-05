@@ -33,6 +33,8 @@ export function PastryPrepList({
   const done = rows.filter((r) => r.done).length
 
   function tick(row: PrepTaskRow) {
+    // Just-added row still saving: it has no real id to tick yet.
+    if (row.id.startsWith("new-")) return
     start(async () => {
       setRows(rows.map((r) => (r.id === row.id ? { ...r, done: !row.done, doneBy: null } : r)))
       await setPrepTick(row.id, !row.done)
@@ -41,6 +43,7 @@ export function PastryPrepList({
 
   function remove(id: string) {
     setRemoving(null)
+    if (id.startsWith("new-")) return
     start(async () => {
       setRows(rows.filter((r) => r.id !== id))
       await removePrepTask(id)

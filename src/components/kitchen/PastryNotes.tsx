@@ -30,6 +30,7 @@ export function PastryNotes({ venue, notes }: { venue: Venue; notes: PastryNoteR
   }
 
   function toggle(n: PastryNoteRow) {
+    if (n.id.startsWith("new-")) return
     start(async () => {
       setRows(rows.map((r) => (r.id === n.id ? { ...r, done: !n.done } : r)))
       await setPastryNoteDone(n.id, !n.done)

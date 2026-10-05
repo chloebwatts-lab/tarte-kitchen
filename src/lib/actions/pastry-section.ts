@@ -197,7 +197,8 @@ export async function addGalleryProduct(rawName: string): Promise<{ error?: stri
   })
   if (existing?.isActive) return { error: `${existing.name} is already on the list` }
   if (existing) {
-    await db.pastryProduct.update({ where: { id: existing.id }, data: { isActive: true } })
+    // A retired product comes back for photos only, never back onto the rotation log.
+    await db.pastryProduct.update({ where: { id: existing.id }, data: { isActive: true, inRotation: false } })
   } else {
     const last = await db.pastryProduct.findFirst({ orderBy: { sortOrder: "desc" }, select: { sortOrder: true } })
     await db.pastryProduct.create({
