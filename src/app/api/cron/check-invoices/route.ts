@@ -468,6 +468,7 @@ async function rescueStuckInvoices(stats: ProcessStats): Promise<void> {
  *   venues, so it is shared spend → venue BOTH, which the tracker splits
  *   55% Burleigh, 45% Currumbin (Chloe 2026-09-20, ratio lives in
  *   src/lib/spend/shared-split.ts).
+ * - Tasman Distribution is always Currumbin, whatever address is printed.
  */
 async function applyStandingVenueRules(): Promise<string[]> {
   const notes: string[] = []
@@ -480,6 +481,19 @@ async function applyStandingVenueRules(): Promise<string[]> {
     data: { venue: "BOTH" },
   })
   if (breadtop.count > 0) notes.push(`Breadtop: ${breadtop.count} → BOTH (50/50 split)`)
+
+  // Tasman Distribution is Currumbin only (Chloe 2026-10-05). Some of its
+  // Stripe invoices print the card's billing address, 2 West St Burleigh,
+  // which the address parser reads as a Burleigh delivery.
+  const tasman = await db.invoice.updateMany({
+    where: {
+      supplierName: "Tasman Distribution",
+      OR: [{ venue: null }, { venue: "BURLEIGH" }],
+      status: activeStatuses,
+    },
+    data: { venue: "BEACH_HOUSE" },
+  })
+  if (tasman.count > 0) notes.push(`Tasman Distribution: ${tasman.count} → BEACH_HOUSE`)
 
   const parallelShared = await db.invoice.updateMany({
     where: {

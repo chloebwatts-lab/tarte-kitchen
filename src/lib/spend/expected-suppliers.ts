@@ -175,6 +175,14 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     note: "Weekly emails from renee@gceggs.com.au (invoices + activity statements), sender mapped to supplier 2026-07-12 via scripts/add-gc-eggs-supplier-email.ts",
   },
   {
+    canonicalName: "Knotsbury Farm",
+    nameAliases: ["Knotsbury Farm", "Knotsbury"],
+    category: "eggs",
+    expectedIntervalDays: 7,
+    critical: false,
+    note: "Currumbin eggs since 29 Sep 2026, for PART of the egg order only; Gold Coast Eggs still supplies the rest (Chloe 2026-10-05). Via the shared Xero sender",
+  },
+  {
     canonicalName: "Joval Wines",
     nameAliases: ["Joval Wines", "Joval", "Joval Wines Pty Ltd"],
     category: "booze",
