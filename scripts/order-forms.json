@@ -13,8 +13,8 @@
    "item.notes": "Reason / spec call / drift note"
   }
  },
- "_updated": "2026-10-02",
- "_notes": "Verified line-by-line against invoices to 1 Oct 2026 (2 Oct pass: 1,693 lines since 25 Aug). This file is the authoritative source. Prices are per pack ex GST; Bidfood gross before the 4% rebate.",
+ "_updated": "2026-10-05",
+ "_notes": "Verified line-by-line against invoices to 1 Oct 2026 (2 Oct pass: 1,693 lines since 25 Aug). This file is the authoritative source. Prices are per pack ex GST; Bidfood gross before the 4% rebate. 5 Oct 2026: chef feedback applied (ghee, creme fraiche and shredded tasty to Provedores; apple cider vinegar to Sandhurst 5L; gluten free flour to Bidfood; Eustralis vanilla paste added as the Fermex backup).",
  "forms": [
   {
    "supplier": "Bidfood",
@@ -84,7 +84,7 @@
      "unitPrice": 15.13,
      "unit": "kg",
      "active": false,
-     "notes": "STILL BEING ORDERED (6 pkt on 11 Jun 2026) despite inactive, chosen source is Provedores Holy Cow @ $13.05/kg. Price rose to $30.26 (+6.2%)"
+     "notes": "Same Mainland 2kg is $29.25 at Provedores, the house buy. Bidfood $30.26 is $29.05 after rebate"
     },
     {
      "category": "Dairy",
@@ -141,8 +141,8 @@
      "packPrice": 162.29,
      "unitPrice": 16.229,
      "unit": "L",
-     "active": true,
-     "notes": "3rd price this winter: $154.92 -> $159.51 (1 Jul) -> $162.29 (3 Sep), both unnotified, in Bidfood dispute email"
+     "active": false,
+     "notes": "Moved to Provedores 10kg bucket $149.50 on 5 Oct 2026 (chef call, cheaper even after the Bidfood rebate: $155.80 net). Bidfood price history: $154.92 -> $159.51 (1 Jul) -> $162.29 (3 Sep), both unnotified"
     },
     {
      "category": "Dairy",
@@ -297,6 +297,16 @@
     },
     {
      "category": "Pastry/Baking",
+     "name": "Flour Plain Gluten Free (Baking Tec)",
+     "packSize": "10 kg",
+     "packPrice": 59.43,
+     "unitPrice": 5.943,
+     "unit": "kg",
+     "active": true,
+     "notes": "Pastry's only gluten free flour (Jess, 2 Oct 2026: products do not look right with any other). Bidfood code 77408, $59.43 on 11 invoices Jul to Sep"
+    },
+    {
+     "category": "Pastry/Baking",
      "name": "Flour Self Raising (Gemofthewest)",
      "packSize": "12.5 kg",
      "packPrice": 17.47,
@@ -330,7 +340,8 @@
      "packPrice": 30.18,
      "unitPrice": 94.3125,
      "unit": "kg",
-     "active": false
+     "active": false,
+     "notes": "Not the backup: when Fermex is out, order Eustralis Prova 500g ($51.80/kg vs $94.31/kg here). Still bought 15 times Jul to Oct 2026"
     },
     {
      "category": "Pastry/Baking",
@@ -491,8 +502,8 @@
      "packPrice": 11.5,
      "unitPrice": 23.0,
      "unit": "kg",
-     "active": true,
-     "notes": "Dropped to $10.90 on 7 Jun 2026 (was $11.27)"
+     "active": false,
+     "notes": "Moved to Provedores Tatua 500g $11.20 on 5 Oct 2026 (chef call). Bidfood $11.50 is $11.04 after rebate, so 1.4% cheaper net, close to line ball"
     },
     {
      "category": "Pantry",
@@ -680,7 +691,18 @@
      "packPrice": 11.39,
      "unitPrice": 5.7,
      "unit": "L",
-     "active": true
+     "active": false,
+     "notes": "Use the Sandhurst 5L instead: $3.87/L vs $5.70/L"
+    },
+    {
+     "category": "Pantry",
+     "name": "Vinegar Apple Cider (Sandhurst)",
+     "packSize": "5 L",
+     "packPrice": 19.37,
+     "unitPrice": 3.874,
+     "unit": "L",
+     "active": true,
+     "notes": "House apple cider vinegar from 5 Oct 2026. $19.37 on 6 invoices to 2 Oct, 32% cheaper per litre than the Cornwells 2L"
     },
     {
      "category": "Pantry",
@@ -1278,9 +1300,9 @@
      "packPrice": 23.0,
      "unitPrice": 11.5,
      "unit": "kg",
-     "notes": "Brand sub from Tasty",
+     "notes": "Brand sub for tasty, quoted $23.00 but never ordered. Chefs buy Provedores Mainland $29.25; this is $6.25 a pack cheaper if the spec passes a trial",
      "code": "CHEESEFRED",
-     "active": true
+     "active": false
     },
     {
      "category": "Dairy",
@@ -1422,7 +1444,8 @@
      "unitPrice": 5.0,
      "unit": "kg",
      "code": "GLUFRPLAIN",
-     "active": true
+     "active": false,
+     "notes": "Not used: pastry (Jess, 2 Oct 2026) only gets the right result with the Bidfood gluten free flour"
     },
     {
      "category": "Pastry/Baking",
@@ -1548,7 +1571,7 @@
      "packPrice": 53.5,
      "unitPrice": 53.5,
      "unit": "kg",
-     "notes": "Rose to $53.50 from 8 Sep 2026 (2 invoices), +3.3% vs $51.80. Pack is 1kg (was 320g)",
+     "notes": "First choice. Often out of stock: when it is, order the Eustralis Prova 500g. Rose to $53.50 from 8 Sep 2026 (2 invoices), +3.3% vs $51.80. Pack is 1kg (was 320g)",
      "code": "VANBEANPNAT",
      "active": true
     },
@@ -2307,6 +2330,17 @@
     },
     {
      "category": "Dairy",
+     "name": "Cheese Shredded Tasty 2kg (Mainland)",
+     "packSize": "2kg (6)",
+     "packPrice": 29.25,
+     "unitPrice": 14.625,
+     "unit": "kg",
+     "code": "CHEESEST",
+     "active": true,
+     "notes": "House shredded tasty from 5 Oct 2026 (chef call). $29.25 on every invoice since Aug, 181 packs both venues 25 Aug to 3 Oct"
+    },
+    {
+     "category": "Dairy",
      "name": "Cheese Maasdam sliced Swiss style 2 x 500g",
      "packSize": "500g",
      "packPrice": 20.88,
@@ -2350,8 +2384,19 @@
      "packPrice": 11.2,
      "unitPrice": 22.4,
      "unit": "kg",
-     "active": false,
-     "notes": "Inactive: Bidfood Tatua cheaper effective ($21.64 vs $22.40/kg)"
+     "active": true,
+     "notes": "Tatua 500g. House buy from 5 Oct 2026 (chef call). $11.20 on every invoice since Aug"
+    },
+    {
+     "category": "Dairy",
+     "name": "Ghee Bucket 10kg (Pure Soul)",
+     "packSize": "10kg",
+     "packPrice": 149.5,
+     "unitPrice": 14.95,
+     "unit": "kg",
+     "code": "GHEE10KG",
+     "active": true,
+     "notes": "House ghee from 5 Oct 2026. $149.50 on 5 Beach House invoices 30 Sep to 3 Oct, vs Bidfood $162.29 ($155.80 after rebate)"
     },
     {
      "category": "Pastry/Baking",
@@ -3147,6 +3192,26 @@
    "deliveryDays": [],
    "cutoff": null,
    "notes": "Cured-meat specialist. Email/phone ordering only."
+  },
+  {
+   "supplier": "Eustralis",
+   "rebatePct": 0,
+   "deliveryDays": [],
+   "cutoff": null,
+   "notes": "Pastry supplier, ordered on their web shop.",
+   "items": [
+    {
+     "category": "Pastry/Baking",
+     "name": "Vanilla Paste Bourbon with Seeds 500g (Prova)",
+     "packSize": "500 g",
+     "packPrice": 25.9,
+     "unitPrice": 51.8,
+     "unit": "kg",
+     "code": "PATEVAN500",
+     "active": true,
+     "notes": "Backup for when Fermex vanilla bean paste is out of stock. $25.90 on 3 invoices 11 to 28 Sep 2026, both venues"
+    }
+   ]
   }
  ]
 }

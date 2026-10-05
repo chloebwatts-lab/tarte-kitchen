@@ -25,6 +25,7 @@ SUPPLIER_COLOURS = {
     'Gold Coast Premium Foods': '#8b5cf6',
     'Cheese Time': '#9333ea',
     'Fino': '#d97706',
+    'Eustralis': '#0e7490',
 }
 
 CATEGORY_ORDER = [
