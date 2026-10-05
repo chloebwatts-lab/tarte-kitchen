@@ -6,6 +6,7 @@ import {
   isIgnoredSender,
   letterheadMatches,
   disambiguateSupplier,
+  isReceiptTwin,
   type SupplierRef,
 } from "./supplier-match"
 
@@ -137,4 +138,22 @@ test("disambiguateSupplier: fuzzy winner is still rejected when the letterhead c
   const r = disambiguateSupplier([FERMEX, BIDFOOD], "Fermx", null)
   assert.equal(r.supplier, null)
   assert.match(r.reason ?? "", /no candidate matched|contradicted by letterhead/)
+})
+
+test("disambiguateSupplier: Tasman forwards from a staff mailbox shared with Paramount", () => {
+  const TASMAN: SupplierRef = { id: "td", name: "Tasman Distribution" }
+  const shared = [PARAMOUNT, TASMAN]
+  assert.equal(disambiguateSupplier(shared, "TASMAN DISTRIBUTION PTY LTD", "Shawna Pate").supplier, TASMAN)
+  assert.equal(disambiguateSupplier(shared, "Paramount Liquor", "Shawna Pate").supplier, PARAMOUNT)
+  const other = disambiguateSupplier(shared, "Agas National", "Shawna Pate")
+  assert.equal(other.supplier, null)
+  assert.match(other.reason ?? "", /no candidate matched|contradicted by letterhead/)
+})
+
+test("isReceiptTwin: Stripe receipt skipped only when its invoice is on the same email", () => {
+  const stripe = ["Invoice-V0CDNTPD-0018.pdf", "Receipt-2454-6942.pdf"]
+  assert.equal(isReceiptTwin(stripe[1], stripe), true)
+  assert.equal(isReceiptTwin(stripe[0], stripe), false)
+  assert.equal(isReceiptTwin("Receipt-2454-6942.pdf", ["Receipt-2454-6942.pdf"]), false)
+  assert.equal(isReceiptTwin(null, stripe), false)
 })

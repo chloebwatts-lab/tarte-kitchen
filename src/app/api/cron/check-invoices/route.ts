@@ -22,6 +22,7 @@ import {
   isIgnoredSender,
   isOwnEntityLetterhead,
   isOwnMailbox,
+  isReceiptTwin,
   type SupplierRef,
 } from "@/lib/invoices/supplier-match"
 import { PARALLEL_SINGLE_INVOICE_FROM, sharedSplitLabel } from "@/lib/spend/shared-split"
@@ -270,6 +271,7 @@ async function processMessages(
 
       for (let attIdx = 0; attIdx < attachments.length; attIdx++) {
         const attachment = attachments[attIdx]
+        if (isReceiptTwin(attachment.filename, attachments.map((a) => a.filename))) continue
         // Invoice.gmailMessageId is @unique, but suppliers like GC Eggs
         // attach 6-8 invoice PDFs to ONE email. Key the first attachment
         // by the bare message id (back-compat with every existing row)
@@ -337,7 +339,7 @@ async function processMessages(
           // broken supplier mapping. It is parked in the review queue
           // above; logging it as a run error lit the dashboard banner for
           // a $1,600 tray order.
-          if (isOwnMailbox(senderEmail) && /contradicted by letterhead/.test(reason ?? "")) {
+          if (isOwnMailbox(senderEmail) && /contradicted by letterhead|no candidate matched/.test(reason ?? "")) {
             console.warn(`[check-invoices] parked staff forward: ${detail}`)
           } else {
             stats.errors.push(detail)

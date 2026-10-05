@@ -131,6 +131,16 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     critical: false,
   },
 
+  {
+    canonicalName: "Tasman Distribution",
+    // "Disrtibution" is how Louise's COGS xlsx spells it.
+    nameAliases: ["Tasman Distribution", "Tasman Disrtibution", "Tasman Star Seafood"],
+    category: "seafood",
+    expectedIntervalDays: 7,
+    critical: false,
+    note: "Currumbin seafood, paid by card via Stripe. Receipts go to shawna@ who forwards them to accounts@; mapped 2026-10-05",
+  },
+
   // ---- Known to deliver but invoices NOT reaching accounts@ ----
   {
     canonicalName: "Pacific Wholesale",

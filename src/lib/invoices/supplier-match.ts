@@ -69,6 +69,16 @@ export function isOwnMailbox(email: string | null): boolean {
   return !!email && /@tarte\.com\.au$/i.test(email.trim())
 }
 
+/** Stripe-billed suppliers (Tasman Distribution) attach BOTH
+ * `Invoice-XXXX.pdf` and `Receipt-XXXX.pdf` for the same sale. The receipt
+ * carries a different number, so content dedupe would not catch it and the
+ * sale would land in spend twice. Skip the receipt when its invoice twin is
+ * on the same email. */
+export function isReceiptTwin(filename: string | null | undefined, allFilenames: Array<string | null | undefined>): boolean {
+  if (!filename || !/^receipt-.*\.pdf$/i.test(filename.trim())) return false
+  return allFilenames.some((f) => !!f && /^invoice-.*\.pdf$/i.test(f.trim()))
+}
+
 // Legitimate alternate letterheads for a supplier: legal entities, trading
 // names, and ordering platforms that print their own branding on the PDF.
 // Used to CONFIRM an attribution, never to choose between candidates — so a

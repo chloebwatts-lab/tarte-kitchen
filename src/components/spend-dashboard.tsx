@@ -131,6 +131,15 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
             sub={
               remainPct == null
                 ? "—"
+                : bucket.budget != null
+                ? // Invoices trail deliveries (about a fifth of a week's
+                  // spend is still to arrive on a Monday night), so the raw
+                  // figure overstates what is left to order.
+                  `${Math.round(remainPct * 100)}% of cap, invoices in so far. About ${fmt(
+                    Math.abs(Math.round(bucket.budget - bucket.projectedEndOfWeek))
+                  )} ${
+                    bucket.projectedEndOfWeek > bucket.budget ? "over" : "left"
+                  } once the rest of the week's invoices land`
                 : `${Math.round(remainPct * 100)}% of cap`
             }
             valueTone={
