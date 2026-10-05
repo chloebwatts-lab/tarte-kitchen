@@ -584,6 +584,8 @@ model DailyStaffUpsell {
   ordersWith     Int
   units          Int
   salesIncGst    Decimal  @db.Decimal(12, 2)
+  /// What made up `units`: item or add-on name -> how many.
+  breakdown      Json?
   createdAt      DateTime @default(now())
 
   @@unique([date, venue, teamMemberId, groupKey])

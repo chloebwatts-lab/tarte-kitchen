@@ -34,7 +34,7 @@ test("sides: modifiers on a dish and standalone items count, sauces and GF do no
   const get = (staff: string, g: string) => rows.find((r) => r.teamMemberId === staff && r.groupKey === g)
 
   // Pauline: 2 food orders, one with bacon x2 (line qty 2)
-  assert.deepEqual({ ...get("pauline", "sides") }, { teamMemberId: "pauline", staffName: "Pauline Stefani", groupKey: "sides", eligibleOrders: 2, ordersWith: 1, units: 2, sales: 13 })
+  assert.deepEqual({ ...get("pauline", "sides") }, { teamMemberId: "pauline", staffName: "Pauline Stefani", groupKey: "sides", eligibleOrders: 2, ordersWith: 1, units: 2, sales: 13, breakdown: { Bacon: 2 } })
   // Baily: fries is a standalone side on a food order
   assert.equal(get("baily", "sides")!.units, 1); assert.equal(get("baily", "sides")!.eligibleOrders, 1); assert.equal(get("baily", "sides")!.sales, 10.65)
   // Coffee extras: extra shot counts, oat milk does not; 2 coffee orders, 1 with

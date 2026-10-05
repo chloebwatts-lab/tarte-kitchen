@@ -10,6 +10,7 @@ import { brisbaneNow } from "@/lib/sales/insights"
 import { shiftDate, tarteWeekStart } from "@/lib/sales/compare"
 import { leaderboard, matchHours, perHourBoard, MIN_HOURS_FOR_PER_HOUR, type BoardRow, type Metric, type GroupDef, type UnassignedModifier } from "@/lib/sales/upsell"
 import { aestDayRange } from "@/lib/square/client"
+import { buildSimpleBoard, weekMinHours, type SimpleBoard } from "@/lib/sales/challenge-simple"
 
 export interface ChallengeView {
   id: string
@@ -203,4 +204,90 @@ export async function recomputeUpsell(venue: Venue, days = 14): Promise<number> 
     } catch (err) { console.error("[upsell] recount failed", venue, day, err) }
   }
   return n
+}
+
+// ─── The simple challenge page ──────────────────────────────────────────────
+
+export type ChallengeTab = "today" | "yesterday" | "week"
+export interface SimpleChallengeData {
+  venue: Venue
+  tab: ChallengeTab
+  onSquare: boolean
+  /** "Sides Week" when a challenge is running, else what is being counted. */
+  title: string
+  countLabel: string
+  rangeLabel: string
+  board: SimpleBoard
+  managers: string[]
+  /** Hours needed before a week's per-hour number is ranked. */
+  minHours: number
+  live: boolean
+}
+
+const MANAGERS_KEY = "challengeManagers"
+
+async function challengeManagers(venue: Venue): Promise<string[]> {
+  const row = await db.appSetting.findUnique({ where: { key: MANAGERS_KEY } })
+  if (!row) return []
+  try {
+    const all = JSON.parse(row.value) as Record<string, string[]>
+    return Array.isArray(all[venue]) ? all[venue] : []
+  } catch {
+    return []
+  }
+}
+
+/** Salaried managers at a venue: they count nine hours for every day they sell on. */
+export async function saveChallengeManagers(venue: Venue, names: string) {
+  await assertManager()
+  const row = await db.appSetting.findUnique({ where: { key: MANAGERS_KEY } })
+  let all: Record<string, string[]> = {}
+  try { all = row ? (JSON.parse(row.value) as Record<string, string[]>) : {} } catch { all = {} }
+  all[venue] = cleanList(names).slice(0, 30)
+  await db.appSetting.upsert({ where: { key: MANAGERS_KEY }, create: { key: MANAGERS_KEY, value: JSON.stringify(all) }, update: { value: JSON.stringify(all) } })
+  return { ok: true as const, managers: all[venue] }
+}
+
+export async function getSimpleChallenge(venue: Venue, tab: ChallengeTab): Promise<SimpleChallengeData> {
+  await assertManager()
+  const now = brisbaneNow()
+  const today = now.date
+  const groups = await loadGroups()
+  const managers = await challengeManagers(venue)
+
+  // A running challenge sets what is counted and when the week starts.
+  const running = await db.salesChallenge.findFirst({
+    where: { venue, endedAt: null, startDate: { lte: D(today) }, endDate: { gte: D(today) } },
+    orderBy: { startDate: "desc" },
+  })
+  const groupKey = running?.groupKey ?? "sides"
+  const countLabel = groups.find((g) => g.key === groupKey)?.label ?? "Sides"
+
+  const from = tab === "today" ? today : tab === "yesterday" ? shiftDate(today, -1) : running ? ymd(running.startDate) : tarteWeekStart(today)
+  const to = tab === "yesterday" ? from : today
+  const onSquare = isSquareVenueOn(venue, to)
+
+  if (onSquare && tab !== "yesterday") {
+    try {
+      const live = await fetchLiveDay(venue, today)
+      if (live) await persistUpsell(venue, today, live.upsell.rows)
+    } catch (err) { console.error("[challenge] live refresh failed", err) }
+  }
+
+  const raw = await db.dailyStaffUpsell.findMany({ where: { venue, groupKey, date: { gte: D(from), lte: D(to) } } })
+  const rows = raw.map((r) => ({
+    date: ymd(r.date), teamMemberId: r.teamMemberId, staffName: r.staffName, units: r.units, eligibleOrders: r.eligibleOrders,
+    breakdown: (r.breakdown as Record<string, number> | null) ?? null,
+  }))
+  const hours = await timesheetHours(venue, from, to)
+  const daysSoFar = Math.round((D(to).getTime() - D(from).getTime()) / 86400000) + 1
+  const minHours = weekMinHours(daysSoFar)
+  const board = buildSimpleBoard(rows, hours, managers, tab === "week" ? "PER_HOUR" : "UNITS", minHours)
+
+  const fmt = (s: string) => D(s).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })
+  return {
+    venue, tab, onSquare, title: running?.name ?? `${countLabel} challenge`, countLabel,
+    rangeLabel: from === to ? fmt(from) : `${fmt(from)} to ${fmt(to)}`,
+    board, managers, minHours, live: tab !== "yesterday",
+  }
 }

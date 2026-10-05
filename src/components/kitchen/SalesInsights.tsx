@@ -31,7 +31,13 @@ function SmallPill({ pct }: { pct: number | null }) {
   return <span className={`ml-2 inline-block rounded-full px-2 py-0.5 text-[12px] font-semibold ${up ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{up ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}%</span>
 }
 
-export function SalesInsights({ initial }: { initial: Data }) {
+/**
+ * view "sales": the navy total, categories under it, restaurant and cafe,
+ * average sale per person. view "hourly": the by-hour chart, the week and
+ * the month, with the compare controls. One page each (Chloe, 5 Oct 2026).
+ */
+export function SalesInsights({ initial, view = "sales" }: { initial: Data; view?: "sales" | "hourly" }) {
+  const hourly = view === "hourly"
   const [data, setData] = useState<Data>(initial)
   const [range, setRange] = useState<Range>("1D")
   const [compare, setCompare] = useState<CompareMode>("WEEKS_4")
@@ -68,7 +74,8 @@ export function SalesInsights({ initial }: { initial: Data }) {
   const sourceNote = data.source === "LIVE" ? `Square live · refreshed ${data.fetchedAt ? new Date(data.fetchedAt).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit", timeZone: "Australia/Brisbane" }) : ""}` : data.source === "SQUARE" ? "Square, closed day" : data.source === "LIGHTSPEED" ? "Lightspeed day, from the export" : data.source === "ESTIMATE" ? "Lightspeed total, hourly shape estimated" : "No sales data for this day"
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+    <div className={hourly ? "" : "grid items-start gap-5 lg:grid-cols-2"}>
+      <div className="space-y-5">
       {/* ── Revenue card ─────────────────────────────────────────── */}
       <div className="rounded-3xl p-5 text-white shadow-sm md:p-6" style={{ background: NAVY }}>
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -80,13 +87,13 @@ export function SalesInsights({ initial }: { initial: Data }) {
             <button className="rounded-full bg-white/10 p-2 hover:bg-white/20" onClick={() => setDate(shiftDate(date, -1))} aria-label="Previous day"><ChevronLeft className="h-4 w-4" /></button>
             <button className="rounded-full bg-white/10 p-2 hover:bg-white/20 disabled:opacity-30" disabled={data.isToday} onClick={() => setDate(shiftDate(date, 1))} aria-label="Next day"><ChevronRight className="h-4 w-4" /></button>
           </div>
-          <div className="flex rounded-full bg-white/10 p-1 text-[13px] font-semibold">
+          {hourly && <div className="flex rounded-full bg-white/10 p-1 text-[13px] font-semibold">
             {(["1D", "1W", "1M"] as Range[]).map((r) => (
               <button key={r} onClick={() => setRange(r)} className={`rounded-full px-3 py-1 ${range === r ? "bg-white text-[#1f3b4d]" : "text-white/80"}`}>{r}</button>
             ))}
-          </div>
+          </div>}
         </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-[14px]">
+        <div className={`mt-4 flex-wrap items-center gap-2 text-[14px] ${hourly ? "flex" : "hidden"}`}>
           <span className="text-white/70">Compare with</span>
           <div className="flex rounded-full bg-white/10 p-1 font-semibold">
             {(["LAST_WEEK", "WEEKS_4", "WEEKS_8"] as CompareMode[]).map((c) => (
@@ -125,6 +132,7 @@ export function SalesInsights({ initial }: { initial: Data }) {
               </div>
             </div>
 
+            {hourly ? (<>
             <div className="mt-5 flex items-baseline justify-between text-[13px] text-white/70">
               <span>{nowHour !== null ? `${hourLabel(nowHour)} so far` : "By hour"}</span>
               <span>{sourceNote}{pending && <RefreshCw className="ml-2 inline h-3 w-3 animate-spin" />}</span>
@@ -142,6 +150,10 @@ export function SalesInsights({ initial }: { initial: Data }) {
               </ResponsiveContainer>
             </div>
             <div className="mt-1 flex gap-4 text-[12px] text-white/70"><span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: GOLD }} />{data.isToday ? "Today" : "This day"}</span><span>- - - {COMPARE_LABEL[compare]}</span></div>
+
+            </>) : (
+              <div className="mt-4 text-[13px] text-white/70">{sourceNote}{pending && <RefreshCw className="ml-2 inline h-3 w-3 animate-spin" />}</div>
+            )}
 
             <div className="mt-5 divide-y divide-white/10 text-[15px]">
               <div className="flex justify-between py-2"><span>Open tables</span><span className="tabular-nums">{data.source === "LIVE" ? `${day?.openTables ?? 0} · ${money0(open)}` : "n/a"}</span></div>
@@ -175,8 +187,37 @@ export function SalesInsights({ initial }: { initial: Data }) {
         )}
       </div>
 
+      {!hourly && (<>
+        <section className="rounded-3xl border border-[var(--tk-line)] bg-white p-5">
+          <h2 className="text-[20px] font-semibold text-[var(--tk-charcoal)]">Categories</h2>
+          <p className="text-[13px] text-[var(--tk-ink-soft)]">Tap a category for its top 10.</p>
+          {day && day.groups.length > 0 ? (
+            <div className="mt-3 divide-y divide-[var(--tk-line)]">
+              {day.groups.map((g) => (
+                <div key={g.name}>
+                  <button className="flex w-full items-baseline justify-between py-2 text-left text-[15px]" onClick={() => setOpenGroup(openGroup === g.name ? null : g.name)}>
+                    <span className="font-semibold">{g.name}<span className="ml-2 text-[12px] font-normal text-[var(--tk-ink-soft)]">{g.qty} items</span></span>
+                    <span className="tabular-nums">{money0(g.sales)}<span className="ml-2 text-[12px] text-[var(--tk-ink-soft)]">{paid > 0 ? `${((g.sales / paid) * 100).toFixed(0)}%` : ""}</span></span>
+                  </button>
+                  {openGroup === g.name && (
+                    <div className="mb-2 rounded-xl bg-[var(--tk-bg)] px-3 py-2 text-[14px]">
+                      {g.topItems.map((it) => (
+                        <div key={it.name} className="flex justify-between py-1"><span>{it.name}<span className="ml-2 text-[12px] text-[var(--tk-ink-soft)]">× {it.qty}</span></span><span className="tabular-nums">{money0(it.sales)}</span></div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-[14px] text-[var(--tk-ink-soft)]">Needs the live Square connection (Square days only).</p>
+          )}
+        </section>
+      </>)}
+      </div>
+
       {/* ── Right column ─────────────────────────────────────────── */}
-      <div className="space-y-5">
+      {!hourly && <div className="space-y-5">
         <section className="rounded-3xl border border-[var(--tk-line)] bg-white p-5">
           <h2 className="text-[20px] font-semibold text-[var(--tk-charcoal)]">Restaurant and cafe</h2>
           <p className="text-[13px] text-[var(--tk-ink-soft)]">Paid orders only. Typical share is over the {COMPARE_LABEL[compare]} days.</p>
@@ -204,70 +245,46 @@ export function SalesInsights({ initial }: { initial: Data }) {
 
         {day && day.registers.length > 0 && (
           <section className="rounded-3xl border border-[var(--tk-line)] bg-white p-5">
-            <h2 className="text-[20px] font-semibold text-[var(--tk-charcoal)]">Average sale</h2>
-            <div className="mt-3 grid grid-cols-[1fr_auto_auto_auto] gap-x-4 text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--tk-ink-mute)]"><span /><span className="text-right">Sales</span><span className="text-right">Orders</span><span className="text-right">Avg sale</span></div>
-            <div className="divide-y divide-[var(--tk-line)]">
-              {(["CAFE", "ONLINE", "RESTAURANT"] as const).map((ch) => {
-                const regs = day.registers.filter((r) => r.channel === ch)
-                if (!regs.length) return null
-                const staff = day.staff.filter((s) => s.channel === ch).slice(0, 4)
-                return (
-                  <div key={ch} className="py-2">
-                    {regs.map((r) => (
-                      <div key={r.name} className="grid grid-cols-[1fr_auto_auto_auto] items-baseline gap-x-4 py-1.5 text-[15px]">
-                        <span className="font-semibold">{r.name}</span>
-                        <span className="text-right tabular-nums">{money0(r.sales)}</span>
-                        <span className="text-right tabular-nums">{r.orders}</span>
-                        <span className="text-right tabular-nums">{money2(r.avgSale)}<div className="text-right"><SmallPill pct={avgChange(ch, r.avgSale)} /></div></span>
-                      </div>
-                    ))}
-                    {staff.length > 0 && (
-                      <div className="mt-1 pl-3">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--tk-ink-mute)]">Top {ch === "CAFE" ? "cafe" : "restaurant"} staff</div>
-                        {staff.map((s) => (
-                          <div key={s.id} className="grid grid-cols-[1fr_auto_auto_auto] items-baseline gap-x-4 py-1 text-[14px]">
-                            <span><span className="font-medium">{s.name}</span><div className="text-[12px] text-[var(--tk-ink-soft)]">{s.registers.join(", ")}</div></span>
-                            <span className="text-right tabular-nums">{money0(s.sales)}</span>
-                            <span className="text-right tabular-nums">{s.orders}</span>
-                            <span className="text-right tabular-nums">{money2(s.avgSale)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+            <h2 className="text-[20px] font-semibold text-[var(--tk-charcoal)]">Average sale per person</h2>
+            <p className="text-[13px] text-[var(--tk-ink-soft)]">Who took the payment. The arrow is against the {COMPARE_LABEL[compare]} for that area.</p>
+            {(["CAFE", "RESTAURANT", "ONLINE"] as const).map((ch) => {
+              const regs = day.registers.filter((r) => r.channel === ch)
+              if (!regs.length) return null
+              const staff = day.staff.filter((s) => s.channel === ch)
+              const sales = regs.reduce((n, r) => n + r.sales, 0), orders = regs.reduce((n, r) => n + r.orders, 0)
+              const avg = orders > 0 ? sales / orders : 0
+              return (
+                <div key={ch} className="mt-4">
+                  <div className="flex items-center justify-between rounded-2xl bg-[var(--tk-bg)] px-4 py-3">
+                    <div>
+                      <div className="text-[16px] font-semibold text-[var(--tk-charcoal)]">{ch === "CAFE" ? "Cafe" : ch === "RESTAURANT" ? "Restaurant" : "Bopple online"}</div>
+                      <div className="text-[13px] text-[var(--tk-ink-soft)]">{money0(sales)} · {orders} orders</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[22px] font-bold leading-none tabular-nums text-[var(--tk-charcoal)]">{money2(avg)}</div>
+                      <div className="mt-1"><SmallPill pct={avgChange(ch, avg)} /></div>
+                    </div>
                   </div>
-                )
-              })}
-            </div>
-            <p className="mt-2 text-[12px] text-[var(--tk-ink-soft)]">Avg sale change is against the {COMPARE_LABEL[compare]} for that channel. Restaurant staff are counted by who took the payment.</p>
-          </section>
-        )}
-
-        <section className="rounded-3xl border border-[var(--tk-line)] bg-white p-5">
-          <h2 className="text-[20px] font-semibold text-[var(--tk-charcoal)]">Reporting groups</h2>
-          <p className="text-[13px] text-[var(--tk-ink-soft)]">Tap a group for its top 10.</p>
-          {day && day.groups.length > 0 ? (
-            <div className="mt-3 divide-y divide-[var(--tk-line)]">
-              {day.groups.map((g) => (
-                <div key={g.name}>
-                  <button className="flex w-full items-baseline justify-between py-2 text-left text-[15px]" onClick={() => setOpenGroup(openGroup === g.name ? null : g.name)}>
-                    <span className="font-semibold">{g.name}<span className="ml-2 text-[12px] font-normal text-[var(--tk-ink-soft)]">{g.qty} items</span></span>
-                    <span className="tabular-nums">{money0(g.sales)}<span className="ml-2 text-[12px] text-[var(--tk-ink-soft)]">{paid > 0 ? `${((g.sales / paid) * 100).toFixed(0)}%` : ""}</span></span>
-                  </button>
-                  {openGroup === g.name && (
-                    <div className="mb-2 rounded-xl bg-[var(--tk-bg)] px-3 py-2 text-[14px]">
-                      {g.topItems.map((it) => (
-                        <div key={it.name} className="flex justify-between py-1"><span>{it.name}<span className="ml-2 text-[12px] text-[var(--tk-ink-soft)]">× {it.qty}</span></span><span className="tabular-nums">{money0(it.sales)}</span></div>
+                  {staff.length > 0 && (
+                    <div className="divide-y divide-[var(--tk-line)] px-1">
+                      {staff.map((s) => (
+                        <div key={s.id} className="flex items-center justify-between gap-3 py-2.5">
+                          <div className="min-w-0">
+                            <div className="truncate text-[16px] font-medium text-[var(--tk-charcoal)]">{s.name}</div>
+                            <div className="text-[13px] text-[var(--tk-ink-soft)]">{money0(s.sales)} · {s.orders} orders</div>
+                          </div>
+                          <div className="shrink-0 text-[18px] font-semibold tabular-nums text-[var(--tk-charcoal)]">{money2(s.avgSale)}</div>
+                        </div>
                       ))}
                     </div>
                   )}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-3 text-[14px] text-[var(--tk-ink-soft)]">Needs the live Square connection (Square days only).</p>
-          )}
-        </section>
-      </div>
+              )
+            })}
+          </section>
+        )}
+
+      </div>}
     </div>
   )
 }

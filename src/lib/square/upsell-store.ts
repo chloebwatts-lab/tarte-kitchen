@@ -21,16 +21,20 @@ export async function loadGroups(): Promise<GroupDef[]> {
   }))
 }
 
-/** Replace a venue-day's upsell rows. */
+/**
+ * Replace a venue-day's upsell rows. One transaction: if the insert fails
+ * the old rows stay (on 5 Oct 2026 a failed insert after the delete left
+ * the day's challenge empty until the next sync).
+ */
 export async function persistUpsell(venue: Venue, dateStr: string, rows: UpsellRow[]) {
   const date = new Date(dateStr)
-  await db.dailyStaffUpsell.deleteMany({ where: { date, venue } })
-  if (!rows.length) return
-  await db.dailyStaffUpsell.createMany({
-    data: rows.map((r) => ({
-      date, venue, teamMemberId: r.teamMemberId, staffName: r.staffName, groupKey: r.groupKey,
-      eligibleOrders: r.eligibleOrders, ordersWith: r.ordersWith, units: r.units, salesIncGst: r.sales,
-    })),
-    skipDuplicates: true,
-  })
+  const data = rows.map((r) => ({
+    date, venue, teamMemberId: r.teamMemberId, staffName: r.staffName, groupKey: r.groupKey,
+    eligibleOrders: r.eligibleOrders, ordersWith: r.ordersWith, units: r.units, salesIncGst: r.sales,
+    breakdown: r.breakdown ?? {},
+  }))
+  await db.$transaction([
+    db.dailyStaffUpsell.deleteMany({ where: { date, venue } }),
+    ...(data.length ? [db.dailyStaffUpsell.createMany({ data, skipDuplicates: true })] : []),
+  ])
 }

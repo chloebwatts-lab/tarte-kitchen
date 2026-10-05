@@ -89,6 +89,8 @@ export interface UpsellRow {
   ordersWith: number
   units: number
   sales: number
+  /** What made up `units`: item or add-on name -> how many. */
+  breakdown?: Record<string, number>
 }
 export interface UnassignedModifier { name: string; units: number; sales: number }
 
@@ -143,26 +145,32 @@ export function computeUpsell(
       const eligible = s.base.size === 0 || lineCats.some((c) => s.base.has(c))
       if (!eligible) continue
       let units = 0, sales = 0
+      const sold = new Map<string, number>()
+      const note = (name: string | undefined, n: number) => { const k = cleanItemName(name) || "Other"; sold.set(k, (sold.get(k) ?? 0) + n) }
       lines.forEach((li, i) => {
         if (li.item_type && li.item_type !== "ITEM") return
         const qty = Math.round(parseFloat(li.quantity ?? "1")) || 0
         if (s.items.has(normName(li.name)) || (lineCats[i] && s.cats.has(lineCats[i]))) {
           units += qty
           sales += cents(li.total_money).toNumber()
+          if (qty > 0) note(li.name, qty)
         }
         for (const m of li.modifiers ?? []) {
           if (!s.mods.has(normName(m.name))) continue
           const mq = (Math.round(parseFloat(m.quantity ?? "1")) || 1) * qty
           units += mq
+          note(m.name, mq)
           sales += m.total_price_money ? cents(m.total_price_money).toNumber() : cents(m.base_price_money).toNumber() * mq
         }
       })
       const k = `${staffId}|${s.g.key}`
-      const row = acc.get(k) ?? { teamMemberId: staffId, staffName, groupKey: s.g.key, eligibleOrders: 0, ordersWith: 0, units: 0, sales: 0 }
+      const row = acc.get(k) ?? { teamMemberId: staffId, staffName, groupKey: s.g.key, eligibleOrders: 0, ordersWith: 0, units: 0, sales: 0, breakdown: {} }
       row.eligibleOrders++
       if (units > 0) row.ordersWith++
       row.units += units
       row.sales += sales
+      const bd = (row.breakdown ??= {})
+      for (const [name, n] of sold) bd[name] = (bd[name] ?? 0) + n
       acc.set(k, row)
     }
 
