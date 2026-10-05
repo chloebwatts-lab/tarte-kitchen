@@ -50,6 +50,10 @@ const SINGLE_VENUE_SUPPLIERS: Array<{ prefix: string; venue: Venue }> = [
   // Pencilpay-emailed invoices have no deliveryAddress block so they were
   // landing in /spend unassigned otherwise.
   { prefix: "eustralis", venue: "BURLEIGH" },
+  // Tasman Distribution (Tasman Star Seafood): Currumbin seafood only.
+  // Its Stripe invoices carry no delivery address, and Louise books every
+  // one to Beach House.
+  { prefix: "tasman distribution", venue: "BEACH_HOUSE" },
 ]
 
 export function defaultVenueForSupplier(

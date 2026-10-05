@@ -38,6 +38,7 @@ test("defaultVenueForSupplier: single-venue suppliers by prefix, case-insensitiv
   assert.equal(defaultVenueForSupplier("PARAMOUNT LIQUOR"), "BEACH_HOUSE")
   assert.equal(defaultVenueForSupplier("Eustralis"), "BURLEIGH")
   assert.equal(defaultVenueForSupplier("Eustralis Food"), "BURLEIGH")
+  assert.equal(defaultVenueForSupplier("Tasman Distribution"), "BEACH_HOUSE")
 })
 
 test("defaultVenueForSupplier: multi-venue suppliers and empties are null", () => {
