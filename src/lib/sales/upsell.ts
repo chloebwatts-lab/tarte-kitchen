@@ -40,7 +40,7 @@ export const DEFAULT_GROUPS: GroupDef[] = [
     modifierNames: [
       "Bacon", "Potato Hash", "Avo", "Poached Egg", "Fried egg", "Mushrooms", "Halloumi", "Smoked Salmon", "Poached Chicken",
       "1/2 Scramble", "Full Scramble", "Side Fries", "Sautéed Greens", "Roti", "Side Salad", "Burrata", "Prosciutto",
-      "Tomato - Sliced", "Extra Toast", "Sourdough Starter", "Ice Cream", "Brisket", "Broccolini", "Salmon",
+      "Tomato - Sliced", "Extra Toast", "Sourdough Starter", "Ice Cream", "Brisket", "Broccolini", "Salmon", "Wagyu",
     ],
     baseCategories: FOOD,
     sortOrder: 1,
