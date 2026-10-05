@@ -3,7 +3,7 @@ import {
   CalendarCheck, ClipboardCheck, ClipboardList, Croissant, Eye, Lock,
   MessageSquarePlus, PackageOpen, PackageSearch, Printer, Scale, ShieldCheck,
   ShoppingBasket, ShoppingCart, Snowflake, Trash2, Wrench, Megaphone, Sunrise,
-  Handshake, GraduationCap, ListChecks, Compass, Tag, BarChart3,
+  Handshake, GraduationCap, ListChecks, Compass, Tag, BarChart3, PartyPopper,
 } from "lucide-react"
 
 type Icon = ComponentType<{ className?: string; strokeWidth?: number }>
@@ -93,6 +93,14 @@ export const TOOL_GROUPS: ToolGroup[] = [
     icon: Compass,
     href: "/kitchen/gm",
     locked: true,
+    tools: [],
+  },
+  {
+    slug: "functions",
+    title: "Functions",
+    sub: "What is booked, and the functions app",
+    icon: PartyPopper,
+    href: "/kitchen/functions",
     tools: [],
   },
 ]
