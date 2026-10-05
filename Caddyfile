@@ -144,6 +144,8 @@ inbox.tarte.com.au {
 	# /invoices + /invoice/* are public at the proxy but gated in-app by a
 	# secret token (INVOICE_PORTAL_TOKEN) so staff can open them without a
 	# login prompt while customer data stays off a guessable URL.
+	# /fn/* is the Tarte Functions app API, gated in-app by a bearer key
+	# (FUNCTIONS_API_KEY), which cannot share a request with basic auth.
 	@protected {
 		not path /oauth/*
 		not path /health
@@ -151,6 +153,7 @@ inbox.tarte.com.au {
 		not path /invoice/*
 		not path /queue
 		not path /queue/*
+		not path /fn/*
 	}
 	basic_auth @protected {
 		tarte {$BASIC_AUTH_HASH}
