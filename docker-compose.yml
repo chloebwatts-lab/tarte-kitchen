@@ -231,6 +231,13 @@ services:
         # Preview at /api/cron/daily-accountability?preview=1 (office login).
         0 7 * * * curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/daily-accountability 2>&1
         30 21 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/check-service-emails 2>&1
+        # Tea Garden high tea prep list, to hello@ and Shawna. For a service
+        # day D: first list 09:00 AEST two days before (23:00 UTC), updated
+        # list 09:00 AEST the day before, check 21:00 AEST the night before
+        # (11:00 UTC). Preview: /api/cron/high-tea-prep?stage=24&preview=1
+        0 23 * * * curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/high-tea-prep?stage=48' 2>&1
+        2 23 * * * curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/high-tea-prep?stage=24' 2>&1
+        0 11 * * * curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/high-tea-prep?stage=12' 2>&1
         # 07:40 AEST (21:40 UTC) — equipment-purchase email sweep: invoices /
         # order confirmations for new machines in accounts@ + hello@ →
         # MaintenanceAsset rows (needsReview) with a QR slug ready to print.

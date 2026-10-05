@@ -3283,3 +3283,39 @@ model AccessAlert {
   summary   String
   sentAt    DateTime @default(now())
 }
+
+/// One thing that goes on a Tea Garden high tea stand, and how many of it
+/// each guest gets. The prep list is guests x perGuest plus the walk-in
+/// extras (4 of each on weekdays, 8 on weekends).
+model HighTeaStandItem {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  perGuest  Decimal  @default(1) @db.Decimal(6, 3)
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+/// The day-before call: how many guests on a Now Book It booking are
+/// actually having the full high tea. No row means not checked yet, and
+/// the list assumes everyone booked is having it.
+model HighTeaBookingCheck {
+  bookingRef String   @id
+  highTeaPax Int
+  checkedBy  String?
+  checkedAt  DateTime @default(now())
+}
+
+/// The prep list as it stood when each email went out (48H, 24H, 12H).
+model HighTeaPrepSnapshot {
+  id           String   @id @default(cuid())
+  serviceDate  DateTime @db.Date
+  stage        String
+  guests       Int
+  bookedGuests Int
+  items        Json
+  createdAt    DateTime @default(now())
+
+  @@unique([serviceDate, stage])
+}
