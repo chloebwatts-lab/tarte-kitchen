@@ -4,7 +4,9 @@ import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import {
   DEVICE_COOKIE,
+  OWNER_DEVICE_COOKIE,
   PERSON_COOKIE,
+  decodeOwnerDevice,
   decodePerson,
   encodePerson,
   isManagerRole,
@@ -16,6 +18,11 @@ import type { AccessEventKind } from "@/generated/prisma/client"
 /** Server-side view of who is signed in to the staff area, or null. */
 export async function getPerson(): Promise<PersonSession | null> {
   return decodePerson((await cookies()).get(PERSON_COOKIE)?.value)
+}
+
+/** True on a device the owner marked as her own phone (see person-auth). */
+export async function isOwnerDevice(): Promise<boolean> {
+  return !!(await decodeOwnerDevice((await cookies()).get(OWNER_DEVICE_COOKIE)?.value))
 }
 
 /** Office login (Chloe) passes every staff gate without a staff session. */

@@ -15,7 +15,7 @@ function beacon(kind: "view" | "capture", path: string) {
   }
 }
 
-export function StaffShellClient({ name, idleMinutes }: { name: string; idleMinutes: number }) {
+export function StaffShellClient({ name, idleMinutes, stay = false }: { name: string; idleMinutes: number; stay?: boolean }) {
   const pathname = usePathname()
   const search = useSearchParams()
   const [stamp, setStamp] = useState("")
@@ -78,14 +78,14 @@ export function StaffShellClient({ name, idleMinutes }: { name: string; idleMinu
         className="pointer-events-none fixed inset-0 z-[60] print:opacity-30"
         style={{ backgroundImage: tile, backgroundRepeat: "repeat", opacity: 0.075 }}
       />
-      <form action={signOut} className="fixed bottom-3 left-3 z-[61] print:hidden">
+      {!stay && <form action={signOut} className="fixed bottom-3 left-3 z-[61] print:hidden">
         <button
           type="submit"
           className="rounded-full border border-[var(--tk-line)] bg-white/95 px-3.5 py-2 text-[13px] font-medium text-[var(--tk-charcoal)] shadow-sm"
         >
           {name.split(" ")[0]} · Sign out
         </button>
-      </form>
+      </form>}
     </>
   )
 }

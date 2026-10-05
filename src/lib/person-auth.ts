@@ -155,3 +155,67 @@ export async function decodeSetup(raw: string | undefined | null, now = Date.now
     return null
   }
 }
+
+
+/**
+ * "This is my phone" for the owner (Chloe, 5 Oct 2026: on her phone, and
+ * only hers, never sign in again). A long-lived signed cookie set from a
+ * button only she is shown, after a normal sign in. While it is there the
+ * middleware signs her straight back in, and the managers and GM gates
+ * open without their second passwords. "Forget this phone" removes it;
+ * changing NEXTAUTH_SECRET kills every one at once.
+ */
+export const OWNER_DEVICE_COOKIE = "tk_owner_device"
+export const OWNER_DEVICE_DAYS = 400
+
+export interface OwnerDevice {
+  id: string
+  name: string
+  last?: string
+  email?: string | null
+  iat: number
+}
+
+/** Who may mark a device as theirs: Chloe only, not every OWNER role. */
+export function mayTrustDevice(p: Pick<PersonSession, "role" | "last"> | null): boolean {
+  return !!p && p.role === "OWNER" && (p.last ?? "").trim().toLowerCase() === "watts"
+}
+
+export async function encodeOwnerDevice(d: OwnerDevice): Promise<string> {
+  const body = toB64Url(JSON.stringify(d))
+  // Own prefix under the signature, so a staff session can never be
+  // replayed as a device token or the other way round.
+  return `${body}.${await signHex(`owner-device:${body}`)}`
+}
+
+export async function decodeOwnerDevice(raw: string | undefined | null, now = Date.now()): Promise<OwnerDevice | null> {
+  if (!raw) return null
+  const idx = raw.lastIndexOf(".")
+  if (idx < 0) return null
+  const body = raw.slice(0, idx)
+  if (!safeEqual(raw.slice(idx + 1), await signHex(`owner-device:${body}`))) return null
+  try {
+    const d = JSON.parse(fromB64Url(body)) as OwnerDevice
+    if (!d?.id || !d.name || !d.iat) return null
+    if (now - d.iat > OWNER_DEVICE_DAYS * 86_400_000) return null
+    if (!mayTrustDevice({ role: "OWNER", last: d.last })) return null
+    return d
+  } catch {
+    return null
+  }
+}
+
+/** A fresh staff session for the owner of a trusted device. */
+export function personFromOwnerDevice(d: OwnerDevice, deedVersion: string, now = Date.now()): PersonSession {
+  return { id: d.id, name: d.name, last: d.last, role: "OWNER", email: d.email ?? null, minor: false, deed: deedVersion, iat: now, seen: now }
+}
+
+export function ownerDeviceCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: OWNER_DEVICE_DAYS * 86_400,
+  }
+}

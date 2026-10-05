@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto"
 import { cookies } from "next/headers"
+import { isOwnerDevice } from "@/lib/person-session"
 import { redirect } from "next/navigation"
 import { getServerSession } from "next-auth"
 import { compare, hash } from "bcryptjs"
@@ -67,6 +68,7 @@ export async function isGmAuthed(): Promise<boolean> {
   // password. Ignored in production builds.
   if (process.env.NODE_ENV !== "production" && process.env.GM_DEV_BYPASS === "1") return true
   if (await getServerSession(authOptions)) return true
+  if (await isOwnerDevice()) return true
   const raw = (await cookies()).get(COOKIE_NAME)?.value
   if (!raw) return false
   const idx = raw.indexOf(".")

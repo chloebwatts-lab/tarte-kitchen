@@ -8,8 +8,13 @@ import {
   ABSOLUTE_HOURS,
   IDLE_MINUTES,
   SETUP_MINUTES,
+  OWNER_DEVICE_DAYS,
+  decodeOwnerDevice,
   decodePerson,
   decodeSetup,
+  encodeOwnerDevice,
+  mayTrustDevice,
+  personFromOwnerDevice,
   encodePerson,
   encodeSetup,
   isManagerRole,
@@ -244,5 +249,41 @@ describe("secret handling", () => {
       process.env.NEXTAUTH_SECRET = saved
     }
     assert.ok(await decodePerson(tok, NOW))
+  })
+})
+
+describe("owner's own phone", () => {
+  const device = { id: "shifts-staff-1", name: "Chloe Watts", last: "Watts", email: null, iat: NOW }
+
+  test("only Chloe may mark a device: not other owners, managers or staff", () => {
+    assert.equal(mayTrustDevice({ role: "OWNER", last: "Watts" }), true)
+    assert.equal(mayTrustDevice({ role: "OWNER", last: "Pate" }), false)
+    assert.equal(mayTrustDevice({ role: "MANAGER", last: "Watts" }), false)
+    assert.equal(mayTrustDevice({ role: "STAFF", last: "Nguyen" }), false)
+    assert.equal(mayTrustDevice(null), false)
+  })
+
+  test("round trips, and signs her in as OWNER with the current deed", async () => {
+    const raw = await encodeOwnerDevice(device)
+    const d = await decodeOwnerDevice(raw, NOW + 30 * 24 * HOUR)
+    assert.equal(d?.id, "shifts-staff-1")
+    const p = personFromOwnerDevice(d!, DEED_VERSION, NOW)
+    assert.equal(p.role, "OWNER")
+    assert.equal(p.deed, DEED_VERSION)
+    assert.ok(await decodePerson(await encodePerson(p), NOW + MIN))
+  })
+
+  test("expires, rejects tampering, and a staff session is not a device token", async () => {
+    const raw = await encodeOwnerDevice(device)
+    assert.equal(await decodeOwnerDevice(raw, NOW + (OWNER_DEVICE_DAYS + 1) * 24 * HOUR), null)
+    assert.equal(await decodeOwnerDevice(raw.slice(0, -1) + (raw.endsWith("0") ? "1" : "0"), NOW), null)
+    assert.equal(await decodeOwnerDevice(await encodePerson(session({ role: "OWNER", last: "Watts", iat: NOW, seen: NOW })), NOW), null)
+    assert.equal(await decodePerson(raw, NOW), null)
+    assert.equal(await decodeOwnerDevice(undefined, NOW), null)
+  })
+
+  test("a device token for anyone but Chloe is refused even if correctly signed", async () => {
+    const raw = await encodeOwnerDevice({ ...device, name: "Shawna Pate", last: "Pate" })
+    assert.equal(await decodeOwnerDevice(raw, NOW), null)
   })
 })

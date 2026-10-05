@@ -3,6 +3,9 @@ export const dynamic = "force-dynamic"
 import type { Metadata } from "next"
 import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
 import { IDLE_MINUTES } from "@/lib/person-auth"
+import { redirect } from "next/navigation"
+import { isOwnerDevice } from "@/lib/person-session"
+import { safeNext } from "@/lib/safe-next"
 import { submitStaffLogin } from "./actions"
 
 export const metadata: Metadata = {
@@ -20,6 +23,11 @@ export default async function StaffLoginPage({
   const locked = sp.error === "locked"
   const down = sp.error === "down"
   const next = typeof sp.next === "string" ? sp.next : "/staffaccess"
+  // The owner's own phone never sees this page.
+  if (await isOwnerDevice()) {
+    const to = safeNext(next, "/staffaccess")
+    redirect(to.startsWith("/staff-login") ? "/staffaccess" : to)
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-6 py-12">

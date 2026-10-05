@@ -1,8 +1,14 @@
 import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
 import { ToolGrid } from "@/components/kitchen/ToolGrid"
 import { TOOL_GROUPS } from "@/lib/staff-tools"
+import { mayTrustDevice } from "@/lib/person-auth"
+import { getPerson, isOwnerDevice } from "@/lib/person-session"
+import { forgetThisDevice, trustThisDevice } from "@/app/staff-login/actions"
 
-export default function StaffAccessPage() {
+export default async function StaffAccessPage() {
+  const person = await getPerson()
+  const canTrust = mayTrustDevice(person)
+  const trusted = canTrust && (await isOwnerDevice())
   const tiles = TOOL_GROUPS.map((g) => ({
     title: g.title,
     sub: g.sub,
@@ -25,6 +31,17 @@ export default function StaffAccessPage() {
       </div>
       <div className="mx-auto max-w-[1100px] px-6 pb-12 md:px-12">
         <ToolGrid tiles={tiles} big />
+        {canTrust && (
+          <form action={trusted ? forgetThisDevice : trustThisDevice} className="mt-6 text-center">
+            <button
+              type="submit"
+              className="rounded-full px-5 py-2.5 text-[14px] font-semibold text-white"
+              style={{ background: "rgba(255,255,255,0.22)" }}
+            >
+              {trusted ? "This phone stays signed in. Tap to forget this phone" : "Keep me signed in on this phone"}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   )

@@ -6,7 +6,15 @@ import { redirect } from "next/navigation"
 import { db } from "@/lib/db"
 import { DEED_VERSION } from "@/lib/confidentiality/deed"
 import { callerIp, isLockedOut, recordAttempt } from "@/lib/login-guard"
-import { DEVICE_COOKIE, SETUP_MINUTES, encodeSetup } from "@/lib/person-auth"
+import {
+  DEVICE_COOKIE,
+  OWNER_DEVICE_COOKIE,
+  SETUP_MINUTES,
+  encodeOwnerDevice,
+  encodeSetup,
+  mayTrustDevice,
+  ownerDeviceCookieOptions,
+} from "@/lib/person-auth"
 import { clearPersonCookie, getPerson, logAccess, setPersonCookie } from "@/lib/person-session"
 import { findStaff, toPersonRole, verifyStaff } from "@/lib/shifts-staff"
 import { sendEmail } from "@/lib/gmail/send"
@@ -84,6 +92,29 @@ export async function signOut(): Promise<void> {
   if (p) await logAccess("LOGOUT", { staffId: p.id, staffName: p.name })
   await clearPersonCookie()
   redirect("/staff-login")
+}
+
+/**
+ * Owner only: keep this device signed in. Needs a real sign in first, so
+ * the button alone can never create access.
+ */
+export async function trustThisDevice(): Promise<void> {
+  const p = await getPerson()
+  if (!p || !mayTrustDevice(p)) redirect("/staffaccess")
+  ;(await cookies()).set(
+    OWNER_DEVICE_COOKIE,
+    await encodeOwnerDevice({ id: p.id, name: p.name, last: p.last, email: p.email ?? null, iat: Date.now() }),
+    ownerDeviceCookieOptions()
+  )
+  await logAccess("LOGIN", { staffId: p.id, staffName: p.name, path: "trusted this device" })
+  redirect("/staffaccess")
+}
+
+export async function forgetThisDevice(): Promise<void> {
+  const p = await getPerson()
+  ;(await cookies()).delete(OWNER_DEVICE_COOKIE)
+  if (p) await logAccess("LOGOUT", { staffId: p.id, staffName: p.name, path: "forgot this device" })
+  redirect("/staffaccess")
 }
 
 /**

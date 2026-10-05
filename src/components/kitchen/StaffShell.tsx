@@ -1,4 +1,4 @@
-import { getPerson } from "@/lib/person-session"
+import { getPerson, isOwnerDevice } from "@/lib/person-session"
 import { IDLE_MINUTES } from "@/lib/person-auth"
 import { StaffShellClient } from "@/components/kitchen/StaffShellClient"
 
@@ -10,5 +10,7 @@ import { StaffShellClient } from "@/components/kitchen/StaffShellClient"
 export async function StaffShell() {
   const person = await getPerson()
   if (!person) return null
-  return <StaffShellClient name={person.name} idleMinutes={IDLE_MINUTES} />
+  // The owner's own phone never times out and has no Sign out chip.
+  const stay = await isOwnerDevice()
+  return <StaffShellClient name={person.name} idleMinutes={stay ? Infinity : IDLE_MINUTES} stay={stay} />
 }

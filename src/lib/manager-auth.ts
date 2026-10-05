@@ -3,7 +3,7 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { getServerSession } from "next-auth"
 import { compare, hash } from "bcryptjs"
-import { getPerson } from "@/lib/person-session"
+import { getPerson, isOwnerDevice } from "@/lib/person-session"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 
@@ -102,6 +102,7 @@ export async function isManagerDenied(): Promise<boolean> {
 
 export async function isManagerAuthed(): Promise<boolean> {
   if (await getServerSession(authOptions)) return true
+  if (await isOwnerDevice()) return true
   // The unlock cookie belongs to the device, the allow list to the person:
   // a shared iPad a manager unlocked still refuses everyone not on the list.
   if (await isManagerDenied()) return false

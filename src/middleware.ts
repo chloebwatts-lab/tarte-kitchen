@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
 import { DEED_VERSION } from "@/lib/confidentiality/deed"
-import { PERSON_COOKIE, decodePerson, encodePerson, personCookieOptions } from "@/lib/person-auth"
+import {
+  OWNER_DEVICE_COOKIE,
+  PERSON_COOKIE,
+  decodeOwnerDevice,
+  decodePerson,
+  encodePerson,
+  personCookieOptions,
+  personFromOwnerDevice,
+} from "@/lib/person-auth"
 
 /**
  * Staff areas: every person signs in as themselves (last name + Tarte Shifts
@@ -23,7 +31,18 @@ export default async function middleware(req: NextRequest) {
 
   if (isStaffPath(pathname)) {
     if (token) return NextResponse.next()
-    const person = await decodePerson(req.cookies.get(PERSON_COOKIE)?.value)
+    let person = await decodePerson(req.cookies.get(PERSON_COOKIE)?.value)
+    // The owner's own phone: no session, or an expired one, signs her
+    // straight back in. The page being rendered must see the new session
+    // too, so it goes on the forwarded request as well as the response.
+    let minted: string | null = null
+    if (!person) {
+      const device = await decodeOwnerDevice(req.cookies.get(OWNER_DEVICE_COOKIE)?.value)
+      if (device) {
+        person = personFromOwnerDevice(device, DEED_VERSION)
+        minted = await encodePerson(person)
+      }
+    }
     if (!person) {
       const loginUrl = new URL("/staff-login", req.url)
       loginUrl.searchParams.set("next", pathname + req.nextUrl.search)
@@ -35,6 +54,16 @@ export default async function middleware(req: NextRequest) {
       const deedUrl = new URL("/kitchen/confidentiality", req.url)
       deedUrl.searchParams.set("next", pathname + req.nextUrl.search)
       return NextResponse.redirect(deedUrl)
+    }
+    if (minted) {
+      const headers = new Headers(req.headers)
+      const others = (headers.get("cookie") ?? "")
+        .split(/;\s*/)
+        .filter((c) => c && !c.startsWith(`${PERSON_COOKIE}=`))
+      headers.set("cookie", [...others, `${PERSON_COOKIE}=${minted}`].join("; "))
+      const fresh = NextResponse.next({ request: { headers } })
+      fresh.cookies.set(PERSON_COOKIE, minted, personCookieOptions())
+      return fresh
     }
     const res = NextResponse.next()
     // Sliding idle window. Rewritten at most once a minute, not per request.
