@@ -1,4 +1,5 @@
 import { test } from "node:test"
+import { arrivalCompleteness } from "./arrival-lag"
 import assert from "node:assert/strict"
 import { sharedSplit, sharedSplitLabel, PARALLEL_SINGLE_INVOICE_FROM } from "./shared-split"
 import { venueToBucket, SPEND_BUCKETS } from "./types"
@@ -103,6 +104,9 @@ function bucket(over: Partial<BucketSpendData> & { bucket: BucketSpendData["buck
     targetPct: 27,
     budget: null,
     remaining: null,
+    estimatedSpentToDate: 0,
+    estimatedUninvoiced: 0,
+    leftToSpend: null,
     projectedEndOfWeek: 0,
     spendProjectionMethod: "flat",
     revenueProjectionMethod: null,
@@ -287,4 +291,26 @@ test("days left never goes negative and rounding is to whole dollars", () => {
   )
   assert.match(subject, /: 0 days to go$/)
   assert.match(text, /\$766 left to spend \(\$1,235 of \$2,000 used\)\.$/m)
+})
+
+// ------------------------------------------------ invoice arrival lag
+
+test("arrivalCompleteness: share of spend dated to today that had arrived by this point", () => {
+  const DAY = 24 * 60 * 60 * 1000
+  const TEN_H = 10 * 60 * 60 * 1000
+  const wk = Date.UTC(2026, 8, 23) // Wed 23 Sep, AEST date at UTC midnight
+  // createdAt as a real instant for "AEST day d, hour h" of that week
+  const at = (d: number, h: number) => wk + d * DAY + h * 60 * 60 * 1000 - TEN_H
+  const rows = []
+  // 15 invoices dated Wed..Mon, $100 each, 12 arrived same day, 3 arrive Tuesday
+  for (let i = 0; i < 12; i++) rows.push({ weekStartMs: wk, invoiceDateMs: wk + (i % 6) * DAY, createdAtMs: at(i % 6, 15), amount: 100 })
+  for (let i = 0; i < 3; i++) rows.push({ weekStartMs: wk, invoiceDateMs: wk + 5 * DAY, createdAtMs: at(6, 9), amount: 100 })
+  // A Tuesday-dated invoice is outside "through Monday" and must be ignored
+  rows.push({ weekStartMs: wk, invoiceDateMs: wk + 6 * DAY, createdAtMs: at(6, 9), amount: 5000 })
+  const monday6pm = 5 * DAY + 18 * 60 * 60 * 1000
+  assert.equal(arrivalCompleteness(rows, monday6pm, 6), 0.8)
+  // By Tuesday night everything dated through Monday is in
+  assert.equal(arrivalCompleteness(rows, 6 * DAY + 20 * 60 * 60 * 1000, 6), 1)
+  // Too little history: no estimate
+  assert.equal(arrivalCompleteness(rows.slice(0, 5), monday6pm, 6), null)
 })

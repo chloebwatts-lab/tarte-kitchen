@@ -25,6 +25,7 @@ import {
   weekStartWedIso,
 } from "@/lib/dates"
 import { sharedSplit } from "./shared-split"
+import { arrivalCompleteness, type ArrivalLagRow } from "./arrival-lag"
 import {
   EXPECTED_SUPPLIERS,
   matchExpectedSupplier,
@@ -208,7 +209,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
         status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION", "REJECTED"] },
         venue: { not: null },
       },
-      select: { invoiceDate: true, venue: true, supplierName: true, total: true, subtotal: true, gst: true },
+      select: { invoiceDate: true, createdAt: true, venue: true, supplierName: true, total: true, subtotal: true, gst: true },
     }),
   ])
 
@@ -356,6 +357,12 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     BURLEIGH: null,
     CURRUMBIN: null,
   }
+  // Rows for the invoice arrival-lag estimate (see arrival-lag.ts).
+  const lagRows: Record<SpendBucket, ArrivalLagRow[]> = {
+    BURLEIGH: [],
+    CURRUMBIN: [],
+  }
+  const WEEK_MS = 7 * msInDay
   {
     const revRows: Record<SpendBucket, Array<{ idx: number; amount: number }>> =
       { BURLEIGH: [], CURRUMBIN: [] }
@@ -376,15 +383,26 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       if (!row.invoiceDate || (row.subtotal == null && row.total == null)) continue
       const idx = tradingDayIndex(row.invoiceDate, true)
       const exGst = exGstInvoiceAmount(row)
+      const invoiceDateMs = row.invoiceDate.getTime()
+      const lagBase = {
+        weekStartMs:
+          start.getTime() -
+          Math.ceil((start.getTime() - invoiceDateMs) / WEEK_MS) * WEEK_MS,
+        invoiceDateMs,
+        createdAtMs: row.createdAt.getTime(),
+      }
       if (row.venue === "BOTH") {
         const split = sharedSplit(row.supplierName)
         spendRows.BURLEIGH.push({ idx, amount: exGst * split.BURLEIGH })
         spendRows.CURRUMBIN.push({ idx, amount: exGst * split.CURRUMBIN })
+        lagRows.BURLEIGH.push({ ...lagBase, amount: exGst * split.BURLEIGH })
+        lagRows.CURRUMBIN.push({ ...lagBase, amount: exGst * split.CURRUMBIN })
         continue
       }
       const bucket = venueToBucket(row.venue)
       if (!bucket) continue
       spendRows[bucket].push({ idx, amount: exGst })
+      lagRows[bucket].push({ ...lagBase, amount: exGst })
     }
     for (const bucket of SPEND_BUCKETS) {
       revenueShares[bucket] = buildShares(revRows[bucket])
@@ -549,6 +567,23 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       Math.round((spentToDate + scaledMissing) * 100) / 100
     const remaining =
       budget == null ? null : Math.round((budget - effectiveSpent) * 100) / 100
+    // Real spend through today: invoices in hand, grossed up for the share
+    // of deliveries that is normally still uninvoiced at this point in the
+    // week. This is the headline "left to spend" basis.
+    const completeness =
+      arrivalCompleteness(
+        lagRows[bucket],
+        aestNowMs - aestStartMs,
+        Math.min(7, daysSinceStart + 1)
+      ) ?? 1
+    const estimatedSpentToDate =
+      Math.round(Math.max(spentToDate, spentToDate / completeness) * 100) / 100
+    const estimatedUninvoiced =
+      Math.round((estimatedSpentToDate - spentToDate) * 100) / 100
+    const leftToSpend =
+      budget == null
+        ? null
+        : Math.round((budget - estimatedSpentToDate) * 100) / 100
     // Pace: project end-of-week spend. Preferred: divide by the share of
     // a typical week's deliveries that lands on the elapsed weekdays
     // (8-wk history). Fallback: flat daily-rate extrapolation.
@@ -649,6 +684,9 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       targetPct,
       budget: budget == null ? null : Math.round(budget * 100) / 100,
       remaining,
+      estimatedSpentToDate,
+      estimatedUninvoiced,
+      leftToSpend,
       projectedEndOfWeek,
       spendProjectionMethod: spendWeighted ? ("weighted" as const) : ("flat" as const),
       revenueProjectionMethod:

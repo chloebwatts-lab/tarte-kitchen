@@ -604,11 +604,17 @@ export async function GET(request: Request) {
 
   try {
     const accessToken = await getValidGmailAccessToken()
-    const fromQuery = `from:(${allEmails.join(" OR ")})`
+    // Backfill knobs for a newly mapped sender: ?mode=sweep&days=90 widens
+    // the window, &sender=<mapped address> narrows the scan to that one
+    // address so the 500-message cap is not spent on everyone else.
+    const sweepDays = Math.min(180, Math.max(1, Number(url.searchParams.get("days")) || 14))
+    const onlySender = url.searchParams.get("sender")?.toLowerCase().trim()
+    const scanEmails = mode === "sweep" && onlySender && allEmails.includes(onlySender) ? [onlySender] : allEmails
+    const fromQuery = `from:(${scanEmails.join(" OR ")})`
 
     let messageRefs: Array<{ id: string; threadId: string }>
     if (mode === "sweep") {
-      const query = `${fromQuery} has:attachment filename:pdf newer_than:14d`
+      const query = `${fromQuery} has:attachment filename:pdf newer_than:${sweepDays}d`
       messageRefs = await searchMessages(accessToken, query, 500)
     } else {
       // Incremental, small slack on after: to absorb second-precision

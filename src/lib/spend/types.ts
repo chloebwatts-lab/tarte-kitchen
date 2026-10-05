@@ -103,6 +103,14 @@ export interface BucketSpendData {
   targetPct: number
   budget: number | null
   remaining: number | null
+  /// spentToDate grossed up for deliveries made but not yet invoiced
+  /// (8-wk arrival-lag profile for this point in the week).
+  estimatedSpentToDate: number
+  /// estimatedSpentToDate minus spentToDate
+  estimatedUninvoiced: number
+  /// budget minus estimatedSpentToDate: what is really left for the rest
+  /// of the Wed to Tue week. Headline figure on /spend.
+  leftToSpend: number | null
   /// Full-week spend projection + estimatedMissingSpend. "weighted"
   /// divides spent-to-date by the elapsed weekdays' historical share of
   /// a week's deliveries (8-wk profile); "flat" is spent ÷ days × 7.

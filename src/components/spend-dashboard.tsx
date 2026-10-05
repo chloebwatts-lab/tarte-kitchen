@@ -67,7 +67,7 @@ function PaceBadge({ status }: { status: BucketSpendData["paceStatus"] }) {
 function BucketCard({ bucket }: { bucket: BucketSpendData }) {
   const remainPct =
     bucket.budget && bucket.budget > 0
-      ? (bucket.remaining ?? 0) / bucket.budget
+      ? (bucket.leftToSpend ?? 0) / bucket.budget
       : null
   const projectedPct =
     bucket.budget && bucket.budget > 0
@@ -126,26 +126,21 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
             sub={`@ ${Number(bucket.targetPct).toFixed(0)}% of forecast`}
           />
           <Tile
-            label="Remaining"
-            value={fmt(bucket.remaining)}
+            label="Left to spend"
+            value={fmt(bucket.leftToSpend)}
             sub={
               remainPct == null
                 ? "—"
-                : bucket.budget != null
-                ? // Invoices trail deliveries (about a fifth of a week's
-                  // spend is still to arrive on a Monday night), so the raw
-                  // figure overstates what is left to order.
-                  `${Math.round(remainPct * 100)}% of cap, invoices in so far. About ${fmt(
-                    Math.abs(Math.round(bucket.budget - bucket.projectedEndOfWeek))
-                  )} ${
-                    bucket.projectedEndOfWeek > bucket.budget ? "over" : "left"
-                  } once the rest of the week's invoices land`
-                : `${Math.round(remainPct * 100)}% of cap`
+                : `${Math.round(remainPct * 100)}% of cap, to Tuesday close. ${fmt(
+                    bucket.spentToDate
+                  )} invoiced plus about ${fmt(
+                    bucket.estimatedUninvoiced
+                  )} delivered but not invoiced yet`
             }
             valueTone={
-              bucket.remaining == null
+              bucket.leftToSpend == null
                 ? undefined
-                : bucket.remaining < 0
+                : bucket.leftToSpend < 0
                 ? "red"
                 : remainPct != null && remainPct < 0.1
                 ? "amber"
