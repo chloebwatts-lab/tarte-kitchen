@@ -1490,10 +1490,16 @@ model PastryProduct {
   venue     Venue    @default(BOTH)
   sortOrder Int      @default(0)
   isActive  Boolean  @default(true)
+  /// False = shown in the pastry section's product photos only, never on
+  /// the rotation log (cakes, specials, anything not counted per bake).
+  inRotation Boolean @default(true)
+  /// Short "how it should look" note shown with the reference photos.
+  note      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   entries   PastryRotationEntry[]
+  photos    PastryProductPhoto[]
 
   @@unique([venue, name])
   @@index([venue, isActive, sortOrder])
@@ -1517,6 +1523,73 @@ model PastryRotationEntry {
 
   @@unique([venue, entryDate, bakeTime, productId])
   @@index([venue, entryDate])
+}
+
+// ============================================================
+// PASTRY SECTION — the pastry team's own page: reference photos of each
+// finished product, notes for Jess, and two loose prep lists (daily and
+// afternoon). The prep lists are a memory aid, NOT checklists: nothing
+// alerts, nothing has to be finished, ticks just reset each day.
+// ============================================================
+
+/// Reference photo of how a finished product should look (Cloudinary).
+model PastryProductPhoto {
+  id         String        @id @default(cuid())
+  productId  String
+  product    PastryProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url        String
+  publicId   String
+  uploadedBy String?
+  uploadedAt DateTime      @default(now())
+
+  @@index([productId])
+}
+
+/// One line on a pastry prep list. onlyDay null = on the list every day;
+/// set = a one-off for that Brisbane day. Removing sets isActive false.
+model PastryPrepTask {
+  id        String    @id @default(cuid())
+  venue     Venue
+  /// DAILY | AFTERNOON
+  list      String
+  label     String
+  sortOrder Int       @default(0)
+  onlyDay   DateTime? @db.Date
+  isActive  Boolean   @default(true)
+  createdBy String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+
+  ticks PastryPrepTick[]
+
+  @@index([venue, list, isActive])
+}
+
+/// A task ticked off on one Brisbane day. No row = not done yet.
+model PastryPrepTick {
+  id     String         @id @default(cuid())
+  taskId String
+  task   PastryPrepTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  day    DateTime       @db.Date
+  doneBy String?
+  doneAt DateTime       @default(now())
+
+  @@unique([taskId, day])
+  @@index([day])
+}
+
+/// A note left for Jess ("we need piping bags", "butter is out").
+/// doneAt set = sorted; it drops off the page a few days later.
+model PastryNote {
+  id        String    @id @default(cuid())
+  venue     Venue
+  text      String
+  createdBy String?
+  createdAt DateTime  @default(now())
+  doneAt    DateTime?
+  doneBy    String?
+
+  @@index([venue, doneAt])
 }
 
 // ============================================================

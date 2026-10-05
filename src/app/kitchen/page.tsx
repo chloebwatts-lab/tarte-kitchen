@@ -361,7 +361,7 @@ function CategoryPicker({
           title="Pastry rotation"
           subtitle="Log prepared / sold / discarded per bake."
           icon={<Croissant className="h-6 w-6" strokeWidth={1.8} />}
-          href={`/kitchen/pastry?venue=${venue}`}
+          href={`/kitchen/pastry/rotation?venue=${venue}`}
         />
         <SecondaryTile
           title="Portion guide"

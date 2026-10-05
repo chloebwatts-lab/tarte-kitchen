@@ -46,6 +46,7 @@ export async function listPastryProducts(venue: Venue): Promise<PastryProductRec
   const rows = await db.pastryProduct.findMany({
     where: {
       isActive: true,
+      inRotation: true,
       venue: { in: [venue, "BOTH"] },
     },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -136,7 +137,7 @@ export async function savePastryRotationEntry(params: {
       notes: params.notes?.trim() || null,
     },
   })
-  revalidatePath("/kitchen/pastry")
+  revalidatePath("/kitchen/pastry/rotation")
   revalidatePath("/kitchen/inspection")
 }
 
@@ -171,7 +172,7 @@ export async function zeroFillPastryRotation(params: {
     ),
     skipDuplicates: true,
   })
-  revalidatePath("/kitchen/pastry")
+  revalidatePath("/kitchen/pastry/rotation")
   revalidatePath("/kitchen/inspection")
   return { created: result.count }
 }
@@ -191,7 +192,7 @@ export async function deletePastryRotationEntry(params: {
       productId: params.productId,
     },
   })
-  revalidatePath("/kitchen/pastry")
+  revalidatePath("/kitchen/pastry/rotation")
   revalidatePath("/kitchen/inspection")
 }
 

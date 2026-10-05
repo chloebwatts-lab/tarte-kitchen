@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
   }
 
   const products = await db.pastryProduct.findMany({
-    where: { isActive: true },
+    where: { isActive: true, inRotation: true },
     select: { id: true, name: true },
   })
   const productByName = new Map(products.map((p) => [p.name, p.id]))

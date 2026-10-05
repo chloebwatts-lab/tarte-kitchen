@@ -35,7 +35,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       { title: "Checklists", sub: "Cleaning & food safety, per venue", href: "/kitchen", icon: ClipboardCheck },
       { title: "Cooling log", sub: "HACCP record for cooked items", href: "/kitchen/cooling", icon: Snowflake },
       { title: "Wastage log", sub: "Log anything binned, as it happens", href: "/log", icon: Trash2 },
-      { title: "Pastry rotation", sub: "Prepared / sold / discarded per bake", href: "/kitchen/pastry", icon: Croissant },
+      { title: "Pastry rotation", sub: "Prepared / sold / discarded per bake", href: "/kitchen/pastry/rotation", icon: Croissant },
       { title: "Inspection view", sub: "Council-ready last 30 days", href: "/kitchen/inspection", icon: ShieldCheck },
     ],
   },
@@ -54,6 +54,14 @@ export const TOOL_GROUPS: ToolGroup[] = [
       { title: "Coolroom serves", sub: "Tub weight to full serves", href: "/kitchen/serves", icon: Scale },
       { title: "Price check", sub: "Managers. What we pay for an item, per venue, off our invoices", href: "/kitchen/prices", icon: Tag },
     ],
+  },
+  {
+    slug: "pastry",
+    title: "Pastry",
+    sub: "Prep lists, notes for Jess, temps, cleaning, product photos",
+    icon: Croissant,
+    href: "/kitchen/pastry",
+    tools: [],
   },
   {
     slug: "spotted",
