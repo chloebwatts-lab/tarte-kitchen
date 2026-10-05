@@ -11,6 +11,8 @@ import { fetchDayOrders, listPayments, aggregateOrders, aggregatePayments, cents
 import { getSquareConnection, getSquareAccessToken, squareLocations } from "./token"
 import { computeDayBreakdown } from "./breakdown"
 import { resolveCatalog, resolveTeam, persistDayBreakdown } from "./live"
+import { computeUpsell } from "@/lib/sales/upsell"
+import { loadGroups, persistUpsell } from "./upsell-store"
 
 export interface SquareSyncResult {
   venue: string
@@ -151,10 +153,15 @@ export async function syncSquareSales(dates: string[]): Promise<SquareSyncResult
       try {
         const allOrders = [...orders, ...openUnpaid]
         const variationIds = allOrders.flatMap((o) => (o.line_items ?? []).map((l) => l.catalog_object_id ?? "")).filter(Boolean)
-        const teamIds = (payments as Array<{ team_member_id?: string }>).map((p) => p.team_member_id ?? "").filter(Boolean)
-        const [catalog, team] = await Promise.all([resolveCatalog(token, variationIds), resolveTeam(token, teamIds)])
+        const teamIds = [
+          ...(payments as Array<{ team_member_id?: string }>).map((p) => p.team_member_id ?? ""),
+          ...(allOrders as Array<{ created_by_team_member_id?: string }>).map((o) => o.created_by_team_member_id ?? ""),
+        ].filter(Boolean)
+        const [catalog, team, groups] = await Promise.all([resolveCatalog(token, variationIds), resolveTeam(token, teamIds), loadGroups()])
         const breakdown = computeDayBreakdown(dateStr, allOrders, payments, (id) => (id ? catalog.get(id) : undefined), (id) => (id ? team.get(id) : undefined))
         await persistDayBreakdown(venue, dateStr, breakdown)
+        const upsell = computeUpsell(allOrders, payments, (id) => (id ? catalog.get(id)?.reportingCategory : undefined), (id) => (id ? team.get(id) : undefined), groups)
+        await persistUpsell(venue, dateStr, upsell.rows)
       } catch (err) {
         console.error("[sync-square-sales] breakdown", venue, dateStr, err)
       }

@@ -6,6 +6,8 @@ import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { SalesInsights } from "@/components/kitchen/SalesInsights"
 import { getSalesInsights } from "@/lib/actions/sales-insights"
+import { getUpsellBoard } from "@/lib/actions/upsell"
+import { UpsellBoard } from "@/components/kitchen/UpsellBoard"
 import { brisbaneNow } from "@/lib/sales/insights"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
@@ -19,7 +21,7 @@ export default async function SalesInsightsPage({ searchParams }: { searchParams
   const c = (await cookies()).get("tk-venue")?.value ?? null
   const venue: Venue = isVenue(p) ? p : isVenue(c) ? c : "BEACH_HOUSE"
   const date = typeof sp.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : brisbaneNow().date
-  const initial = await getSalesInsights(venue, date, "1D", "WEEKS_4")
+  const [initial, upsell] = await Promise.all([getSalesInsights(venue, date, "1D", "WEEKS_4"), getUpsellBoard(venue)])
   return (
     <div className="space-y-6">
       <KitchenBreadcrumb crumbs={[{ label: "Managers", href: "/kitchen/managers" }, { label: "Sales insights" }]} />
@@ -36,6 +38,7 @@ export default async function SalesInsightsPage({ searchParams }: { searchParams
         <VenueSwitch current={venue} />
       </div>
       <SalesInsights initial={initial} />
+      <UpsellBoard key={venue} initial={upsell} />
     </div>
   )
 }

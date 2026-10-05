@@ -553,6 +553,58 @@ model DailyChannelSales {
   @@index([venue, date])
 }
 
+// What counts as an upsell (Sides, Coffee extras, ...). Lists are item and
+// modifier NAMES as Square sends them, so nothing has to change in Square;
+// managers can edit them on the Sales insights page. baseCategories decides
+// which orders are eligible (the attach-rate denominator).
+model UpsellGroup {
+  key            String   @id
+  label          String
+  blurb          String?
+  itemNames      String[] @default([])
+  itemCategories String[] @default([])
+  modifierNames  String[] @default([])
+  baseCategories String[] @default([])
+  channel        String?  // CAFE | RESTAURANT | null = any
+  sortOrder      Int      @default(0)
+  active         Boolean  @default(true)
+  updatedAt      DateTime @updatedAt
+}
+
+// Per day, per staff member, per upsell group. teamMemberId "ONLINE" holds
+// orders with no staff member (Bopple). Written by the Square sync.
+model DailyStaffUpsell {
+  id             String   @id @default(cuid())
+  date           DateTime @db.Date
+  venue          Venue
+  teamMemberId   String
+  staffName      String
+  groupKey       String
+  eligibleOrders Int
+  ordersWith     Int
+  units          Int
+  salesIncGst    Decimal  @db.Decimal(12, 2)
+  createdAt      DateTime @default(now())
+
+  @@unique([date, venue, teamMemberId, groupKey])
+  @@index([venue, date, groupKey])
+}
+
+model SalesChallenge {
+  id        String    @id @default(cuid())
+  venue     Venue
+  name      String
+  groupKey  String
+  metric    String    // UNITS | ATTACH | SALES
+  startDate DateTime  @db.Date
+  endDate   DateTime  @db.Date
+  note      String?
+  createdAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  @@index([venue, endDate])
+}
+
 // Square catalogue lookups so line items can be grouped by reporting
 // category without a catalogue call per order.
 model SquareCatalogItem {

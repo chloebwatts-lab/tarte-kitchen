@@ -9,6 +9,8 @@ import type { Venue } from "@/generated/prisma/client"
 import { fetchDayOrders, listPayments, type SquareOrder, type SquarePayment } from "./client"
 import { getSquareConnection, getSquareAccessToken, squareLocations } from "./token"
 import { computeDayBreakdown, type DayBreakdown } from "./breakdown"
+import { computeUpsell, type UpsellRow, type UnassignedModifier } from "@/lib/sales/upsell"
+import { loadGroups } from "./upsell-store"
 
 const SQUARE_API = "https://connect.squareup.com/v2"
 const SQUARE_VERSION = "2025-07-16"
@@ -116,6 +118,7 @@ export async function resolveTeam(token: string, ids: string[]): Promise<Map<str
 
 export interface LiveDay {
   breakdown: DayBreakdown
+  upsell: { rows: UpsellRow[]; unassigned: UnassignedModifier[] }
   fetchedAt: string
   orders: SquareOrder[]
   payments: SquarePayment[]
@@ -137,10 +140,14 @@ export async function fetchLiveDay(venue: Venue, dateStr: string, opts: { force?
   ])
   const orders = [...sales, ...openUnpaid]
   const variationIds = orders.flatMap((o) => (o.line_items ?? []).map((l) => l.catalog_object_id ?? "")).filter(Boolean)
-  const teamIds = (payments as Array<SquarePayment & { team_member_id?: string }>).map((p) => p.team_member_id ?? "").filter(Boolean)
-  const [catalog, team] = await Promise.all([resolveCatalog(token, variationIds), resolveTeam(token, teamIds)])
+  const teamIds = [
+    ...(payments as Array<SquarePayment & { team_member_id?: string }>).map((p) => p.team_member_id ?? ""),
+    ...(orders as Array<SquareOrder & { created_by_team_member_id?: string }>).map((o) => o.created_by_team_member_id ?? ""),
+  ].filter(Boolean)
+  const [catalog, team, groups] = await Promise.all([resolveCatalog(token, variationIds), resolveTeam(token, teamIds), loadGroups()])
   const breakdown = computeDayBreakdown(dateStr, orders, payments, (id) => (id ? catalog.get(id) : undefined), (id) => (id ? team.get(id) : undefined))
-  const value: LiveDay = { breakdown, fetchedAt: new Date().toISOString(), orders, payments }
+  const upsell = computeUpsell(orders, payments, (id) => (id ? catalog.get(id)?.reportingCategory : undefined), (id) => (id ? team.get(id) : undefined), groups)
+  const value: LiveDay = { breakdown, upsell, fetchedAt: new Date().toISOString(), orders, payments }
   cache.set(key, { at: Date.now(), value })
   return value
 }
