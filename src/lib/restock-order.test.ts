@@ -1,6 +1,6 @@
 import { test, describe } from "node:test"
 import assert from "node:assert/strict"
-import { LEARN_MIN_NIGHTS, orderPrepItems } from "./restock-order"
+import { LEARN_MIN_NIGHTS, doneInEarlierRun, orderPrepItems } from "./restock-order"
 
 const items = [
   { id: "a", name: "Chives", category: "Main kitchen grill", sortOrder: 1 },
@@ -25,5 +25,17 @@ describe("prep list order", () => {
   test("ties and never-requested items keep the paper order", () => {
     const out = orderPrepItems(items, new Map([["a", 3], ["b", 3]]), 30)
     assert.deepEqual(out.slice(0, 3).map((i) => i.id), ["a", "b", "c"])
+  })
+})
+
+describe("lines on a sheet reopened after the morning run", () => {
+  const run = new Date("2026-10-04T18:21:47Z")
+  test("made before the run finished: history, stays off the next run", () => {
+    assert.equal(doneInEarlierRun(new Date("2026-10-04T18:21:10Z"), run), true)
+  })
+  test("not made yet, or made after the sheet was reopened: still on the run", () => {
+    assert.equal(doneInEarlierRun(null, run), false)
+    assert.equal(doneInEarlierRun(new Date("2026-10-05T19:00:00Z"), run), false)
+    assert.equal(doneInEarlierRun(new Date("2026-10-04T18:00:00Z"), null), false)
   })
 })

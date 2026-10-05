@@ -8,7 +8,7 @@ import {
   Venue,
 } from "@/generated/prisma/client"
 import { prepSectionsFor, sectionRank, stationsForVenue } from "@/lib/stations"
-import { LEARN_WINDOW_DAYS, orderPrepItems } from "@/lib/restock-order"
+import { LEARN_WINDOW_DAYS, doneInEarlierRun, orderPrepItems } from "@/lib/restock-order"
 
 // ------------------------------------------------------------------
 // The head chef's paper system, digitised:
@@ -278,7 +278,13 @@ export async function getCountSheet(params: {
     new Map(requested.map((r) => [r.itemId, r._count._all])),
     nights.length
   )
-  const lineByItem = new Map(sheet.lines.map((l) => [l.itemId, l]))
+  // What an earlier run already made is history: the sheet shows those
+  // rows blank again, ready for tonight's numbers.
+  const lineByItem = new Map(
+    sheet.lines
+      .filter((l) => !doneInEarlierRun(l.suppliedAt, sheet.restockedAt))
+      .map((l) => [l.itemId, l])
+  )
 
   // Jose's one-kitchen model: surface the sibling kitchen's items (the ones
   // only THEY prep) with their latest coolroom count, so this kitchen can
@@ -376,13 +382,25 @@ export async function saveCountLine(params: {
 }): Promise<{ ok: boolean; error?: string }> {
   const sheet = await db.restockSheet.findUnique({
     where: { id: params.sheetId },
-    select: { status: true },
+    select: { status: true, restockedAt: true },
   })
   if (!sheet) return { ok: false, error: "Sheet not found" }
-  if (sheet.status === "RESTOCKED")
-    return { ok: false, error: "This sheet has already been restocked" }
+  // A finished sheet is never locked (Chloe, 5 Oct 2026: chefs must always
+  // be able to edit). When the morning run closed today's sheet, the next
+  // edit opens it again as tonight's list for the next Make prep.
+  const wasRestocked = sheet.status === "RESTOCKED" || sheet.restockedAt != null
+  if (sheet.status === "RESTOCKED") {
+    await db.restockSheet.update({
+      where: { id: params.sheetId },
+      data: { status: "IN_PROGRESS" },
+    })
+    revalidatePath("/kitchen/restock")
+  }
 
   const patch: {
+    supplied?: null
+    suppliedBy?: null
+    suppliedAt?: null
     available?: number | null
     requested?: number | null
     priority?: boolean
@@ -396,7 +414,16 @@ export async function saveCountLine(params: {
     return { ok: false, error: "Bad needed-by time" }
   if ("neededBy" in params) patch.neededBy = neededBy
   if ("available" in params) patch.available = params.available
-  if ("requested" in params) patch.requested = params.requested
+  if ("requested" in params) {
+    patch.requested = params.requested
+    // Asking again for something an earlier run already made is a new
+    // request, so it shows as still to make.
+    if (wasRestocked && (params.requested ?? 0) > 0) {
+      patch.supplied = null
+      patch.suppliedBy = null
+      patch.suppliedAt = null
+    }
+  }
   if (params.priority !== undefined) patch.priority = params.priority
   if ("priorityRank" in params) {
     patch.priorityRank = params.priorityRank
@@ -438,8 +465,6 @@ export async function submitCountSheet(params: {
     select: { status: true },
   })
   if (!sheet) return { ok: false, error: "Sheet not found" }
-  if (sheet.status === "RESTOCKED")
-    return { ok: false, error: "This sheet has already been restocked" }
 
   await db.restockSheet.update({
     where: { id: params.sheetId },
@@ -462,9 +487,6 @@ export async function reopenCountSheet(
     select: { status: true },
   })
   if (!sheet) return { ok: false, error: "Sheet not found" }
-  if (sheet.status === "RESTOCKED")
-    return { ok: false, error: "Already restocked, start tonight's count instead" }
-
   await db.restockSheet.update({
     where: { id: sheetId },
     data: { status: "IN_PROGRESS" },
@@ -567,6 +589,14 @@ export async function getRestockRun(venue: Venue): Promise<RestockRun> {
     include: { lines: { include: { item: true } } },
     orderBy: { station: "asc" },
   })
+
+  // A sheet reopened after a run still carries that run's finished lines.
+  // They are history, not work, so they stay off the next run.
+  for (const sheet of sheets) {
+    sheet.lines = sheet.lines.filter(
+      (l) => !doneInEarlierRun(l.suppliedAt, sheet.restockedAt)
+    )
+  }
 
   const itemsByKey = new Map<string, RunItem>()
   for (const sheet of sheets) {

@@ -104,7 +104,8 @@ export function RestockPaperSheet({
   const [error, setError] = useState<string | null>(null)
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
-  const readOnly = sheet.status === "RESTOCKED"
+  // Never read-only, same as the standard sheet (see saveCountLine).
+  const readOnly = false
   const submitted = sheet.status === "SUBMITTED"
 
   const groups = useMemo(() => {

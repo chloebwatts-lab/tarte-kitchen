@@ -33,3 +33,12 @@ export function orderPrepItems<T extends OrderableItem>(
       a.name.localeCompare(b.name)
   )
 }
+
+/**
+ * True for a line that a finished run already delivered. Today's sheet can
+ * be closed by the morning run and then opened again for tonight's list;
+ * what the morning made must not come back as work on the next run.
+ */
+export function doneInEarlierRun(suppliedAt: Date | null, sheetRestockedAt: Date | null): boolean {
+  return !!suppliedAt && !!sheetRestockedAt && suppliedAt.getTime() <= sheetRestockedAt.getTime()
+}

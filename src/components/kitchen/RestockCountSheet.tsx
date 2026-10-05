@@ -58,7 +58,10 @@ export function RestockCountSheet({
   // Debounce timers per (itemId, field)
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
-  const readOnly = sheet.status === "RESTOCKED"
+  // Never read-only: a sheet the morning run closed opens again on the
+  // first edit (see saveCountLine) and becomes tonight's list.
+  const readOnly = false
+  const reopened = sheet.status === "RESTOCKED"
   const submitted = sheet.status === "SUBMITTED"
 
   const groups = useMemo(() => {
@@ -277,13 +280,14 @@ export function RestockCountSheet({
         </div>
       </div>
 
-      {readOnly && (
+      {reopened && (
         <div
           className="flex items-center gap-3 rounded-[16px] px-5 py-4 text-[14px] font-medium"
-          style={{ background: "var(--tk-gold-soft)", color: "#8a6d1f" }}
+          style={{ background: "var(--tk-sage-soft)", color: "var(--tk-charcoal)" }}
         >
-          <AlertTriangle className="h-5 w-5 shrink-0" />
-          This sheet was already restocked, so it&apos;s read-only now.
+          <Check className="h-5 w-5 shrink-0" />
+          This morning&apos;s prep is finished. Change anything you like:
+          whatever has a number in Need goes on the next Make prep list.
         </div>
       )}
 
