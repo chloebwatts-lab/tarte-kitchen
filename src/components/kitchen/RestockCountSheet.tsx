@@ -235,7 +235,7 @@ export function RestockCountSheet({
           {sheet.countedBy ? ` · by ${sheet.countedBy}` : ""}.
         </p>
         <p className="mt-1 text-[14px] text-[var(--tk-ink-soft)]">
-          The prep chef will see this on tomorrow&apos;s restock run.
+          The prep chef will see this on tomorrow&apos;s Make prep list.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <button
@@ -250,7 +250,7 @@ export function RestockCountSheet({
             className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[14px] font-medium text-white"
             style={{ background: "var(--tk-charcoal)" }}
           >
-            Back to restock
+            Back to prep list
           </a>
         </div>
       </div>

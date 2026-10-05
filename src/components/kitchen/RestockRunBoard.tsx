@@ -231,7 +231,7 @@ export function RestockRunBoard({
           className="mt-5 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[14px] font-medium text-white"
           style={{ background: "var(--tk-charcoal)" }}
         >
-          Back to restock
+          Back to prep list
           <ArrowRight className="h-4 w-4" />
         </a>
       </div>
@@ -268,7 +268,7 @@ export function RestockRunBoard({
             href={`/kitchen/restock?venue=${run.venue}`}
             className="inline-flex items-center gap-2 rounded-full border border-[var(--tk-line)] bg-white px-5 py-2.5 text-[14px] font-medium text-[var(--tk-charcoal)] hover:bg-[var(--tk-bg)]"
           >
-            Back to restock
+            Back to prep list
           </a>
         </div>
       </div>
@@ -524,7 +524,7 @@ export function RestockRunBoard({
             ) : (
               <Check className="h-5 w-5" />
             )}
-            Finish restock run
+            Finish make prep
           </button>
         </div>
         {stationFilter !== "ALL" && (

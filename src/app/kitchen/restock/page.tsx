@@ -37,7 +37,15 @@ export default async function RestockHubPage({
     : isVenue(cookieVenue)
       ? cookieVenue
       : null
-  if (!venue) return <KitchenVenuePicker />
+  if (!venue) {
+    return (
+      <KitchenVenuePicker
+        next="/kitchen/restock"
+        title="Prep list"
+        blurb="Pick your venue once. This device opens your prep list from then on."
+      />
+    )
+  }
   const venueLabel = VENUE_LABEL[venue].replace(/\s*\(.*\)$/, "")
 
   const hub = await getRestockHub(venue)
@@ -48,7 +56,7 @@ export default async function RestockHubPage({
         crumbs={[
           { label: "Venues", href: "/kitchen" },
           { label: venueLabel, href: `/kitchen?venue=${venue}` },
-          { label: "Restock & prep" },
+          { label: "Prep list" },
         ]}
       />
 
@@ -57,24 +65,12 @@ export default async function RestockHubPage({
           className="tk-display leading-none text-[var(--tk-charcoal)]"
           style={{ fontSize: 44, fontWeight: 700, letterSpacing: "-0.025em" }}
         >
-          Restock &amp; prep
+          Prep list
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
           {prepListDescription(venue)}
         </p>
         <div className="mt-3"><VenueSwitch current={venue} /></div>
-        <div
-          className="mt-4 max-w-2xl rounded-[16px] px-5 py-4 text-[15px] leading-snug"
-          style={{ background: "var(--tk-gold-soft)", color: "#5d4a12" }}
-        >
-          <strong>Why the count matters.</strong> It is the prep list, and it
-          is the record. Every count and request is kept per item, per
-          kitchen, per day. After three months the sheet can fill itself in
-          from what each weekday really needs, shortfalls that repeat point
-          to a roster fix, requested against binned sets the pars, and the
-          pars drive the supplier order. Two minutes at close, no 6am call,
-          and about half an hour a day back for each chef.
-        </div>
       </div>
 
       <div className="space-y-3">
@@ -109,7 +105,7 @@ export default async function RestockHubPage({
                   className="text-[19px] font-semibold leading-snug text-[var(--tk-charcoal)]"
                   style={{ letterSpacing: "-0.01em" }}
                 >
-                  {stationLabel(venue, station)}
+                  {hub.stations.length === 1 ? "PREP LIST" : `PREP LIST, ${stationLabel(venue, station)}`}
                 </div>
                 <div className="mt-0.5 text-[14px] text-[var(--tk-ink-soft)]">
                   {todaySheet
@@ -151,12 +147,11 @@ export default async function RestockHubPage({
               className="text-[19px] font-semibold leading-snug text-[var(--tk-charcoal)]"
               style={{ letterSpacing: "-0.01em" }}
             >
-              Restock run
+              MAKE PREP
             </div>
             <div className="mt-0.5 text-[14px] text-[var(--tk-ink-soft)]">
-              {hub.pendingRunSheets > 0
-                ? `${hub.pendingRunSheets} kitchen count${hub.pendingRunSheets === 1 ? "" : "s"} waiting, one consolidated list`
-                : "No counts waiting right now"}
+              The prep you need to make today
+              {hub.pendingRunSheets === 0 ? ". No counts waiting right now" : ""}
             </div>
           </div>
           {hub.pendingRunSheets > 0 && (
@@ -200,6 +195,20 @@ export default async function RestockHubPage({
             <ArrowRight className="h-[18px] w-[18px]" />
           </div>
         </Link>
+      </div>
+
+      {/* Chloe, 5 Oct 2026: the tiles come first, the why sits at the bottom. */}
+      <div
+        className="mx-1 max-w-2xl rounded-[16px] px-5 py-4 text-[15px] leading-snug"
+        style={{ background: "var(--tk-gold-soft)", color: "#5d4a12" }}
+      >
+        <strong>Why the count matters.</strong> It is the prep list, and it
+        is the record. Every count and request is kept per item, per
+        kitchen, per day. After three months the sheet can fill itself in
+        from what each weekday really needs, shortfalls that repeat point
+        to a roster fix, requested against binned sets the pars, and the
+        pars drive the supplier order. Two minutes at close, no 6am call,
+        and about half an hour a day back for each chef.
       </div>
     </div>
   )

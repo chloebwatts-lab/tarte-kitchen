@@ -346,8 +346,8 @@ function CategoryPicker({
           href={`/kitchen/training?venue=${venue}`}
         />
         <SecondaryTile
-          title="Restock & prep"
-          subtitle="Evening counts, morning restock run, daily report."
+          title="Prep list"
+          subtitle="Count at close, make prep in the morning, daily report."
           icon={<PackageOpen className="h-6 w-6" strokeWidth={1.8} />}
           href={`/kitchen/restock?venue=${venue}`}
         />

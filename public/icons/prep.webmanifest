@@ -1,0 +1,35 @@
+{
+  "name": "Tarte Prep",
+  "short_name": "PREP",
+  "description": "Prep list for Tarte kitchens",
+  "id": "/kitchen/restock",
+  "start_url": "/kitchen/restock",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f5f2",
+  "theme_color": "#16c43a",
+  "icons": [
+    {
+      "src": "/icons/prep-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/prep-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/prep-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/prep-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

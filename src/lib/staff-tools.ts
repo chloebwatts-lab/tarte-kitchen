@@ -45,7 +45,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
     sub: "Counts, the stock walk, orders",
     icon: PackageOpen,
     tools: [
-      { title: "Restock & prep counts", sub: "Evening counts, morning restock run", href: "/kitchen/restock", icon: PackageOpen },
+      { title: "Prep list", sub: "Count at close, make prep in the morning", href: "/kitchen/restock", icon: PackageOpen },
       { title: "Stock walk", sub: "Tap Low or Out, it goes on the order list", href: "/kitchen/stock", icon: PackageSearch },
       { title: "Prep walk-through", sub: "Tomorrow's prep, one tap at a time", href: "/kitchen/prep", icon: ClipboardList },
       { title: "Ordering", sub: "Your section's order, into one daily order", href: "/kitchen/order", icon: ShoppingCart },

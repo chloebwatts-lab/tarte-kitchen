@@ -143,8 +143,8 @@ export const GM_ITEMS: GmItem[] = [
     slug: "prep-soldout",
     theme: "kitchen",
     pillar: "efficient",
-    title: "Prep is running off the restock counts",
-    hint: "Each night the sections count what is left in the app. Each morning the restock run says what to make. Check the counts were done last night, the morning run was worked through, and nothing sold out before 1pm. If something did, the reason is written down.",
+    title: "Prep is running off the prep list",
+    hint: "Each night the sections count what is left in the app. Each morning Make prep says what to make. Check the counts were done last night, the morning run was worked through, and nothing sold out before 1pm. If something did, the reason is written down.",
     href: "/kitchen/restock",
   },
   {

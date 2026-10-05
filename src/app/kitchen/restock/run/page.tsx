@@ -30,7 +30,7 @@ export default async function RestockRunPage({
     : isVenue(cookieVenue)
       ? cookieVenue
       : null
-  if (!venue) return <KitchenVenuePicker />
+  if (!venue) return <KitchenVenuePicker next="/kitchen/restock" title="Prep list" blurb="Pick your venue once. This device opens your prep list from then on." />
 
   const run = await getRestockRun(venue)
   const venueLabel = VENUE_LABEL[venue].replace(/\s*\(.*\)$/, "")
@@ -49,8 +49,8 @@ export default async function RestockRunPage({
         crumbs={[
           { label: "Venues", href: "/kitchen" },
           { label: venueLabel, href: `/kitchen?venue=${venue}` },
-          { label: "Restock & prep", href: `/kitchen/restock?venue=${venue}` },
-          { label: "Restock run" },
+          { label: "Prep list", href: `/kitchen/restock?venue=${venue}` },
+          { label: "Make prep" },
         ]}
       />
 
@@ -59,7 +59,7 @@ export default async function RestockRunPage({
           className="tk-display leading-none text-[var(--tk-charcoal)]"
           style={{ fontSize: 40, fontWeight: 700, letterSpacing: "-0.025em" }}
         >
-          Morning restock run
+          Make prep
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
           One consolidated list from every kitchen&apos;s evening count. Items

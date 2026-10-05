@@ -21,7 +21,7 @@ const pageTitles: Record<string, string> = {
   "/reports": "Reports",
   "/menu-engineering": "Menu Matrix",
   "/prep-sheet": "Prep Sheet",
-  "/restock": "Restock & Prep Counts",
+  "/restock": "Prep list",
   "/stocktake": "Stocktake",
   "/checklists": "Checklists",
   "/orders": "Orders",

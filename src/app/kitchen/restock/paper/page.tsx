@@ -36,7 +36,7 @@ export default async function RestockPaperPage({
     : isVenue(cookieVenue)
       ? cookieVenue
       : null
-  if (!venue) return <KitchenVenuePicker />
+  if (!venue) return <KitchenVenuePicker next="/kitchen/restock" title="Prep list" blurb="Pick your venue once. This device opens your prep list from then on." />
   const station = isKitchenStation(stationParam) ? stationParam : "MAIN"
 
   const sheet = await getCountSheet({ venue, station })
@@ -48,7 +48,7 @@ export default async function RestockPaperPage({
         crumbs={[
           { label: "Venues", href: "/kitchen" },
           { label: venueLabel, href: `/kitchen?venue=${venue}` },
-          { label: "Restock & prep", href: `/kitchen/restock?venue=${venue}` },
+          { label: "Prep list", href: `/kitchen/restock?venue=${venue}` },
           { label: "Paper sheet" },
         ]}
       />

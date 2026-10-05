@@ -27,7 +27,7 @@ export default async function RestockAdminPage({
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Restock &amp; prep counts
+          Prep list
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           The head chef&apos;s prep system: closing chefs count each kitchen

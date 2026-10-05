@@ -35,7 +35,16 @@ function formatNow() {
   })
 }
 
-export function KitchenVenuePicker() {
+export function KitchenVenuePicker({
+  next = "/kitchen",
+  title = "Checklists",
+  blurb = "Cleaning and food temperature logs, all in one place. Pick a venue to begin.",
+}: {
+  /** Page to open once a venue is picked; it gets ?venue= appended. */
+  next?: string
+  title?: string
+  blurb?: string
+} = {}) {
   // Highlight the venue this device last used (tk-venue cookie) so the
   // common case is a one-glance, one-tap re-entry. Never auto-redirects:
   // picking stays explicit. Server snapshot is null, so the chip only
@@ -82,14 +91,13 @@ export function KitchenVenuePicker() {
             letterSpacing: "-0.035em",
           }}
         >
-          Checklists
+          {title}
         </h1>
         <p
           className="mx-auto mt-3 max-w-xl text-[16px] leading-snug md:mt-5 md:text-[20px]"
           style={{ color: "rgba(255,255,255,0.85)" }}
         >
-          Cleaning and food temperature logs, all in one place. Pick a venue to
-          begin.
+          {blurb}
         </p>
       </div>
 
@@ -99,7 +107,7 @@ export function KitchenVenuePicker() {
           {SINGLE_VENUES.map((v) => (
             <Link
               key={v}
-              href={`/kitchen?venue=${v}`}
+              href={`${next}?venue=${v}`}
               onClick={() => rememberVenue(v)}
               className="group flex min-h-[128px] flex-col justify-between rounded-[20px] bg-white/95 p-5 text-left transition active:scale-[0.99] md:min-h-[180px] md:p-6"
               style={{ color: "var(--tk-charcoal)" }}

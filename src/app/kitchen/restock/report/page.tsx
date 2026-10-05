@@ -36,7 +36,7 @@ export default async function RestockReportPage({
     : isVenue(cookieVenue)
       ? cookieVenue
       : null
-  if (!venue) return <KitchenVenuePicker />
+  if (!venue) return <KitchenVenuePicker next="/kitchen/restock" title="Prep list" blurb="Pick your venue once. This device opens your prep list from then on." />
   const dateParam =
     typeof sp.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.date)
       ? sp.date
@@ -56,7 +56,7 @@ export default async function RestockReportPage({
         crumbs={[
           { label: "Venues", href: "/kitchen" },
           { label: venueLabel, href: `/kitchen?venue=${venue}` },
-          { label: "Restock & prep", href: `/kitchen/restock?venue=${venue}` },
+          { label: "Prep list", href: `/kitchen/restock?venue=${venue}` },
           { label: "Daily report" },
         ]}
       />
