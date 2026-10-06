@@ -159,6 +159,9 @@ services:
         # Every 30 min — Square Orders/Payments API: item-level sales +
         # today's running total for the live tracker (yesterday + today).
         7,37 * * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/sync-square-sales?days=2' 2>&1
+        # Every 30 min — Uber Eats daily sales (Manager website endpoints with
+        # the pasted session): two closed days + today, per shop.
+        19,49 * * * * curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/sync-uber-sales?days=3' 2>&1
         # Every 2 hours — incremental supplier-invoice scan (Gmail after:
         # lastScanAt). Was once-daily — bumped 2026-05-22 so a stale
         # watermark or rate-limit hiccup can't cost us a whole day.

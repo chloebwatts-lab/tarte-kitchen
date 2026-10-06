@@ -9,13 +9,15 @@ import { getGbpConnectionStatus } from "@/lib/gbp/token"
 import { LightspeedConnection } from "@/components/lightspeed-connection"
 import { SquareConnection } from "@/components/square-connection"
 import { getSquareConnectionStatus } from "@/lib/actions/square"
+import { UberConnection } from "@/components/uber-connection"
+import { getUberConnectionStatus } from "@/lib/actions/uber"
 import { GmailConnection } from "@/components/gmail-connection"
 import { XeroConnection } from "@/components/xero-connection"
 import { DeputyConnection } from "@/components/deputy-connection"
 import { GbpConnection } from "@/components/gbp-connection"
 
 export default async function IntegrationsPage() {
-  const [lightspeedStatus, gmailStatus, xeroStatus, deputyStatus, gbpStatus, squareStatus] =
+  const [lightspeedStatus, gmailStatus, xeroStatus, deputyStatus, gbpStatus, squareStatus, uberStatus] =
     await Promise.all([
       getLightspeedStatus(),
       getGmailStatus(),
@@ -23,6 +25,7 @@ export default async function IntegrationsPage() {
       getDeputyStatus(),
       getGbpConnectionStatus(),
       getSquareConnectionStatus(),
+      getUberConnectionStatus(),
     ])
 
   const googleOauthConfigured = Boolean(
@@ -42,6 +45,7 @@ export default async function IntegrationsPage() {
       <GmailConnection status={gmailStatus} configured={googleOauthConfigured} />
       <GbpConnection status={gbpStatus} configured={googleOauthConfigured} />
       <SquareConnection status={squareStatus} />
+      <UberConnection status={uberStatus} />
       <LightspeedConnection status={lightspeedStatus} />
       <DeputyConnection
         status={deputyStatus}

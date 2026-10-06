@@ -3448,3 +3448,33 @@ model HighTeaPrepSnapshot {
 
   @@unique([serviceDate, stage])
 }
+
+// ─── Uber Eats ───────────────────────────────────────────────────────────────
+// Uber gives merchants no API, so Tarte Kitchen reads the same endpoints the
+// Uber Eats Manager website uses, with a pasted browser session (see
+// src/lib/uber). One row at most.
+model UberEatsConnection {
+  id          String    @id @default(cuid())
+  cookie      String    // Encrypted at rest via TOKEN_ENCRYPTION_KEY
+  stores      Json?     // Array of {uuid, name, venue}
+  connectedAt DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lastSyncAt  DateTime?
+  lastError   String?
+}
+
+// Uber Eats sales per day: "total value of items sold" at Uber menu prices,
+// inc GST, before Uber's commission. Kept apart from DailySalesSummary on
+// purpose: it never joins the venue's revenue total.
+model DailyUberSales {
+  id           String   @id @default(cuid())
+  date         DateTime @db.Date
+  venue        Venue
+  salesIncGst  Decimal  @db.Decimal(12, 2)
+  orders       Int      @default(0)
+  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now())
+
+  @@unique([date, venue])
+  @@index([venue, date])
+}

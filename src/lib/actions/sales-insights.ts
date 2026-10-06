@@ -5,6 +5,7 @@ import type { Venue } from "@/generated/prisma/client"
 import { isSquareVenueOn } from "@/lib/pos"
 import { assertManager } from "@/lib/manager-auth"
 import { fetchLiveDay } from "@/lib/square/live"
+import { uberDay, uberDailyRows, type UberDay } from "@/lib/uber/live"
 import type { DayBreakdown, Channel } from "@/lib/square/breakdown"
 import { shiftDate, tarteWeekStart } from "@/lib/sales/compare"
 import {
@@ -28,10 +29,12 @@ export interface SalesInsights {
   lastWeek: HourlyComparison
   head: HeadlineComparison
   typical: ChannelTypical[]
-  /** For 1W / 1M: one entry per day. */
-  series: Array<{ date: string; actual: number | null; compare: number | null }>
-  seriesTotals: { actual: number; compare: number | null; pct: number | null }
+  /** For 1W / 1M: one entry per day. `uber` is Uber Eats, shown beside the total, never in it. */
+  series: Array<{ date: string; actual: number | null; compare: number | null; uber: number | null }>
+  seriesTotals: { actual: number; compare: number | null; pct: number | null; uber: number | null }
   nowMinutes: number | null
+  /** Uber Eats for the day (menu value inc GST, before commission). Not part of `day`. */
+  uber: UberDay
 }
 
 const ymd = (d: Date) => d.toISOString().slice(0, 10)
@@ -86,6 +89,9 @@ export async function getSalesInsights(venue: Venue, date: string, range: Range 
     if (h) { day = h.day; source = h.source }
   }
 
+  // ---- Uber Eats (beside the total, never in it) ----
+  const uber = await uberDay(venue, date, isToday, { force: opts.force })
+
   // ---- comparisons ----
   const cmpDates = comparisonDates(date, compare)
   const lwDates = comparisonDates(date, "LAST_WEEK")
@@ -103,7 +109,7 @@ export async function getSalesInsights(venue: Venue, date: string, range: Range 
 
   // ---- 1W / 1M daily series ----
   let series: SalesInsights["series"] = []
-  let seriesTotals = { actual: 0, compare: null as number | null, pct: null as number | null }
+  let seriesTotals = { actual: 0, compare: null as number | null, pct: null as number | null, uber: null as number | null }
   if (range !== "1D") {
     const start = range === "1W" ? tarteWeekStart(date) : shiftDate(tarteWeekStart(date), -21)
     const days = Array.from({ length: range === "1W" ? 7 : 28 }, (_, i) => shiftDate(start, i))
@@ -118,13 +124,17 @@ export async function getSalesInsights(venue: Venue, date: string, range: Range 
       if (i >= 0) daily[i] = { ...daily[i], revenueIncGst: day.paidIncGst }
       else daily.push({ date, revenueIncGst: day.paidIncGst, orders: day.paidOrders })
     }
-    series = dailySeries(daily, days.filter((d) => d <= now.date), compare)
+    const uberRows = await uberDailyRows(venue, days[0], days[days.length - 1])
+    const uberBy = new Map(uberRows.map((r) => [r.date, r.sales]))
+    if (isToday && uber.status !== "NONE") uberBy.set(date, uber.sales)
+    series = dailySeries(daily, days.filter((d) => d <= now.date), compare).map((x) => ({ ...x, uber: uberBy.has(x.date) ? uberBy.get(x.date)! : null }))
     const actual = series.reduce((s, x) => s + (x.actual ?? 0), 0)
     const cmpVals = series.filter((x) => x.actual !== null && x.compare !== null)
     const cmpSum = cmpVals.reduce((s, x) => s + (x.compare ?? 0), 0)
     const pct = cmpSum > 0 ? Math.round(((actual - cmpSum) / cmpSum) * 1000) / 10 : null
-    seriesTotals = { actual: Math.round(actual * 100) / 100, compare: cmpVals.length ? Math.round(cmpSum * 100) / 100 : null, pct }
+    const uberSum = series.reduce((s, x) => s + (x.uber ?? 0), 0)
+    seriesTotals = { actual: Math.round(actual * 100) / 100, compare: cmpVals.length ? Math.round(cmpSum * 100) / 100 : null, pct, uber: series.some((x) => x.uber !== null) ? Math.round(uberSum * 100) / 100 : null }
   }
 
-  return { venue, date, isToday, range, compare, source, fetchedAt, day, hourlyCompare, lastWeek, head, typical, series, seriesTotals, nowMinutes }
+  return { venue, date, isToday, range, compare, source, fetchedAt, day, hourlyCompare, lastWeek, head, typical, series, seriesTotals, nowMinutes, uber }
 }

@@ -7,7 +7,7 @@ import { getSalesInsights, type SalesInsights as Data, type Range } from "@/lib/
 import type { CompareMode } from "@/lib/sales/insights"
 import { VENUE_LABEL } from "@/lib/venues"
 
-const NAVY = "#1f3b4d", NAVY_SOFT = "#2a4b60", GOLD = "#e3b86f", GOLD_NOW = "#c9a46a"
+const NAVY = "#1f3b4d", NAVY_SOFT = "#2a4b60", GOLD = "#e3b86f", GOLD_NOW = "#c9a46a", UBER = "#7fd1a8"
 const money0 = (n: number | null | undefined) => (n === null || n === undefined ? "n/a" : `$${Math.round(n).toLocaleString("en-AU")}`)
 const money2 = (n: number | null | undefined) => (n === null || n === undefined ? "n/a" : `$${n.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
 const shiftDate = (d: string, n: number) => { const x = new Date(`${d}T00:00:00Z`); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10) }
@@ -29,6 +29,23 @@ function SmallPill({ pct }: { pct: number | null }) {
   if (pct === null) return null
   const up = pct >= 0
   return <span className={`ml-2 inline-block rounded-full px-2 py-0.5 text-[12px] font-semibold ${up ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{up ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}%</span>
+}
+
+function UberLine({ uber, isToday }: { uber: Data["uber"]; isToday: boolean }) {
+  if (uber.status === "NONE" && !uber.error) return null
+  const when = uber.fetchedAt ? new Date(uber.fetchedAt).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit", timeZone: "Australia/Brisbane" }) : ""
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-2 text-[14px] text-white/85">
+      <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: UBER }} />
+      <span>Uber Eats <strong>{money0(uber.sales)}</strong> · {uber.orders} order{uber.orders === 1 ? "" : "s"}</span>
+      <span className="text-[12px] text-white/55">
+        not in the total
+        {uber.status === "LIVE" && ` · live ${when}`}
+        {uber.status === "STORED" && isToday && ` · last seen ${when}`}
+        {uber.error && <span className="text-rose-200"> · Uber session expired, paste a fresh one in Settings</span>}
+      </span>
+    </div>
+  )
 }
 
 /**
@@ -110,6 +127,7 @@ export function SalesInsights({ initial, view = "sales" }: { initial: Data; view
               <strong>{money0(paid)}</strong> paid{open > 0 && <> + <strong>{money0(open)}</strong> on {day?.openTables} open table{day?.openTables === 1 ? "" : "s"}</>}
               {day && day.surchargeIncGst > 0 && <> · incl. <strong>{money0(day.surchargeIncGst)}</strong> {day.surchargeName ?? "surcharge"}</>}
             </div>
+            <UberLine uber={data.uber} isToday={data.isToday} />
             <div className="mt-4 space-y-3">
               <div>
                 <Pill pct={data.head.vsAvgPct} dollars={data.head.vsAvgDollars} />
@@ -166,21 +184,26 @@ export function SalesInsights({ initial, view = "sales" }: { initial: Data; view
             <div className="mt-6 text-[12px] font-semibold uppercase tracking-[0.14em] text-white/70">{range === "1W" ? "Trading week (Wed to Tue)" : "Last 4 trading weeks"} · revenue inc GST</div>
             <div className="mt-1 font-serif text-[52px] font-semibold leading-none tabular-nums">{money0(data.seriesTotals.actual)}</div>
             <div className="mt-3"><Pill pct={data.seriesTotals.pct} dollars={data.seriesTotals.compare !== null ? data.seriesTotals.actual - data.seriesTotals.compare : null} /> <span className="ml-2 text-[13px] text-white/70">vs {COMPARE_LABEL[compare]} for the same weekdays</span></div>
+            {data.seriesTotals.uber !== null && (
+              <div className="mt-2 text-[14px] text-white/85"><span className="mr-1.5 inline-block h-2.5 w-2.5 rounded-sm align-middle" style={{ background: UBER }} />Uber Eats <strong>{money0(data.seriesTotals.uber)}</strong> <span className="text-white/60">on top, not in the total</span></div>
+            )}
             <div className="mt-5 h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={data.series.map((s) => ({ ...s, label: range === "1W" ? dayLabel(s.date).slice(0, 3) : dayLabel(s.date).slice(4) }))} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
                   <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.12)" />
                   <XAxis dataKey="label" tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 11 }} axisLine={false} tickLine={false} interval={range === "1W" ? 0 : 3} />
                   <YAxis tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${Math.round(v / 1000)}k`} />
-                  <Tooltip contentStyle={{ background: NAVY_SOFT, border: "none", borderRadius: 10, color: "white", fontSize: 12 }} formatter={(v, name) => [money0(typeof v === "number" ? v : Number(v ?? 0)), String(name) === "actual" ? "Revenue" : COMPARE_LABEL[compare]]} labelFormatter={(_, p) => (p?.[0]?.payload?.date ? dayLabel(p[0].payload.date) : "")} />
+                  <Tooltip contentStyle={{ background: NAVY_SOFT, border: "none", borderRadius: 10, color: "white", fontSize: 12 }} formatter={(v, name) => [money0(typeof v === "number" ? v : Number(v ?? 0)), String(name) === "actual" ? "Revenue" : String(name) === "uber" ? "Uber Eats" : COMPARE_LABEL[compare]]} labelFormatter={(_, p) => (p?.[0]?.payload?.date ? dayLabel(p[0].payload.date) : "")} />
                   <Bar dataKey="actual" radius={[4, 4, 0, 0]} fill={GOLD} />
                   <Line type="monotone" dataKey="compare" stroke="rgba(255,255,255,0.85)" strokeDasharray="5 4" dot={false} strokeWidth={1.5} />
+                  {data.seriesTotals.uber !== null && <Line type="monotone" dataKey="uber" stroke={UBER} dot={{ r: 2, fill: UBER, strokeWidth: 0 }} strokeWidth={1.5} connectNulls />}
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
+            <div className="mt-1 flex gap-4 text-[12px] text-white/70"><span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: GOLD }} />Revenue</span><span>- - - {COMPARE_LABEL[compare]}</span>{data.seriesTotals.uber !== null && <span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: UBER }} />Uber Eats</span>}</div>
             <div className="mt-3 divide-y divide-white/10 text-[14px]">
               {data.series.filter((s) => s.actual !== null).map((s) => (
-                <div key={s.date} className="flex justify-between py-1.5"><span className="text-white/85">{dayLabel(s.date)}</span><span className="tabular-nums">{money0(s.actual)}<span className="ml-2 text-white/50">{s.compare !== null ? `vs ${money0(s.compare)}` : ""}</span></span></div>
+                <div key={s.date} className="flex justify-between py-1.5"><span className="text-white/85">{dayLabel(s.date)}</span><span className="tabular-nums">{money0(s.actual)}<span className="ml-2 text-white/50">{s.compare !== null ? `vs ${money0(s.compare)}` : ""}</span>{s.uber !== null && s.uber > 0 && <span className="ml-2 text-[12px]" style={{ color: UBER }}>+ Uber {money0(s.uber)}</span>}</span></div>
               ))}
             </div>
           </>
@@ -240,7 +263,13 @@ export function SalesInsights({ initial, view = "sales" }: { initial: Data; view
           ) : (
             <p className="mt-3 text-[14px] text-[var(--tk-ink-soft)]">{data.source === "LIGHTSPEED" || data.source === "ESTIMATE" ? "Lightspeed day: split by register where the export had it." : "Needs the live Square connection."}</p>
           )}
-          {day && channelsPaid === 0 && (day.channels.CAFE.orders || day.channels.RESTAURANT.orders) ? null : null}
+          {data.uber.status !== "NONE" && (
+            <div className="mt-4 border-t border-[var(--tk-line)] pt-3">
+              <div className="flex items-baseline justify-between"><span className="text-[17px] font-semibold">Uber Eats</span><span className="text-[17px] font-semibold tabular-nums">{money0(data.uber.sales)}</span></div>
+              <div className="mt-1 h-2.5 w-full rounded-full bg-[var(--tk-bg)]"><div className="h-2.5 rounded-full" style={{ width: `${channelsPaid > 0 ? Math.min(100, (data.uber.sales / channelsPaid) * 100) : 0}%`, background: UBER }} /></div>
+              <div className="mt-1 text-[13px] text-[var(--tk-ink-soft)]">{data.uber.orders} order{data.uber.orders === 1 ? "" : "s"} · {channelsPaid > 0 ? `${((data.uber.sales / channelsPaid) * 100).toFixed(1)}% on top of the venue total` : "on top of the venue total"} · menu value before Uber&apos;s cut{data.uber.status === "LIVE" ? " · live" : ""}</div>
+            </div>
+          )}
         </section>
 
         {day && day.registers.length > 0 && (
