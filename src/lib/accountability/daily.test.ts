@@ -1,6 +1,12 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { renderDailyAccountability, accountabilityRecipients, type DailyAccountability } from "./daily"
+import {
+  renderDailyAccountability,
+  accountabilityRecipients,
+  uberEodLine,
+  type DailyAccountability,
+  type UberEodRow,
+} from "./daily"
 
 const empty = (venue: DailyAccountability["venues"][number]["venue"]) => ({
   venue,
@@ -38,6 +44,7 @@ const busy: DailyAccountability = {
     empty("BEACH_HOUSE"),
     empty("TEA_GARDEN"),
   ],
+  uber: null,
   groupAgenda: [{ text: "Christmas rosters", who: null, age: "today", flag: null }],
   totals: { agenda: 2, fixes: 2, jobs: 1, orders: 1, unowned: 2 },
 }
@@ -81,6 +88,7 @@ test("a clean day says so instead of rendering empty cards", () => {
   const quiet: DailyAccountability = {
     date: "Monday 28 September",
     venues: [empty("BURLEIGH"), empty("BEACH_HOUSE"), empty("TEA_GARDEN")],
+    uber: null,
     groupAgenda: [],
     totals: { agenda: 0, fixes: 0, jobs: 0, orders: 0, unowned: 0 },
   }
@@ -106,4 +114,86 @@ test("accountabilityRecipients: defaults, blank env, trimmed list", () => {
     if (prev === undefined) delete process.env.ACCOUNTABILITY_TO
     else process.env.ACCOUNTABILITY_TO = prev
   }
+})
+
+// Uber Eats card (added 7 Oct 2026)
+
+const row = (o: Partial<UberEodRow> = {}): UberEodRow => ({
+  venue: "BEACH_HOUSE",
+  name: "Tarte Takeaway",
+  sales: 638.05,
+  orders: 20,
+  lastWeek: 0,
+  live: true,
+  error: null,
+  ...o,
+})
+
+test("uberEodLine: shop, venue, rounded dollars, orders, last same weekday", () => {
+  assert.equal(uberEodLine(row(), "Tuesday"), "Tarte Takeaway (Beach House): $638, 20 orders (last Tuesday $0)")
+  assert.equal(uberEodLine(row({ orders: 1, sales: 24.9, lastWeek: null }), "Tuesday"), "Tarte Takeaway (Beach House): $25, 1 order")
+  assert.equal(
+    uberEodLine(row({ venue: "BURLEIGH", name: "Tarte Bakery Burleigh", sales: 0, orders: 0, lastWeek: 1234.5 }), "Monday"),
+    "Tarte Bakery Burleigh (Bakery): $0, 0 orders (last Monday $1,235)"
+  )
+})
+
+test("uberEodLine: a dead session with nothing stored says so instead of $0", () => {
+  assert.equal(
+    uberEodLine(row({ sales: 0, orders: 0, live: false, lastWeek: null, error: "Uber Eats session has expired." }), "Tuesday"),
+    "Tarte Takeaway (Beach House): no figure, Uber Eats session has expired."
+  )
+  // a stored figure with a stale session still shows the figure
+  assert.equal(uberEodLine(row({ live: false, error: "expired", lastWeek: null }), "Tuesday"), "Tarte Takeaway (Beach House): $638, 20 orders")
+  // a live session with a $0 day is a real $0, not "no figure"
+  assert.equal(uberEodLine(row({ sales: 0, orders: 0, live: true, lastWeek: null }), "Tuesday"), "Tarte Takeaway (Beach House): $0, 0 orders")
+})
+
+test("uber card: rendered in html and text with the weekday from the date, outside the venue totals", () => {
+  const withUber: DailyAccountability = {
+    ...busy,
+    uber: [
+      row(),
+      row({ venue: "BURLEIGH", name: "Tarte Bakery Burleigh", sales: 212.4, orders: 7, lastWeek: 198.75 }),
+      row({ venue: "TEA_GARDEN", name: "Tarte Tea & Co", sales: 0, orders: 0, lastWeek: null, live: false, error: "Uber Eats session has expired." }),
+    ],
+  }
+  const { subject, html, text } = renderDailyAccountability(withUber)
+
+  // Uber never changes the open count
+  assert.equal(subject, "End of day Sunday 27 September: 6 open, 2 with nobody on them")
+
+  assert.ok(html.includes("Uber Eats today"))
+  assert.ok(html.includes("On top of the venue totals, not in them."))
+  assert.ok(html.includes("last Sunday $0"), "weekday comes from the first word of the date")
+  assert.ok(html.includes("<strong>$638</strong>"))
+  assert.ok(html.includes("<strong>$212</strong>"))
+  assert.ok(html.includes("last Sunday $199"))
+  assert.ok(html.includes("Tarte Tea &amp; Co"), "shop names are escaped")
+  assert.ok(html.includes("Uber Eats session has expired."), "dead session shown in red under the shop")
+  assert.ok(html.includes("7 orders"))
+  assert.ok(!html.includes("—"), "no em dashes")
+
+  const lines = text.split("\n")
+  const header = lines.indexOf("UBER EATS TODAY (not in the venue totals)")
+  assert.ok(header > 0)
+  assert.equal(lines[header + 1], "   - Tarte Takeaway (Beach House): $638, 20 orders (last Sunday $0)")
+  assert.equal(lines[header + 2], "   - Tarte Bakery Burleigh (Bakery): $212, 7 orders (last Sunday $199)")
+  assert.equal(lines[header + 3], "   - Tarte Tea & Co (Tea Garden): no figure, Uber Eats session has expired.")
+  assert.ok(lines.indexOf("ALL VENUES") < header, "uber block comes after the venue lists")
+})
+
+test("uber card: not connected (null) or connected with no mapped shops (empty) renders nothing", () => {
+  for (const uber of [null, []] as const) {
+    const { html, text } = renderDailyAccountability({ ...busy, uber: uber as DailyAccountability["uber"] })
+    assert.ok(!html.includes("Uber Eats today"))
+    assert.ok(!text.includes("UBER EATS TODAY"))
+  }
+})
+
+test("uber card: weekday extraction tolerates a comma after the day name and a one-word date", () => {
+  const comma = renderDailyAccountability({ ...busy, date: "Sunday, 27 September", uber: [row()] })
+  assert.ok(comma.text.includes("(last Sunday $0)"))
+  const oneWord = renderDailyAccountability({ ...busy, date: "Sunday", uber: [row()] })
+  assert.ok(oneWord.text.includes("(last Sunday $0)"))
 })

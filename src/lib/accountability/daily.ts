@@ -3,6 +3,10 @@ import { DEPT_LABEL } from "@/lib/departments"
 import { VENUE_SHORT_LABEL } from "@/lib/venues"
 import type { Venue } from "@/generated/prisma/client"
 import { BRAND, FONT_BODY, FONT_DISPLAY, callout, section as card, shell, tiles, toneColours, type Tone } from "@/lib/email/brand"
+import { uberDay, uberDailyRows } from "@/lib/uber/live"
+import { getUberConnection, uberStores } from "@/lib/uber/token"
+import { brisbaneNow } from "@/lib/sales/insights"
+import { shiftDate } from "@/lib/sales/compare"
 
 /**
  * End-of-day accountability email. Chloe, 18 Sep 2026: "an email end of
@@ -59,9 +63,14 @@ interface VenueBlock {
   orders: Line[]
 }
 
+/** Uber Eats for the day, per shop. Menu value inc GST before Uber's cut; never in a venue total. */
+export interface UberEodRow { venue: Venue; name: string; sales: number; orders: number; lastWeek: number | null; live: boolean; error: string | null }
+
 export interface DailyAccountability {
   date: string
   venues: VenueBlock[]
+  /// Null when Uber Eats is not connected.
+  uber: UberEodRow[] | null
   /// Agenda items raised without a venue.
   groupAgenda: Line[]
   totals: { agenda: number; fixes: number; jobs: number; orders: number; unowned: number }
@@ -166,7 +175,36 @@ export async function getDailyAccountability(now = new Date()): Promise<DailyAcc
     weekday: "long", day: "numeric", month: "long", timeZone: "Australia/Brisbane",
   }).format(now)
 
-  return { date, venues, groupAgenda, totals }
+  return { date, venues, groupAgenda, totals, uber: await uberForDay(now) }
+}
+
+/** Chloe, 7 Oct 2026: "add uber to the daily eod email too". Live figure at send time, plus the same weekday last week. */
+async function uberForDay(now: Date): Promise<UberEodRow[] | null> {
+  const conn = await getUberConnection()
+  if (!conn) return null
+  const today = brisbaneNow(now).date
+  const lastWeekDate = shiftDate(today, -7)
+  const rows: UberEodRow[] = []
+  for (const store of uberStores(conn)) {
+    if (!store.venue || !VENUES.includes(store.venue as Venue)) continue
+    const venue = store.venue as Venue
+    try {
+      const [day, lw] = await Promise.all([uberDay(venue, today, true), uberDailyRows(venue, lastWeekDate, lastWeekDate)])
+      rows.push({ venue, name: store.name, sales: day.sales, orders: day.orders, lastWeek: lw[0]?.sales ?? null, live: day.status === "LIVE", error: day.status === "NONE" && day.error ? day.error : null })
+    } catch (err) {
+      rows.push({ venue, name: store.name, sales: 0, orders: 0, lastWeek: null, live: false, error: err instanceof Error ? err.message : String(err) })
+    }
+  }
+  return rows
+}
+
+const money0 = (n: number) => `$${Math.round(n).toLocaleString("en-AU")}`
+
+/** One line per shop for the email: "Tarte Takeaway (Beach House): $638, 20 orders (last Tue $0)". Pure, tested. */
+export function uberEodLine(r: UberEodRow, weekday: string): string {
+  if (r.error && !r.live && r.sales === 0 && r.orders === 0) return `${r.name} (${VENUE_SHORT_LABEL[r.venue]}): no figure, ${r.error}`
+  const base = `${r.name} (${VENUE_SHORT_LABEL[r.venue]}): ${money0(r.sales)}, ${r.orders} order${r.orders === 1 ? "" : "s"}`
+  return r.lastWeek === null ? base : `${base} (last ${weekday} ${money0(r.lastWeek)})`
 }
 
 function agendaLine(now: Date) {
@@ -224,6 +262,15 @@ export function renderDailyAccountability(d: DailyAccountability): { subject: st
     ? venueCard("All venues", group("Meeting agenda", d.groupAgenda, "/kitchen/managers/agenda"), d.groupAgenda.length)
     : ""
 
+  const weekday = d.date.split(/[ ,]/)[0] || d.date
+  const uberCard = (dd: DailyAccountability) => {
+    const rows = (dd.uber ?? []).map((r) => `<tr>
+<td style="padding:8px 8px 8px 0;border-top:1px solid ${BRAND.line};vertical-align:top"><div style="font-family:${FONT_BODY};font-size:15px;line-height:1.4;font-weight:700;color:${BRAND.ink}">${esc(r.name)} <span style="font-weight:400;color:${BRAND.inkSoft}">${esc(VENUE_SHORT_LABEL[r.venue])}</span></div>${r.error && !r.live ? `<div style="font-family:${FONT_BODY};font-size:13px;color:${toneColours("red").ink}">${esc(r.error)}</div>` : ""}</td>
+<td style="padding:8px 0;border-top:1px solid ${BRAND.line};vertical-align:top;text-align:right;white-space:nowrap;font-family:${FONT_BODY};font-size:15px;color:${BRAND.ink}"><strong>${esc(money0(r.sales))}</strong> <span style="color:${BRAND.inkSoft};font-size:13px">${r.orders} order${r.orders === 1 ? "" : "s"}${r.lastWeek !== null ? ` &middot; last ${esc(weekday)} ${esc(money0(r.lastWeek))}` : ""}</span></td>
+</tr>`).join("")
+    return card("Uber Eats today", `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse">${rows}</table>`, { note: "Menu value inc GST before Uber's cut. On top of the venue totals, not in them." })
+  }
+
   const html = shell({
     kicker: "End of day",
     title: d.date,
@@ -236,6 +283,7 @@ export function renderDailyAccountability(d: DailyAccountability): { subject: st
         { label: "Agenda", value: String(t.agenda) },
       ]),
       callout(t.unowned ? `${t.unowned} of these have nobody on them.` : "Everything open has a name on it.", t.unowned ? "red" : "done"),
+      ...(d.uber && d.uber.length ? [uberCard(d)] : []),
       ...(open === 0
         ? [card(null, `<div style="font-family:${FONT_DISPLAY};font-size:20px;line-height:1.2;color:${BRAND.charcoal};font-weight:600">Nothing open anywhere. Good day.</div>`)]
         : [...blocks, groupBlock].filter(Boolean)),
@@ -263,5 +311,9 @@ export function renderDailyAccountability(d: DailyAccountability): { subject: st
     textLines.push("")
   }
   if (d.groupAgenda.length) { textLines.push("ALL VENUES"); addText("Meeting agenda", d.groupAgenda) }
+  if (d.uber && d.uber.length) {
+    textLines.push("", "UBER EATS TODAY (not in the venue totals)")
+    for (const r of d.uber) textLines.push(`   - ${uberEodLine(r, weekday)}`)
+  }
   return { subject, html, text: textLines.join("\n") }
 }
