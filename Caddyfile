@@ -66,6 +66,14 @@
 		# with Shawna: it is where Google posts and most review replies get
 		# approved, and it holds nothing financial.
 		not path /seo /seo/*
+		# Tarte HQ pass (7 Oct 2026): a browser that has signed in to the
+		# office side carries tk_hq, set by the app's middleware only after
+		# a real office session was seen, holding the HQ_PASS secret from
+		# .env. Caddy lets that browser through without the password prompt
+		# (iPhone home-screen apps never remember basic auth). Every other
+		# browser still gets the prompt, and the app still checks the
+		# session on every office route.
+		not header_regexp Cookie (^|;\s*)tk_hq={$HQ_PASS}(;|$)
 	}
 	basic_auth @protected {
 		tarte {$BASIC_AUTH_HASH}

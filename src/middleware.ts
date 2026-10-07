@@ -6,7 +6,9 @@ import {
   PERSON_COOKIE,
   decodeOwnerDevice,
   decodePerson,
+  encodeOwnerDevice,
   encodePerson,
+  ownerDeviceCookieOptions,
   personCookieOptions,
   personFromOwnerDevice,
 } from "@/lib/person-auth"
@@ -63,6 +65,12 @@ export default async function middleware(req: NextRequest) {
       headers.set("cookie", [...others, `${PERSON_COOKIE}=${minted}`].join("; "))
       const fresh = NextResponse.next({ request: { headers } })
       fresh.cookies.set(PERSON_COOKIE, minted, personCookieOptions())
+      // The phone stays trusted for 30 days from its last use, not forever.
+      fresh.cookies.set(
+        OWNER_DEVICE_COOKIE,
+        await encodeOwnerDevice({ id: person.id, name: person.name, last: person.last, email: person.email ?? null, iat: Date.now() }),
+        ownerDeviceCookieOptions()
+      )
       return fresh
     }
     const res = NextResponse.next()
@@ -79,8 +87,25 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  return NextResponse.next()
+  // Office pass for Caddy (see Caddyfile): a browser with a real office
+  // session carries tk_hq, so the extra password prompt stops for it and
+  // nobody else. Only ever set behind a verified session, re-issued on use,
+  // and it lapses after 30 days like the session itself.
+  const res = NextResponse.next()
+  const hqPass = process.env.HQ_PASS
+  if (hqPass) {
+    res.cookies.set(HQ_PASS_COOKIE, hqPass, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 30 * 24 * 3600,
+    })
+  }
+  return res
 }
+
+const HQ_PASS_COOKIE = "tk_hq"
 
 export const config = {
   matcher: [

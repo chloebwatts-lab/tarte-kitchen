@@ -166,7 +166,8 @@ export async function decodeSetup(raw: string | undefined | null, now = Date.now
  * changing NEXTAUTH_SECRET kills every one at once.
  */
 export const OWNER_DEVICE_COOKIE = "tk_owner_device"
-export const OWNER_DEVICE_DAYS = 400
+/** 30 days, re-issued whenever it signs her in, so an unused phone lapses. */
+export const OWNER_DEVICE_DAYS = 30
 
 export interface OwnerDevice {
   id: string

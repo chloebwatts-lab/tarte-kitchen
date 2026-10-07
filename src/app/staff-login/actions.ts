@@ -1,7 +1,7 @@
 "use server"
 
 import { randomBytes } from "node:crypto"
-import { cookies } from "next/headers"
+import { cookies, headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { db } from "@/lib/db"
 import { DEED_VERSION } from "@/lib/confidentiality/deed"
@@ -14,6 +14,7 @@ import {
   encodeSetup,
   mayTrustDevice,
   ownerDeviceCookieOptions,
+  type PersonSession,
 } from "@/lib/person-auth"
 import { clearPersonCookie, getPerson, logAccess, setPersonCookie } from "@/lib/person-session"
 import { findStaff, toPersonRole, verifyStaff } from "@/lib/shifts-staff"
@@ -84,6 +85,15 @@ export async function submitStaffLogin(formData: FormData): Promise<void> {
   })
   await logAccess("LOGIN", { staffId: s.id, staffName: name })
 
+  // Chloe's phone trusts itself the moment she signs in, so every icon on
+  // it (each one is its own cookie jar) stays signed in for 30 days without
+  // her having to find the button. Phones only: a venue iPad never qualifies.
+  const person = await getPerson()
+  if (person && mayTrustDevice(person) && /iPhone/i.test((await headers()).get("user-agent") ?? "")) {
+    await setOwnerDeviceCookie(person)
+    await logAccess("LOGIN", { staffId: s.id, staffName: name, path: "trusted this phone on sign in" })
+  }
+
   redirect(signed ? next : `/kitchen/confidentiality?next=${encodeURIComponent(next)}`)
 }
 
@@ -98,14 +108,18 @@ export async function signOut(): Promise<void> {
  * Owner only: keep this device signed in. Needs a real sign in first, so
  * the button alone can never create access.
  */
-export async function trustThisDevice(): Promise<void> {
-  const p = await getPerson()
-  if (!p || !mayTrustDevice(p)) redirect("/staffaccess")
+async function setOwnerDeviceCookie(p: PersonSession): Promise<void> {
   ;(await cookies()).set(
     OWNER_DEVICE_COOKIE,
     await encodeOwnerDevice({ id: p.id, name: p.name, last: p.last, email: p.email ?? null, iat: Date.now() }),
     ownerDeviceCookieOptions()
   )
+}
+
+export async function trustThisDevice(): Promise<void> {
+  const p = await getPerson()
+  if (!p || !mayTrustDevice(p)) redirect("/staffaccess")
+  await setOwnerDeviceCookie(p)
   await logAccess("LOGIN", { staffId: p.id, staffName: p.name, path: "trusted this device" })
   redirect("/staffaccess")
 }
