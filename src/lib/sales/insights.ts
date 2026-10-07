@@ -60,6 +60,47 @@ export function compareHourly(rows: HourlyRow[], dates: string[], nowMinutes: nu
   }
 }
 
+/**
+ * A comparison day with an end-of-day total but no hourly rows (a Lightspeed
+ * day the hourly export missed, or a venue still on Lightspeed) gets
+ * ESTIMATE rows: the venue's same-weekday hourly shape, averaged over
+ * `shapeRows` (real rows only), scaled to that day's total. Days that already
+ * have rows are left alone; with no real shape to borrow nothing is added.
+ */
+export function fillMissingHourly(rows: HourlyRow[], dates: string[], totals: DailyRow[], shapeRows: HourlyRow[]): HourlyRow[] {
+  const have = new Set(rows.map((r) => r.date))
+  const missing = dates.filter((d) => !have.has(d))
+  if (!missing.length) return rows
+  const byDay = new Map<string, number[]>()
+  for (const r of shapeRows) {
+    if (r.source === "ESTIMATE" || r.revenueIncGst <= 0) continue
+    const h = byDay.get(r.date) ?? new Array(24).fill(0)
+    h[r.hour] += r.revenueIncGst
+    byDay.set(r.date, h)
+  }
+  const profile = new Array(24).fill(0) as number[]
+  let days = 0
+  for (const h of byDay.values()) {
+    const t = h.reduce((s, v) => s + v, 0)
+    if (t <= 0) continue
+    for (let i = 0; i < 24; i++) profile[i] += h[i] / t
+    days++
+  }
+  if (!days) return rows
+  const totalByDate = new Map(totals.map((t) => [t.date, t.revenueIncGst]))
+  const out = [...rows]
+  for (const d of missing) {
+    const total = totalByDate.get(d)
+    if (!total || total <= 0) continue
+    for (let hour = 0; hour < 24; hour++) {
+      const share = profile[hour] / days
+      if (share <= 0) continue
+      out.push({ date: d, hour, revenueIncGst: Math.round(total * share * 100) / 100, orders: 0, source: "ESTIMATE" })
+    }
+  }
+  return out
+}
+
 export interface HeadlineComparison {
   vsAvgPct: number | null
   vsAvgDollars: number | null

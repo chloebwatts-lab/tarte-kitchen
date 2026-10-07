@@ -15,6 +15,7 @@ const dayLabel = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("e
 const weekday = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-AU", { weekday: "long", timeZone: "UTC" })
 const hourLabel = (h: number) => (h === 0 ? "12am" : h < 12 ? `${h}am` : h === 12 ? "12pm" : `${h - 12}pm`)
 const COMPARE_LABEL: Record<CompareMode, string> = { LAST_WEEK: "last week", WEEKS_4: "4 week avg", WEEKS_8: "8 week avg" }
+const COMPARE_DAYS: Record<CompareMode, number> = { LAST_WEEK: 1, WEEKS_4: 4, WEEKS_8: 8 }
 
 function Pill({ pct, dollars, children }: { pct: number | null; dollars?: number | null; children?: React.ReactNode }) {
   if (pct === null) return <span className="text-[13px] text-white/60">{children ?? "no comparison yet"}</span>
@@ -135,6 +136,7 @@ export function SalesInsights({ initial, view = "sales" }: { initial: Data; view
                   vs {COMPARE_LABEL[compare]}{data.isToday ? ` at ${new Date().toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit", timeZone: "Australia/Brisbane" })} (est.)` : ""}
                   {day && day.surchargeIncGst > 0 && data.head.vsAvgNoSurchargePct !== null && <> ({data.head.vsAvgNoSurchargePct >= 0 ? "▲" : "▼"} {Math.abs(data.head.vsAvgNoSurchargePct).toFixed(1)}% without surcharge)</>}
                   {data.hourlyCompare.daysUsed === 0 && " · no history for this weekday yet"}
+                  {data.hourlyCompare.daysUsed > 0 && data.hourlyCompare.daysUsed < COMPARE_DAYS[compare] && ` · ${data.hourlyCompare.daysUsed} of ${COMPARE_DAYS[compare]} ${weekday(date)}s`}
                   {data.hourlyCompare.estimated && " · some days estimated from daily totals"}
                 </div>
               </div>

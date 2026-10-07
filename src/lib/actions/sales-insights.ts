@@ -9,7 +9,7 @@ import { uberDay, uberDailyRows, type UberDay } from "@/lib/uber/live"
 import type { DayBreakdown, Channel } from "@/lib/square/breakdown"
 import { shiftDate, tarteWeekStart } from "@/lib/sales/compare"
 import {
-  brisbaneNow, comparisonDates, compareHourly, headline, typicalChannels, dailySeries,
+  brisbaneNow, comparisonDates, compareHourly, fillMissingHourly, headline, typicalChannels, dailySeries,
   type CompareMode, type HourlyComparison, type HeadlineComparison, type ChannelTypical,
 } from "@/lib/sales/insights"
 
@@ -95,12 +95,18 @@ export async function getSalesInsights(venue: Venue, date: string, range: Range 
   // ---- comparisons ----
   const cmpDates = comparisonDates(date, compare)
   const lwDates = comparisonDates(date, "LAST_WEEK")
-  const allDates = [...new Set([...cmpDates, ...lwDates])].map((d) => new Date(d))
-  const [hourlyRows, channelRows] = await Promise.all([
-    db.hourlySales.findMany({ where: { venue, date: { in: allDates } } }),
-    db.dailyChannelSales.findMany({ where: { venue, date: { in: allDates } } }),
+  const wanted = [...new Set([...cmpDates, ...lwDates])]
+  // Same weekday over 12 weeks: the comparison days plus a shape to borrow
+  // for any of them that has a day total but no hourly rows.
+  const shapeDates = Array.from({ length: 12 }, (_, i) => shiftDate(date, -7 * (i + 1)))
+  const [hourlyRows, channelRows, totalRows] = await Promise.all([
+    db.hourlySales.findMany({ where: { venue, date: { in: shapeDates.map((d) => new Date(d)) } } }),
+    db.dailyChannelSales.findMany({ where: { venue, date: { in: wanted.map((d) => new Date(d)) } } }),
+    db.dailySalesSummary.findMany({ where: { venue, date: { in: wanted.map((d) => new Date(d)) } }, select: { date: true, totalRevenue: true, totalOrders: true } }),
   ])
-  const hr = hourlyRows.map((r) => ({ date: ymd(r.date), hour: r.hour, revenueIncGst: Number(r.revenueIncGst), orders: r.orders, source: r.source }))
+  const stored = hourlyRows.map((r) => ({ date: ymd(r.date), hour: r.hour, revenueIncGst: Number(r.revenueIncGst), orders: r.orders, source: r.source }))
+  const totals = totalRows.map((r) => ({ date: ymd(r.date), revenueIncGst: Number(r.totalRevenue), orders: r.totalOrders }))
+  const hr = fillMissingHourly(stored.filter((r) => wanted.includes(r.date)), wanted, totals, stored)
   const cr = channelRows.map((r) => ({ date: ymd(r.date), channel: r.channel, revenueIncGst: Number(r.revenueIncGst), orders: r.orders }))
   const hourlyCompare = compareHourly(hr, cmpDates, nowMinutes)
   const lastWeek = compareHourly(hr, lwDates, nowMinutes)
