@@ -113,6 +113,12 @@ async function post(cookie: string, path: string, body: unknown): Promise<unknow
 
 const AEST = "+10:00"
 
+/** YYYY-MM-DD plus one calendar day (no timezone involved). */
+export function nextDay(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + 1)
+  return d.toISOString().slice(0, 10)
+}
+
 /** Daily sales for one shop, `from`..`to` inclusive (YYYY-MM-DD, Brisbane days). */
 export async function fetchDailySales(cookie: string, storeUuid: string, from: string, to: string): Promise<UberDaily[]> {
   const json = await post(cookie, "getHomepageDataV2", {
@@ -128,11 +134,12 @@ export async function fetchDailySales(cookie: string, storeUuid: string, from: s
 /** Live running total for one shop on a Brisbane date (meant for today). */
 export async function fetchTodaySales(cookie: string, storeUuid: string, date: string): Promise<UberToday> {
   const start = Math.floor(new Date(`${date}T00:00:00${AEST}`).getTime() / 1000)
-  const next = new Date(`${date}T00:00:00${AEST}`); next.setUTCDate(next.getUTCDate() + 1)
+  const nextDate = nextDay(date)
+  const next = new Date(`${nextDate}T00:00:00${AEST}`)
   const json = await post(cookie, "getTodaySalesMetrics", {
     userTimezoneOffset: -600, restaurantUuids: [storeUuid], userUuid: null,
-    timeRange: { startTime: start, endTime: Math.floor(next.getTime() / 1000) - 1 },
-    currentDate: `${date} 00:00:00`, endDate: `${next.toISOString().slice(0, 10)} 00:00:00`,
+    timeRange: { startTime: start, endTime: Math.min(Math.floor(next.getTime() / 1000) - 1, Math.floor(Date.now() / 1000)) },
+    currentDate: `${date} 00:00:00`, endDate: `${nextDate} 00:00:00`,
     dominantCurrencyCode: "AUD", isUMetricQueries: true,
   })
   return parseTodayMetrics(json)

@@ -7,7 +7,7 @@
  */
 import { db } from "@/lib/db"
 import type { Venue } from "@/generated/prisma/client"
-import { fetchTodaySales } from "./client"
+import { fetchDailySales, fetchTodaySales, type UberToday } from "./client"
 import { getUberConnection, getUberCookie, uberStores } from "./token"
 
 export interface UberDay {
@@ -37,7 +37,14 @@ export async function uberDay(venue: Venue, date: string, isToday: boolean, opts
   const hit = cache.get(key)
   if (hit && !opts.force && Date.now() - hit.at < TTL) return hit.value
   try {
-    const t = await fetchTodaySales(await getUberCookie(), store.uuid, date)
+    const t = await fetchLiveToday(await getUberCookie(), store.uuid, date)
+    // Uber's "today" metrics endpoint has been seen answering $0 mid-afternoon
+    // (7 Oct 2026) while the daily series still had the real figure. A live
+    // $0 never overwrites a stored non-zero day; it just shows the stored one.
+    if (t.orders === 0 && stored && stored.orders > 0) {
+      console.warn(`[uber-live] ${venue} ${date}: Uber returned 0 orders, keeping stored ${stored.orders} orders`)
+      return fromTable(null)
+    }
     const value: UberDay = { sales: t.sales, orders: t.orders, status: "LIVE", fetchedAt: new Date().toISOString(), error: null }
     cache.set(key, { at: Date.now(), value })
     await db.dailyUberSales.upsert({
@@ -53,6 +60,22 @@ export async function uberDay(venue: Venue, date: string, isToday: boolean, opts
     await db.uberEatsConnection.update({ where: { id: conn.id }, data: { lastError: msg } }).catch(() => {})
     return fromTable(msg)
   }
+}
+
+/**
+ * Today's figure: the daily series endpoint first (it is what the sync uses
+ * and has stayed right all day), the realtime endpoint only if the day is
+ * missing from the series. Both return the same numbers when both work.
+ */
+async function fetchLiveToday(cookie: string, storeUuid: string, date: string): Promise<UberToday> {
+  try {
+    const rows = await fetchDailySales(cookie, storeUuid, date, date)
+    const row = rows.find((r) => r.date === date)
+    if (row) return { sales: row.sales, orders: row.orders, avgTicket: row.orders ? Math.round((row.sales / row.orders) * 100) / 100 : 0 }
+  } catch (err) {
+    console.warn("[uber-live] daily series failed, trying realtime", err instanceof Error ? err.message : err)
+  }
+  return fetchTodaySales(cookie, storeUuid, date)
 }
 
 /** Daily Uber sales for a venue over a date span (YYYY-MM-DD inclusive). */

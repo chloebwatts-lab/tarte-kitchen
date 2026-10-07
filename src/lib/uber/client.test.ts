@@ -128,3 +128,81 @@ test("uberErrorMessage: uses Uber's message when present, generic otherwise", ()
   assert.equal(uberErrorMessage({ status: "failure", data: {} }), "Uber returned an unexpected response")
   assert.equal(uberErrorMessage("<html>login</html>"), "Uber returned an unexpected response")
 })
+
+// ---------------------------------------------------------------- test-guard: fetchTodaySales timeRange
+// The realtime endpoint was seen answering $0 mid-afternoon on 7 Oct 2026 when
+// asked for a window that ran past "now". fetchTodaySales now caps endTime at
+// now. fetch is stubbed (no network) and Date is frozen so the request body
+// can be checked to the second.
+
+import { mock } from "node:test"
+import { fetchTodaySales } from "./client"
+
+const T = {
+  start_0710: 1791295200,  // 2026-10-07T00:00:00+10:00
+  eod_0710:   1791381599,  // 2026-10-07T23:59:59+10:00
+  pm_0710:    1791351000,  // 2026-10-07T15:30:00+10:00
+  start_0705: 1791122400,  // 2026-10-05T00:00:00+10:00
+  eod_0705:   1791208799,  // 2026-10-05T23:59:59+10:00
+}
+
+interface Sent { url: string; body: { timeRange: { startTime: number; endTime: number }; currentDate: string; endDate: string; restaurantUuids: string[] }; cookie: string }
+
+/** Freeze Date.now at `nowSec`, stub fetch, call fetchTodaySales, hand back what was sent. */
+async function captureTodayRequest(nowSec: number, date: string): Promise<{ sent: Sent; result: Awaited<ReturnType<typeof fetchTodaySales>> }> {
+  mock.timers.enable({ apis: ["Date"], now: nowSec * 1000 })
+  const calls: Sent[] = []
+  mock.method(globalThis, "fetch", async (url: string | URL | Request, init?: RequestInit) => {
+    const h = init?.headers as Record<string, string>
+    calls.push({ url: String(url), body: JSON.parse(String(init?.body)), cookie: h.cookie })
+    return new Response(JSON.stringify({ status: "success", data: { totalSales: 522.75, totalOrders: 16, avgTicketSize: 32.671875 } }), { status: 200 })
+  })
+  try {
+    const result = await fetchTodaySales("sid=QA.abc; csid=1.2", "d6b633f2-1f41-52b2-b605-2c40d6128a83", date)
+    assert.equal(calls.length, 1, "exactly one Uber call")
+    return { sent: calls[0], result }
+  } finally {
+    mock.restoreAll()
+    mock.timers.reset()
+  }
+}
+
+test("fetchTodaySales: mid-afternoon today, endTime is capped at now, not end of day", async () => {
+  const { sent, result } = await captureTodayRequest(T.pm_0710, "2026-10-07")
+  assert.match(sent.url, /\/manager\/api\/getTodaySalesMetrics\?localeCode=en-GB$/)
+  assert.equal(sent.cookie, "sid=QA.abc; csid=1.2")
+  assert.deepEqual(sent.body.restaurantUuids, ["d6b633f2-1f41-52b2-b605-2c40d6128a83"])
+  assert.equal(sent.body.timeRange.startTime, T.start_0710)
+  assert.equal(sent.body.timeRange.endTime, T.pm_0710)
+  assert.ok(sent.body.timeRange.endTime < T.eod_0710)
+  assert.equal(sent.body.currentDate, "2026-10-07 00:00:00")
+  assert.deepEqual(result, { sales: 522.75, orders: 16, avgTicket: 32.67 })
+})
+
+test("fetchTodaySales: a closed day still ends at 23:59:59 AEST, the cap does not bite", async () => {
+  const { sent } = await captureTodayRequest(T.pm_0710, "2026-10-05")
+  assert.equal(sent.body.timeRange.startTime, T.start_0705)
+  assert.equal(sent.body.timeRange.endTime, T.eod_0705)
+})
+
+test("fetchTodaySales: at AEST midnight the window is start..start, never before the day began", async () => {
+  const { sent } = await captureTodayRequest(T.start_0710, "2026-10-07")
+  assert.equal(sent.body.timeRange.startTime, T.start_0710)
+  assert.equal(sent.body.timeRange.endTime, T.start_0710)
+})
+
+test("fetchTodaySales: UTC midnight is 10am AEST, start stays at the AEST day boundary", async () => {
+  // 2026-10-07T00:00:00Z = 10:00 Brisbane, ten hours into the AEST day
+  const utcMidnight = Math.floor(Date.parse("2026-10-07T00:00:00Z") / 1000)
+  const { sent } = await captureTodayRequest(utcMidnight, "2026-10-07")
+  assert.equal(sent.body.timeRange.startTime, T.start_0710)
+  assert.equal(sent.body.timeRange.endTime, utcMidnight)
+  assert.equal(sent.body.timeRange.endTime - sent.body.timeRange.startTime, 10 * 3600)
+})
+
+import { nextDay } from "./client"
+test("nextDay: plain calendar arithmetic, month and year ends", () => {
+  assert.equal(nextDay("2026-10-07"), "2026-10-08")
+  assert.equal(nextDay("2026-10-31"), "2026-11-01")
+  assert.equal(nextDay("2026-12-31"), "2027-01-01")
+})
