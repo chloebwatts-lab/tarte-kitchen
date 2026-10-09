@@ -225,7 +225,7 @@ export function UpsellBoard({ initial }: { initial: UpsellBoardData }) {
           {msg && !showNew && <p className="mt-2 text-[13px] text-[var(--tk-ink-soft)]">{msg}</p>}
           {data.unassigned.length > 0 && (
             <div className="mt-4">
-              <div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--tk-ink-mute)]">Paid add-ons sold today that no list counts</div>
+              <div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--tk-ink-mute)]">Add-ons sold today that no list counts</div>
               <div className="mt-1 flex flex-wrap gap-1.5 text-[13px]">{data.unassigned.map((u) => <span key={u.name} className="rounded-full bg-[var(--tk-bg)] px-2.5 py-1">{u.name} × {u.units}</span>)}</div>
               <p className="mt-1 text-[12px] text-[var(--tk-ink-soft)]">Add any of these to Sides above if they should count.</p>
             </div>

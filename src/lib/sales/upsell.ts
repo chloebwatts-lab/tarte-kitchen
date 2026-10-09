@@ -7,6 +7,12 @@
  * (case-insensitive, trailing full stop ignored), so nothing needs changing
  * in Square. Sides at Tarte are mostly modifiers on a dish ("Bacon" on Eggs
  * Your Way), with a few standalone items (Fries).
+ *
+ * Open tables count as soon as the side is rung up, not when the bill is
+ * settled: restaurant tables sit unpaid for an hour or more, and on 9 Oct
+ * 2026 Pauline's halloumi, mushrooms and fries were "missing" from the day
+ * board only because her tables had not paid yet. Every recount rebuilds the
+ * day from scratch, so a side removed before payment drops out again.
  */
 import { cents, cleanItemName, isPaidOrder, type SquareOrder, type SquarePayment } from "@/lib/square/client"
 import { channelForDevice, type Channel } from "@/lib/square/breakdown"
@@ -130,7 +136,7 @@ export function computeUpsell(
     if (seen.has(raw.id)) continue
     seen.add(raw.id)
     const o = raw as OrderLike
-    if (!(o.state === "COMPLETED" || isPaidOrder(o))) continue
+    if (!(o.state === "COMPLETED" || o.state === "OPEN" || isPaidOrder(o))) continue
     const lines = (o.line_items ?? []) as LineLike[]
     if (!lines.length) continue
     const pay = payByOrder.get(o.id)

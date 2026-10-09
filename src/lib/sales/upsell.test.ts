@@ -49,13 +49,15 @@ test("sides: modifiers on a dish and standalone items count, sauces and GF do no
   assert.deepEqual(unassigned.map((u) => u.name).sort(), ["Gluten Free", "Miso Hollandaise"])
 })
 
-test("Bopple and staffless orders land on ONLINE and never on a person; open unpaid tables are ignored", () => {
+test("Bopple and staffless orders land on ONLINE and never on a person; open unpaid tables count as soon as the side is rung up", () => {
   const orders = [
     order("b1", null, [{ name: "Chicken Sandwich", quantity: "1", catalog_object_id: "fries", total_money: money(24), modifiers: [{ name: "Avo", base_price_money: money(6.5), total_price_money: money(6.5) }] }], { source: { name: "Bopple" }, state: "OPEN", tenders: [{ amount_money: money(10) }] }),
     order("t1", "pauline", [{ name: "Eggs Your Way", quantity: "1", catalog_object_id: "eggs", total_money: money(30), modifiers: [{ name: "Bacon", base_price_money: money(6.5), total_price_money: money(6.5) }] }], { state: "OPEN", tenders: [] }),
   ]
   const { rows } = computeUpsell(orders, [], cat, who, DEFAULT_GROUPS)
-  assert.deepEqual(rows.map((r) => [r.teamMemberId, r.groupKey, r.units]), [[ONLINE_ID, "sides", 1]])
+  assert.deepEqual(rows.map((r) => [r.teamMemberId, r.groupKey, r.units]).sort(), [[ONLINE_ID, "sides", 1], ["pauline", "sides", 1]])
+  const cancelled = [order("x1", "pauline", [{ name: "Fries", quantity: "1", catalog_object_id: "fries", total_money: money(12) }], { state: "CANCELED", tenders: [] })]
+  assert.deepEqual(computeUpsell(cancelled, [], cat, who, DEFAULT_GROUPS).rows, [])
 })
 
 test("who gets credit: the person who opened the order, else whoever took payment", () => {
@@ -64,6 +66,39 @@ test("who gets credit: the person who opened the order, else whoever took paymen
   const payments = [pay("p1", "a", "Register 3 - Cafe", "baily"), pay("p2", "b", "Register 3 - Cafe", "baily")]
   const { rows } = computeUpsell(orders, payments, cat, who, DEFAULT_GROUPS.filter((g) => g.key === "sides"))
   assert.deepEqual(rows.map((r) => [r.staffName, r.units]).sort(), [["Baily Roberts", 1], ["Pauline Stefani", 1]])
+})
+
+test("open table with a partial tender counts once and stays with whoever opened it, not who took the deposit", () => {
+  // $48.50 restaurant table, $20 put down by Baily at the register, Pauline opened it.
+  const orders = [
+    order("t2", "pauline", [
+      { name: "Eggs Your Way", quantity: "1", catalog_object_id: "eggs", total_money: money(30), modifiers: [{ name: "Halloumi", base_price_money: money(6.5), total_price_money: money(6.5) }] },
+      { name: "Fries", quantity: "1", catalog_object_id: "fries", total_money: money(12) },
+    ], { state: "OPEN", total_money: money(48.5), net_amount_due_money: money(28.5), tenders: [{ amount_money: money(20) }] }),
+  ]
+  const payments = [pay("p9", "t2", "HH 4 - RESTAURANT", "baily")]
+  const { rows } = computeUpsell(orders, payments, cat, who, DEFAULT_GROUPS.filter((g) => g.key === "sides"))
+  assert.deepEqual(rows.map((r) => [r.teamMemberId, r.eligibleOrders, r.ordersWith, r.units, r.sales, r.breakdown]), [["pauline", 1, 1, 2, 18.5, { Halloumi: 1, Fries: 1 }]])
+})
+
+test("open order with no line items (table opened, nothing rung) adds nothing, not even an eligible order", () => {
+  const orders = [
+    order("t3", "pauline", [], { state: "OPEN", total_money: money(0), tenders: [] }),
+    order("t3b", "pauline", [], { state: "OPEN", total_money: money(0), tenders: [], line_items: undefined }),
+    order("t4", "pauline", [{ name: "Eggs Your Way", quantity: "1", catalog_object_id: "eggs", total_money: money(30) }], { state: "OPEN", tenders: [] }),
+  ]
+  const { rows, unassigned } = computeUpsell(orders, [], cat, who, DEFAULT_GROUPS.filter((g) => g.key === "sides"))
+  assert.deepEqual(rows.map((r) => [r.teamMemberId, r.eligibleOrders, r.ordersWith, r.units]), [["pauline", 1, 0, 0]])
+  assert.deepEqual(unassigned, [])
+})
+
+test("same table in both the open and paid feeds counts once; DRAFT orders never count", () => {
+  const li = [{ name: "Eggs Your Way", quantity: "1", catalog_object_id: "eggs", total_money: money(30), modifiers: [{ name: "Mushrooms", base_price_money: money(6.5), total_price_money: money(6.5) }] }]
+  const openCopy = order("t6", "pauline", li, { state: "OPEN", tenders: [] })
+  const paidCopy = order("t6", "pauline", li, { state: "COMPLETED", total_money: money(36.5), tenders: [{ amount_money: money(36.5) }] })
+  const draft = order("d1", "pauline", li, { state: "DRAFT", tenders: [] })
+  const { rows } = computeUpsell([openCopy, paidCopy, draft], [], cat, who, DEFAULT_GROUPS.filter((g) => g.key === "sides"))
+  assert.deepEqual(rows.map((r) => [r.teamMemberId, r.eligibleOrders, r.ordersWith, r.units, r.sales]), [["pauline", 1, 1, 1, 6.5]])
 })
 
 test("leaderboard: units ranks by volume, attach needs a minimum of eligible orders, team total includes Bopple", () => {
