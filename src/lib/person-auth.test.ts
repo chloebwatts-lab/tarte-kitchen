@@ -257,7 +257,8 @@ describe("owner's own phone", () => {
 
   test("only Chloe may mark a device: not other owners, managers or staff", () => {
     assert.equal(mayTrustDevice({ role: "OWNER", last: "Watts" }), true)
-    assert.equal(mayTrustDevice({ role: "OWNER", last: "Pate" }), false)
+    assert.equal(mayTrustDevice({ role: "OWNER", last: "Pate" }), true)
+    assert.equal(mayTrustDevice({ role: "OWNER", last: "Warren" }), false)
     assert.equal(mayTrustDevice({ role: "MANAGER", last: "Watts" }), false)
     assert.equal(mayTrustDevice({ role: "STAFF", last: "Nguyen" }), false)
     assert.equal(mayTrustDevice(null), false)
@@ -282,8 +283,10 @@ describe("owner's own phone", () => {
     assert.equal(await decodeOwnerDevice(undefined, NOW), null)
   })
 
-  test("a device token for anyone but Chloe is refused even if correctly signed", async () => {
-    const raw = await encodeOwnerDevice({ ...device, name: "Shawna Pate", last: "Pate" })
-    assert.equal(await decodeOwnerDevice(raw, NOW), null)
+  test("a device token for anyone but Chloe or Shawna is refused even if correctly signed", async () => {
+    const shawna = await encodeOwnerDevice({ ...device, name: "Shawna Pate", last: "Pate" })
+    assert.equal((await decodeOwnerDevice(shawna, NOW))?.last, "Pate")
+    const oliver = await encodeOwnerDevice({ ...device, name: "Oliver Warren", last: "Warren" })
+    assert.equal(await decodeOwnerDevice(oliver, NOW), null)
   })
 })

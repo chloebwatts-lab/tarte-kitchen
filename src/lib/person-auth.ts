@@ -177,9 +177,10 @@ export interface OwnerDevice {
   iat: number
 }
 
-/** Who may mark a device as theirs: Chloe only, not every OWNER role. */
+/** Who may keep a phone signed in: Chloe and Shawna (9 Oct 2026), not every OWNER role. */
+const TRUSTED_OWNERS = new Set(["watts", "pate"])
 export function mayTrustDevice(p: Pick<PersonSession, "role" | "last"> | null): boolean {
-  return !!p && p.role === "OWNER" && (p.last ?? "").trim().toLowerCase() === "watts"
+  return !!p && p.role === "OWNER" && TRUSTED_OWNERS.has((p.last ?? "").trim().toLowerCase())
 }
 
 export async function encodeOwnerDevice(d: OwnerDevice): Promise<string> {
