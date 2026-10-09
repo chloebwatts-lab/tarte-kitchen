@@ -2,18 +2,28 @@ export const dynamic = "force-dynamic"
 
 import { db } from "@/lib/db"
 import { getValidXeroAccessToken, getPostedPayRuns, type ProcessedPayRun } from "@/lib/xero/client"
+import { mergePayRunsByWeek, payRunOrgs } from "@/lib/labour/payruns"
 
 /**
- * Weekly labour cost (gross + super per posted pay run) for the org that
- * pays Currumbin. Since 16 Sep 2026 the pay runs come from Tarte Shifts'
- * internal feed (SHIFTS_PAYRUNS_URL + SHIFTS_SECRET), which holds the Xero
- * connections for every org; TK's own Xero app no longer needs a slot on
- * Tarte Currumbin. The direct-Xero path stays as a fallback when those
- * env vars are unset.
+ * Weekly labour cost (gross + super per posted pay run), both Xero orgs.
+ * Since 16 Sep 2026 the pay runs come from Tarte Shifts' internal feed
+ * (SHIFTS_PAYRUNS_URL + SHIFTS_SECRET), which holds the Xero connections
+ * for every org; TK's own Xero app no longer needs a slot on Tarte
+ * Currumbin. Since 9 Oct 2026 the feed is asked for every org in
+ * SHIFTS_PAYRUNS_ORGS (default Tarte Bakery + Tarte Currumbin, i.e. Burleigh
+ * and the Currumbin venues; Deputy's export was never read here) and runs
+ * with the same period start are summed into one WeeklyLabourCost row. The
+ * direct-Xero path stays as a fallback when those env vars are unset.
  */
 async function payRunsFromShifts(fromDate: Date): Promise<ProcessedPayRun[]> {
+  const all: ProcessedPayRun[] = []
+  for (const org of payRunOrgs()) all.push(...(await payRunsFromShiftsOrg(org, fromDate)))
+  return mergePayRunsByWeek(all)
+}
+
+async function payRunsFromShiftsOrg(org: string, fromDate: Date): Promise<ProcessedPayRun[]> {
   const url = new URL(process.env.SHIFTS_PAYRUNS_URL!)
-  url.searchParams.set("org", process.env.SHIFTS_PAYRUNS_ORG ?? "Tarte Currumbin")
+  url.searchParams.set("org", org)
   url.searchParams.set("from", fromDate.toISOString().slice(0, 10))
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${process.env.SHIFTS_SECRET}` },
@@ -24,7 +34,7 @@ async function payRunsFromShifts(fromDate: Date): Promise<ProcessedPayRun[]> {
     error?: string
     payRuns?: Array<Omit<ProcessedPayRun, "weekStart" | "weekEnd" | "paymentDate"> & { weekStart: string; weekEnd: string; paymentDate: string }>
   }
-  if (!res.ok || !body.ok) throw new Error(`Tarte Shifts pay-runs feed: ${body.error ?? res.status}`)
+  if (!res.ok || !body.ok) throw new Error(`Tarte Shifts pay-runs feed (${org}): ${body.error ?? res.status}`)
   return (body.payRuns ?? []).map((r) => ({
     ...r,
     weekStart: new Date(r.weekStart),
@@ -41,6 +51,7 @@ export async function GET(request: Request) {
 
   const results = {
     source: process.env.SHIFTS_PAYRUNS_URL && process.env.SHIFTS_SECRET ? "tarte-shifts" : "xero",
+    orgs: process.env.SHIFTS_PAYRUNS_URL && process.env.SHIFTS_SECRET ? payRunOrgs() : [],
     synced: 0,
     skipped: 0,
     errors: [] as string[],

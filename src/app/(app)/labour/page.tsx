@@ -7,12 +7,18 @@ import {
   hasDeputyConnection,
 } from "@/lib/actions/labour"
 import { getDeputyStatus } from "@/lib/actions/deputy"
+import { labourSource, labourSourceLabel } from "@/lib/labour/source"
+import { labourLastSyncedAt } from "@/lib/labour/sync"
 import { LabourDashboard } from "@/components/labour-dashboard"
 import { LabourRefreshButton } from "@/components/labour-refresh-button"
 import { Card, CardContent } from "@/components/ui/card"
 
 export default async function LabourPage() {
-  const connected = await hasDeputyConnection()
+  // With Tarte Shifts as the labour source the page needs no Deputy
+  // connection at all; the 15-minute sync fills LabourShift from the feed.
+  const source = labourSource()
+  const sourceLabel = labourSourceLabel(source)
+  const connected = source === "shifts" || (await hasDeputyConnection())
   if (!connected) {
     return (
       <div className="space-y-6">
@@ -39,9 +45,10 @@ export default async function LabourPage() {
       </div>
     )
   }
-  const [data, status] = await Promise.all([
+  const [data, status, lastSyncedAt] = await Promise.all([
     getLabourDashboardData(),
     getDeputyStatus(),
+    labourLastSyncedAt(),
   ])
   return (
     <div className="space-y-6">
@@ -50,11 +57,11 @@ export default async function LabourPage() {
           <h1 className="font-serif text-2xl font-semibold tracking-tight">Labour</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Weekly labour % per venue. Forecast (current + next week) pulled
-            from Deputy; past weeks from uploaded payroll reports.
+            from {sourceLabel}; past weeks from uploaded payroll reports.
           </p>
         </div>
         <div className="flex items-start gap-3">
-          <LabourRefreshButton lastSyncedAt={status.lastSyncedAt} />
+          <LabourRefreshButton lastSyncedAt={lastSyncedAt} />
           <Link
             href="/labour/upload"
             className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted/50"
@@ -63,7 +70,7 @@ export default async function LabourPage() {
           </Link>
         </div>
       </div>
-      {status.unmappedCount > 0 && (
+      {source === "deputy" && status.unmappedCount > 0 && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-text/20 bg-amber-light px-3 py-2 text-xs text-amber-text">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
           <span>

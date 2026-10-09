@@ -4,10 +4,9 @@ export const maxDuration = 300
 import { syncLabour } from "@/lib/labour/sync"
 
 /**
- * Every 15 min from the compose cron sidecar. Kept under its original name
- * so the crontab needs no change; since Oct 2026 it refreshes LabourShift
- * from whichever source LABOUR_SOURCE names (Tarte Shifts or Deputy), see
- * src/lib/labour/sync.ts. /api/cron/sync-shifts-labour is the same job.
+ * Refresh LabourShift from the configured labour source (LABOUR_SOURCE:
+ * Tarte Shifts or Deputy). Same job as /api/cron/sync-deputy, under a name
+ * that will still make sense after Deputy is cancelled.
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization")
@@ -18,9 +17,6 @@ export async function GET(request: Request) {
     const result = await syncLabour()
     return Response.json(result)
   } catch (e) {
-    return Response.json(
-      { error: (e as Error).message },
-      { status: 500 }
-    )
+    return Response.json({ error: (e as Error).message }, { status: 500 })
   }
 }

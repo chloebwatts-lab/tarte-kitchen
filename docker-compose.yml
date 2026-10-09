@@ -88,8 +88,16 @@ services:
       # Labour cost via Tarte Shifts' pay-runs feed (holds the Xero org
       # connections so this app no longer needs a Currumbin app slot)
       SHIFTS_PAYRUNS_URL: ${SHIFTS_PAYRUNS_URL:-}
-      SHIFTS_PAYRUNS_ORG: ${SHIFTS_PAYRUNS_ORG:-Tarte Currumbin}
+      # Comma list of Xero orgs to sum into WeeklyLabourCost (Bakery = Burleigh,
+      # Currumbin = Beach House + Tea Garden). SHIFTS_PAYRUNS_ORG (single) is
+      # still honoured if set.
+      SHIFTS_PAYRUNS_ORGS: ${SHIFTS_PAYRUNS_ORGS:-Tarte Bakery,Tarte Currumbin}
+      SHIFTS_PAYRUNS_ORG: ${SHIFTS_PAYRUNS_ORG:-}
       SHIFTS_SECRET: ${SHIFTS_SECRET:-}
+      # Where shift-level labour (LabourShift) comes from: "deputy" (default,
+      # until Deputy is cancelled) or "shifts" (Tarte Shifts' internal labour
+      # feed, docs/shifts-labour-feed.md). Flip + `docker compose up -d app`.
+      LABOUR_SOURCE: ${LABOUR_SOURCE:-deputy}
       # Deputy (labour timesheets)
       DEPUTY_CLIENT_ID: ${DEPUTY_CLIENT_ID:-}
       DEPUTY_CLIENT_SECRET: ${DEPUTY_CLIENT_SECRET:-}
@@ -178,7 +186,9 @@ services:
         # Email source still wins for yesterday once it lands. Cheap: a
         # couple of API calls per venue per sync.
         */30 * * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/sync-sales?days=2' 2>&1
-        # Every 15 min — pull Deputy rosters so /labour stays fresh
+        # Every 15 min — pull rosters + timesheets so /labour stays fresh. The
+        # route reads LABOUR_SOURCE (Deputy or Tarte Shifts); its old name is
+        # kept so this crontab never needs a cron-container recreate.
         */15 * * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/sync-deputy 2>&1
         # Daily 06:00 AEST — posted pay runs via Tarte Shifts' feed → WeeklyLabourCost
         0 20 * * * curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/sync-labour 2>&1

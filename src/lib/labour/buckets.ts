@@ -65,6 +65,11 @@ const BEACH_HOUSE_AREAS: Record<string, Bucket> = {
 
 const TEA_GARDEN_AREAS: Record<string, Bucket> = {
   "TG FOH": "fohBarista",
+  // Tarte Shifts salary roll-ups (src/lib/shifts/labour.ts); Deputy never
+  // had Tea Garden cards.
+  "Salary TG FOH": "fohBarista",
+  "Salary TG Kitchen": "chefsKp",
+  "Salary TG Pastry": "pastry",
 }
 
 export function bucketFor(venue: Venue, area: string | null): Bucket {
@@ -77,7 +82,15 @@ export function bucketFor(venue: Venue, area: string | null): Bucket {
         : venue === "TEA_GARDEN"
           ? TEA_GARDEN_AREAS
           : null
-  return map?.[area] ?? "other"
+  if (!map) return "other"
+  const direct = map[area]
+  if (direct) return direct
+  // "Salary <area>" written for a salary roll-up against a real area name
+  // (e.g. "Salary Kitchen") inherits that area's bucket. The Deputy-era
+  // card names above are matched directly first, so nothing moves for them.
+  const stripped = area.replace(/^salary\s+/i, "")
+  if (stripped !== area && map[stripped]) return map[stripped]
+  return "other"
 }
 
 export function bucketTargets(venue: Venue): BucketTarget[] {

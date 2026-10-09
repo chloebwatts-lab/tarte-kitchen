@@ -195,3 +195,22 @@ test("Beach House pastry gets half of Tea Garden revenue in its denominator", ()
   assert.equal(bucketStatus(pct, bucketTargets("BEACH_HOUSE")[2]), "amber")
   assert.equal(bucketStatus(bhOnlyPct, bucketTargets("BEACH_HOUSE")[2]), "red")
 })
+
+// ------------------------------------------------ Tarte Shifts salary roll-ups
+
+test("Salary roll-ups written against a real area name inherit that area's bucket", () => {
+  assert.equal(bucketFor("BURLEIGH", "Salary Kitchen"), "chefsKp")
+  assert.equal(bucketFor("BURLEIGH", "Salary FOH"), "fohBarista")
+  assert.equal(bucketFor("BEACH_HOUSE", "Salary Cafe FOH"), "fohBarista")
+  assert.equal(bucketFor("BEACH_HOUSE", "Salary Pastry"), "pastry")
+  // Deputy-era card names still hit the direct map first.
+  assert.equal(bucketFor("BURLEIGH", "Salary BOH BURLEIGH"), "chefsKp")
+  // Unknown remainder is still "other", never a guess.
+  assert.equal(bucketFor("BURLEIGH", "Salary Cafe Coffee"), "other")
+})
+
+test("Tea Garden salary roll-ups map (Deputy never had TG cards)", () => {
+  assert.equal(bucketFor("TEA_GARDEN", "Salary TG FOH"), "fohBarista")
+  assert.equal(bucketFor("TEA_GARDEN", "Salary TG Kitchen"), "chefsKp")
+  assert.equal(bucketFor("TEA_GARDEN", "TG FOH"), "fohBarista")
+})

@@ -18,7 +18,8 @@ export interface ShiftsStaff {
   hasPin?: boolean
 }
 
-function shiftsBase(): string | null {
+/** Origin of the Tarte Shifts app (SHIFTS_BASE_URL, else the pay-runs URL's origin). */
+export function shiftsBase(): string | null {
   const explicit = process.env.SHIFTS_BASE_URL?.trim()
   if (explicit) return explicit.replace(/\/$/, "")
   const payruns = process.env.SHIFTS_PAYRUNS_URL?.trim()

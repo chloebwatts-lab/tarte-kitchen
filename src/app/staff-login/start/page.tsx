@@ -46,7 +46,7 @@ export default async function SetupStartPage({
               <input name="lastName" autoCapitalize="words" autoCorrect="off" spellCheck={false} required className={field} />
             </label>
             <label className="mt-4 block">
-              <span className="tk-caps" style={{ color: "var(--tk-ink-mute)" }}>Your email (the one Deputy has)</span>
+              <span className="tk-caps" style={{ color: "var(--tk-ink-mute)" }}>Your email (the one on your Tarte Shifts record)</span>
               <input name="email" type="email" autoCapitalize="none" autoCorrect="off" required className={field} />
             </label>
             <button type="submit" className="mt-5 w-full rounded-full px-6 py-3.5 text-[17px] font-semibold text-white" style={{ background: "var(--tk-charcoal)" }}>

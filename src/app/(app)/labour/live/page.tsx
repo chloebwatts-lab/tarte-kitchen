@@ -175,12 +175,12 @@ export default async function LiveLabourPage() {
         <p className="font-medium text-foreground">How this is computed</p>
         <ul className="mt-1 list-disc space-y-0.5 pl-5">
           <li>
-            Labour <strong>to date</strong>: Deputy <em>Timesheet</em> rows for shifts
+            Labour <strong>to date</strong>: <em>timesheet</em> rows for shifts
             that have started this week. In-progress shifts accrue against
             their clock-in time and refresh on each page load.
           </li>
           <li>
-            Labour <strong>projected EOW</strong>: + Deputy <em>Roster</em> cost for
+            Labour <strong>projected EOW</strong>: + <em>rostered</em> cost for
             shifts that haven&apos;t started yet.
           </li>
           <li>
@@ -188,7 +188,7 @@ export default async function LiveLabourPage() {
             today&apos;s API-side running total (synced every 30 min).
           </li>
           <li>
-            Revenue <strong>projected EOW</strong>: + manager&apos;s Deputy forecast for
+            Revenue <strong>projected EOW</strong>: + manager&apos;s sales forecast for
             remaining days, or average of the locked days if no forecast.
           </li>
           <li>

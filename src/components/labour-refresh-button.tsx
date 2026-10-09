@@ -21,8 +21,9 @@ export function LabourRefreshButton({ lastSyncedAt }: Props) {
         const r = await triggerDeputySync()
         const upserted = r.roster.upserted + r.timesheets.upserted
         const skipped = r.roster.skipped + r.timesheets.skipped
+        const from = r.fellBackToDeputy ? "Deputy (Tarte Shifts feed unavailable)" : r.source === "shifts" ? "Tarte Shifts" : "Deputy"
         setMsg(
-          `Synced ${upserted} shifts${skipped ? ` (${skipped} skipped, unmapped venue)` : ""}`
+          `Synced ${upserted} shifts from ${from}${skipped ? ` (${skipped} skipped)` : ""}`
         )
       } catch (e) {
         setMsg(`Error: ${(e as Error).message}`)

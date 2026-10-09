@@ -857,6 +857,10 @@ model LabourShift {
   /// shift from Deputy's Timesheet resource. Approved timesheets are what
   /// eventually settle into payroll.
   source          String   @default("TIMESHEET")
+  /// Roster rows from Tarte Shifts carry whether the shift is published to
+  /// staff (the GM desk's roster-horizon check). Null for Deputy rows and
+  /// timesheets.
+  published       Boolean?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

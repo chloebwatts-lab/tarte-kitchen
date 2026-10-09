@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
-import { listOpUnits, syncDeputyAll } from "@/lib/deputy/client"
+import { listOpUnits } from "@/lib/deputy/client"
 import { encrypt } from "@/lib/encryption"
 import type { Venue } from "@/generated/prisma/client"
 
@@ -167,8 +167,14 @@ export async function setDeputyLocationVenue(params: {
   revalidatePath("/labour")
 }
 
+/**
+ * "Refresh now" on /labour. Goes through the labour-source switch, so with
+ * LABOUR_SOURCE=shifts this refreshes from Tarte Shifts (Deputy only as the
+ * fallback while a connection still exists).
+ */
 export async function triggerDeputySync() {
-  const result = await syncDeputyAll()
+  const { syncLabour } = await import("@/lib/labour/sync")
+  const result = await syncLabour()
   revalidatePath("/labour")
   revalidatePath("/settings/integrations")
   return result

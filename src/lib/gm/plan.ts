@@ -80,7 +80,7 @@ export const GM_ITEMS: GmItem[] = [
     theme: "rosters",
     pillar: "efficient",
     title: "Roster live two full weeks ahead",
-    hint: "Publish on Monday, before your two days off. The app checks Deputy for you.",
+    hint: "Publish on Monday, before your two days off. The app checks the roster system for you.",
     auto: "roster-horizon",
   },
   {
@@ -117,7 +117,7 @@ export const GM_ITEMS: GmItem[] = [
     slug: "gm-days-blocked",
     theme: "rosters",
     pillar: "efficient",
-    title: "My three GM days are in Deputy for the next two weeks",
+    title: "My three GM days are on the roster for the next two weeks",
     hint: "As GM shifts, so nobody books you into service.",
   },
 
@@ -268,7 +268,7 @@ export const GM_TASK_SEEDS: GmTaskSeed[] = [
   {
     slug: "roster-templates",
     title: "Roster templates that land inside band",
-    doneMeans: "A saved Deputy template per day type (weekday, Saturday, Sunday, public holiday) for each dept. Copying one gives a week already in band.",
+    doneMeans: "A saved roster template per day type (weekday, Saturday, Sunday, public holiday) for each dept. Copying one gives a week already in band.",
     dueOn: "2026-10-30",
     sortOrder: 5,
   },

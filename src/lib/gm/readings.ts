@@ -11,6 +11,8 @@ import { startOfTarteWeekUtc } from "@/lib/dates"
 import { bucketStatus, bucketTargets, type Bucket } from "@/lib/labour/buckets"
 import { recodeLabourWeek } from "@/lib/labour/recode"
 import { getConnection, listRosterBetween } from "@/lib/deputy/client"
+import { labourSource, labourSourceLabel } from "@/lib/labour/source"
+import { ROSTER_WEEKS_AHEAD } from "@/lib/labour/sync"
 import {
   COGS_TARGET_PCT,
   ONE_ON_ONE_TARGET,
@@ -32,7 +34,7 @@ const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct
 /** "Sat 19 Sep" from a UTC-midnight date. Hand-rolled: en-AU adds a comma and "Sept". */
 export const dayLabel = (d: Date) => `${DOW[d.getUTCDay()]} ${d.getUTCDate()} ${MON[d.getUTCMonth()]}`
 
-// ── Roster horizon (asks Deputy, cached 30 min) ───────────────
+// ── Roster horizon (Tarte Shifts rows in LabourShift, or Deputy cached 30 min) ──
 
 interface HorizonCache {
   at: number
@@ -40,7 +42,33 @@ interface HorizonCache {
 }
 const HORIZON_KEY = "gmRosterHorizon"
 
+/**
+ * With Tarte Shifts as the labour source the 15-minute sync already holds
+ * the next ROSTER_WEEKS_AHEAD weeks of roster rows with their published
+ * flag, so the horizon is read straight from LabourShift (no cache, no
+ * second system). Salary roll-up rows (hours 0) are not shifts.
+ */
+async function horizonFromLabourShifts(): Promise<HorizonCache> {
+  const thisWed = startOfTarteWeekUtc(new Date())
+  const weeks: HorizonCache["weeks"] = []
+  for (let n = 1; n <= Math.min(3, ROSTER_WEEKS_AHEAD); n++) {
+    const start = addDays(thisWed, 7 * n)
+    const from = new Date(start.getTime() - AEST_MS)
+    const to = new Date(from.getTime() + 7 * 86400000)
+    const rows = await db.labourShift.groupBy({
+      by: ["published"],
+      where: { venue: VENUE, source: "ROSTER", hours: { gt: 0 }, shiftStart: { gte: from, lt: to } },
+      _count: { _all: true },
+    })
+    const total = rows.reduce((s, r) => s + r._count._all, 0)
+    const published = rows.filter((r) => r.published === true).reduce((s, r) => s + r._count._all, 0)
+    weeks.push({ start: ymd(start), published, total })
+  }
+  return { at: Date.now(), weeks }
+}
+
 async function loadHorizon(): Promise<HorizonCache | null> {
+  if (labourSource() === "shifts") return horizonFromLabourShifts()
   const row = await db.appSetting.findUnique({ where: { key: HORIZON_KEY } })
   if (row?.value) {
     try {
@@ -87,7 +115,7 @@ async function loadHorizon(): Promise<HorizonCache | null> {
  *  published shifts, not three placeholder rows. */
 async function rosterHorizon(): Promise<AutoReading & { nextToPublish: string | null }> {
   const h = await loadHorizon()
-  if (!h) return { met: null, detail: "Could not reach Deputy. Tick it yourself.", nextToPublish: null }
+  if (!h) return { met: null, detail: `Could not reach ${labourSourceLabel()}. Tick it yourself.`, nextToPublish: null }
   const thisWed = startOfTarteWeekUtc(new Date())
   const baseline = await db.labourShift.count({
     where: {
@@ -139,7 +167,7 @@ async function hoursVsRoster(): Promise<AutoReading> {
   })
   const worked = Number(rows.find((r) => r.source === "TIMESHEET")?._sum.hours ?? 0)
   const rostered = Number(rows.find((r) => r.source === "ROSTER")?._sum.hours ?? 0)
-  if (rostered < 100 || worked < 100) return { met: null, detail: "Not enough data for last week. Check Deputy and tick it yourself." }
+  if (rostered < 100 || worked < 100) return { met: null, detail: `Not enough data for last week. Check ${labourSourceLabel()} and tick it yourself.` }
   const diff = ((worked - rostered) / rostered) * 100
   return {
     met: diff <= 3,
