@@ -32,6 +32,14 @@ export interface StaffRow {
   orders: number
   avgSale: number
 }
+/** One staff member's paid orders on one channel (the Average sale board). */
+export interface StaffChannelRow {
+  id: string
+  name: string
+  channel: Channel
+  sales: number
+  orders: number
+}
 export interface GroupRow {
   name: string
   sales: number
@@ -59,6 +67,8 @@ export interface DayBreakdown {
   channels: Record<Channel, { sales: number; orders: number }>
   registers: RegisterRow[]
   staff: StaffRow[]
+  /** Staff split by channel: someone on a cafe till in the morning and a handheld at lunch gets two rows. */
+  staffChannels: StaffChannelRow[]
   groups: GroupRow[]
   /** Payment ids that no order referenced (diagnostic). */
   unmatchedPayments: number
@@ -124,6 +134,7 @@ export function computeDayBreakdown(
   }
   const registers = new Map<string, RegisterRow>()
   const staff = new Map<string, StaffRow>()
+  const staffChannels = new Map<string, StaffChannelRow>()
   const groups = new Map<string, { sales: Decimal; qty: number; items: Map<string, { qty: number; sales: Decimal }> }>()
   let paid = new Decimal(0), openTotal = new Decimal(0), surcharge = new Decimal(0), tips = new Decimal(0)
   let openCount = 0, paidOrders = 0
@@ -168,6 +179,10 @@ export function computeDayBreakdown(
       row.sales += total.toNumber(); row.orders++
       if (!row.registers.includes(regName)) row.registers.push(regName)
       staff.set(tmId, row)
+      const ck = `${tmId}|${channel}`
+      const sc = staffChannels.get(ck) ?? { id: tmId, name: row.name, channel, sales: 0, orders: 0 }
+      sc.sales += total.toNumber(); sc.orders++
+      staffChannels.set(ck, sc)
     }
 
     for (const li of o.line_items ?? []) {
@@ -212,6 +227,7 @@ export function computeDayBreakdown(
     channels: Object.fromEntries(Object.entries(channels).map(([k, v]) => [k, { sales: r2(v.sales), orders: v.orders }])) as DayBreakdown["channels"],
     registers: regRows,
     staff: staffRows,
+    staffChannels: [...staffChannels.values()].map((s) => ({ ...s, sales: r2(s.sales) })).sort((a, b) => b.sales - a.sales),
     groups: groupRows,
     unmatchedPayments,
   }

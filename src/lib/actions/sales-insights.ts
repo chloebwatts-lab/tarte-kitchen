@@ -61,7 +61,7 @@ async function historicalDay(venue: Venue, date: string): Promise<{ day: DayBrea
       date, paidIncGst: Math.round(paid * 100) / 100, openTablesIncGst: 0, openTables: 0, paidOrders: orders,
       avgTransaction: orders ? Math.round((paid / orders) * 100) / 100 : 0,
       surchargeIncGst: summary?.surchargeIncGst ? Number(summary.surchargeIncGst) : 0, surchargeName: null, tipsIncGst: 0,
-      hourly: hours, hourlyOrders: hourOrders, channels: ch, registers: [], staff: [], groups: [], unmatchedPayments: 0,
+      hourly: hours, hourlyOrders: hourOrders, channels: ch, registers: [], staff: [], staffChannels: [], groups: [], unmatchedPayments: 0,
     },
   }
 }

@@ -592,6 +592,25 @@ model DailyStaffUpsell {
   @@index([venue, date, groupKey])
 }
 
+// Per day, per staff member, per channel (CAFE / RESTAURANT / OTHER): paid
+// orders and sales inc GST (tips excluded), credited to whoever took the
+// payment, else whoever opened the order. Written by the Square sync and the
+// live page refresh; drives the Average sale leaderboard.
+model DailyStaffSales {
+  id           String   @id @default(cuid())
+  date         DateTime @db.Date
+  venue        Venue
+  teamMemberId String
+  staffName    String
+  channel      String
+  salesIncGst  Decimal  @db.Decimal(12, 2)
+  orders       Int
+  createdAt    DateTime @default(now())
+
+  @@unique([date, venue, teamMemberId, channel])
+  @@index([venue, date])
+}
+
 model SalesChallenge {
   id        String    @id @default(cuid())
   venue     Venue

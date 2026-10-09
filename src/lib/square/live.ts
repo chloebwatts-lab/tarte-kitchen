@@ -168,4 +168,10 @@ export async function persistDayBreakdown(venue: Venue, dateStr: string, b: DayB
     await db.dailyChannelSales.createMany({ data: ch.map(([channel, v]) => ({ date, venue, channel, revenueIncGst: v.sales, orders: v.orders, source: "SQUARE" })) })
   }
   await db.dailySalesSummary.updateMany({ where: { date, venue }, data: { surchargeIncGst: b.surchargeIncGst } })
+  // Per staff per channel, one transaction so a failed insert keeps the old rows.
+  const staffRows = b.staffChannels.filter((s) => s.orders > 0).map((s) => ({ date, venue, teamMemberId: s.id, staffName: s.name, channel: s.channel, salesIncGst: s.sales, orders: s.orders }))
+  await db.$transaction([
+    db.dailyStaffSales.deleteMany({ where: { date, venue } }),
+    ...(staffRows.length ? [db.dailyStaffSales.createMany({ data: staffRows, skipDuplicates: true })] : []),
+  ])
 }
