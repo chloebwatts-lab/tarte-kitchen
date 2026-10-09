@@ -34,6 +34,8 @@
 		# Shifts on its own droplet). Bearer CRON_SECRET inside the route is
 		# the real gate; basic auth here would only block the callers.
 		not path /api/internal/send-email
+		not path /api/internal/deed-record
+		not path /api/internal/daily-sales
 		not path /_next/static/*
 		not path /favicon.ico
 		# PWA install assets — the staff home-screen app installs from the
