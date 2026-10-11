@@ -6,6 +6,7 @@ import { compare, hash } from "bcryptjs"
 import { getPerson, isOwnerDevice } from "@/lib/person-session"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { isQuietPerson, QUIET_LANDING, QUIET_SETTING_KEY } from "@/lib/manager-quiet"
 
 /**
  * Second gate inside the staff area, for pages that carry numbers or names:
@@ -126,11 +127,35 @@ async function touchManagerCookie(): Promise<void> {
   }
 }
 
+/**
+ * Quiet list (Chloe, 11 Oct 2026): a named manager keeps the area but not the
+ * commercial pages. See src/lib/manager-quiet.ts. The office login and the
+ * owner's phone are never quiet, whoever is signed in underneath.
+ */
+export async function isQuietManager(): Promise<boolean> {
+  if (await getServerSession(authOptions)) return false
+  if (await isOwnerDevice()) return false
+  const person = await getPerson()
+  if (!person) return false
+  const row = await db.appSetting.findUnique({ where: { key: QUIET_SETTING_KEY } })
+  return isQuietPerson(row?.value, { id: person.id, name: person.name })
+}
+
 /** Call at the top of any manager-only page. `next` is where to come back to. */
 export async function requireManager(next: string): Promise<void> {
   if (!(await isManagerAuthed())) {
     redirect(`/kitchen/managers/unlock?next=${encodeURIComponent(next)}`)
   }
+}
+
+/**
+ * Pages withheld from quiet managers: sales, supplier prices, the agenda.
+ * Same as requireManager, then a quiet manager is sent back to the hub with
+ * nothing said. Chloe and Shawna pass as before.
+ */
+export async function requireFullManager(next: string): Promise<void> {
+  await requireManager(next)
+  if (await isQuietManager()) redirect(QUIET_LANDING)
 }
 
 /**
@@ -140,4 +165,13 @@ export async function requireManager(next: string): Promise<void> {
 export async function assertManager(): Promise<void> {
   if (!(await isManagerAuthed())) throw new Error("Locked. Unlock the managers area first.")
   await touchManagerCookie()
+}
+
+/**
+ * Actions behind the withheld pages. A quiet manager gets the same refusal
+ * as a locked device, so a direct call by action id gives nothing away.
+ */
+export async function assertFullManager(): Promise<void> {
+  await assertManager()
+  if (await isQuietManager()) throw new Error("Locked. Unlock the managers area first.")
 }

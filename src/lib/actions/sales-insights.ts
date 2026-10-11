@@ -3,7 +3,7 @@
 import { db } from "@/lib/db"
 import type { Venue } from "@/generated/prisma/client"
 import { isSquareVenueOn } from "@/lib/pos"
-import { assertManager } from "@/lib/manager-auth"
+import { assertFullManager } from "@/lib/manager-auth"
 import { fetchLiveDay } from "@/lib/square/live"
 import { uberDay, uberDailyRows, type UberDay } from "@/lib/uber/live"
 import type { DayBreakdown, Channel } from "@/lib/square/breakdown"
@@ -67,7 +67,7 @@ async function historicalDay(venue: Venue, date: string): Promise<{ day: DayBrea
 }
 
 export async function getSalesInsights(venue: Venue, date: string, range: Range = "1D", compare: CompareMode = "WEEKS_4", opts: { force?: boolean } = {}): Promise<SalesInsights> {
-  await assertManager()
+  await assertFullManager()
   const now = brisbaneNow()
   const isToday = date === now.date
   const nowMinutes = isToday ? now.minutes : null

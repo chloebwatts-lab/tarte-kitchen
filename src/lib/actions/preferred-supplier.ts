@@ -1,6 +1,6 @@
 "use server"
 
-import { assertManager } from "@/lib/manager-auth"
+import { assertFullManager } from "@/lib/manager-auth"
 import { db } from "@/lib/db"
 import { rankRows, type FormRow, type RankedRow } from "@/lib/preferred-supplier"
 
@@ -11,7 +11,7 @@ import { rankRows, type FormRow, type RankedRow } from "@/lib/preferred-supplier
  * come from. Ranking lives in src/lib/preferred-supplier.ts.
  */
 export async function searchPreferred(query: string): Promise<RankedRow[]> {
-  await assertManager()
+  await assertFullManager()
   const words = query.trim().toLowerCase().split(/\s+/).filter((w) => w.length > 0)
   if (words.length === 0 || words.join("").length < 2) return []
 

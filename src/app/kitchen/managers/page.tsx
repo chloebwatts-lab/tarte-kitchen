@@ -2,14 +2,16 @@ export const dynamic = "force-dynamic"
 
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
-import { requireManager } from "@/lib/manager-auth"
+import { isQuietManager, requireManager } from "@/lib/manager-auth"
 import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
 import { ToolGrid } from "@/components/kitchen/ToolGrid"
 import { groupBySlug } from "@/lib/staff-tools"
+import { visibleTools } from "@/lib/manager-quiet"
 
 export default async function ManagersPage() {
   await requireManager("/kitchen/managers")
   const g = groupBySlug("managers")!
+  const tools = visibleTools(g.tools, await isQuietManager())
   return (
     <div className="relative min-h-screen overflow-hidden" style={{ background: "var(--tk-sage)" }}>
       <div className="flex items-center justify-between px-8 pt-8 md:px-12">
@@ -27,7 +29,7 @@ export default async function ManagersPage() {
         </p>
       </div>
       <div className="mx-auto max-w-[1100px] px-6 pb-12 md:px-12">
-        <ToolGrid tiles={g.tools} />
+        <ToolGrid tiles={tools} />
       </div>
     </div>
   )

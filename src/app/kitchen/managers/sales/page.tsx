@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic"
 
-import { requireManager } from "@/lib/manager-auth"
+import { requireFullManager } from "@/lib/manager-auth"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { SalesNav } from "@/components/kitchen/SalesNav"
@@ -10,7 +10,7 @@ import { brisbaneNow } from "@/lib/sales/insights"
 import { salesVenue } from "./_venue"
 
 export default async function SalesInsightsPage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
-  await requireManager("/kitchen/managers/sales")
+  await requireFullManager("/kitchen/managers/sales")
   const sp = await searchParams
   const venue = await salesVenue(sp)
   const date = typeof sp.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : brisbaneNow().date

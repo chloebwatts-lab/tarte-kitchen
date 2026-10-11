@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic"
 
-import { requireManager } from "@/lib/manager-auth"
+import { requireFullManager } from "@/lib/manager-auth"
 import { getAgenda } from "@/lib/actions/meetings"
 import { MeetingAgenda } from "@/components/meeting-agenda"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
@@ -21,7 +21,7 @@ function nextMeeting(from = new Date()): Date {
 }
 
 export default async function ManagerAgendaPage() {
-  await requireManager("/kitchen/managers/agenda")
+  await requireFullManager("/kitchen/managers/agenda")
   const board = await getAgenda()
   const meeting = nextMeeting()
   return (

@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic"
 
-import { requireManager } from "@/lib/manager-auth"
+import { requireFullManager } from "@/lib/manager-auth"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { SalesNav } from "@/components/kitchen/SalesNav"
@@ -10,7 +10,7 @@ import { ChallengeManagers } from "@/components/kitchen/ChallengeManagers"
 import { getSimpleChallenge, getUpsellBoard } from "@/lib/actions/upsell"
 
 export default async function ChallengeSetupPage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
-  await requireManager("/kitchen/managers/sales/setup")
+  await requireFullManager("/kitchen/managers/sales/setup")
   const venue = await salesVenue(await searchParams)
   const [upsell, simple] = await Promise.all([getUpsellBoard(venue), getSimpleChallenge(venue, "yesterday")])
   return (

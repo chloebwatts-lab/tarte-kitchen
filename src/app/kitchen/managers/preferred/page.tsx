@@ -4,12 +4,12 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { PreferredSupplier } from "@/components/kitchen/PreferredSupplier"
-import { requireManager } from "@/lib/manager-auth"
+import { requireFullManager } from "@/lib/manager-auth"
 
 export const metadata: Metadata = { title: "Where to order it · Tarte" }
 
 export default async function PreferredSupplierPage() {
-  await requireManager("/kitchen/managers/preferred")
+  await requireFullManager("/kitchen/managers/preferred")
   return (
     <div className="space-y-6">
       <KitchenBreadcrumb crumbs={[{ label: "Managers", href: "/kitchen/managers" }, { label: "Where to order it" }]} />

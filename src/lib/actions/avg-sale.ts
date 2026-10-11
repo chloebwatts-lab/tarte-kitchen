@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db"
 import type { Venue } from "@/generated/prisma/client"
-import { assertManager } from "@/lib/manager-auth"
+import { assertFullManager } from "@/lib/manager-auth"
 import { isSquareVenueOn } from "@/lib/pos"
 import { fetchLiveDay, persistDayBreakdown } from "@/lib/square/live"
 import { brisbaneNow } from "@/lib/sales/insights"
@@ -29,7 +29,7 @@ const ymd = (d: Date) => d.toISOString().slice(0, 10)
  * and writes the day back, so the sync and the page agree.
  */
 export async function getAvgSaleBoard(venue: Venue, tab: AvgTab, channel: BoardChannel): Promise<AvgSaleData> {
-  await assertManager()
+  await assertFullManager()
   const today = brisbaneNow().date
   const from = tab === "today" ? today : tab === "yesterday" ? shiftDate(today, -1) : tarteWeekStart(today)
   const to = tab === "yesterday" ? from : today

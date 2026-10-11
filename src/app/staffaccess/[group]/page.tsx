@@ -4,11 +4,16 @@ import { ArrowLeft } from "lucide-react"
 import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
 import { ToolGrid } from "@/components/kitchen/ToolGrid"
 import { groupBySlug } from "@/lib/staff-tools"
+import { isQuietManager } from "@/lib/manager-auth"
+import { visibleTools } from "@/lib/manager-quiet"
 
 export default async function StaffGroupPage({ params }: { params: Promise<{ group: string }> }) {
   const { group } = await params
   const g = groupBySlug(group)
   if (!g || g.locked) notFound()
+  // Price check sits in the open stock group but is a managers page; a quiet
+  // manager does not get the tile.
+  const tools = visibleTools(g.tools, await isQuietManager())
 
   return (
     <div className="relative min-h-screen overflow-hidden" style={{ background: "var(--tk-sage)" }}>
@@ -25,7 +30,7 @@ export default async function StaffGroupPage({ params }: { params: Promise<{ gro
         <p className="mx-auto mt-3 max-w-xl text-[18px] leading-snug" style={{ color: "rgba(255,255,255,0.85)" }}>{g.sub}</p>
       </div>
       <div className="mx-auto max-w-[1100px] px-6 pb-12 md:px-12">
-        <ToolGrid tiles={g.tools} />
+        <ToolGrid tiles={tools} />
       </div>
     </div>
   )

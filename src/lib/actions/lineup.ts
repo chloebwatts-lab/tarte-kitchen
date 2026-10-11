@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { assertManager } from "@/lib/manager-auth"
+import { assertManager, isQuietManager } from "@/lib/manager-auth"
 import { revalidatePath } from "next/cache"
 import { Venue } from "@/generated/prisma/client"
 import { valueForDate, type TarteValue } from "@/lib/lineup/tarte-ten"
@@ -152,11 +152,14 @@ export async function getLineUp(venue: Venue, now = new Date()): Promise<LineUp>
     if (worst.rating <= 3 && worst.id !== sorted[0].id) worstReview = toReview(worst)
   }
 
+  // Quiet list: the line-up still runs, just without yesterday's take.
+  const quiet = await isQuietManager()
+
   return {
     venue,
     date: today.toISOString().slice(0, 10),
     isFriday,
-    yesterday: sales
+    yesterday: sales && !quiet
       ? {
           date: sales.date.toISOString().slice(0, 10),
           revenue: num(sales.totalRevenue),

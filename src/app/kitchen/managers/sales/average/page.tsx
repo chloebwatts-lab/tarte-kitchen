@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic"
 
-import { requireManager } from "@/lib/manager-auth"
+import { requireFullManager } from "@/lib/manager-auth"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { SalesNav } from "@/components/kitchen/SalesNav"
@@ -9,7 +9,7 @@ import { AvgSaleSimple } from "@/components/kitchen/AvgSaleSimple"
 import { getAvgSaleBoard } from "@/lib/actions/avg-sale"
 
 export default async function AverageSalePage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
-  await requireManager("/kitchen/managers/sales/average")
+  await requireFullManager("/kitchen/managers/sales/average")
   const venue = await salesVenue(await searchParams)
   const initial = await getAvgSaleBoard(venue, "today", "CAFE")
   return (

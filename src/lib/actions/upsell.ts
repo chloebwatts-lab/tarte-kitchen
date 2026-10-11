@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db"
 import type { Venue } from "@/generated/prisma/client"
-import { assertManager } from "@/lib/manager-auth"
+import { assertFullManager } from "@/lib/manager-auth"
 import { isSquareVenueOn, squareCutoverMap } from "@/lib/pos"
 import { fetchLiveDay } from "@/lib/square/live"
 import { loadGroups, persistUpsell } from "@/lib/square/upsell-store"
@@ -74,7 +74,7 @@ async function timesheetHours(venue: Venue, from: string, to: string): Promise<M
 }
 
 export async function getUpsellBoard(venue: Venue, date?: string): Promise<UpsellBoardData> {
-  await assertManager()
+  await assertFullManager()
   const now = brisbaneNow()
   const day = date ?? now.date
   const onSquare = isSquareVenueOn(venue, day)
@@ -141,7 +141,7 @@ export async function getUpsellBoard(venue: Venue, date?: string): Promise<Upsel
 }
 
 export async function createChallenge(input: { venue: Venue; name: string; groupKey: string; metric: Metric; startDate: string; endDate: string; note?: string; daily?: boolean }) {
-  await assertManager()
+  await assertFullManager()
   const name = input.name.trim().slice(0, 80)
   if (!name) return { ok: false as const, error: "Give the challenge a name." }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(input.endDate) || input.endDate < input.startDate) return { ok: false as const, error: "Check the dates." }
@@ -153,7 +153,7 @@ export async function createChallenge(input: { venue: Venue; name: string; group
 }
 
 export async function endChallenge(id: string) {
-  await assertManager()
+  await assertFullManager()
   const now = brisbaneNow()
   const c = await db.salesChallenge.findUnique({ where: { id } })
   if (!c) return
@@ -162,7 +162,7 @@ export async function endChallenge(id: string) {
 }
 
 export async function deleteChallenge(id: string) {
-  await assertManager()
+  await assertFullManager()
   await db.salesChallenge.delete({ where: { id } }).catch(() => {})
 }
 
@@ -173,7 +173,7 @@ const cleanList = (text: string) => [...new Set(text.split(/[\n,]+/).map((s) => 
  * weeks of Square days so leaderboards reflect the new list straight away.
  */
 export async function saveGroup(input: { venue: Venue; key?: string; label: string; items: string; modifiers: string }) {
-  await assertManager()
+  await assertFullManager()
   const label = input.label.trim().slice(0, 40)
   if (!label) return { ok: false as const, error: "Name the list." }
   const itemNames = cleanList(input.items), modifierNames = cleanList(input.modifiers)
@@ -190,7 +190,7 @@ export async function saveGroup(input: { venue: Venue; key?: string; label: stri
 
 /** Recount the last `days` Square days for a venue from Square itself. */
 export async function recomputeUpsell(venue: Venue, days = 14): Promise<number> {
-  await assertManager()
+  await assertFullManager()
   const now = brisbaneNow()
   const cutover = squareCutoverMap()[venue]
   if (!cutover) return 0
@@ -239,7 +239,7 @@ async function challengeManagers(venue: Venue): Promise<string[]> {
 
 /** Salaried managers at a venue: they count nine hours for every day they sell on. */
 export async function saveChallengeManagers(venue: Venue, names: string) {
-  await assertManager()
+  await assertFullManager()
   const row = await db.appSetting.findUnique({ where: { key: MANAGERS_KEY } })
   let all: Record<string, string[]> = {}
   try { all = row ? (JSON.parse(row.value) as Record<string, string[]>) : {} } catch { all = {} }
@@ -249,7 +249,7 @@ export async function saveChallengeManagers(venue: Venue, names: string) {
 }
 
 export async function getSimpleChallenge(venue: Venue, tab: ChallengeTab): Promise<SimpleChallengeData> {
-  await assertManager()
+  await assertFullManager()
   const now = brisbaneNow()
   const today = now.date
   const groups = await loadGroups()
