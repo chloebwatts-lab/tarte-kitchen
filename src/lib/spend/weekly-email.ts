@@ -21,7 +21,7 @@ import { button, callout, list, section, shell, table, type Tone } from "@/lib/e
 
 const money0 = (n: number | null): string => {
   if (n == null) return "—"
-  const r = Math.round(n)
+  const r = Math.round(n) || 0 // normalise -0
   return r < 0
     ? `-$${Math.abs(r).toLocaleString("en-AU")}`
     : `$${r.toLocaleString("en-AU")}`
@@ -41,6 +41,12 @@ const PACE_TONE: Record<BucketSpendData["paceStatus"], Tone> = {
   "no-forecast": "neutral",
 }
 
+/** "Sunday" from an AEST yyyy-mm-dd, "" when unknown. */
+function dayName(iso: string | null): string {
+  if (!iso) return ""
+  return new Date(`${iso}T00:00:00`).toLocaleDateString("en-AU", { weekday: "long" })
+}
+
 /** Pretty "10 Jun" from an AEST yyyy-mm-dd. */
 function shortDate(iso: string): string {
   const d = new Date(`${iso}T00:00:00`)
@@ -56,7 +62,7 @@ function bucketLine(b: BucketSpendData, daysLeft: number): string {
   }
   // Same basis as the /spend headline: invoices in hand grossed up for
   // deliveries made but not yet invoiced (arrival-lag profile).
-  const left = b.leftToSpend ?? 0
+  const left = b.leftToSpend ?? b.remaining ?? 0
   const used = money0(b.estimatedSpentToDate)
   const usedDetail =
     b.estimatedUninvoiced > 0
@@ -95,7 +101,12 @@ function takingsLine(b: BucketSpendData): string {
     cogs == null
       ? ""
       : ` On that pace the week finishes near ${cogs.toFixed(1)}% COGS (target ${Number(b.targetPct).toFixed(0)}%).`
-  return `Takings so far ${money0(b.revenueToDateExGst)} ex GST${pace}.${cogsPart}`
+  const through = b.lastRevenueDate ? ` to ${dayName(b.lastRevenueDate)} close` : ""
+  const today =
+    b.todaySoFarExGst != null && b.todaySoFarExGst > 0
+      ? ` Plus ${money0(b.todaySoFarExGst)} so far today, not in the pace yet.`
+      : ""
+  return `Takings${through} ${money0(b.revenueToDateExGst)} ex GST${pace}.${cogsPart}${today}`
 }
 
 export interface WeeklySpendEmailResult {

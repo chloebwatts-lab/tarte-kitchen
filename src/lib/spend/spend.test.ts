@@ -1,4 +1,5 @@
 import { test } from "node:test"
+import { isCompletedSalesDay } from "./sales-day"
 import { arrivalCompleteness } from "./arrival-lag"
 import assert from "node:assert/strict"
 import { sharedSplit, sharedSplitLabel, PARALLEL_SINGLE_INVOICE_FROM } from "./shared-split"
@@ -119,6 +120,7 @@ function bucket(over: Partial<BucketSpendData> & { bucket: BucketSpendData["buck
     lastRevenueDate: null,
     projectedRevenueExGst: null,
     revenueDaily: [],
+    todaySoFarExGst: null,
     ...over,
   }
 }
@@ -210,8 +212,10 @@ test("takings line: revenue pace vs forecast and projected COGS % against live r
       bucket({
         bucket: "BURLEIGH",
         spentToDate: 7000,
+        estimatedSpentToDate: 7000,
         budget: 10800,
         remaining: 3800,
+        leftToSpend: 3800,
         forecastRevenue: 40000,
         projectedEndOfWeek: 9800,
         paceStatus: "on-track",
@@ -225,7 +229,8 @@ test("takings line: revenue pace vs forecast and projected COGS % against live r
   })
   const { text, html } = render(snap)
   // 35000 / 40000 = 87.5% -> 88%; 9800 / 35000 = 28.0%
-  assert.match(text, /Takings so far \$20,000 ex GST, pacing 88% of forecast\. On that pace the week finishes near 28\.0% COGS \(target 27%\)\./)
+  assert.match(text, /Takings to Saturday close \$20,000 ex GST, pacing 88% of forecast\. On that pace the week finishes near 28\.0% COGS \(target 27%\)\./)
+  assert.doesNotMatch(text, /so far today/)
   assert.match(html, /28\.0% \/ 27%/)
 })
 
@@ -238,6 +243,7 @@ test("takings line falls back to forecast revenue when no revenue projection exi
         projectedEndOfWeek: 10000,
         budget: 10800,
         remaining: 10800,
+        leftToSpend: 10800,
         revenueToDateExGst: 0,
         revenueDaysReported: 1,
         projectedRevenueExGst: null,
@@ -245,7 +251,8 @@ test("takings line falls back to forecast revenue when no revenue projection exi
     ],
   })
   const { text } = render(snap)
-  assert.match(text, /Takings so far \$0 ex GST\. On that pace the week finishes near 25\.0% COGS/)
+  assert.match(text, /Takings \$0 ex GST\. On that pace the week finishes near 25\.0% COGS/)
+  assert.doesNotMatch(text, /\$-0|to  close/)
 })
 
 test("zero revenue everywhere: no COGS % and no NaN / Infinity leak", () => {
@@ -257,6 +264,7 @@ test("zero revenue everywhere: no COGS % and no NaN / Infinity leak", () => {
         projectedEndOfWeek: 5000,
         budget: 0,
         remaining: -5000,
+        leftToSpend: -5000,
         revenueToDateExGst: 0,
         revenueDaysReported: 1,
         projectedRevenueExGst: 0,
@@ -264,7 +272,7 @@ test("zero revenue everywhere: no COGS % and no NaN / Infinity leak", () => {
     ],
   })
   const { text, html } = render(snap)
-  assert.match(text, /Takings so far \$0 ex GST\.$/m)
+  assert.match(text, /Takings \$0 ex GST\.$/m)
   assert.doesNotMatch(text, /NaN|Infinity/)
   assert.doesNotMatch(html, /NaN|Infinity/)
   assert.match(html, /n\/a \/ 27%/)
@@ -437,6 +445,42 @@ test("nasty input: a negative uninvoiced estimate is never spelt out as 'plus ab
   assert.doesNotMatch(text, /plus about/)
   assert.doesNotMatch(text, /-\$/)
   assert.doesNotMatch(html, /plus about/)
+})
+
+test("today's intraday Square figure is shown as so-far and kept out of the pace", () => {
+  const snap = snapshot({
+    buckets: [
+      bucket({
+        bucket: "CURRUMBIN",
+        spentToDate: 17193,
+        estimatedSpentToDate: 19000,
+        estimatedUninvoiced: 1807,
+        budget: 26880,
+        leftToSpend: 7880,
+        forecastRevenue: 96000,
+        projectedEndOfWeek: 25945,
+        paceStatus: "on-track",
+        revenueToDateExGst: 59349,
+        revenueDaysReported: 4,
+        lastRevenueDate: "2026-10-10",
+        projectedRevenueExGst: 91000,
+        revenueProjectionMethod: "weighted",
+        todaySoFarExGst: 2141,
+      }),
+    ],
+  })
+  const { text } = render(snap)
+  assert.match(text, /Takings to Saturday close \$59,349 ex GST, pacing 95% of forecast\./)
+  assert.match(text, /Plus \$2,141 so far today, not in the pace yet\./)
+  // the so-far figure must not be folded into the takings
+  assert.doesNotMatch(text, /\$61,490/)
+})
+
+test("isCompletedSalesDay: today's API row is intraday, an EMAIL row or any earlier day is final", () => {
+  assert.equal(isCompletedSalesDay("2026-10-11", "2026-10-11", "API"), false)
+  assert.equal(isCompletedSalesDay("2026-10-11", "2026-10-11", "EMAIL"), true)
+  assert.equal(isCompletedSalesDay("2026-10-10", "2026-10-11", "API"), true)
+  assert.equal(isCompletedSalesDay("2026-10-12", "2026-10-11", "API"), true)
 })
 
 // ------------------------------------------------ invoice arrival lag

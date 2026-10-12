@@ -13,6 +13,10 @@
  * null `venue` field are surfaced as "unassigned" so they can be
  * assigned manually, not silently lumped into a "Shared" bucket.
  *
+ * Revenue comes from DailySalesSummary (Lightspeed EOD emails at Burleigh,
+ * Square at Currumbin). Today's intraday figure is reported separately and
+ * never counted as a finished day.
+ *
  * BEACH_HOUSE here represents Currumbin's COGS, which per the Mge PDF
  * combines Beach House + Tea Garden, so we sum TEA_GARDEN spend and
  * forecast into BEACH_HOUSE for the budget read.
@@ -26,6 +30,7 @@ import {
 } from "@/lib/dates"
 import { sharedSplit } from "./shared-split"
 import { arrivalCompleteness, type ArrivalLagRow } from "./arrival-lag"
+import { isCompletedSalesDay } from "./sales-day"
 import {
   EXPECTED_SUPPLIERS,
   matchExpectedSupplier,
@@ -191,11 +196,14 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       _max: { invoiceDate: true },
       where: { status: { notIn: ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION", "REJECTED"] } },
     }),
-    // Lightspeed EOD revenue for the week. `date` is a @db.Date stored at
-    // UTC midnight of the AEST calendar day, so it sits inside [start, end).
+    // POS revenue for the week (Lightspeed EOD emails at Burleigh, Square
+    // at Currumbin). `date` is a @db.Date stored at UTC midnight of the
+    // AEST calendar day, so it sits inside [start, end). `source` tells a
+    // final EMAIL figure from the intraday API row the half-hourly Square
+    // sync keeps rewriting for today.
     db.dailySalesSummary.findMany({
       where: { date: { gte: start, lt: end } },
-      select: { date: true, venue: true, totalRevenueExGst: true },
+      select: { date: true, venue: true, totalRevenueExGst: true, source: true },
     }),
     // 8 weeks of revenue history, weekday-share weights for projections
     db.dailySalesSummary.findMany({
@@ -305,17 +313,29 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     }
   }
 
-  // ------- Live revenue per bucket (Lightspeed EOD emails, ex GST)
+  // ------- Live revenue per bucket (POS end-of-day figures, ex GST)
   const revenueByBucketDate = new Map<string, number>()
   const revenueReportedDates: Record<SpendBucket, Set<string>> = {
     BURLEIGH: new Set(),
     CURRUMBIN: new Set(),
+  }
+  // Today's intraday Square figure: shown as "so far", never a reported day.
+  // Counting it as a full day made the Sunday 08:30 email read Sunday's
+  // first $2k of coffees as the whole day and pace the week at 80%.
+  const todaySoFarByBucket: Record<SpendBucket, number | null> = {
+    BURLEIGH: null,
+    CURRUMBIN: null,
   }
   for (const row of salesSummaries) {
     const bucket = venueToBucket(row.venue)
     if (!bucket) continue
     // @db.Date rows sit at UTC midnight of the AEST calendar day.
     const dateKey = row.date.toISOString().split("T")[0]
+    if (!isCompletedSalesDay(dateKey, todayAest, row.source)) {
+      todaySoFarByBucket[bucket] =
+        (todaySoFarByBucket[bucket] ?? 0) + Number(row.totalRevenueExGst)
+      continue
+    }
     const key = `${bucket}::${dateKey}`
     revenueByBucketDate.set(
       key,
@@ -607,8 +627,9 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     else if (projectedEndOfWeek > budget * 0.95) paceStatus = "watch"
     else paceStatus = "on-track"
 
-    // ---- Live revenue (Lightspeed EOD, ex GST) ----
+    // ---- Live revenue (POS end-of-day, ex GST) ----
     const reportedDates = revenueReportedDates[bucket]
+    const todaySoFar = todaySoFarByBucket[bucket]
     const revenueDaily: DailyRevenueCell[] = []
     let revenueRunning = 0
     for (const cell of agg.daily) {
@@ -620,6 +641,9 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
         amount: Math.round(amt * 100) / 100,
         cumulative: Math.round(revenueRunning * 100) / 100,
         reported: reportedDates.has(cell.date),
+        ...(cell.date === todayAest && todaySoFar != null
+          ? { soFar: Math.round(todaySoFar * 100) / 100 }
+          : {}),
       })
     }
     const revenueDaysReported = reportedDates.size
@@ -704,6 +728,8 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       lastRevenueDate,
       projectedRevenueExGst,
       revenueDaily,
+      todaySoFarExGst:
+        todaySoFar == null ? null : Math.round(todaySoFar * 100) / 100,
     }
   })
 

@@ -79,7 +79,7 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
     bucket.forecastRevenue && bucket.forecastRevenue > 0
       ? (bucket.projectedEndOfWeek / bucket.forecastRevenue) * 100
       : null
-  // Same, but against ACTUAL revenue pace from the Lightspeed EOD
+  // Same, but against ACTUAL revenue pace from the POS end-of-day
   // reports, the honest read when trade runs above/below forecast.
   const liveCogsPct =
     bucket.projectedRevenueExGst && bucket.projectedRevenueExGst > 0
@@ -231,7 +231,7 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
         <div>
           <div className="mb-2 flex items-baseline justify-between">
             <span className="text-xs font-medium text-muted-foreground">
-              Live revenue: Lightspeed EOD reports (ex GST)
+              Live revenue: POS end-of-day figures (ex GST)
             </span>
             {bucket.lastRevenueDate && (
               <span className="text-[10px] text-muted-foreground">
@@ -241,7 +241,7 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
           </div>
           {bucket.revenueToDateExGst == null ? (
             <p className="text-xs text-muted-foreground">
-              No Lightspeed EOD report received yet this week.
+              No completed trading day reported yet this week.
             </p>
           ) : (
             <>
@@ -304,7 +304,15 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
                           </span>
                         </td>
                         <td className="px-2 py-1.5 text-right tabular-nums">
-                          {d.reported ? fmt(d.amount) : "—"}
+                          {d.reported ? (
+                            fmt(d.amount)
+                          ) : d.soFar != null ? (
+                            <span className="text-muted-foreground">
+                              {fmt(d.soFar)} so far
+                            </span>
+                          ) : (
+                            "—"
+                          )}
                         </td>
                         <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
                           {d.reported ? fmt(d.cumulative) : "—"}
@@ -315,8 +323,10 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
                 </table>
               </div>
               <p className="mt-1 text-[10px] text-muted-foreground">
-                Lightspeed POS only: online orders and event revenue land on
-                top of these figures, so true takings read slightly higher.
+                POS only (Lightspeed at Burleigh, Square at Currumbin): online
+                orders and event revenue land on top of these figures, so true
+                takings read slightly higher. Today&apos;s running figure is
+                shown but not counted until the day closes.
               </p>
             </>
           )}

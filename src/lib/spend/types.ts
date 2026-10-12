@@ -37,11 +37,13 @@ export interface DailyRevenueCell {
   /// AEST yyyy-mm-dd
   date: string
   dayName: string
-  /// Lightspeed EOD revenue ex GST for this day (0 until the report lands)
+  /// POS revenue ex GST for this completed day (0 until the figure lands)
   amount: number
   cumulative: number
-  /// True once at least one venue in the bucket has an EOD report for the day
+  /// True once at least one venue in the bucket has a final figure for the day
   reported: boolean
+  /// Today only: intraday takings so far (Square sync), not in amount/cumulative
+  soFar?: number
 }
 
 /// One supplier's contribution to estimatedMissingSpend, so the amber
@@ -136,6 +138,9 @@ export interface BucketSpendData {
   /// revenueToDateExGst ÷ revenueDaysReported × 7
   projectedRevenueExGst: number | null
   revenueDaily: DailyRevenueCell[]
+  /// Today's intraday takings ex GST (Square), shown as "so far" and kept
+  /// out of revenueToDateExGst and the pace. Null when none yet.
+  todaySoFarExGst: number | null
 }
 
 export interface CurrentWeekSpendSnapshot {
