@@ -45,7 +45,7 @@ export async function submitStaffLogin(formData: FormData): Promise<void> {
   // seen" can be told apart from the venue iPads, and so the lockout counts
   // this browser's misses rather than the whole venue's (one shared IP).
   const jar = await cookies()
-  let device = jar.get(DEVICE_COOKIE)?.value ?? null
+  let device = jar.get(DEVICE_COOKIE)?.value?.slice(0, 64) || null
   if (!device) {
     device = randomBytes(12).toString("hex")
     jar.set(DEVICE_COOKIE, device, {

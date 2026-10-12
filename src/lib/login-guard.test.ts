@@ -5,7 +5,7 @@ process.env.NEXTAUTH_SECRET = "test-only-secret-not-real-0000000000"
 process.env.DATABASE_URL = "postgresql://fake:fake@127.0.0.1:1/fake"
 
 import { db } from "./db"
-import { LOCKED_MESSAGE, guardedCheck, ipFrom, isLockedOut, recordAttempt } from "./login-guard"
+import { GATE_MAX, LOCKED_MESSAGE, PER_DEVICE_MAX, PER_IP_MAX, callerDevice, guardedCheck, ipFrom, isLockedOut, recordAttempt } from "./login-guard"
 
 /**
  * The Prisma delegate is replaced with an in-memory table so the counting
@@ -193,5 +193,40 @@ describe("guardedCheck", () => {
   test("locked message is plain English with no dashes", () => {
     assert.equal(/[—–]/.test(LOCKED_MESSAGE), false)
     assert.ok(LOCKED_MESSAGE.includes("15 minutes"))
+  })
+})
+
+describe("callers that pass no device", () => {
+  test("thresholds are ordered: device, then address, then the whole gate", () => {
+    assert.ok(PER_DEVICE_MAX < PER_IP_MAX && PER_IP_MAX < GATE_MAX)
+    assert.equal(PER_DEVICE_MAX, 5)
+  })
+
+  test("callerDevice returns null outside a request instead of throwing", async () => {
+    // node:test has no Next request store, same as any stray non-request call.
+    assert.equal(await callerDevice(), null)
+  })
+
+  test("guardedCheck with no device (council, gm, managers) falls back to the cookie and still works", async () => {
+    // Outside a request the cookie read yields null, so only the address rules apply.
+    assert.equal(await guardedCheck("council", () => false, "8.8.8.8"), "wrong")
+    assert.equal(await guardedCheck("council", () => true, "8.8.8.8"), "ok")
+    assert.deepEqual(rows.map((r) => [r.ip, r.device, r.ok]), [["8.8.8.8", null, false], ["8.8.8.8", null, true]])
+  })
+
+  test("office login shape: isLockedOut and recordAttempt with no device argument at all", async () => {
+    for (let i = 0; i < PER_IP_MAX - 1; i++) seed("admin", "203.0.113.7", (i % 14) * MIN)
+    assert.equal(await isLockedOut("admin", "203.0.113.7"), false)
+    await recordAttempt("admin", "203.0.113.7", false)
+    assert.equal(rows.at(-1)?.device, null, "stored as null, not undefined")
+    assert.equal(await isLockedOut("admin", "203.0.113.7"), true)
+  })
+
+  test("a device that keeps changing its cookie is still held by the address backstop", async () => {
+    for (let i = 0; i < PER_IP_MAX; i++) {
+      const r = await guardedCheck("managers", () => false, "198.51.100.9", `rotated-${i}`)
+      assert.equal(r, "wrong", `try ${i + 1}`)
+    }
+    assert.equal(await guardedCheck("managers", () => true, "198.51.100.9", "rotated-fresh"), "locked")
   })
 })
