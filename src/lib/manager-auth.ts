@@ -92,9 +92,10 @@ async function managerCookieExpiry(): Promise<number | null> {
 export async function isManagerDenied(): Promise<boolean> {
   const person = await getPerson()
   if (!person) return false
-  // Tiers (Chloe, 12 Oct 2026): the area is Manager and up by Shifts role,
-  // whatever the password. Fix a wrong refusal by changing the role in Shifts.
-  if (!meetsTier(tierOfRole(person.role), "MANAGER")) return true
+  // Tiers (Chloe, 12 Oct 2026): the area is Senior and up by Shifts role,
+  // whatever the password (16 Sep: supervisors get the managers password).
+  // Fix a wrong refusal by changing the role in Shifts.
+  if (!meetsTier(tierOfRole(person.role), "SENIOR")) return true
   const row = await db.appSetting.findUnique({ where: { key: "managerAllowStaffIds" } })
   if (!row) return false
   try {

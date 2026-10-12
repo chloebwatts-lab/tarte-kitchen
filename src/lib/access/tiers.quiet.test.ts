@@ -4,7 +4,7 @@ import fs from "node:fs"
 import path from "node:path"
 import { TOOL_GROUPS, groupBySlug } from "../staff-tools"
 import { QUIET_HIDDEN_PREFIXES, isQuietHiddenHref, visibleTools } from "../manager-quiet"
-import { MANAGER_PREFIXES, meetsTier, tierForHref, toolsForTier, type Tier } from "./tiers"
+import { MANAGER_PREFIXES, MANAGERS_AREA_PREFIXES, meetsTier, tierForHref, toolsForTier, type Tier } from "./tiers"
 
 /**
  * The staff grids now run two filters in a row (src/app/staffaccess):
@@ -18,9 +18,10 @@ const managers = groupBySlug("managers")!
 const hrefs = (tools: { href: string }[]) => tools.map((t) => t.href)
 
 describe("tiers and the quiet list together", () => {
-  test("every quiet-hidden page is Manager tier: quiet is a rule for managers, never a hole for staff", () => {
+  test("every quiet-hidden page is at least Senior tier: quiet is a rule inside the managers area, never a hole for staff", () => {
     for (const p of QUIET_HIDDEN_PREFIXES) {
-      assert.equal(tierForHref(p), "MANAGER", p)
+      assert.ok(meetsTier(tierForHref(p), "SENIOR"), p)
+      assert.equal(tierForHref(p) === "STAFF", false, p)
     }
     // The meeting deck is now on both lists.
     assert.equal(isQuietHiddenHref("/kitchen/meeting"), true)
@@ -39,12 +40,21 @@ describe("tiers and the quiet list together", () => {
     assert.ok(hrefs(visibleTools(toolsForTier(stock.tools, "MANAGER"), false)).includes("/kitchen/prices"))
   })
 
-  test("the quiet flag changes nothing for Staff or Senior: their grid has no manager tile to take away", () => {
-    for (const tier of ["STAFF", "SENIOR"] as Tier[]) {
-      const open = toolsForTier(stock.tools, tier)
-      assert.deepEqual(visibleTools(open, true), open, tier)
-      assert.equal(open.some((t) => t.href === "/kitchen/prices"), false, tier)
-    }
+  test("the quiet flag changes nothing for Staff: their grid has no manager tile to take away", () => {
+    const open = toolsForTier(stock.tools, "STAFF")
+    assert.deepEqual(visibleTools(open, true), open)
+    assert.equal(open.some((t) => t.href === "/kitchen/prices"), false)
+  })
+
+  test("a quiet Senior (a supervisor on the list) loses the same tiles as a quiet Manager", () => {
+    const seniorGrid = hrefs(visibleTools(toolsForTier(managers.tools, "SENIOR"), true))
+    const managerGrid = hrefs(visibleTools(toolsForTier(managers.tools, "MANAGER"), true))
+    assert.deepEqual(seniorGrid, managerGrid)
+    assert.ok(seniorGrid.includes("/kitchen/lineup"))
+    assert.equal(seniorGrid.some((h) => h.startsWith("/kitchen/managers/sales")), false)
+    const seniorStock = hrefs(visibleTools(toolsForTier(stock.tools, "SENIOR"), true))
+    assert.equal(seniorStock.includes("/kitchen/prices"), false)
+    assert.ok(hrefs(visibleTools(toolsForTier(stock.tools, "SENIOR"), false)).includes("/kitchen/prices"))
   })
 
   test("a quiet Manager inside the Managers group loses exactly the withheld tiles and nothing operational", () => {
@@ -89,7 +99,7 @@ describe("tiers: Manager routes agree with the prefix list", () => {
   test("every Manager route folder carries a managers or GM gate", () => {
     const appDir = path.join(process.cwd(), "src", "app")
     assert.ok(fs.existsSync(appDir), `expected ${appDir} (run from repo root)`)
-    for (const prefix of MANAGER_PREFIXES) {
+    for (const prefix of [...MANAGER_PREFIXES, ...MANAGERS_AREA_PREFIXES]) {
       const dir = path.join(appDir, ...prefix.split("/").filter(Boolean))
       assert.ok(fs.existsSync(dir), `${prefix} has no route directory`)
       const src = ["layout.tsx", "page.tsx", "route.ts"]

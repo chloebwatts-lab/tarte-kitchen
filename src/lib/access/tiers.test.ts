@@ -44,8 +44,11 @@ describe("tiers: what", () => {
     }
   })
 
-  test("the managers area, GM desk and meeting deck are Manager", () => {
-    for (const h of ["/kitchen/managers", "/kitchen/managers/sales", "/kitchen/gm", "/kitchen/meeting", "/kitchen/meeting?deck=2026-09"]) {
+  test("the managers area is Senior (supervisors hold the password); GM desk and meeting deck are Manager", () => {
+    for (const h of ["/kitchen/managers", "/kitchen/managers/sales", "/kitchen/lineup", "/kitchen/jobs", "/kitchen/commitments", "/kitchen/training", "/kitchen/prices"]) {
+      assert.equal(tierForHref(h), "SENIOR", h)
+    }
+    for (const h of ["/kitchen/gm", "/kitchen/meeting", "/kitchen/meeting?deck=2026-09"]) {
       assert.equal(tierForHref(h), "MANAGER", h)
     }
   })
@@ -70,7 +73,7 @@ describe("tiers: what", () => {
 describe("tiers: the grids", () => {
   const groupTiles = TOOL_GROUPS.map((g) => ({ href: g.href ?? `/staffaccess/${g.slug}`, slug: g.slug }))
 
-  test("Staff sees no Managers, Oliver or Functions tile; Senior gets Functions; Manager gets all three", () => {
+  test("Staff sees no Managers, Oliver or Functions tile; Senior gets Functions and Managers; Manager gets all three", () => {
     const staff = toolsForTier(groupTiles, "STAFF").map((t) => t.slug)
     assert.ok(staff.includes("checklists") && staff.includes("stock") && staff.includes("spotted") && staff.includes("pastry"))
     assert.equal(staff.includes("managers"), false)
@@ -79,7 +82,8 @@ describe("tiers: the grids", () => {
 
     const senior = toolsForTier(groupTiles, "SENIOR").map((t) => t.slug)
     assert.ok(senior.includes("functions"))
-    assert.equal(senior.includes("managers"), false)
+    assert.ok(senior.includes("managers"))
+    assert.equal(senior.includes("gm"), false)
 
     const manager = toolsForTier(groupTiles, "MANAGER").map((t) => t.slug)
     assert.ok(manager.includes("managers") && manager.includes("gm") && manager.includes("functions"))
@@ -97,7 +101,8 @@ describe("tiers: the grids", () => {
     }
     const senior = toolsForTier(stock.tools, "SENIOR").map((t) => t.href)
     assert.ok(senior.includes("/kitchen/order") && senior.includes("/kitchen/ordering") && senior.includes("/kitchen/serves"))
-    assert.equal(senior.includes("/kitchen/prices"), false, "price check is behind the managers password")
+    assert.ok(senior.includes("/kitchen/prices"), "price check is behind the managers password, which supervisors hold")
+    assert.equal(toolsForTier(stock.tools, "STAFF").some((t) => t.href === "/kitchen/prices"), false)
   })
 
   test("nobody signed in sees no tiles at all", () => {

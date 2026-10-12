@@ -8,9 +8,9 @@
  *            forecasts), pastry tasks, report / fix / services / printers
  *            (no till login), inspection view
  *   SENIOR   plus ordering, the order sheet, where to buy, serves and
- *            portions, high tea, functions
- *   MANAGER  plus the Managers area (still behind its password), the
- *            meeting deck, costs and the till login
+ *            portions, high tea, functions, and the Managers area (still
+ *            behind its password and allow list)
+ *   MANAGER  plus the meeting deck, costs and the till login
  *   OWNER    everything; the office login and the owner's phone
  *
  * Pages under a prefix below need at least that tier; anything not listed
@@ -55,21 +55,26 @@ export const SENIOR_PREFIXES = [
 ]
 
 /**
- * The Managers area and Oliver's desk have their own password gates; the
- * tier decides whether the tile is offered at all. The other entries are
- * the managers pages that live outside /kitchen/managers (requireManager in
- * their page or layout) and the meeting deck route.
+ * The Managers area, behind its own password: Senior and up (Chloe, 16 Sep
+ * 2026: supervisors get the managers password; reaffirmed 12 Oct). Listed
+ * here so the tile is only offered from Senior; the password and the allow
+ * list still decide inside. Includes the managers pages that live outside
+ * /kitchen/managers (requireManager in their page or layout).
  */
-export const MANAGER_PREFIXES = [
+export const MANAGERS_AREA_PREFIXES = [
   "/kitchen/managers",
-  "/kitchen/gm",
-  "/kitchen/meeting",
   "/kitchen/prices",
   "/kitchen/lineup",
   "/kitchen/jobs",
   "/kitchen/commitments",
   "/kitchen/training",
 ]
+
+/**
+ * Manager and up: Oliver's desk (its own password) and the meeting deck
+ * route, which is P&L and wages and sits above the Managers area.
+ */
+export const MANAGER_PREFIXES = ["/kitchen/gm", "/kitchen/meeting"]
 
 function under(href: string, prefixes: string[]): boolean {
   return prefixes.some((p) => href === p || href.startsWith(`${p}/`) || href.startsWith(`${p}?`))
@@ -78,7 +83,7 @@ function under(href: string, prefixes: string[]): boolean {
 /** The least tier that may open this href. */
 export function tierForHref(href: string): Tier {
   if (under(href, MANAGER_PREFIXES)) return "MANAGER"
-  if (under(href, SENIOR_PREFIXES)) return "SENIOR"
+  if (under(href, SENIOR_PREFIXES) || under(href, MANAGERS_AREA_PREFIXES)) return "SENIOR"
   return "STAFF"
 }
 
