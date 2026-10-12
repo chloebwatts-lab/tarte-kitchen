@@ -113,6 +113,7 @@ const navGroups: NavGroup[] = [
       { label: "Settings", href: "/settings/integrations", icon: Settings },
       { label: "Managers password", href: "/settings/manager-password", icon: Lock },
       { label: "GM desk (Oliver)", href: "/settings/gm-desk", icon: Lock },
+      { label: "Who uses Staff tools", href: "/settings/usage", icon: Users },
     ],
   },
 ];
