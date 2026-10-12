@@ -143,8 +143,10 @@ test("Sunday send: 3 days to go, remaining spread per day", () => {
       bucket({
         bucket: "BURLEIGH",
         spentToDate: 7000,
+        estimatedSpentToDate: 7000,
         budget: 10000,
         remaining: 3000,
+        leftToSpend: 3000,
         forecastRevenue: 37037,
         projectedEndOfWeek: 9800,
         paceStatus: "on-track",
@@ -165,8 +167,10 @@ test("over budget: OVER amount is shown positive and orders are held", () => {
       bucket({
         bucket: "CURRUMBIN",
         spentToDate: 8500,
+        estimatedSpentToDate: 8500,
         budget: 8000,
         remaining: -500,
+        leftToSpend: -500,
         projectedEndOfWeek: 11200,
         paceStatus: "over",
       }),
@@ -182,7 +186,7 @@ test("over budget: OVER amount is shown positive and orders are held", () => {
 test("last day of the week: singular wording and the whole budget for today", () => {
   const snap = snapshot({
     dayOfWeek: 7,
-    buckets: [bucket({ bucket: "BURLEIGH", spentToDate: 9000, budget: 10000, remaining: 1000, paceStatus: "watch" })],
+    buckets: [bucket({ bucket: "BURLEIGH", spentToDate: 9000, estimatedSpentToDate: 9000, budget: 10000, remaining: 1000, leftToSpend: 1000, paceStatus: "watch" })],
   })
   const { subject, text } = render(snap)
   assert.match(subject, /: 1 day to go$/)
@@ -287,10 +291,35 @@ test("no untagged invoices: the note is omitted entirely", () => {
 
 test("days left never goes negative and rounding is to whole dollars", () => {
   const { subject, text } = render(
-    snapshot({ dayOfWeek: 9, buckets: [bucket({ bucket: "BURLEIGH", spentToDate: 1234.567, budget: 2000.4, remaining: 765.833 })] })
+    snapshot({ dayOfWeek: 9, buckets: [bucket({ bucket: "BURLEIGH", spentToDate: 1234.567, estimatedSpentToDate: 1234.567, budget: 2000.4, remaining: 765.833, leftToSpend: 765.833 })] })
   )
   assert.match(subject, /: 0 days to go$/)
   assert.match(text, /\$766 left to spend \(\$1,235 of \$2,000 used\)\.$/m)
+})
+
+test("left to spend is the grossed-up basis the /spend headline uses, with the uninvoiced share spelt out", () => {
+  const snap = snapshot({
+    buckets: [
+      bucket({
+        bucket: "CURRUMBIN",
+        spentToDate: 19582,
+        estimatedSpentToDate: 23819,
+        estimatedUninvoiced: 4237,
+        budget: 26880,
+        remaining: 6826, // old missing-supplier basis, must NOT be the headline
+        leftToSpend: 3061,
+        paceStatus: "watch",
+      }),
+    ],
+  })
+  const { text, html } = render(snap)
+  assert.match(
+    text,
+    /Currumbin \(Beach House \+ Tea Garden\): \$3,061 left to spend \(\$23,819 of \$26,880 used: \$19,582 invoiced plus about \$4,237 delivered but not invoiced yet\)\. That's about \$1,020\/day for the 3 days left\./
+  )
+  assert.doesNotMatch(text, /\$6,826/)
+  assert.match(html, /\$3,061/)
+  assert.doesNotMatch(html, /\$6,826/)
 })
 
 // ------------------------------------------------ invoice arrival lag

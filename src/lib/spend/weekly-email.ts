@@ -54,17 +54,24 @@ function bucketLine(b: BucketSpendData, daysLeft: number): string {
   if (b.budget == null) {
     return `${b.label}: ${money0(b.spentToDate)} spent so far. No sales forecast loaded, so no budget to compare against.`
   }
-  const remaining = b.remaining ?? 0
-  if (remaining <= 0) {
-    return `${b.label}: ${money0(b.spentToDate)} spent of a ${money0(b.budget)} budget, ${money0(-remaining)} OVER. Hold all non-essential orders for the rest of the week.`
+  // Same basis as the /spend headline: invoices in hand grossed up for
+  // deliveries made but not yet invoiced (arrival-lag profile).
+  const left = b.leftToSpend ?? 0
+  const used = money0(b.estimatedSpentToDate)
+  const usedDetail =
+    b.estimatedUninvoiced > 0
+      ? `: ${money0(b.spentToDate)} invoiced plus about ${money0(b.estimatedUninvoiced)} delivered but not invoiced yet`
+      : ""
+  if (left <= 0) {
+    return `${b.label}: ${used} spent of a ${money0(b.budget)} budget${usedDetail ? ` (${usedDetail.slice(2)})` : ""}, ${money0(-left)} OVER. Hold all non-essential orders for the rest of the week.`
   }
   const tail =
     daysLeft > 1
-      ? ` That's about ${money0(remaining / daysLeft)}/day for the ${daysLeft} days left.`
+      ? ` That's about ${money0(left / daysLeft)}/day for the ${daysLeft} days left.`
       : daysLeft === 1
         ? ` That's the whole budget for today, the last day of the week.`
         : ""
-  return `${b.label}: ${money0(remaining)} left to spend (${money0(b.spentToDate)} of ${money0(b.budget)} used).${tail}`
+  return `${b.label}: ${money0(left)} left to spend (${used} of ${money0(b.budget)} used${usedDetail}).${tail}`
 }
 
 /** Projected full-week COGS % against live revenue pace, else forecast. */
@@ -148,8 +155,8 @@ export function render(snapshot: CurrentWeekSpendSnapshot): {
   // ---- HTML ----
   const daysLabel = `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`
   const tableRows = snapshot.buckets.map((b) => {
-    const remaining = b.remaining
-    const remainTone: Tone = remaining == null ? "neutral" : remaining <= 0 ? "red" : "done"
+    const left = b.leftToSpend
+    const remainTone: Tone = left == null ? "neutral" : left <= 0 ? "red" : "done"
     const cogs = projectedCogsPct(b)
     const cogsTone: Tone =
       cogs == null
@@ -161,9 +168,9 @@ export function render(snapshot: CurrentWeekSpendSnapshot): {
             : "red"
     return [
       { text: b.label, strong: true },
-      money0(b.spentToDate),
+      money0(b.budget == null ? b.spentToDate : b.estimatedSpentToDate),
       money0(b.budget),
-      { text: money0(b.remaining), tone: remainTone, strong: true },
+      { text: money0(left), tone: remainTone, strong: true },
       { text: PACE_LABEL[b.paceStatus], tone: PACE_TONE[b.paceStatus], strong: true },
       { text: `${cogs == null ? "n/a" : `${cogs.toFixed(1)}%`} / ${Number(b.targetPct).toFixed(0)}%`, tone: cogsTone, strong: true },
     ]
@@ -172,7 +179,7 @@ export function render(snapshot: CurrentWeekSpendSnapshot): {
   const spendTable = table(
     [
       { header: "Venue" },
-      { header: "Spent", align: "right" },
+      { header: "Spent (incl. uninvoiced)", align: "right" },
       { header: "Budget", align: "right" },
       { header: "Left", align: "right" },
       { header: "Pace", align: "right" },
