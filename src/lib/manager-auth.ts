@@ -7,6 +7,7 @@ import { getPerson, isOwnerDevice } from "@/lib/person-session"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { isQuietPerson, QUIET_LANDING, QUIET_SETTING_KEY } from "@/lib/manager-quiet"
+import { meetsTier, tierOfRole } from "@/lib/access/tiers"
 
 /**
  * Second gate inside the staff area, for pages that carry numbers or names:
@@ -91,6 +92,9 @@ async function managerCookieExpiry(): Promise<number | null> {
 export async function isManagerDenied(): Promise<boolean> {
   const person = await getPerson()
   if (!person) return false
+  // Tiers (Chloe, 12 Oct 2026): the area is Manager and up by Shifts role,
+  // whatever the password. Fix a wrong refusal by changing the role in Shifts.
+  if (!meetsTier(tierOfRole(person.role), "MANAGER")) return true
   const row = await db.appSetting.findUnique({ where: { key: "managerAllowStaffIds" } })
   if (!row) return false
   try {

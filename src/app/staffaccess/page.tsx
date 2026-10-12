@@ -3,19 +3,26 @@ import { ToolGrid } from "@/components/kitchen/ToolGrid"
 import { TOOL_GROUPS } from "@/lib/staff-tools"
 import { mayTrustDevice } from "@/lib/person-auth"
 import { getPerson, isOwnerDevice } from "@/lib/person-session"
+import { getTier } from "@/lib/tier-auth"
+import { toolsForTier } from "@/lib/access/tiers"
 import { forgetThisDevice, trustThisDevice } from "@/app/staff-login/actions"
 
 export default async function StaffAccessPage() {
   const person = await getPerson()
   const canTrust = mayTrustDevice(person)
   const trusted = canTrust && (await isOwnerDevice())
-  const tiles = TOOL_GROUPS.map((g) => ({
-    title: g.title,
-    sub: g.sub,
-    href: g.href ?? `/staffaccess/${g.slug}`,
-    icon: g.icon,
-    locked: g.locked,
-  }))
+  // Tiles above the person's tier are not offered (src/lib/access/tiers.ts).
+  const tier = await getTier()
+  const tiles = toolsForTier(
+    TOOL_GROUPS.map((g) => ({
+      title: g.title,
+      sub: g.sub,
+      href: g.href ?? `/staffaccess/${g.slug}`,
+      icon: g.icon,
+      locked: g.locked,
+    })),
+    tier
+  )
   return (
     <div className="relative min-h-screen overflow-hidden" style={{ background: "var(--tk-sage)" }}>
       <div className="flex items-center justify-between px-8 pt-8 md:px-12">

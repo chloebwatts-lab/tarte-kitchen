@@ -38,7 +38,10 @@ export async function setCouncilCookie(): Promise<void> {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    path: "/council",
+    // Site-wide, not /council: the document viewer at /api/council/document
+    // checks this cookie too (12 Oct 2026), so the EHO's folder keeps opening
+    // files with no extra prompt. Only council-auth reads it.
+    path: "/",
     expires: new Date(expiresAt),
   })
 }

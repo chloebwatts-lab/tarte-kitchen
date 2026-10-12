@@ -6,14 +6,17 @@ import { ToolGrid } from "@/components/kitchen/ToolGrid"
 import { groupBySlug } from "@/lib/staff-tools"
 import { isQuietManager } from "@/lib/manager-auth"
 import { visibleTools } from "@/lib/manager-quiet"
+import { getTier } from "@/lib/tier-auth"
+import { toolsForTier } from "@/lib/access/tiers"
 
 export default async function StaffGroupPage({ params }: { params: Promise<{ group: string }> }) {
   const { group } = await params
   const g = groupBySlug(group)
   if (!g || g.locked) notFound()
-  // Price check sits in the open stock group but is a managers page; a quiet
-  // manager does not get the tile.
-  const tools = visibleTools(g.tools, await isQuietManager())
+  // Tiles above the person's tier are not offered; Price check sits in the
+  // open stock group but is a managers page, and a quiet manager does not
+  // get that tile either.
+  const tools = visibleTools(toolsForTier(g.tools, await getTier()), await isQuietManager())
 
   return (
     <div className="relative min-h-screen overflow-hidden" style={{ background: "var(--tk-sage)" }}>

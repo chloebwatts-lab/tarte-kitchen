@@ -1,6 +1,8 @@
 "use server"
 
 import { db } from "@/lib/db"
+import { hasTier } from "@/lib/tier-auth"
+import { stripPrepNumbers } from "@/lib/access/strip"
 import { Venue } from "@/generated/prisma/client"
 import { SINGLE_VENUES } from "@/lib/venues"
 
@@ -87,7 +89,17 @@ function startOfAestDay(offsetDays = 0): Date {
  * Output is sorted by prep category (makes for a logical prep list) then
  * by required quantity descending.
  */
-export async function getPrepSheet(params: {
+/**
+ * Batch costs and per-dish sales forecasts are Manager and up (Chloe,
+ * 12 Oct 2026). Everyone else gets the same prep list with those zeroed;
+ * the walk-through hides a zero forecast.
+ */
+export async function getPrepSheet(params: Parameters<typeof buildPrepSheet>[0]): Promise<PrepSheet> {
+  const sheet = await buildPrepSheet(params)
+  return (await hasTier("MANAGER")) ? sheet : stripPrepNumbers(sheet)
+}
+
+async function buildPrepSheet(params: {
   venue: Venue | "ALL"
   forDate?: string // defaults to tomorrow AEST
   lookbackWeeks?: number

@@ -1,6 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
+import { hasTier } from "@/lib/tier-auth"
 import { revalidatePath } from "next/cache"
 import Decimal from "decimal.js"
 import { Venue, WasteReason } from "@/generated/prisma/client"
@@ -820,6 +821,10 @@ export async function exportWasteCsv(filters: WasteFilters = {}): Promise<string
 // ============================================================
 
 export async function getWasteFormItems() {
+  // Plate and ingredient costs are Manager and up (Chloe, 12 Oct 2026). The
+  // entry's cost is recomputed server-side on save, so a zero here only
+  // hides the preview; the wastage dashboard still gets real dollars.
+  const showCosts = await hasTier("MANAGER")
   // Frequency boost: items wasted often in the last 30 days should float to
   // the top of the search list so staff hit "Latte" etc. on the first letter.
   const thirtyDaysAgo = new Date()
@@ -884,7 +889,7 @@ export async function getWasteFormItems() {
       id: d.id,
       name: d.name,
       venue: d.venue,
-      costPerUnit: Number(d.totalCost),
+      costPerUnit: showCosts ? Number(d.totalCost) : 0,
       type: "dish" as const,
       category: d.menuCategory,
       recentUseCount: useCount.get(canon(d.name)) ?? 0,
@@ -900,7 +905,7 @@ export async function getWasteFormItems() {
       return {
         id: i.id,
         name: i.name,
-        costPerBaseUnit: costPerBase,
+        costPerBaseUnit: showCosts ? costPerBase : 0,
         type: "ingredient" as const,
         category: i.category,
         baseUnitType: i.baseUnitType,
@@ -912,8 +917,8 @@ export async function getWasteFormItems() {
       id: p.id,
       name: p.name,
       yieldUnit: p.yieldUnit,
-      costPerGram: Number(p.costPerGram),
-      costPerServe: Number(p.costPerServe),
+      costPerGram: showCosts ? Number(p.costPerGram) : 0,
+      costPerServe: showCosts ? Number(p.costPerServe) : 0,
       type: "prep" as const,
       recentUseCount: useCount.get(canon(p.name)) ?? 0,
     })),

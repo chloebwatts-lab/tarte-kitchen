@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises"
+import { requireFullManager } from "@/lib/manager-auth"
 import path from "node:path"
 
 /**
@@ -10,6 +11,8 @@ import path from "node:path"
 const LATEST = "2026-09"
 
 export async function GET(req: Request) {
+  // P&L, wages and COGS by venue: managers only, and not the quiet list.
+  await requireFullManager("/kitchen/meeting")
   const slug = new URL(req.url).searchParams.get("deck") ?? LATEST
   if (!/^[\w-]+$/.test(slug)) return new Response("Not found", { status: 404 })
   try {

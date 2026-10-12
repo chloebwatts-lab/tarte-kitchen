@@ -335,7 +335,7 @@ function PrepCard({ line }: { line: PrepSheetLine }) {
                   {d.dishName}
                 </span>
                 <span className="shrink-0 tabular-nums text-[var(--tk-ink-soft)]">
-                  {formatQty(d.forecastQty)} · {shortVenue(d.venue)}
+                  {d.forecastQty > 0 ? `${formatQty(d.forecastQty)} · ` : ""}{shortVenue(d.venue)}
                 </span>
               </li>
             ))}

@@ -1,5 +1,7 @@
 "use client"
 
+import type { PrinterLogin } from "@/lib/printers-login"
+
 import Link from "next/link"
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react"
 import {
@@ -163,10 +165,6 @@ const STAGES: Stage[] = [
   },
 ]
 
-const LOGIN = {
-  username: "Georgiafarquhar@gmail.com",
-  password: "0400Jessie123!",
-}
 
 const ALL_STEP_IDS = STAGES.flatMap((s) => s.steps.map((st) => st.id))
 // Steps are numbered straight through all stages, so "go to 9" means one thing.
@@ -258,7 +256,7 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   )
 }
 
-export function PrinterTroubleshooter() {
+export function PrinterTroubleshooter({ login }: { login: PrinterLogin | null }) {
   const [done, hydrated, save] = useTicks()
   // Password is hidden until tapped, and hides again whenever the page is
   // reloaded, so it is not sitting on screen on a shared iPad all day.
@@ -409,7 +407,7 @@ export function PrinterTroubleshooter() {
               })}
             </ol>
 
-            {stage.key === "ipads" && (
+            {stage.key === "ipads" && login && (
               <div className="border-t border-[var(--tk-line)] px-4 py-4 sm:px-6">
                 <div className="tk-caps mb-2" style={{ color: "var(--tk-ink-mute)" }}>
                   Lightspeed login for the iPads
@@ -421,10 +419,10 @@ export function PrinterTroubleshooter() {
                         Username
                       </div>
                       <div className="truncate font-mono text-[13px] text-[var(--tk-charcoal)] sm:text-[14px]">
-                        {LOGIN.username}
+                        {login.username}
                       </div>
                     </div>
-                    <CopyButton value={LOGIN.username} label="username" />
+                    <CopyButton value={login.username} label="username" />
                   </div>
                   <div className="flex min-w-0 items-center justify-between gap-3 overflow-hidden rounded-[12px] border border-[var(--tk-line)] bg-[var(--tk-bg)] px-3.5 py-2.5">
                     <div className="min-w-0">
@@ -432,7 +430,7 @@ export function PrinterTroubleshooter() {
                         Password
                       </div>
                       <div className="truncate font-mono text-[13px] text-[var(--tk-charcoal)] sm:text-[14px]">
-                        {showPassword ? LOGIN.password : "\u2022".repeat(LOGIN.password.length)}
+                        {showPassword ? login.password : "\u2022".repeat(login.password.length)}
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
@@ -446,7 +444,7 @@ export function PrinterTroubleshooter() {
                         {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                         {showPassword ? "Hide" : "Show"}
                       </button>
-                      <CopyButton value={LOGIN.password} label="password" />
+                      <CopyButton value={login.password} label="password" />
                     </div>
                   </div>
                 </div>

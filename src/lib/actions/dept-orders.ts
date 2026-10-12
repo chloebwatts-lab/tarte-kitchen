@@ -1,5 +1,7 @@
 "use server"
 
+import { assertTier } from "@/lib/tier-auth"
+
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import Decimal from "decimal.js"
@@ -158,6 +160,7 @@ function dateLabel(d: Date) {
 // ─── Hub: one card per department ───────────────────────────────────────────
 
 export async function getDeptOrderHub(venue: Venue): Promise<DeptHub> {
+  await assertTier("SENIOR")
   const date = todayAest()
   const showPrices = await isManagerAuthed()
   const [depts, items, requests] = await Promise.all([
@@ -228,6 +231,7 @@ export async function getDeptForm(params: {
   venue: Venue
   dept: OrderDept
 }): Promise<DeptForm> {
+  await assertTier("SENIOR")
   const { venue, dept } = params
   const date = todayAest()
   const showPrices = await isManagerAuthed()
@@ -298,6 +302,7 @@ export async function saveDeptLine(params: {
   note?: string | null
   enteredBy?: string | null
 }): Promise<{ ok: boolean; error?: string }> {
+  await assertTier("SENIOR")
   const { venue, dept, approvedItemId, quantity } = params
 
   const item = await db.approvedSupplierItem.findUnique({
@@ -353,6 +358,7 @@ export async function approveDeptRequest(params: {
   approvedBy: string
   notes?: string | null
 }): Promise<{ ok: boolean; error?: string }> {
+  await assertTier("SENIOR")
   const name = params.approvedBy.trim()
   if (!name) return { ok: false, error: "Put your name in first" }
 
@@ -376,6 +382,7 @@ export async function reopenDeptRequest(params: {
   venue: Venue
   dept: OrderDept
 }): Promise<{ ok: boolean; error?: string }> {
+  await assertTier("SENIOR")
   const requestDate = todayAest()
   const request = await db.deptOrderRequest.findUnique({
     where: {
@@ -413,6 +420,7 @@ export async function reopenDeptRequest(params: {
  * money blanked, so they can still check quantities and send.
  */
 export async function getEodSheet(venue: Venue): Promise<EodSheet> {
+  await assertTier("SENIOR")
   const sheet = await buildEodSheet(venue)
   if (await isManagerAuthed()) return sheet
   return {
@@ -599,6 +607,7 @@ export async function sendSupplierOrder(params: {
   by: string
   force?: boolean
 }): Promise<{ ok: boolean; error?: string; emailed?: boolean; to?: string | null }> {
+  await assertTier("SENIOR")
   const by = params.by.trim()
   if (!by) return { ok: false, error: "Put your name in first" }
 
@@ -702,6 +711,7 @@ export async function sendSupplierOrder(params: {
 export async function listDeptOwners(): Promise<
   Array<{ venue: Venue; dept: OrderDept; ownerName: string | null; active: boolean }>
 > {
+  await assertTier("SENIOR")
   const rows = await db.deptOrderOwner.findMany({
     orderBy: [{ venue: "asc" }, { dept: "asc" }],
   })
@@ -719,6 +729,7 @@ export async function setDeptOwner(params: {
   ownerName: string | null
   active?: boolean
 }): Promise<{ ok: boolean }> {
+  await assertTier("SENIOR")
   const { venue, dept } = params
   const ownerName = params.ownerName?.trim() || null
   await db.deptOrderOwner.upsert({
@@ -739,6 +750,7 @@ export async function setItemDept(params: {
   /** Null clears the override and falls back to the category default. */
   dept: OrderDept | null
 }): Promise<{ ok: boolean }> {
+  await assertTier("SENIOR")
   await db.approvedSupplierItem.update({
     where: { id: params.approvedItemId },
     data: { dept: params.dept },
@@ -760,6 +772,7 @@ export type DeptAssignmentRow = {
 }
 
 export async function listDeptAssignments(): Promise<DeptAssignmentRow[]> {
+  await assertTier("SENIOR")
   const items = await itemsByDept()
   return items.map((it) => ({
     id: it.id,

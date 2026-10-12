@@ -23,6 +23,7 @@ export const QUIET_HIDDEN_PREFIXES = [
   "/kitchen/managers/preferred",
   "/kitchen/prices",
   "/kitchen/training",
+  "/kitchen/meeting",
 ]
 
 /** Where a quiet manager lands when they open a withheld page directly. */
