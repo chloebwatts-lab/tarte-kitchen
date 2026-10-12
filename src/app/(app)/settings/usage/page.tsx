@@ -101,8 +101,14 @@ export default async function UsagePage({ searchParams }: { searchParams: Promis
           </table>
         </div>
         <p className="text-xs text-muted-foreground">
-          Names come from the venue team lists and the tier override list. A name with no match in the log has not signed in
-          as themselves in the window, or signs in under a different spelling.
+          Names come from the venue team lists and the tier override list.
+          {r.unmatchedAliases.length > 0 ? (
+            <>
+              {" "}
+              No sign-in under these override spellings in the window, so they are left out above:{" "}
+              {r.unmatchedAliases.join(", ")}. Usually the other spelling of someone listed, or someone not set up yet.
+            </>
+          ) : null}
         </p>
       </section>
 

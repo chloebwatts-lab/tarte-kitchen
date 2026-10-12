@@ -125,3 +125,70 @@ describe("ordering and prep summaries", () => {
     assert.deepEqual(rows.map((r) => [r.venue, r.station, r.sheets, r.submitted, r.people]), [["TEA_GARDEN", "PASTRY", 2, 1, ["Hannah"]]])
   })
 })
+
+describe("edges the office page leans on", () => {
+  test("brisbaneDate: a date-only column (Prisma hands back UTC midnight) labels that same calendar day, all year", () => {
+    assert.equal(brisbaneDate(at("2026-10-12T00:00:00.000Z")), "2026-10-12")
+    assert.equal(brisbaneDate(at("2026-01-05T00:00:00.000Z")), "2026-01-05")
+    assert.equal(brisbaneDate(at("2026-06-30T00:00:00.000Z")), "2026-06-30")
+  })
+
+  test("brisbaneDate: 13:59:59Z is still today, 14:00:00Z exactly is tomorrow (Brisbane is UTC+10, no daylight saving)", () => {
+    assert.equal(brisbaneDate(at("2026-10-12T13:59:59Z")), "2026-10-12")
+    assert.equal(brisbaneDate(at("2026-10-12T14:00:00Z")), "2026-10-13")
+    assert.equal(brisbaneDate(at("2026-12-31T14:00:00Z")), "2027-01-01")
+  })
+
+  test("empty inputs give empty output and nothing throws", () => {
+    assert.deepEqual(summarisePeople([], []), [])
+    assert.deepEqual(watchList([], {}), [])
+    assert.deepEqual(summariseOrders([]), [])
+    assert.deepEqual(summariseRestock([]), [])
+    assert.equal(usageFor({ name: "Jess Passos", venue: null, role: "Manager" }, []), null)
+  })
+
+  test("rows with no id and no name land under one 'unknown' row; a view with no path is not a view", () => {
+    const people = summarisePeople(
+      [
+        { staffId: null, staffName: null, path: null, at: at("2026-10-12T01:00:00Z") },
+        { staffId: null, staffName: null, path: "/kitchen/cooling", at: at("2026-10-12T01:10:00Z") },
+      ],
+      [{ staffId: null, staffName: null, at: at("2026-10-12T00:59:00Z") }]
+    )
+    assert.equal(people.length, 1)
+    assert.equal(people[0].key, "unknown")
+    assert.equal(people[0].name, "unknown")
+    assert.equal(people[0].views, 1)
+    assert.equal(people[0].logins, 1)
+    assert.equal(people[0].daysActive, 1)
+    assert.deepEqual(people[0].byTool, { "Cooling log": 1 })
+  })
+
+  test("a person keyed by id but logged with no name shows the id, not a blank", () => {
+    const people = summarisePeople([{ staffId: "shifts-41", staffName: null, path: "/kitchen/order/pastry", at: at("2026-10-12T01:00:00Z") }], [])
+    assert.equal(people[0].key, "shifts-41")
+    assert.equal(people[0].name, "shifts-41")
+    assert.deepEqual(people[0].byTool, { Ordering: 1 })
+  })
+
+  test("watchList: blank names are dropped and the dedupe ignores case and spacing", () => {
+    const w = watchList(
+      [
+        { venue: "BURLEIGH", name: "   ", role: "MANAGER" },
+        { venue: "BEACH_HOUSE", name: "Jose Luis Rincon", role: "MANAGER" },
+      ],
+      { "  jose luis rincon ": "MANAGER", "Jess Passos": "MANAGER", "": "SENIOR" }
+    )
+    assert.deepEqual(
+      w.map((x) => [x.name, x.venue, x.role]),
+      [["Jose Luis Rincon", "BEACH_HOUSE", "Manager"], ["Jess Passos", null, "Manager"]]
+    )
+  })
+
+  test("usageFor: a full-name watch entry needs the full name in the log, so 'Jess Passos' does not pick up 'Jessica Passos'", () => {
+    const people = summarisePeople([{ staffId: "s9", staffName: "Jessica Passos", path: "/kitchen/pastry", at: at("2026-10-12T01:00:00Z") }], [])
+    assert.equal(usageFor({ name: "Jess Passos", venue: null, role: "Manager" }, people), null)
+    assert.equal(usageFor({ name: "Jessica Passos", venue: null, role: "Manager" }, people)?.views, 1)
+    assert.equal(usageFor({ name: "Jessica", venue: null, role: "Manager" }, people)?.views, 1)
+  })
+})

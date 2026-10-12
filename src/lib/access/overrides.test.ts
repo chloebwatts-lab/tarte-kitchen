@@ -127,3 +127,24 @@ describe("tier overrides: nasty entries", () => {
     assert.equal(tierWithOverrides("STAFF", parseTierOverrides('{"Lacey": "SENIOR", "Lacey Corby": "MANAGER"}'), lacey), "MANAGER")
   })
 })
+
+describe("Jess to Manager (12 Oct evening migration)", () => {
+  const sql = fs.readFileSync(path.join(process.cwd(), "prisma", "migrations", "20261012060000_tier_overrides_jess", "migration.sql"), "utf8")
+  /** Every quoted JSON object in the file: the merge literal and the fallback insert. */
+  const literals = [...sql.matchAll(/'(\{[^']*\})'/g)].map((m) => m[1])
+
+  test("both JSON literals parse and grant exactly Manager to the two spellings", () => {
+    assert.equal(literals.length, 2)
+    for (const lit of literals) {
+      assert.deepEqual(parseTierOverrides(lit), { "Jess Passos": "MANAGER", "Jessica Passos": "MANAGER" })
+    }
+  })
+
+  test("Jess reaches Manager from Staff or Senior under either spelling; another Jess does not", () => {
+    const jess = parseTierOverrides(literals[0])
+    assert.equal(tierWithOverrides("STAFF", jess, { id: "x", name: "Jess Passos" }), "MANAGER")
+    assert.equal(tierWithOverrides("SENIOR", jess, { id: "x", name: "jessica  passos" }), "MANAGER")
+    assert.equal(tierWithOverrides("STAFF", jess, { id: "x", name: "Jess Taylor" }), "STAFF")
+    assert.equal(tierWithOverrides("STAFF", jess, { id: "x", name: "Jess" }), "STAFF", "a bare first name in the log is not the full name")
+  })
+})
