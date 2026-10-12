@@ -15,6 +15,7 @@
  */
 
 import { getCurrentWeekSpend } from "./current-week"
+import { checkSpendSnapshot } from "./guards"
 import type { BucketSpendData, CurrentWeekSpendSnapshot } from "./types"
 import { sendHtmlEmail } from "@/lib/gmail/send"
 import { button, callout, list, section, shell, table, type Tone } from "@/lib/email/brand"
@@ -62,7 +63,7 @@ function bucketLine(b: BucketSpendData, daysLeft: number): string {
   }
   // Same basis as the /spend headline: invoices in hand grossed up for
   // deliveries made but not yet invoiced (arrival-lag profile).
-  const left = b.leftToSpend ?? b.remaining ?? 0
+  const left = b.leftToSpend ?? 0
   const used = money0(b.estimatedSpentToDate)
   const usedDetail =
     b.estimatedUninvoiced > 0
@@ -106,7 +107,8 @@ function takingsLine(b: BucketSpendData): string {
     b.todaySoFarExGst != null && b.todaySoFarExGst > 0
       ? ` Plus ${money0(b.todaySoFarExGst)} so far today, not in the pace yet.`
       : ""
-  return `Takings${through} ${money0(b.revenueToDateExGst)} ex GST${pace}.${cogsPart}${today}`
+  const notes = b.revenueNotes.length ? ` ${b.revenueNotes.join(" ")}` : ""
+  return `Takings${through} ${money0(b.revenueToDateExGst)} ex GST${pace}.${cogsPart}${today}${notes}`
 }
 
 export interface WeeklySpendEmailResult {
@@ -118,6 +120,55 @@ export interface WeeklySpendEmailResult {
   subject: string
   text: string
   html: string
+  /// Set when the numbers failed their own consistency check: the spend
+  /// email was NOT sent, an alert naming the problems went instead.
+  withheld?: string[]
+}
+
+/** Thrown by render() when the snapshot fails checkSpendSnapshot. */
+export class SpendSnapshotInconsistent extends Error {
+  constructor(public readonly problems: string[]) {
+    super(`Spend snapshot failed its consistency check: ${problems.join("; ")}`)
+    this.name = "SpendSnapshotInconsistent"
+  }
+}
+
+/**
+ * The alert that goes out instead of the numbers when they do not add up.
+ * Deliberately number-free apart from the problems themselves.
+ */
+export function renderWithheld(
+  snapshot: Pick<CurrentWeekSpendSnapshot, "weekStartWed" | "weekEndTue">,
+  problems: string[]
+): { subject: string; text: string; html: string } {
+  const range = `${shortDate(snapshot.weekStartWed)} – ${shortDate(snapshot.weekEndTue)}`
+  const subject = `COGS TRACKING (${range}): numbers withheld, check needed`
+  const text = [
+    `TARTE: SPEND EMAIL WITHHELD`,
+    `The Sunday spend figures for ${range} failed their own consistency check, so they were not sent.`,
+    ``,
+    ...problems.map((p) => `• ${p}`),
+    ``,
+    `The live tracker may show the same fault: https://kitchen.tarte.com.au/spend`,
+  ].join("\n")
+  const html = shell({
+    kicker: "Weekly spend",
+    title: "Spend email withheld",
+    subtitle: `Trading week ${range} (Wed→Tue)`,
+    preheader: `Spend figures failed their consistency check`,
+    sections: [
+      section(
+        "Why nothing was sent",
+        callout(
+          `The figures failed their own consistency check, so rather than send something wrong they were held back.`,
+          "warn"
+        ) +
+          list(problems.map((p) => ({ text: p, tone: "warn" as Tone }))) +
+          button("Open the live spend tracker →", "https://kitchen.tarte.com.au/spend")
+      ),
+    ],
+  })
+  return { subject, text, html }
 }
 
 export function render(snapshot: CurrentWeekSpendSnapshot): {
@@ -125,6 +176,8 @@ export function render(snapshot: CurrentWeekSpendSnapshot): {
   text: string
   html: string
 } {
+  const problems = checkSpendSnapshot(snapshot)
+  if (problems.length) throw new SpendSnapshotInconsistent(problems)
   // Days remaining INCLUDING the send day: this goes out in the morning,
   // so today's trading is still ahead. dayOfWeek is 1-7 with Wed = 1.
   const daysLeft = Math.max(0, 8 - snapshot.dayOfWeek)
@@ -244,24 +297,31 @@ export async function runWeeklySpendEmail(
   args: RunWeeklySpendEmailArgs
 ): Promise<WeeklySpendEmailResult> {
   const snapshot = await getCurrentWeekSpend()
-  const { subject, text, html } = render(snapshot)
   // Same morning-send semantics as render(): today still counts.
   const daysLeft = Math.max(0, 8 - snapshot.dayOfWeek)
-
-  let sent = false
-  if (!args.dryRun) {
-    await sendHtmlEmail({ to: args.recipient, subject, html, text })
-    sent = true
-  }
-
-  return {
+  const base = {
     weekStartWed: snapshot.weekStartWed,
     weekEndTue: snapshot.weekEndTue,
     daysLeft,
     recipient: args.recipient,
-    sent,
-    subject,
-    text,
-    html,
   }
+
+  let rendered: { subject: string; text: string; html: string }
+  let withheld: string[] | undefined
+  try {
+    rendered = render(snapshot)
+  } catch (e) {
+    if (!(e instanceof SpendSnapshotInconsistent)) throw e
+    // Never send wrong numbers as if they were right: alert instead.
+    withheld = e.problems
+    rendered = renderWithheld(snapshot, e.problems)
+  }
+
+  let sent = false
+  if (!args.dryRun) {
+    await sendHtmlEmail({ to: args.recipient, ...rendered })
+    sent = true
+  }
+
+  return { ...base, sent, ...rendered, ...(withheld ? { withheld } : {}) }
 }

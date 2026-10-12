@@ -44,6 +44,9 @@ export interface DailyRevenueCell {
   reported: boolean
   /// Today only: intraday takings so far (Square sync), not in amount/cumulative
   soFar?: number
+  /// A completed day whose figure looks partial (well under the weekday's
+  /// 8-week average). Shown, never counted in the pace. See guards.ts.
+  suspect?: boolean
 }
 
 /// One supplier's contribution to estimatedMissingSpend, so the amber
@@ -98,20 +101,19 @@ export interface BucketSpendData {
   /// Estimated $ to add for known suppliers whose invoices haven't
   /// arrived (Joval/Paramount/etc). Sum of their estimatedWeeklySpend.
   estimatedMissingSpend: number
-  /// spentToDate + (estimatedMissingSpend × elapsed fraction)
-  effectiveSpent: number
   /// Per-supplier composition of estimatedMissingSpend
   missingSpendBreakdown: MissingSpendRow[]
   targetPct: number
   budget: number | null
-  remaining: number | null
   /// spentToDate grossed up for deliveries made but not yet invoiced
   /// (8-wk arrival-lag profile for this point in the week).
   estimatedSpentToDate: number
   /// estimatedSpentToDate minus spentToDate
   estimatedUninvoiced: number
   /// budget minus estimatedSpentToDate: what is really left for the rest
-  /// of the Wed to Tue week. Headline figure on /spend.
+  /// of the Wed to Tue week. THE "left to spend" figure, everywhere: the
+  /// /spend page, the Sunday email and the Friday digest all print this
+  /// and nothing else (checkSpendSnapshot in guards.ts enforces the sum).
   leftToSpend: number | null
   /// Full-week spend projection + estimatedMissingSpend. "weighted"
   /// divides spent-to-date by the elapsed weekdays' historical share of
@@ -126,21 +128,24 @@ export interface BucketSpendData {
   daily: DailySpendCell[]
   suppliers: SupplierSpendCell[]
 
-  // ---- Live revenue (Lightspeed EOD email imports, ex GST) ----
-  /// Sum of DailySalesSummary.totalRevenueExGst for days reported so far.
-  /// Null when no EOD report has landed yet this week. NB: Lightspeed
+  // ---- Live revenue (POS end-of-day figures, ex GST) ----
+  /// Sum of DailySalesSummary.totalRevenueExGst for completed days that
+  /// passed the suspect-day guard. Null when none yet this week. NB: POS
   /// misses online/event sales, so true revenue reads slightly higher.
   revenueToDateExGst: number | null
-  /// Number of trading days with an EOD report in (0-7)
+  /// Number of completed trading days counted (0-7)
   revenueDaysReported: number
-  /// AEST date of the most recent EOD report this week
+  /// AEST date of the most recent counted day this week
   lastRevenueDate: string | null
-  /// revenueToDateExGst ÷ revenueDaysReported × 7
+  /// Full-week revenue pace (weekday-weighted when history allows)
   projectedRevenueExGst: number | null
   revenueDaily: DailyRevenueCell[]
   /// Today's intraday takings ex GST (Square), shown as "so far" and kept
   /// out of revenueToDateExGst and the pace. Null when none yet.
   todaySoFarExGst: number | null
+  /// Plain-language caveats on the revenue side (suspect days left out of
+  /// the pace). Printed under the takings wherever the bucket is shown.
+  revenueNotes: string[]
 }
 
 export interface CurrentWeekSpendSnapshot {

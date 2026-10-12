@@ -31,6 +31,7 @@ import {
 import { sharedSplit } from "./shared-split"
 import { arrivalCompleteness, type ArrivalLagRow } from "./arrival-lag"
 import { isCompletedSalesDay } from "./sales-day"
+import { suspectRevenueDay } from "./guards"
 import {
   EXPECTED_SUPPLIERS,
   matchExpectedSupplier,
@@ -377,6 +378,12 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     BURLEIGH: null,
     CURRUMBIN: null,
   }
+  // Absolute 8-week average takings per trading weekday (idx 0 = Wed),
+  // null where fewer than 3 weeks of data. Feeds the suspect-day guard.
+  const revenueWeekdayAvg: Record<SpendBucket, Array<number | null>> = {
+    BURLEIGH: new Array(7).fill(null),
+    CURRUMBIN: new Array(7).fill(null),
+  }
   // Rows for the invoice arrival-lag estimate (see arrival-lag.ts).
   const lagRows: Record<SpendBucket, ArrivalLagRow[]> = {
     BURLEIGH: [],
@@ -427,6 +434,13 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     for (const bucket of SPEND_BUCKETS) {
       revenueShares[bucket] = buildShares(revRows[bucket])
       spendShares[bucket] = buildShares(spendRows[bucket])
+      const sums = new Array<number>(7).fill(0)
+      const counts = new Array<number>(7).fill(0)
+      for (const r of revRows[bucket]) {
+        sums[r.idx] += r.amount
+        counts[r.idx] += 1
+      }
+      revenueWeekdayAvg[bucket] = sums.map((v, i) => (counts[i] >= 3 ? v / counts[i] : null))
     }
   }
 
@@ -577,16 +591,6 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     const estimatedMissing =
       Math.round(estimatedMissingPerBucket[bucket] * 100) / 100
     const spentToDate = Math.round(agg.spent * 100) / 100
-    // Scale the estimated-missing by the fraction of the week elapsed:
-    // if we're 3/7 of the way through, only add 3/7 of the weekly avg
-    // for suppliers whose invoice hasn't shown up yet.
-    const elapsedFraction = daysElapsedFull / 7
-    const scaledMissing =
-      Math.round(estimatedMissing * elapsedFraction * 100) / 100
-    const effectiveSpent =
-      Math.round((spentToDate + scaledMissing) * 100) / 100
-    const remaining =
-      budget == null ? null : Math.round((budget - effectiveSpent) * 100) / 100
     // Real spend through today: invoices in hand, grossed up for the share
     // of deliveries that is normally still uninvoiced at this point in the
     // week. This is the headline "left to spend" basis.
@@ -628,21 +632,40 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     else paceStatus = "on-track"
 
     // ---- Live revenue (POS end-of-day, ex GST) ----
-    const reportedDates = revenueReportedDates[bucket]
+    // A completed day far below its weekday average is almost always a
+    // partial figure: show it, flag it, keep it out of the pace.
+    const reportedDates = new Set(revenueReportedDates[bucket])
+    const revenueNotes: string[] = []
+    for (const [i, cell] of agg.daily.entries()) {
+      if (!reportedDates.has(cell.date)) continue
+      const amt = revenueByBucketDate.get(`${bucket}::${cell.date}`) ?? 0
+      const avg = revenueWeekdayAvg[bucket][i]
+      if (suspectRevenueDay(amt, avg)) {
+        reportedDates.delete(cell.date)
+        revenueNotes.push(
+          `${cell.dayName} ${cell.date.slice(5)} shows $${Math.round(amt).toLocaleString("en-AU")} against a usual $${Math.round(avg!).toLocaleString("en-AU")}, so it looks incomplete and is left out of the pace.`
+        )
+      }
+    }
     const todaySoFar = todaySoFarByBucket[bucket]
     const revenueDaily: DailyRevenueCell[] = []
     let revenueRunning = 0
     for (const cell of agg.daily) {
-      const amt = revenueByBucketDate.get(`${bucket}::${cell.date}`) ?? 0
+      const counted = reportedDates.has(cell.date)
+      const raw = revenueByBucketDate.get(`${bucket}::${cell.date}`) ?? 0
+      const amt = counted ? raw : 0
       revenueRunning += amt
       revenueDaily.push({
         date: cell.date,
         dayName: cell.dayName,
         amount: Math.round(amt * 100) / 100,
         cumulative: Math.round(revenueRunning * 100) / 100,
-        reported: reportedDates.has(cell.date),
+        reported: counted,
         ...(cell.date === todayAest && todaySoFar != null
           ? { soFar: Math.round(todaySoFar * 100) / 100 }
+          : {}),
+        ...(!counted && revenueReportedDates[bucket].has(cell.date)
+          ? { suspect: true, soFar: Math.round(raw * 100) / 100 }
           : {}),
       })
     }
@@ -703,11 +726,9 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       forecastRevenue:
         forecast == null ? null : Math.round(forecast * 100) / 100,
       estimatedMissingSpend: estimatedMissing,
-      effectiveSpent,
       missingSpendBreakdown: missingBreakdownPerBucket[bucket],
       targetPct,
       budget: budget == null ? null : Math.round(budget * 100) / 100,
-      remaining,
       estimatedSpentToDate,
       estimatedUninvoiced,
       leftToSpend,
@@ -730,6 +751,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       revenueDaily,
       todaySoFarExGst:
         todaySoFar == null ? null : Math.round(todaySoFar * 100) / 100,
+      revenueNotes,
     }
   })
 

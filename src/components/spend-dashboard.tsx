@@ -306,6 +306,10 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
                         <td className="px-2 py-1.5 text-right tabular-nums">
                           {d.reported ? (
                             fmt(d.amount)
+                          ) : d.suspect && d.soFar != null ? (
+                            <span className="text-amber-700" title="Looks incomplete, not counted in the pace">
+                              {fmt(d.soFar)} looks incomplete
+                            </span>
                           ) : d.soFar != null ? (
                             <span className="text-muted-foreground">
                               {fmt(d.soFar)} so far
@@ -322,6 +326,13 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
                   </tbody>
                 </table>
               </div>
+              {bucket.revenueNotes.length > 0 && (
+                <ul className="mt-2 space-y-1 text-[11px] text-amber-700">
+                  {bucket.revenueNotes.map((n) => (
+                    <li key={n}>{n}</li>
+                  ))}
+                </ul>
+              )}
               <p className="mt-1 text-[10px] text-muted-foreground">
                 POS only (Lightspeed at Burleigh, Square at Currumbin): online
                 orders and event revenue land on top of these figures, so true
