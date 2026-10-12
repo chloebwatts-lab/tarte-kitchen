@@ -128,10 +128,15 @@ describe("tiers: routes agree with the prefix list", () => {
     }
   })
 
-  test("the meeting deck route is behind the full managers gate", () => {
+  test("the meeting deck route is behind the full managers gate and a Manager tier gate", () => {
     const route = path.join(process.cwd(), "src", "app", "kitchen", "meeting", "route.ts")
     const src = fs.readFileSync(route, "utf8")
     assert.ok(src.includes("requireFullManager("), "meeting deck must call requireFullManager")
+    // Supervisors hold the managers password, so the password gate alone no
+    // longer keeps a Senior out of P&L and wages: the route must also ask for
+    // the Manager tier, and the prefix list must agree so the tile is withheld.
+    assert.ok(src.includes('requireTier("MANAGER")'), "meeting deck must call requireTier(\"MANAGER\")")
     assert.ok(MANAGER_PREFIXES.includes("/kitchen/meeting"))
+    assert.equal(meetsTier("SENIOR", tierForHref("/kitchen/meeting")), false)
   })
 })
