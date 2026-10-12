@@ -103,6 +103,9 @@ interface SpendPacingSection {
     budget: number | null
     spentToDate: number
     estimatedMissingSpend: number
+    /// spentToDate grossed up for deliveries not yet invoiced (same basis as /spend)
+    estimatedSpentToDate: number
+    estimatedUninvoiced: number
     projectedEndOfWeek: number
     remaining: number | null
     paceStatus: "on-track" | "watch" | "over" | "no-forecast"
@@ -1167,6 +1170,8 @@ async function buildSpendPacing(): Promise<SpendPacingSection> {
       budget: b.budget,
       spentToDate: b.spentToDate,
       estimatedMissingSpend: b.estimatedMissingSpend,
+      estimatedSpentToDate: b.estimatedSpentToDate,
+      estimatedUninvoiced: b.estimatedUninvoiced,
       projectedEndOfWeek: b.projectedEndOfWeek,
       // Same basis as the /spend headline and the Sunday email: invoices in
       // hand grossed up for deliveries not yet invoiced.

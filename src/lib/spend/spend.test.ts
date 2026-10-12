@@ -322,6 +322,123 @@ test("left to spend is the grossed-up basis the /spend headline uses, with the u
   assert.doesNotMatch(html, /\$6,826/)
 })
 
+test("over budget with uninvoiced deliveries: parenthetical reads cleanly, no stray colon", () => {
+  const snap = snapshot({
+    buckets: [
+      bucket({
+        bucket: "CURRUMBIN",
+        spentToDate: 24500,
+        estimatedSpentToDate: 28380,
+        estimatedUninvoiced: 3880,
+        budget: 26880,
+        remaining: 2380, // old basis says there is room; the grossed-up basis says OVER
+        leftToSpend: -1500,
+        projectedEndOfWeek: 31000,
+        paceStatus: "over",
+      }),
+    ],
+  })
+  const { text, html } = render(snap)
+  assert.match(
+    text,
+    /Currumbin \(Beach House \+ Tea Garden\): \$28,380 spent of a \$26,880 budget \(\$24,500 invoiced plus about \$3,880 delivered but not invoiced yet\), \$1,500 OVER\. Hold all non-essential orders for the rest of the week\./
+  )
+  assert.doesNotMatch(text, /\(: /)
+  assert.doesNotMatch(text, /used:/)
+  assert.doesNotMatch(text, /left to spend/)
+  // table: grossed-up spent, signed left, old-basis figure nowhere
+  assert.match(html, /\$28,380/)
+  assert.match(html, /-\$1,500/)
+  assert.doesNotMatch(html, /\$2,380/)
+})
+
+test("zero uninvoiced: no 'plus about' clause and the parenthetical closes straight after 'used'", () => {
+  const snap = snapshot({
+    buckets: [
+      bucket({
+        bucket: "BURLEIGH",
+        spentToDate: 6500,
+        estimatedSpentToDate: 6500,
+        estimatedUninvoiced: 0,
+        budget: 10000,
+        remaining: 3500,
+        leftToSpend: 3500,
+        paceStatus: "on-track",
+      }),
+    ],
+  })
+  const { text, html } = render(snap)
+  assert.match(text, /Burleigh: \$3,500 left to spend \(\$6,500 of \$10,000 used\)\. That's about \$1,167\/day for the 3 days left\./)
+  assert.doesNotMatch(text, /plus about/)
+  assert.doesNotMatch(text, /not invoiced/)
+  assert.doesNotMatch(html, /plus about/)
+  assert.match(html, /Spent \(incl\. uninvoiced\)/)
+})
+
+test("over budget with zero uninvoiced: no empty parenthetical", () => {
+  const snap = snapshot({
+    buckets: [bucket({ bucket: "BURLEIGH", spentToDate: 10400, estimatedSpentToDate: 10400, budget: 10000, remaining: -400, leftToSpend: -400, paceStatus: "over" })],
+  })
+  const { text } = render(snap)
+  assert.match(text, /Burleigh: \$10,400 spent of a \$10,000 budget, \$400 OVER\./)
+  assert.doesNotMatch(text, /\(\)/)
+  assert.doesNotMatch(text, /budget \(/)
+})
+
+test("last day with uninvoiced deliveries: detail inside the parens, then the whole-budget-for-today tail", () => {
+  const snap = snapshot({
+    dayOfWeek: 7,
+    buckets: [
+      bucket({
+        bucket: "BURLEIGH",
+        spentToDate: 8800,
+        estimatedSpentToDate: 9100,
+        estimatedUninvoiced: 300,
+        budget: 10000,
+        remaining: 1200,
+        leftToSpend: 900,
+        paceStatus: "watch",
+      }),
+    ],
+  })
+  const { text } = render(snap)
+  assert.match(
+    text,
+    /Burleigh: \$900 left to spend \(\$9,100 of \$10,000 used: \$8,800 invoiced plus about \$300 delivered but not invoiced yet\)\. That's the whole budget for today, the last day of the week\./
+  )
+  assert.doesNotMatch(text, /\/day/)
+})
+
+test("HTML Spent column: grossed-up figure when there is a budget, raw invoiced figure when there is none", () => {
+  const withBudget = render(
+    snapshot({ buckets: [bucket({ bucket: "BURLEIGH", spentToDate: 7000, estimatedSpentToDate: 7900, estimatedUninvoiced: 900, budget: 10000, remaining: 3000, leftToSpend: 2100 })] })
+  )
+  assert.match(withBudget.html, /\$7,900/)
+  assert.match(withBudget.html, /\$2,100/)
+  assert.doesNotMatch(withBudget.html, /\$3,000/)
+
+  // No forecast loaded: estimatedSpentToDate is still computed upstream but
+  // the table must show what was actually invoiced, not a $0 placeholder.
+  const noBudget = render(snapshot({ buckets: [bucket({ bucket: "CURRUMBIN", spentToDate: 4321.49, estimatedSpentToDate: 4800 })] }))
+  assert.match(noBudget.html, /\$4,321/)
+  assert.doesNotMatch(noBudget.html, /\$4,800/)
+  assert.match(noBudget.html, /—/) // Left column is the null dash
+  assert.doesNotMatch(noBudget.text, /NaN|Infinity/)
+})
+
+test("nasty input: a negative uninvoiced estimate is never spelt out as 'plus about -$'", () => {
+  // current-week clamps estimatedSpentToDate >= spentToDate, so this cannot
+  // happen in prod; the renderer must still not print nonsense if it does.
+  const snap = snapshot({
+    buckets: [bucket({ bucket: "BURLEIGH", spentToDate: 7000, estimatedSpentToDate: 6900, estimatedUninvoiced: -100, budget: 10000, remaining: 3000, leftToSpend: 3100 })],
+  })
+  const { text, html } = render(snap)
+  assert.match(text, /\$3,100 left to spend \(\$6,900 of \$10,000 used\)\./)
+  assert.doesNotMatch(text, /plus about/)
+  assert.doesNotMatch(text, /-\$/)
+  assert.doesNotMatch(html, /plus about/)
+})
+
 // ------------------------------------------------ invoice arrival lag
 
 test("arrivalCompleteness: share of spend dated to today that had arrived by this point", () => {
