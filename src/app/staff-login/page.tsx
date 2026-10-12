@@ -77,13 +77,17 @@ export default async function StaffLoginPage({
           <span className="tk-caps" style={{ color: "var(--tk-ink-mute)" }}>
             Your 4 digit PIN
           </span>
+          {/* No pattern or maxLength: Chrome fills a saved password for this
+              address (the old 32 character shared one) into any password box
+              and then blocks the form with "Please match the format requested"
+              before anything is sent (Georgia, 12 Oct 2026). The server strips
+              non digits and Shifts insists on exactly 4, so the check lives
+              there, where a wrong PIN gets a real message instead. */}
           <input
             name="pin"
             type="password"
             inputMode="numeric"
-            pattern="[0-9]{4}"
-            maxLength={4}
-            autoComplete="off"
+            autoComplete="new-password"
             required
             className="mt-1.5 w-full rounded-[14px] border border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 py-3 text-[22px] tracking-[0.4em] text-[var(--tk-charcoal)] outline-none focus:border-[var(--tk-charcoal)]"
           />
