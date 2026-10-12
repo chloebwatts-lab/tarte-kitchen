@@ -1168,7 +1168,9 @@ async function buildSpendPacing(): Promise<SpendPacingSection> {
       spentToDate: b.spentToDate,
       estimatedMissingSpend: b.estimatedMissingSpend,
       projectedEndOfWeek: b.projectedEndOfWeek,
-      remaining: b.remaining,
+      // Same basis as the /spend headline and the Sunday email: invoices in
+      // hand grossed up for deliveries not yet invoiced.
+      remaining: b.leftToSpend,
       paceStatus: b.paceStatus,
     })),
     coverageProblems: snap.coverage
