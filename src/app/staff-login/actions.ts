@@ -40,13 +40,15 @@ export async function submitStaffLogin(formData: FormData): Promise<void> {
   const back = (code: string) => redirect(`/staff-login?error=${code}&next=${encodeURIComponent(next)}`)
 
   const ip = await callerIp()
-  if (await isLockedOut("staff", ip)) back("locked")
 
   // A stable id for this browser, so "signed in from a device we have never
-  // seen" can be told apart from the venue iPads.
+  // seen" can be told apart from the venue iPads, and so the lockout counts
+  // this browser's misses rather than the whole venue's (one shared IP).
   const jar = await cookies()
-  if (!jar.get(DEVICE_COOKIE)) {
-    jar.set(DEVICE_COOKIE, randomBytes(12).toString("hex"), {
+  let device = jar.get(DEVICE_COOKIE)?.value ?? null
+  if (!device) {
+    device = randomBytes(12).toString("hex")
+    jar.set(DEVICE_COOKIE, device, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -54,16 +56,17 @@ export async function submitStaffLogin(formData: FormData): Promise<void> {
       maxAge: 400 * 24 * 3600,
     })
   }
+  if (await isLockedOut("staff", ip, device)) back("locked")
 
   const result = await verifyStaff(lastName, pin, ip)
   if (!result.ok) {
     if (result.reason === "unavailable") back("down")
-    await recordAttempt("staff", ip, false)
+    await recordAttempt("staff", ip, false, device)
     await logAccess("LOGIN_FAILED", { attemptedName: lastName.slice(0, 80) })
     back(result.reason === "locked" ? "locked" : "1")
     return
   }
-  await recordAttempt("staff", ip, true)
+  await recordAttempt("staff", ip, true, device)
 
   const s = result.staff
   const name = `${s.firstName} ${s.lastName}`.trim()

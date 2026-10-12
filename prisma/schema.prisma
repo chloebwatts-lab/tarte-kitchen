@@ -3329,10 +3329,14 @@ model LoginAttempt {
   id        String   @id @default(cuid())
   gate      String
   ip        String
+  /// The browser's tk_device id, when it had one. Lockout counts per device
+  /// first: a venue's phones and iPads all share one address.
+  device    String?
   ok        Boolean
   createdAt DateTime @default(now())
 
   @@index([gate, ip, createdAt])
+  @@index([gate, device, createdAt])
   @@index([gate, createdAt])
 }
 
