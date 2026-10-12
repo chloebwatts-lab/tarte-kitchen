@@ -65,7 +65,8 @@ export const SENIOR_PREFIXES = [
  */
 export const TIER_OVERRIDES_KEY = "tierOverrides"
 
-const TIERS: Tier[] = ["STAFF", "SENIOR", "MANAGER", "OWNER"]
+/** An override can grant up to Manager. Owner is the office login and the owner's phone only. */
+const OVERRIDABLE: Tier[] = ["STAFF", "SENIOR", "MANAGER"]
 
 export function parseTierOverrides(raw: string | null | undefined): Record<string, Tier> {
   if (raw == null) return {}
@@ -74,7 +75,7 @@ export function parseTierOverrides(raw: string | null | undefined): Record<strin
     if (!v || typeof v !== "object" || Array.isArray(v)) return {}
     const out: Record<string, Tier> = {}
     for (const [k, t] of Object.entries(v)) {
-      if (typeof t === "string" && (TIERS as string[]).includes(t)) out[k] = t as Tier
+      if (typeof t === "string" && (OVERRIDABLE as string[]).includes(t)) out[k] = t as Tier
     }
     return out
   } catch {

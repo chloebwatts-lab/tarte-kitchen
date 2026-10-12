@@ -45,6 +45,7 @@ describe("tier overrides (Chloe's 12 Oct list)", () => {
     assert.deepEqual(parseTierOverrides("not json"), {})
     assert.deepEqual(parseTierOverrides('["SENIOR"]'), {})
     assert.deepEqual(parseTierOverrides('{"Lola": "BOSS", "Ana": "SENIOR"}'), { Ana: "SENIOR" })
+    assert.deepEqual(parseTierOverrides('{"Lola": "OWNER", "Vini": "MANAGER"}'), { Vini: "MANAGER" }, "an override never grants Owner")
   })
 })
 
@@ -101,5 +102,28 @@ describe("copy-quiet routes agree with the prefix list", () => {
         `${prefix}: needs requirePage or requireFullManager with its own href`
       )
     }
+  })
+})
+
+describe("tier overrides: nasty entries", () => {
+  const lacey = { id: "shifts-207", name: "Lacey Corby" }
+  const kitchenHand = { id: "shifts-900", name: "Sam Nguyen" }
+
+  test("a blank or whitespace key raises nobody", () => {
+    const o = parseTierOverrides('{"": "SENIOR", "   ": "MANAGER"}')
+    assert.equal(tierWithOverrides("STAFF", o, lacey), "STAFF")
+    assert.equal(tierWithOverrides("STAFF", o, kitchenHand), "STAFF")
+  })
+
+  test("a staff id raises exactly that person; a surname alone raises nobody", () => {
+    const o = parseTierOverrides('{"shifts-207": "SENIOR", "Corby": "MANAGER"}')
+    assert.equal(tierWithOverrides("STAFF", o, lacey), "SENIOR")
+    assert.equal(tierWithOverrides("STAFF", o, kitchenHand), "STAFF")
+  })
+
+  test("the highest matching entry wins whatever the order", () => {
+    const o = parseTierOverrides('{"Lacey Corby": "MANAGER", "Lacey": "SENIOR"}')
+    assert.equal(tierWithOverrides("STAFF", o, lacey), "MANAGER")
+    assert.equal(tierWithOverrides("STAFF", parseTierOverrides('{"Lacey": "SENIOR", "Lacey Corby": "MANAGER"}'), lacey), "MANAGER")
   })
 })

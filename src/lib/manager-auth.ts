@@ -7,8 +7,8 @@ import { getPerson, isOwnerDevice } from "@/lib/person-session"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { isCopyQuietHref, isQuietPerson, QUIET_LANDING, QUIET_SETTING_KEY } from "@/lib/manager-quiet"
-import { isCopyQuiet } from "@/lib/tier-auth"
-import { meetsTier, tierOfRole } from "@/lib/access/tiers"
+import { getTier, isCopyQuiet } from "@/lib/tier-auth"
+import { meetsTier } from "@/lib/access/tiers"
 
 /**
  * Second gate inside the staff area, for pages that carry numbers or names:
@@ -93,10 +93,11 @@ async function managerCookieExpiry(): Promise<number | null> {
 export async function isManagerDenied(): Promise<boolean> {
   const person = await getPerson()
   if (!person) return false
-  // Tiers (Chloe, 12 Oct 2026): the area is Senior and up by Shifts role,
-  // whatever the password (16 Sep: supervisors get the managers password).
-  // Fix a wrong refusal by changing the role in Shifts.
-  if (!meetsTier(tierOfRole(person.role), "SENIOR")) return true
+  // Tiers (Chloe, 12 Oct 2026): the area is Senior and up, whatever the
+  // password (16 Sep: supervisors get the managers password). The tier is
+  // the Shifts role raised by Chloe's override list, so a wrong refusal is
+  // fixed in either place.
+  if (!meetsTier(await getTier(), "SENIOR")) return true
   const row = await db.appSetting.findUnique({ where: { key: "managerAllowStaffIds" } })
   if (!row) return false
   try {
