@@ -10,6 +10,7 @@ import { gmWeekStart } from "./week"
 import { DEFAULT_GM_DAYS, GM_ITEMS, type GmDays, type GmItem } from "./plan"
 import { dayLabel, getAutoReadings, getWeekNumbers, type AutoReading, type WeekNumbers } from "./readings"
 import { renderGmReportHtml } from "./report-email"
+import { auditGmWeek, missStreakFromHistory, type MissStreaks } from "./audit"
 
 const DAYS_KEY = "gmDays"
 const EMAIL_KEY = "gmEmail"
@@ -67,6 +68,24 @@ export async function buildItems(weekStart: string) {
   return { items, auto }
 }
 
+/**
+ * Consecutive weeks before `weekStart` each item was not done, read from
+ * the marks of the previous weeks. Feeds the "3 weeks running" tags.
+ */
+export async function getGmMissStreaks(weekStart: string, weeksBack = 8): Promise<MissStreaks> {
+  const thisWed = new Date(weekStart)
+  const oldest = addDays(thisWed, -7 * weeksBack)
+  const marks = await db.gmMark.findMany({
+    where: { weekStart: { gte: oldest, lt: thisWed } },
+    select: { weekStart: true, itemSlug: true, met: true },
+  })
+  const history = Array.from({ length: weeksBack }, (_, i) => {
+    const wed = addDays(thisWed, -7 * (i + 1)).getTime()
+    return { marks: marks.filter((m) => m.weekStart.getTime() === wed) }
+  })
+  return missStreakFromHistory(GM_ITEMS.map((i) => i.slug), history)
+}
+
 export function composeReport(p: {
   weekLabel: string
   items: BoardItem[]
@@ -78,9 +97,14 @@ export function composeReport(p: {
   need: string
   /** False when Chloe is being told the report never came. */
   sent?: boolean
+  /** Per slug, consecutive weeks before this one the item was not done. */
+  priorMisses?: MissStreaks
 }): string {
   const done = p.items.filter((i) => i.state === "done" || i.state === "auto-ok")
   const notDone = p.items.filter((i) => !(i.state === "done" || i.state === "auto-ok") && i.slug !== "weekly-report")
+  const audit = auditGmWeek(p.items, p.priorMisses)
+  const weeks = new Map(audit.repeats.map((r) => [r.slug, r.weeks]))
+  const running = (slug: string) => (weeks.has(slug) ? ` [${weeks.get(slug)} weeks running]` : "")
   const lines: string[] = []
   lines.push(`Oliver's week, ${p.weekLabel}`)
   lines.push("")
@@ -90,9 +114,18 @@ export function composeReport(p: {
     lines.push("Not done:")
     for (const i of notDone) {
       const why = i.note ? ` (${i.note})` : i.auto_?.detail ? ` (${i.auto_.detail})` : ""
-      lines.push(`- ${i.title}${why}`)
+      lines.push(`- ${i.title}${why}${running(i.slug)}`)
     }
   }
+  lines.push("")
+  lines.push("Audit:")
+  const checkable = audit.confirmed.length + audit.disputed.length
+  lines.push(`Ticks the app confirms: ${audit.confirmed.length} of ${checkable}. Disputes: ${audit.disputed.length}. On Oliver's word alone: ${audit.onHisWord.length}.`)
+  for (const l of audit.disputed) lines.push(`- Ticked done, app says no: ${l.title}. ${l.detail}${running(l.slug)}`)
+  for (const r of audit.reasons) {
+    lines.push(`- Reason given: ${r.title}. ${r.reason ? `"${r.reason}"` : "No reason written."}${r.holdsUp ? "" : ` ${r.why}`}${running(r.slug)}`)
+  }
+  for (const l of audit.noReason) lines.push(`- No reason given: ${l.title}. ${l.detail}${running(l.slug)}`)
   lines.push("")
   if (p.numbers.wages.tiles.length) {
     lines.push(`Wages, week ${p.numbers.wages.weekLabel}: ` + p.numbers.wages.tiles.map((t) => `${t.label} ${t.value}`).join(", ") + ".")
@@ -124,7 +157,7 @@ export function composeReport(p: {
 export async function gmDigestForCron() {
   const weekStart = gmWeekStart()
   const monday = new Date(weekStart)
-  const [built, numbers, talks, gmDays, report, email, tasks, sick] = await Promise.all([
+  const [built, numbers, talks, gmDays, report, email, tasks, sick, priorMisses] = await Promise.all([
     buildItems(weekStart),
     getWeekNumbers(),
     db.gmOneOnOne.findMany({ where: { heldOn: { gte: monday, lte: addDays(monday, 6) } } }),
@@ -133,6 +166,7 @@ export async function gmDigestForCron() {
     getGmEmail(),
     db.gmTask.findMany({ where: { doneOn: null }, orderBy: { dueOn: "asc" } }),
     db.gmSickCall.findMany({ where: { calledOn: { gte: monday, lte: addDays(monday, 6) } }, orderBy: { calledOn: "asc" } }),
+    getGmMissStreaks(weekStart),
   ])
   const weekLabel = `${short(monday)} to ${short(addDays(monday, 6))}`
   return {
@@ -145,7 +179,7 @@ export async function gmDigestForCron() {
     reportSent: Boolean(report),
     email,
     openTasks: tasks.map((t) => ({ title: t.title, dueLabel: short(t.dueOn), daysLeft: Math.round((t.dueOn.getTime() - todayAest().getTime()) / 86400000) })),
-    compose: (fixed: string, need: string) => composeReport({ weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), sick: sick.map((c) => `${c.staffName} (${short(c.calledOn)})`), fixed, need, sent: false }),
-    composeHtml: (fixed: string, need: string) => renderGmReportHtml({ weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), sick: sick.map((c) => `${c.staffName} (${short(c.calledOn)})`), fixed, need, sent: false }),
+    compose: (fixed: string, need: string) => composeReport({ weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), sick: sick.map((c) => `${c.staffName} (${short(c.calledOn)})`), fixed, need, sent: false, priorMisses }),
+    composeHtml: (fixed: string, need: string) => renderGmReportHtml({ weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), sick: sick.map((c) => `${c.staffName} (${short(c.calledOn)})`), fixed, need, sent: false, priorMisses }),
   }
 }

@@ -4,10 +4,11 @@
  * so Chloe and Oliver can take them in at a glance on a phone.
  */
 
-import { APP_URL, button, callout, list, rows, section, shell, tiles, type ListItem, type Tile } from "@/lib/email/brand"
+import { APP_URL, button, callout, list, rows, section, shell, subhead, tiles, type ListItem, type Tile } from "@/lib/email/brand"
 import type { BoardItem } from "./board"
 import type { WeekNumbers } from "./readings"
 import { THEME_LABEL, type GmTheme } from "./plan"
+import { auditGmWeek, auditSummary, type MissStreaks } from "./audit"
 
 const DESK = `${APP_URL}/kitchen/gm`
 
@@ -21,6 +22,8 @@ export interface GmReportParams {
   need: string
   /** False when Chloe is being told the report never came. */
   sent?: boolean
+  /** Per slug, consecutive weeks before this one the item was not done. */
+  priorMisses?: MissStreaks
 }
 
 function isDone(i: BoardItem) {
@@ -34,6 +37,10 @@ export function renderGmReportHtml(p: GmReportParams): string {
   const doneCount = done.length + (sent ? 1 : 0)
   const total = p.items.length
   const get = (slug: string) => p.items.find((i) => i.slug === slug)
+  const audit = auditGmWeek(p.items, p.priorMisses)
+  const auditLine = auditSummary(audit)
+  const weeksTag = new Map(audit.repeats.map((r) => [r.slug, `${r.weeks} weeks running`]))
+  const disputed = new Set(audit.disputed.map((l) => l.slug))
 
   const sections: string[] = []
 
@@ -42,9 +49,9 @@ export function renderGmReportHtml(p: GmReportParams): string {
   }
 
   // Headline: how much of the week got done, with the two money numbers.
-  const doneTone = doneCount === total ? "done" : doneCount >= total - 2 ? "gold" : "warn"
+  const doneTone = audit.disputed.length ? "warn" : doneCount === total ? "done" : doneCount >= total - 2 ? "gold" : "warn"
   const headTiles: Tile[] = [
-    { label: "Done this week", value: `${doneCount} of ${total}`, sub: notDone.length ? `${notDone.length} not done` : "Everything ticked", tone: doneTone },
+    { label: "Done this week", value: `${doneCount} of ${total}`, sub: auditLine || (notDone.length ? `${notDone.length} not done` : "Everything ticked"), tone: doneTone },
   ]
   const venueWage = p.numbers.wages.tiles[0]
   if (venueWage) headTiles.push({ label: "Wages", value: venueWage.value, sub: [venueWage.label, p.numbers.wages.weekLabel ? `week ${p.numbers.wages.weekLabel}` : null].filter(Boolean).join(", ") })
@@ -58,8 +65,52 @@ export function renderGmReportHtml(p: GmReportParams): string {
       text: i.title,
       detail: i.note ?? i.auto_?.detail ?? undefined,
       tone: i.state === "couldnt" || i.state === "auto-bad" ? "warn" : "neutral",
+      tag: weeksTag.get(i.slug),
+      tagTone: "warn",
     }))
     sections.push(section("Not done", list(items), { tone: "warn" }))
+  }
+
+  // The audit: his ticks against the app's readings, and whether his reasons hold up.
+  {
+    const blocks: string[] = []
+    const checkable = audit.confirmed.length + audit.disputed.length
+    blocks.push(
+      rows([
+        { label: "Ticks the app confirms", value: `${audit.confirmed.length} of ${checkable}`, tone: audit.disputed.length ? "warn" : "done" },
+        { label: "Ticks the app disputes", value: String(audit.disputed.length), tone: audit.disputed.length ? "warn" : "done" },
+        { label: "On Oliver's word alone", value: audit.onHisWord.length ? `${audit.onHisWord.length}: ${audit.onHisWord.map((l) => l.title).join("; ")}` : "0" },
+      ])
+    )
+    if (audit.disputed.length) {
+      blocks.push(subhead("Ticked done, app says no"))
+      blocks.push(list(audit.disputed.map((l) => ({ text: l.title, detail: l.detail, tone: "warn" as const, tag: weeksTag.get(l.slug), tagTone: "warn" as const }))))
+    }
+    if (audit.reasons.length) {
+      blocks.push(subhead("Reasons given"))
+      blocks.push(
+        list(
+          audit.reasons.map((r) => ({
+            text: r.title,
+            detail: r.holdsUp ? `"${r.reason}"` : `${r.reason ? `"${r.reason}"\n` : ""}${r.why}`,
+            tone: r.holdsUp ? ("gold" as const) : ("warn" as const),
+            tag: weeksTag.get(r.slug),
+            tagTone: "warn" as const,
+          }))
+        )
+      )
+    }
+    if (audit.noReason.length) {
+      blocks.push(subhead("Not done, no reason given"))
+      blocks.push(list(audit.noReason.map((l) => ({ text: l.title, detail: l.detail, tone: "warn" as const, tag: weeksTag.get(l.slug), tagTone: "warn" as const }))))
+    }
+    const flagged = audit.disputed.length + audit.reasons.filter((r) => !r.holdsUp).length + audit.noReason.length + audit.repeats.length
+    sections.push(
+      section("Audit", blocks.join(""), {
+        tone: flagged ? "warn" : "done",
+        note: flagged ? "A tick is his word. The reading is the app's. Where they disagree, ask." : "Every tick the app can check, it confirms.",
+      })
+    )
   }
 
   // From Oliver.
@@ -101,7 +152,7 @@ export function renderGmReportHtml(p: GmReportParams): string {
     sections.push(
       section(
         `Done (${done.length})`,
-        list(done.map((i) => ({ text: i.title, detail: i.note ?? undefined, tone: "done" as const })))
+        list(done.map((i) => (disputed.has(i.slug) ? { text: i.title, detail: "App disputes this tick, see Audit.", tone: "warn" as const, tag: "disputed", tagTone: "warn" as const } : { text: i.title, detail: i.note ?? undefined, tone: "done" as const })))
       )
     )
   }
@@ -112,7 +163,7 @@ export function renderGmReportHtml(p: GmReportParams): string {
     kicker: "GM weekly report",
     title: sent ? "Oliver's week" : "No report from Oliver",
     subtitle: p.weekLabel,
-    preheader: `Done ${doneCount} of ${total}.${notDone.length ? ` Not done: ${notDone.map((i) => i.title).join(", ")}.` : ""}`,
+    preheader: `Done ${doneCount} of ${total}.${auditLine ? ` ${auditLine}.` : ""}${notDone.length ? ` Not done: ${notDone.map((i) => i.title).join(", ")}.` : ""}`,
     sections,
   })
 }

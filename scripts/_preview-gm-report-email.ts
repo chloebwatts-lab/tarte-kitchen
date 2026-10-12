@@ -13,6 +13,8 @@ const items: BoardItem[] = [
   item("wastage", "Wastage logged every day", "auto-ok", { auto_: { met: true, detail: "$207 so far against $400. Nothing logged Wed 16 Sep, Sun 20 Sep." } }),
   item("open-shifts", "No open shifts inside 48 hours", "auto-ok", { auto_: { met: true, detail: "None open." } }),
   item("label-walk", "Label walk", "done", { manual: true, num1: 2, num2: 0 }),
+  item("checklists", "Daily checklists and temp logs done", "done", { manual: true, auto_: { met: false, detail: "19 of 24 done so far (79%). Gaps on Thu 17 Sep, Sat 19 Sep." } }),
+  item("portion-checks", "Five random portion weigh checks", "couldnt", { manual: true, note: "Rosters took the whole of Monday." }),
   ...Array.from({ length: 13 }, (_, i) => item(`done-${i}`, ["Walk the floor at 10", "Check the cabinet at 1:30", "Coffee check", "Prep list signed off", "Orders in by 2pm", "Portions checked", "Cool room temps", "Cash up reviewed", "Board jobs cleared", "New starter shadowed", "Reviews answered", "Wages inside band", "Hours vs roster checked"][i], "done")),
   item("weekly-report", "Monday report to Chloe", "open"),
 ]
@@ -55,6 +57,7 @@ if (which === "nudge") {
       fixed: "The grill igniter. Electrician came Thursday, works first time now.",
       need: "A second trial shift for the barista candidate before Friday.",
       sent: which !== "wrap",
+      priorMisses: { "roster-2wk": 2, "quality-fix": 1 },
     })
   )
 }

@@ -30,7 +30,7 @@ import {
   type StaffLine,
   type WeekNumbers,
 } from "@/lib/gm/readings"
-import { buildItems, composeReport, fmt, getGmDays, short, type BoardItem } from "@/lib/gm/board"
+import { buildItems, composeReport, fmt, getGmDays, getGmMissStreaks, short, type BoardItem } from "@/lib/gm/board"
 
 const DAYS_KEY = "gmDays"
 const EMAIL_KEY = "gmEmail"
@@ -304,14 +304,15 @@ export async function sendFridayReport(p: { fixed: string; need: string }) {
   if (!fixed) return { ok: false as const, error: "Name one thing you fixed this week. One line is enough." }
   const weekStart = gmWeekStart()
   const monday = new Date(weekStart)
-  const [built, numbers, talks, sick] = await Promise.all([
+  const [built, numbers, talks, sick, priorMisses] = await Promise.all([
     buildItems(weekStart),
     getWeekNumbers(),
     db.gmOneOnOne.findMany({ where: { heldOn: { gte: monday, lte: addDays(monday, 6) } } }),
     db.gmSickCall.findMany({ where: { calledOn: { gte: monday, lte: addDays(monday, 6) } }, orderBy: { calledOn: "asc" } }),
+    getGmMissStreaks(weekStart),
   ])
   const weekLabel = `${short(monday)} to ${short(addDays(monday, 6))}`
-  const report = { weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), sick: sick.map((c) => `${c.staffName} (${short(c.calledOn)})`), fixed, need }
+  const report = { weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), sick: sick.map((c) => `${c.staffName} (${short(c.calledOn)})`), fixed, need, priorMisses }
   const body = composeReport(report)
   try {
     await sendHtmlEmail({ to: REPORT_TO, subject: `Oliver's Monday report, ${weekLabel}`, text: body, html: renderGmReportHtml(report) })
