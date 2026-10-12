@@ -1,6 +1,7 @@
 "use server"
 
 import { assertFullManager } from "@/lib/manager-auth"
+import { assertPage } from "@/lib/tier-auth"
 import { db } from "@/lib/db"
 import { rankRows, type FormRow, type RankedRow } from "@/lib/preferred-supplier"
 
@@ -12,6 +13,7 @@ import { rankRows, type FormRow, type RankedRow } from "@/lib/preferred-supplier
  */
 export async function searchPreferred(query: string): Promise<RankedRow[]> {
   await assertFullManager()
+  await assertPage("/kitchen/managers/preferred")
   const words = query.trim().toLowerCase().split(/\s+/).filter((w) => w.length > 0)
   if (words.length === 0 || words.join("").length < 2) return []
 

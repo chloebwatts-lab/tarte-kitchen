@@ -1,6 +1,7 @@
 "use server"
 
 import { assertFullManager } from "@/lib/manager-auth"
+import { assertPage } from "@/lib/tier-auth"
 import { db } from "@/lib/db"
 
 /**
@@ -51,6 +52,7 @@ type Raw = {
  */
 export async function searchPrices(query: string): Promise<IngredientPrices[]> {
   await assertFullManager()
+  await assertPage("/kitchen/prices")
   const q = query.trim()
   if (q.length < 2) return []
 

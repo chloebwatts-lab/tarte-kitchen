@@ -6,7 +6,8 @@ import { compare, hash } from "bcryptjs"
 import { getPerson, isOwnerDevice } from "@/lib/person-session"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { isQuietPerson, QUIET_LANDING, QUIET_SETTING_KEY } from "@/lib/manager-quiet"
+import { isCopyQuietHref, isQuietPerson, QUIET_LANDING, QUIET_SETTING_KEY } from "@/lib/manager-quiet"
+import { isCopyQuiet } from "@/lib/tier-auth"
 import { meetsTier, tierOfRole } from "@/lib/access/tiers"
 
 /**
@@ -161,6 +162,8 @@ export async function requireManager(next: string): Promise<void> {
 export async function requireFullManager(next: string): Promise<void> {
   await requireManager(next)
   if (await isQuietManager()) redirect(QUIET_LANDING)
+  // Price check and Where to order it are also on the copy-quiet list.
+  if (isCopyQuietHref(next) && (await isCopyQuiet())) redirect(QUIET_LANDING)
 }
 
 /**

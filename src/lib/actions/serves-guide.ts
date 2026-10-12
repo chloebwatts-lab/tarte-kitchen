@@ -1,6 +1,6 @@
 "use server"
 
-import { assertTier } from "@/lib/tier-auth"
+import { assertPage } from "@/lib/tier-auth"
 
 import { db } from "@/lib/db"
 
@@ -48,7 +48,7 @@ function isServesUnit(u: string) {
  * quantity a dish plates per serve (the "full serve" dish, not a garnish use).
  */
 export async function getServesGuide(): Promise<ServesGuideEntry[]> {
-  await assertTier("SENIOR")
+  await assertPage("/kitchen/serves")
   const preps = await db.preparation.findMany({
     select: {
       id: true,

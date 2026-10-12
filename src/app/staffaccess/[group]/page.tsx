@@ -5,8 +5,8 @@ import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
 import { ToolGrid } from "@/components/kitchen/ToolGrid"
 import { groupBySlug } from "@/lib/staff-tools"
 import { isQuietManager } from "@/lib/manager-auth"
-import { visibleTools } from "@/lib/manager-quiet"
-import { getTier } from "@/lib/tier-auth"
+import { copyVisibleTools, visibleTools } from "@/lib/manager-quiet"
+import { getTier, isCopyQuiet } from "@/lib/tier-auth"
 import { toolsForTier } from "@/lib/access/tiers"
 
 export default async function StaffGroupPage({ params }: { params: Promise<{ group: string }> }) {
@@ -16,7 +16,10 @@ export default async function StaffGroupPage({ params }: { params: Promise<{ gro
   // Tiles above the person's tier are not offered; Price check sits in the
   // open stock group but is a managers page, and a quiet manager does not
   // get that tile either.
-  const tools = visibleTools(toolsForTier(g.tools, await getTier()), await isQuietManager())
+  const tools = copyVisibleTools(
+    visibleTools(toolsForTier(g.tools, await getTier()), await isQuietManager()),
+    await isCopyQuiet()
+  )
 
   return (
     <div className="relative min-h-screen overflow-hidden" style={{ background: "var(--tk-sage)" }}>

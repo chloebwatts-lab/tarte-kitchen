@@ -21,6 +21,7 @@
  */
 
 import type { PersonRole } from "@/lib/person-auth"
+import { personMatches, type MatchPerson } from "@/lib/access/match"
 
 export type Tier = "STAFF" | "SENIOR" | "MANAGER" | "OWNER"
 
@@ -47,12 +48,47 @@ export function meetsTier(have: Tier | null | undefined, need: Tier): boolean {
 
 export const SENIOR_PREFIXES = [
   "/kitchen/ordering",
-  "/kitchen/order",
+  // Every chef places their section's order (Chloe, 12 Oct), so /kitchen/order
+  // itself is open; the end-of-day sheet with supplier emails is Senior.
+  "/kitchen/order/sheet",
   "/kitchen/serves",
   "/kitchen/portions",
   "/kitchen/high-tea",
   "/kitchen/functions",
 ]
+
+/**
+ * Kitchen-side tier overrides (Chloe, 12 Oct 2026). AppSetting `tierOverrides`
+ * is a JSON object of list entry (see access/match.ts) to tier. An override
+ * can only raise someone: Shifts stays the base, and a person Shifts already
+ * calls Manager is never lowered by a stale entry here.
+ */
+export const TIER_OVERRIDES_KEY = "tierOverrides"
+
+const TIERS: Tier[] = ["STAFF", "SENIOR", "MANAGER", "OWNER"]
+
+export function parseTierOverrides(raw: string | null | undefined): Record<string, Tier> {
+  if (raw == null) return {}
+  try {
+    const v = JSON.parse(raw)
+    if (!v || typeof v !== "object" || Array.isArray(v)) return {}
+    const out: Record<string, Tier> = {}
+    for (const [k, t] of Object.entries(v)) {
+      if (typeof t === "string" && (TIERS as string[]).includes(t)) out[k] = t as Tier
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
+export function tierWithOverrides(base: Tier, overrides: Record<string, Tier>, person: MatchPerson): Tier {
+  let best = base
+  for (const [entry, tier] of Object.entries(overrides)) {
+    if (RANK[tier] > RANK[best] && personMatches(entry, person)) best = tier
+  }
+  return best
+}
 
 /**
  * The Managers area, behind its own password: Senior and up (Chloe, 16 Sep

@@ -1,6 +1,6 @@
 "use server"
 
-import { assertTier } from "@/lib/tier-auth"
+import { assertPage, assertTier } from "@/lib/tier-auth"
 
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
@@ -160,7 +160,7 @@ function dateLabel(d: Date) {
 // ─── Hub: one card per department ───────────────────────────────────────────
 
 export async function getDeptOrderHub(venue: Venue): Promise<DeptHub> {
-  await assertTier("SENIOR")
+  await assertTier("STAFF") // every chef orders for their section (Chloe, 12 Oct 2026)
   const date = todayAest()
   const showPrices = await isManagerAuthed()
   const [depts, items, requests] = await Promise.all([
@@ -231,7 +231,7 @@ export async function getDeptForm(params: {
   venue: Venue
   dept: OrderDept
 }): Promise<DeptForm> {
-  await assertTier("SENIOR")
+  await assertTier("STAFF") // every chef orders for their section (Chloe, 12 Oct 2026)
   const { venue, dept } = params
   const date = todayAest()
   const showPrices = await isManagerAuthed()
@@ -302,7 +302,7 @@ export async function saveDeptLine(params: {
   note?: string | null
   enteredBy?: string | null
 }): Promise<{ ok: boolean; error?: string }> {
-  await assertTier("SENIOR")
+  await assertTier("STAFF") // every chef orders for their section (Chloe, 12 Oct 2026)
   const { venue, dept, approvedItemId, quantity } = params
 
   const item = await db.approvedSupplierItem.findUnique({
@@ -358,7 +358,7 @@ export async function approveDeptRequest(params: {
   approvedBy: string
   notes?: string | null
 }): Promise<{ ok: boolean; error?: string }> {
-  await assertTier("SENIOR")
+  await assertTier("STAFF") // every chef orders for their section (Chloe, 12 Oct 2026)
   const name = params.approvedBy.trim()
   if (!name) return { ok: false, error: "Put your name in first" }
 
@@ -382,7 +382,7 @@ export async function reopenDeptRequest(params: {
   venue: Venue
   dept: OrderDept
 }): Promise<{ ok: boolean; error?: string }> {
-  await assertTier("SENIOR")
+  await assertTier("STAFF") // every chef orders for their section (Chloe, 12 Oct 2026)
   const requestDate = todayAest()
   const request = await db.deptOrderRequest.findUnique({
     where: {
@@ -420,7 +420,7 @@ export async function reopenDeptRequest(params: {
  * money blanked, so they can still check quantities and send.
  */
 export async function getEodSheet(venue: Venue): Promise<EodSheet> {
-  await assertTier("SENIOR")
+  await assertPage("/kitchen/order/sheet")
   const sheet = await buildEodSheet(venue)
   if (await isManagerAuthed()) return sheet
   return {
@@ -607,7 +607,7 @@ export async function sendSupplierOrder(params: {
   by: string
   force?: boolean
 }): Promise<{ ok: boolean; error?: string; emailed?: boolean; to?: string | null }> {
-  await assertTier("SENIOR")
+  await assertPage("/kitchen/order/sheet")
   const by = params.by.trim()
   if (!by) return { ok: false, error: "Put your name in first" }
 

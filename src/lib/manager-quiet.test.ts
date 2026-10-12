@@ -25,9 +25,10 @@ describe("managers quiet list: who", () => {
     assert.equal(isQuietPerson(JSON.stringify(["shifts-412"]), savannah), true)
   })
 
-  test("other people are untouched, first name alone never matches", () => {
+  test("other people are untouched; a first name on its own matches that first name, a different surname does not", () => {
     assert.equal(isQuietPerson(list, lacey), false)
-    assert.equal(isQuietPerson(JSON.stringify(["Savannah"]), savannah), false)
+    assert.equal(isQuietPerson(JSON.stringify(["Savannah"]), savannah), true)
+    assert.equal(isQuietPerson(JSON.stringify(["Savannah"]), lacey), false)
     assert.equal(isQuietPerson(list, { id: "y", name: "Savannah Hjorth-Smith" }), false)
   })
 

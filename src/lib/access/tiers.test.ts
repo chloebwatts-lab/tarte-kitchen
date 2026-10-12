@@ -38,9 +38,12 @@ describe("tiers: who", () => {
 })
 
 describe("tiers: what", () => {
-  test("ordering, supplier map, recipes and bookings are Senior", () => {
-    for (const h of ["/kitchen/ordering", "/kitchen/order", "/kitchen/order/sheet", "/kitchen/order/pastry", "/kitchen/serves", "/kitchen/portions", "/kitchen/high-tea", "/kitchen/high-tea?day=2026-10-12", "/kitchen/functions"]) {
+  test("supplier map, order sheet, recipes and bookings are Senior; a section's own order is open to every chef", () => {
+    for (const h of ["/kitchen/ordering", "/kitchen/order/sheet", "/kitchen/serves", "/kitchen/portions", "/kitchen/high-tea", "/kitchen/high-tea?day=2026-10-12", "/kitchen/functions"]) {
       assert.equal(tierForHref(h), "SENIOR", h)
+    }
+    for (const h of ["/kitchen/order", "/kitchen/order/pastry", "/kitchen/order/kitchen"]) {
+      assert.equal(tierForHref(h), "STAFF", h)
     }
   })
 
@@ -96,7 +99,8 @@ describe("tiers: the grids", () => {
     assert.ok(staff.includes("/kitchen/stock"))
     assert.ok(staff.includes("/kitchen/restock"))
     assert.ok(staff.includes("/kitchen/prep"))
-    for (const gone of ["/kitchen/order", "/kitchen/ordering", "/kitchen/serves", "/kitchen/high-tea"]) {
+    assert.ok(staff.includes("/kitchen/order"), "every chef orders for their section")
+    for (const gone of ["/kitchen/ordering", "/kitchen/serves", "/kitchen/high-tea"]) {
       assert.equal(staff.includes(gone), false, gone)
     }
     const senior = toolsForTier(stock.tools, "SENIOR").map((t) => t.href)
@@ -124,7 +128,10 @@ describe("tiers: routes agree with the prefix list", () => {
         .map((f) => path.join(dir, f))
         .filter((f) => fs.existsSync(f))
         .map((f) => fs.readFileSync(f, "utf8"))
-      assert.ok(gates.some((src) => src.includes('requireTier("SENIOR"')), `${prefix}: no requireTier("SENIOR") in its layout or page`)
+      assert.ok(
+        gates.some((src) => src.includes('requireTier("SENIOR"') || src.includes(`requirePage("${prefix}"`)),
+        `${prefix}: no requireTier("SENIOR") or requirePage("${prefix}") in its layout or page`
+      )
     }
   })
 

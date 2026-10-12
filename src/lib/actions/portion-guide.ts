@@ -1,6 +1,6 @@
 "use server"
 
-import { assertTier } from "@/lib/tier-auth"
+import { assertPage } from "@/lib/tier-auth"
 
 import { db } from "@/lib/db"
 
@@ -34,7 +34,7 @@ const GRAM_UNITS = new Set(["g", "ml"])
 export async function getPortionGuide(
   venue: "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
 ): Promise<PortionGuideDish[]> {
-  await assertTier("SENIOR")
+  await assertPage("/kitchen/portions")
   const dishVenue = venue === "BURLEIGH" ? "BURLEIGH" : "BEACH_HOUSE"
 
   const dishes = await db.dish.findMany({
