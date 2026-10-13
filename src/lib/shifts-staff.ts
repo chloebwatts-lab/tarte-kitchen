@@ -36,24 +36,66 @@ export function toPersonRole(role: ShiftsStaff["role"]): PersonRole {
   return role === "SENIOR" ? "SUPERVISOR" : role
 }
 
+/**
+ * A surname the way a phone keyboard types it: lower case, accents dropped,
+ * hyphens as spaces, one space between words. "Martínez Carretero" and
+ * "martinez  carretero" fold to the same thing.
+ */
+export function foldName(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[-‐‑–]/g, " ")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+}
+
+/** How many other spellings are sent to Shifts after the typed one misses. */
+export const MAX_SURNAME_CANDIDATES = 3
+
+/**
+ * Other spellings of a typed surname worth sending to Shifts once the typed
+ * one has not matched. Shifts compares what it holds ("Martínez Carretero")
+ * with what was typed, and a phone keyboard drops the accent ("Martinez
+ * Carretero"), or the person types one half of a two word surname
+ * ("Martinez"). Fran could not sign in for exactly this (13 Oct 2026).
+ *
+ * Returns surnames as Shifts holds them: first those that fold to the typed
+ * one (accents, case, hyphens aside), then those that contain every typed
+ * word as a whole word, each spelling once, never the typed spelling itself,
+ * and at most MAX_SURNAME_CANDIDATES so a stranger guessing cannot turn one
+ * attempt into many against Shifts' own lockout.
+ */
+export function surnameCandidates(typed: string, staff: ReadonlyArray<Pick<ShiftsStaff, "lastName">>): string[] {
+  const t = foldName(typed)
+  if (!t) return []
+  const typedWords = t.split(" ")
+  const typedExact = typed.trim().replace(/\s+/g, " ").toLowerCase()
+  const same: string[] = []
+  const part: string[] = []
+  const seen = new Set<string>()
+  for (const { lastName } of staff) {
+    const held = (lastName ?? "").trim().replace(/\s+/g, " ")
+    if (!held || seen.has(held)) continue
+    seen.add(held)
+    if (held.toLowerCase() === typedExact) continue
+    const f = foldName(held)
+    if (f === t) {
+      same.push(held)
+      continue
+    }
+    const words = f.split(" ")
+    if (words.length > typedWords.length && typedWords.every((w) => words.includes(w))) part.push(held)
+  }
+  return [...same, ...part].slice(0, MAX_SURNAME_CANDIDATES)
+}
+
 export type VerifyResult =
   | { ok: true; staff: ShiftsStaff }
   | { ok: false; reason: "nomatch" | "locked" | "unavailable" }
 
-export async function verifyStaff(lastName: string, pin: string, ip: string): Promise<VerifyResult> {
-  // Local development without a Shifts connection: one fixed dev identity.
-  if (process.env.NODE_ENV !== "production" && process.env.PERSON_DEV_LOGIN === "1") {
-    if (lastName.trim().toLowerCase() === "dev" && pin === "0000") {
-      return { ok: true, staff: { id: "dev-staff", firstName: "Dev", lastName: "Tester", role: "STAFF", venue: "BURLEIGH", email: null } }
-    }
-    if (lastName.trim().toLowerCase() === "devmanager" && pin === "0000") {
-      return { ok: true, staff: { id: "dev-manager", firstName: "Dev", lastName: "Manager", role: "MANAGER", venue: "BURLEIGH", email: null } }
-    }
-    return { ok: false, reason: "nomatch" }
-  }
-  const base = shiftsBase()
-  const secret = process.env.SHIFTS_SECRET
-  if (!base || !secret) return { ok: false, reason: "unavailable" }
+async function askVerify(base: string, secret: string, lastName: string, pin: string, ip: string): Promise<VerifyResult> {
   try {
     const res = await fetch(`${base}/api/internal/verify-staff`, {
       method: "POST",
@@ -70,6 +112,34 @@ export async function verifyStaff(lastName: string, pin: string, ip: string): Pr
     console.error("[shifts-staff] verify failed", e)
     return { ok: false, reason: "unavailable" }
   }
+}
+
+export async function verifyStaff(lastName: string, pin: string, ip: string): Promise<VerifyResult> {
+  // Local development without a Shifts connection: one fixed dev identity.
+  if (process.env.NODE_ENV !== "production" && process.env.PERSON_DEV_LOGIN === "1") {
+    if (lastName.trim().toLowerCase() === "dev" && pin === "0000") {
+      return { ok: true, staff: { id: "dev-staff", firstName: "Dev", lastName: "Tester", role: "STAFF", venue: "BURLEIGH", email: null } }
+    }
+    if (lastName.trim().toLowerCase() === "devmanager" && pin === "0000") {
+      return { ok: true, staff: { id: "dev-manager", firstName: "Dev", lastName: "Manager", role: "MANAGER", venue: "BURLEIGH", email: null } }
+    }
+    return { ok: false, reason: "nomatch" }
+  }
+  const base = shiftsBase()
+  const secret = process.env.SHIFTS_SECRET
+  if (!base || !secret) return { ok: false, reason: "unavailable" }
+  const first = await askVerify(base, secret, lastName, pin, ip)
+  if (first.ok || first.reason !== "nomatch") return first
+  // The typed spelling missed. Try the spellings Shifts actually holds that
+  // the person could have meant (accent dropped, half of a two word surname).
+  // Shifts still judges the PIN every time; this only fixes the spelling.
+  const staff = await listActiveStaff()
+  if (!staff) return first
+  for (const alt of surnameCandidates(lastName, staff)) {
+    const r = await askVerify(base, secret, alt, pin, ip)
+    if (r.ok || r.reason !== "nomatch") return r
+  }
+  return first
 }
 
 export async function listActiveStaff(): Promise<ShiftsStaff[] | null> {
@@ -108,17 +178,7 @@ export async function remindPin(lastName: string, email: string, ip: string, sig
   }
 }
 
-
-/** Who is this, by last name + the email on their record? Never returns a PIN. */
-export async function findStaff(lastName: string, email: string, ip: string): Promise<ShiftsStaff | null> {
-  if (process.env.NODE_ENV !== "production" && process.env.PERSON_DEV_LOGIN === "1") {
-    return lastName.trim().toLowerCase() === "dev"
-      ? { id: "dev-staff", firstName: "Dev", lastName: "Tester", role: "STAFF", venue: "BURLEIGH", email }
-      : null
-  }
-  const base = shiftsBase()
-  const secret = process.env.SHIFTS_SECRET
-  if (!base || !secret) return null
+async function askFind(base: string, secret: string, lastName: string, email: string, ip: string): Promise<ShiftsStaff | null> {
   try {
     const res = await fetch(`${base}/api/internal/find-staff`, {
       method: "POST",
@@ -134,4 +194,30 @@ export async function findStaff(lastName: string, email: string, ip: string): Pr
     console.error("[shifts-staff] find failed", e)
     return null
   }
+}
+
+/**
+ * Who is this, by last name + the email on their record? Never returns a
+ * PIN. Same spelling fallback as sign in, so "Forgot your PIN, or never had
+ * one?" finds Martínez Carretero when Martinez was typed; the email on the
+ * record still has to match.
+ */
+export async function findStaff(lastName: string, email: string, ip: string): Promise<ShiftsStaff | null> {
+  if (process.env.NODE_ENV !== "production" && process.env.PERSON_DEV_LOGIN === "1") {
+    return lastName.trim().toLowerCase() === "dev"
+      ? { id: "dev-staff", firstName: "Dev", lastName: "Tester", role: "STAFF", venue: "BURLEIGH", email }
+      : null
+  }
+  const base = shiftsBase()
+  const secret = process.env.SHIFTS_SECRET
+  if (!base || !secret) return null
+  const found = await askFind(base, secret, lastName, email, ip)
+  if (found) return found
+  const staff = await listActiveStaff()
+  if (!staff) return null
+  for (const alt of surnameCandidates(lastName, staff)) {
+    const r = await askFind(base, secret, alt, email, ip)
+    if (r) return r
+  }
+  return null
 }
