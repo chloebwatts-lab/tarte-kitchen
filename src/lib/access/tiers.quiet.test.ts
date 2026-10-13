@@ -18,10 +18,10 @@ const managers = groupBySlug("managers")!
 const hrefs = (tools: { href: string }[]) => tools.map((t) => t.href)
 
 describe("tiers and the quiet list together", () => {
-  test("every quiet-hidden page is at least Senior tier: quiet is a rule inside the managers area, never a hole for staff", () => {
+  test("every quiet-hidden page sits behind the managers password: quiet is a rule inside that area, never a hole for staff", () => {
+    const gated = [...MANAGER_PREFIXES, ...MANAGERS_AREA_PREFIXES]
     for (const p of QUIET_HIDDEN_PREFIXES) {
-      assert.ok(meetsTier(tierForHref(p), "SENIOR"), p)
-      assert.equal(tierForHref(p) === "STAFF", false, p)
+      assert.ok(gated.some((g) => p === g || p.startsWith(`${g}/`)), p)
     }
     // The meeting deck is now on both lists.
     assert.equal(isQuietHiddenHref("/kitchen/meeting"), true)

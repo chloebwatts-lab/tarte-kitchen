@@ -6,10 +6,10 @@
  *
  *   STAFF    checklists, logs, stock walk, prep walk-through (no costs or
  *            forecasts), pastry tasks, report / fix / services / printers
- *            (no till login), inspection view
+ *            (no till login), inspection view, and the Managers tile (its
+ *            password and allow list decide inside; Chloe, 13 Oct 2026)
  *   SENIOR   plus ordering, the order sheet, where to buy, serves and
- *            portions, high tea, functions, and the Managers area (still
- *            behind its password and allow list)
+ *            portions, high tea, functions, price check
  *   MANAGER  plus the meeting deck, costs and the till login
  *   OWNER    everything; the office login and the owner's phone
  *
@@ -55,6 +55,11 @@ export const SENIOR_PREFIXES = [
   "/kitchen/portions",
   "/kitchen/high-tea",
   "/kitchen/functions",
+  // Behind the managers password too, but what we pay and who we chose to
+  // buy it from stay Senior (Chloe, 12 Oct): the Managers tile is on every
+  // grid, the supplier map is not.
+  "/kitchen/prices",
+  "/kitchen/managers/preferred",
 ]
 
 /**
@@ -92,11 +97,13 @@ export function tierWithOverrides(base: Tier, overrides: Record<string, Tier>, p
 }
 
 /**
- * The Managers area, behind its own password: Senior and up (Chloe, 16 Sep
- * 2026: supervisors get the managers password; reaffirmed 12 Oct). Listed
- * here so the tile is only offered from Senior; the password and the allow
- * list still decide inside. Includes the managers pages that live outside
- * /kitchen/managers (requireManager in their page or layout).
+ * The Managers area, behind its own password. The tile stays on every
+ * staff grid with its lock (Chloe, 13 Oct 2026: it was always meant to; the
+ * password and the allow list decide inside, and the quiet lists hide named
+ * pages for named people). So these are STAFF for the tile filter. Listed
+ * so the drift guard in tiers.quiet.test.ts can check every one carries
+ * requireManager in its page or layout. Includes the managers pages that
+ * live outside /kitchen/managers.
  */
 export const MANAGERS_AREA_PREFIXES = [
   "/kitchen/managers",
@@ -120,7 +127,7 @@ function under(href: string, prefixes: string[]): boolean {
 /** The least tier that may open this href. */
 export function tierForHref(href: string): Tier {
   if (under(href, MANAGER_PREFIXES)) return "MANAGER"
-  if (under(href, SENIOR_PREFIXES) || under(href, MANAGERS_AREA_PREFIXES)) return "SENIOR"
+  if (under(href, SENIOR_PREFIXES)) return "SENIOR"
   return "STAFF"
 }
 

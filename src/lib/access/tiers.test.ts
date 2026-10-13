@@ -47,8 +47,11 @@ describe("tiers: what", () => {
     }
   })
 
-  test("the managers area is Senior (supervisors hold the password); GM desk and meeting deck are Manager", () => {
-    for (const h of ["/kitchen/managers", "/kitchen/managers/sales", "/kitchen/lineup", "/kitchen/jobs", "/kitchen/commitments", "/kitchen/training", "/kitchen/prices"]) {
+  test("the managers area is open to every tier (its password decides); price check is Senior; GM desk and meeting deck are Manager", () => {
+    for (const h of ["/kitchen/managers", "/kitchen/managers/sales", "/kitchen/lineup", "/kitchen/jobs", "/kitchen/commitments", "/kitchen/training"]) {
+      assert.equal(tierForHref(h), "STAFF", h)
+    }
+    for (const h of ["/kitchen/prices", "/kitchen/managers/preferred"]) {
       assert.equal(tierForHref(h), "SENIOR", h)
     }
     for (const h of ["/kitchen/gm", "/kitchen/meeting", "/kitchen/meeting?deck=2026-09"]) {
@@ -76,10 +79,10 @@ describe("tiers: what", () => {
 describe("tiers: the grids", () => {
   const groupTiles = TOOL_GROUPS.map((g) => ({ href: g.href ?? `/staffaccess/${g.slug}`, slug: g.slug }))
 
-  test("Staff sees no Managers, Oliver or Functions tile; Senior gets Functions and Managers; Manager gets all three", () => {
+  test("Staff keeps the locked Managers tile but sees no Oliver or Functions tile; Senior gets Functions; Manager gets all three", () => {
     const staff = toolsForTier(groupTiles, "STAFF").map((t) => t.slug)
     assert.ok(staff.includes("checklists") && staff.includes("stock") && staff.includes("spotted") && staff.includes("pastry"))
-    assert.equal(staff.includes("managers"), false)
+    assert.ok(staff.includes("managers"), "the Managers tile stays on every grid with its lock (Chloe, 13 Oct)")
     assert.equal(staff.includes("gm"), false)
     assert.equal(staff.includes("functions"), false)
 
