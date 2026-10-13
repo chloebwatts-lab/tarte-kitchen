@@ -194,3 +194,59 @@ describe("Burleigh managers to Manager (13 Oct migration)", () => {
     assert.equal(tierWithOverrides("STAFF", merged, { id: "x", name: "Georgia Farquhar" }), "MANAGER")
   })
 })
+
+describe("the full list (13 Oct afternoon migration, replaces the row)", () => {
+  const sql = fs.readFileSync(
+    path.join(process.cwd(), "prisma", "migrations", "20261013050000_tier_overrides_full_list", "migration.sql"),
+    "utf8"
+  )
+  const literals = [...sql.matchAll(/'(\{[^']*\})'/g)].map((m) => m[1])
+  const full = parseTierOverrides(literals[0])
+
+  test("one JSON literal, parses as-is, every key Manager or Senior, nothing dropped by the parser", () => {
+    assert.equal(literals.length, 1)
+    const raw = JSON.parse(literals[0]) as Record<string, string>
+    assert.deepEqual(full, raw, "every entry survives parseTierOverrides")
+    for (const [k, t] of Object.entries(full)) {
+      assert.ok(t === "MANAGER" || t === "SENIOR", `${k}: ${t}`)
+      assert.ok(k.trim().length > 0 && !k.includes("'"), k)
+    }
+    assert.ok(Object.keys(full).length >= 30)
+  })
+
+  test("the SQL replaces the row: upsert on key with the new value winning", () => {
+    assert.match(sql, /INSERT INTO "AppSetting" \("key", "value", "updatedAt"\)/)
+    assert.match(sql, /VALUES \('tierOverrides',/)
+    assert.match(sql, /ON CONFLICT \("key"\) DO UPDATE SET "value" = EXCLUDED\."value", "updatedAt" = NOW\(\)/)
+    assert.doesNotMatch(sql, /::jsonb \|\|/, "no merge: Chloe's list is the whole row")
+    assert.equal((sql.match(/;/g) ?? []).length, 1, "a single statement")
+  })
+
+  test("managers reach Manager from Staff or Senior", () => {
+    for (const name of [
+      "Chloe Johns", "Georgia Rodney", "Georgia Farquhar", "Jose Garcia", "Shawna Brown", "Jess Le Rose",
+      "Jessica Le Rose", "Jess Passos", "Savannah Hjorth", "Sav Hjorth", "Oliver Warren", "Vinicius Almeida",
+    ]) {
+      assert.equal(tierWithOverrides("STAFF", full, { id: "x", name }), "MANAGER", name)
+      assert.equal(tierWithOverrides("SENIOR", full, { id: "x", name: name.toUpperCase() }), "MANAGER", name)
+    }
+  })
+
+  test("seniors reach Senior and no higher", () => {
+    for (const name of [
+      "Carmen Taylor", "Anastasia Petrova", "Anastasija Petrova", "Ana Souza", "Ava Smith", "Debbie Embalsado",
+      "Lacey Corby", "Tais Mansur", "Gabrielle Dupont", "Gabriela Silva", "Gab Jones",
+    ]) {
+      assert.equal(tierWithOverrides("STAFF", full, { id: "x", name }), "SENIOR", name)
+    }
+  })
+
+  test("nobody is lowered; names not on the list stay where Shifts puts them", () => {
+    assert.equal(tierWithOverrides("MANAGER", full, { id: "x", name: "Lacey Corby" }), "MANAGER")
+    assert.equal(tierWithOverrides("OWNER", full, { id: "x", name: "Chloe Johns" }), "OWNER")
+    for (const name of ["Sam Nguyen", "Analise Ward", "Savanna Reid", "Lola Perez", "Candela Rossi", "Michelle Malbog", "Gabriel Santos"]) {
+      assert.equal(tierWithOverrides("STAFF", full, { id: "x", name }), "STAFF", name)
+    }
+    assert.equal(tierWithOverrides("STAFF", full, { id: "x", name: "Corby" }), "STAFF", "surname alone is not a first name")
+  })
+})
