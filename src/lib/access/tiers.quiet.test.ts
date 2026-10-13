@@ -3,7 +3,7 @@ import assert from "node:assert/strict"
 import fs from "node:fs"
 import path from "node:path"
 import { TOOL_GROUPS, groupBySlug } from "../staff-tools"
-import { QUIET_HIDDEN_PREFIXES, isQuietHiddenHref, visibleTools } from "../manager-quiet"
+import { QUIET_HIDDEN_PREFIXES, copyVisibleTools, isQuietHiddenHref, visibleTools } from "../manager-quiet"
 import { MANAGER_PREFIXES, MANAGERS_AREA_PREFIXES, meetsTier, tierForHref, toolsForTier, type Tier } from "./tiers"
 
 /**
@@ -81,6 +81,38 @@ describe("tiers and the quiet list together", () => {
         }
       }
     }
+  })
+
+  test("Staff gets the Managers tile and the area's grid, but never Where to order it or Price check (Chloe, 13 Oct)", () => {
+    // The tile itself (href /kitchen/managers) is on every grid; the password decides inside.
+    const groupTiles = TOOL_GROUPS.map((g) => ({ href: g.href ?? `/staffaccess/${g.slug}`, slug: g.slug }))
+    assert.ok(toolsForTier(groupTiles, "STAFF").some((t) => t.slug === "managers"))
+    assert.equal(meetsTier("STAFF", tierForHref("/kitchen/managers")), true)
+
+    // Inside the area a kitchen hand who knows the password still never sees the supplier map.
+    const staffGrid = hrefs(visibleTools(toolsForTier(managers.tools, "STAFF"), false))
+    assert.ok(staffGrid.includes("/kitchen/managers/board"))
+    assert.ok(staffGrid.includes("/kitchen/lineup"))
+    assert.equal(staffGrid.includes("/kitchen/managers/preferred"), false)
+    assert.equal(hrefs(toolsForTier(stock.tools, "STAFF")).includes("/kitchen/prices"), false)
+
+    // Direct links, with and without a query string, resolve to Senior: mayOpen/assertPage refuse STAFF.
+    for (const h of ["/kitchen/managers/preferred", "/kitchen/managers/preferred?q=anchor%20butter%205kg", "/kitchen/prices", "/kitchen/prices?q=bridor%20croissant"]) {
+      assert.equal(tierForHref(h), "SENIOR", h)
+      assert.equal(meetsTier("STAFF", tierForHref(h)), false, h)
+      assert.equal(meetsTier("SENIOR", tierForHref(h)), true, h)
+    }
+    // A neighbour under /kitchen/managers is not swallowed by the preferred prefix.
+    assert.equal(tierForHref("/kitchen/managers/preferred-x"), "STAFF")
+    assert.equal(tierForHref("/kitchen/managers/pref"), "STAFF")
+
+    // A Senior gets Where to order it, and the copy-quiet list takes it away again.
+    const seniorGrid = hrefs(toolsForTier(managers.tools, "SENIOR"))
+    assert.ok(seniorGrid.includes("/kitchen/managers/preferred"))
+    const copyQuiet = hrefs(copyVisibleTools(toolsForTier(managers.tools, "SENIOR"), true))
+    assert.equal(copyQuiet.includes("/kitchen/managers/preferred"), false)
+    assert.ok(copyQuiet.includes("/kitchen/managers/board"))
+    assert.equal(hrefs(copyVisibleTools(toolsForTier(stock.tools, "SENIOR"), true)).includes("/kitchen/prices"), false)
   })
 
   test("nasty inputs: nobody signed in gets nothing whatever the quiet flag, empty grids stay empty", () => {
