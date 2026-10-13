@@ -148,3 +148,49 @@ describe("Jess to Manager (12 Oct evening migration)", () => {
     assert.equal(tierWithOverrides("STAFF", jess, { id: "x", name: "Jess" }), "STAFF", "a bare first name in the log is not the full name")
   })
 })
+
+describe("Burleigh managers to Manager (13 Oct migration)", () => {
+  const sql = fs.readFileSync(
+    path.join(process.cwd(), "prisma", "migrations", "20261013040000_tier_overrides_burleigh_managers", "migration.sql"),
+    "utf8"
+  )
+  const literals = [...sql.matchAll(/'(\{[^']*\})'/g)].map((m) => m[1])
+  const expected = {
+    "Georgia Farquhar": "MANAGER",
+    Georgia: "MANAGER",
+    "Savannah Hjorth": "MANAGER",
+    Savannah: "MANAGER",
+    Sav: "MANAGER",
+    "Chloe Johns": "MANAGER",
+    Chloe: "MANAGER",
+  }
+
+  test("both JSON literals parse, grant exactly Manager, and nothing above it", () => {
+    assert.equal(literals.length, 2)
+    for (const lit of literals) assert.deepEqual(parseTierOverrides(lit), expected)
+  })
+
+  test("the SQL keeps the merge shape: existing row wins on conflict, insert only when missing", () => {
+    assert.match(sql, /'\{[^']*\}'::jsonb \|\| "value"::jsonb/, "new literal on the left so a later app edit wins")
+    assert.match(sql, /WHERE "key" = 'tierOverrides'/)
+    assert.match(sql, /ON CONFLICT \("key"\) DO NOTHING/)
+  })
+
+  test("Georgia, Savannah and Chloe Johns reach Manager from Staff or Senior; others untouched", () => {
+    const o = parseTierOverrides(literals[0])
+    assert.equal(tierWithOverrides("STAFF", o, { id: "x", name: "Georgia Farquhar" }), "MANAGER")
+    assert.equal(tierWithOverrides("SENIOR", o, { id: "x", name: "savannah  hjorth" }), "MANAGER")
+    assert.equal(tierWithOverrides("STAFF", o, { id: "x", name: "Chloe Johns" }), "MANAGER")
+    assert.equal(tierWithOverrides("STAFF", o, { id: "x", name: "Sav Hjorth" }), "MANAGER", "Sav first-name key")
+    assert.equal(tierWithOverrides("OWNER", o, { id: "x", name: "Chloe Johns" }), "OWNER", "never lowered")
+    assert.equal(tierWithOverrides("STAFF", o, { id: "x", name: "Lacey Corby" }), "STAFF")
+    assert.equal(tierWithOverrides("STAFF", o, { id: "x", name: "Savanna Reid" }), "STAFF", "Savanna is not Savannah")
+  })
+
+  test("merged with the 12 Oct list, nobody already listed is lowered", () => {
+    const merged = { ...parseTierOverrides(literals[0]), ...overrides }
+    assert.equal(tierWithOverrides("STAFF", merged, { id: "x", name: "Vinicius Almeida" }), "MANAGER")
+    assert.equal(tierWithOverrides("STAFF", merged, { id: "x", name: "Lacey Corby" }), "SENIOR")
+    assert.equal(tierWithOverrides("STAFF", merged, { id: "x", name: "Georgia Farquhar" }), "MANAGER")
+  })
+})
