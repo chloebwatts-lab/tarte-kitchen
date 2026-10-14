@@ -81,14 +81,35 @@ export function surnameCandidates(typed: string, staff: ReadonlyArray<Pick<Shift
     seen.add(held)
     if (held.toLowerCase() === typedExact) continue
     const f = foldName(held)
-    if (f === t) {
+    if (f === t || joined(f) === joined(t)) {
       same.push(held)
       continue
     }
     const words = f.split(" ")
     if (words.length > typedWords.length && typedWords.every((w) => words.includes(w))) part.push(held)
+    // "Tsaichi Wu" for "Tsai-Chi Wu": the typed words, run together, are a
+    // run of the held words (Kim, 14 Oct 2026).
+    else if (words.length > typedWords.length && typedWords.some((w) => w.length >= 4 && isRunOf(w, words))) part.push(held)
   }
   return [...same, ...part].slice(0, MAX_SURNAME_CANDIDATES)
+}
+
+/** A folded name with its spaces removed, so "tsai chi wu" and "tsaichi wu" agree. */
+function joined(folded: string): string {
+  return folded.replace(/ /g, "")
+}
+
+/** Is `w` two or more consecutive words of `words` written as one ("tsaichi" in tsai chi wu)? */
+function isRunOf(w: string, words: string[]): boolean {
+  for (let i = 0; i < words.length; i++) {
+    let acc = ""
+    for (let j = i; j < words.length; j++) {
+      acc += words[j]
+      if (j > i && acc === w) return true
+      if (acc.length >= w.length) break
+    }
+  }
+  return false
 }
 
 export type VerifyResult =

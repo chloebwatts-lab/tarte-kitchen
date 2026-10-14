@@ -338,3 +338,21 @@ describe("after the stubbed Shifts tests", () => {
     assert.notEqual(globalThis.fetch.name, "fakeShifts")
   })
 })
+
+describe("surname spelling fallback: hyphenated surnames run together (Kim, 14 Oct 2026)", () => {
+  const staff = [{ lastName: "TSAI-CHI WU" }, { lastName: "Martínez Carretero" }, { lastName: "Wu" }]
+  test("the hyphen dropped and the halves joined still finds the surname Shifts holds", () => {
+    assert.deepEqual(surnameCandidates("Tsaichi Wu", staff), ["TSAI-CHI WU"])
+    assert.deepEqual(surnameCandidates("tsai chi wu", staff), ["TSAI-CHI WU"])
+    assert.deepEqual(surnameCandidates("Tsai-Chi Wu", staff), [], "case aside it is the spelling already tried")
+    assert.deepEqual(surnameCandidates("TsaiChiWu", staff), ["TSAI-CHI WU"])
+  })
+  test("one joined run of the words is enough, a fragment is not", () => {
+    assert.deepEqual(surnameCandidates("Tsaichi", staff), ["TSAI-CHI WU"])
+    assert.deepEqual(surnameCandidates("Tsa", staff), [])
+    assert.deepEqual(surnameCandidates("Chiwu", staff), ["TSAI-CHI WU"])
+  })
+  test("a plain Wu is its own exact match, and the hyphenated one is offered after it", () => {
+    assert.deepEqual(surnameCandidates("Wu", staff), ["TSAI-CHI WU"], "Wu itself was already tried by the caller")
+  })
+})
