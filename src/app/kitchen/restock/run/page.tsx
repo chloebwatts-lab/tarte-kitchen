@@ -7,7 +7,7 @@ import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
-import { isKitchenStation, stationsForVenue } from "@/lib/stations"
+import { isKitchenStation, sectionFromParam, stationsForVenue } from "@/lib/stations"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
 
@@ -70,7 +70,11 @@ export default async function RestockRunPage({
         <div className="mt-3"><VenueSwitch current={venue} /></div>
       </div>
 
-      <RestockRunBoard initialRun={run} initialStation={initialStation} />
+      <RestockRunBoard
+        initialRun={run}
+        initialStation={initialStation}
+        initialSection={sectionFromParam(venue, typeof sp.section === "string" ? sp.section : null)}
+      />
     </div>
   )
 }

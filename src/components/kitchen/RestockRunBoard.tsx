@@ -10,6 +10,7 @@ import {
   type RunStationLine,
 } from "@/lib/actions/restock"
 import { prepSectionsFor, sectionHint, sectionRank, STATION_SHORT_LABEL } from "@/lib/stations"
+import { SectionNav, WHOLE_LIST } from "@/components/kitchen/SectionNav"
 import { formatNeededBy, isLate } from "@/lib/restock-needed-by"
 import type { KitchenStation } from "@/generated/prisma/client"
 
@@ -50,13 +51,30 @@ function nightLabel(ymd: string, today: string): string {
 export function RestockRunBoard({
   initialRun,
   initialStation = "ALL",
+  initialSection = null,
 }: {
   initialRun: RestockRun
   initialStation?: StationFilter
+  /** A section to open on (from ?section=), or null for the whole list. */
+  initialSection?: string | null
 }) {
   const [run, setRun] = useState(initialRun)
   const [name, setName] = useState("")
   const [stationFilter, setStationFilter] = useState<StationFilter>(initialStation)
+  // Section buttons (Chloe, 14 Oct 2026): the prep chef making the Café
+  // side sees only Café items; Whole list is the full morning run.
+  const sections = prepSectionsFor(initialRun.venue)
+  const [section, setSection] = useState<string>(
+    initialSection && (sections as readonly string[]).includes(initialSection) ? initialSection : WHOLE_LIST
+  )
+
+  function pickSection(next: string) {
+    setSection(next)
+    const url = new URL(window.location.href)
+    if (next === WHOLE_LIST) url.searchParams.delete("section")
+    else url.searchParams.set("section", next)
+    window.history.replaceState(null, "", url.toString())
+  }
   const [finishing, setFinishing] = useState(false)
   const [finished, setFinished] = useState(false)
   const [clearing, setClearing] = useState<string | null>(null)
@@ -275,12 +293,16 @@ export function RestockRunBoard({
     )
   }
 
-  const visibleItems =
+  const stationItems =
     stationFilter === "ALL"
       ? run.items
       : run.items.filter((i) =>
           i.stations.some((s) => s.station === stationFilter)
         )
+  const sectionCounts: Record<string, number> = {}
+  for (const i of stationItems) sectionCounts[i.category] = (sectionCounts[i.category] ?? 0) + 1
+  const visibleItems =
+    section === WHOLE_LIST ? stationItems : stationItems.filter((i) => i.category === section)
   const priorityItems = visibleItems.filter((i) => i.priority)
   const normalItems = visibleItems.filter((i) => !i.priority)
   // On a sectioned list, everything that is not a priority is grouped by
@@ -304,6 +326,10 @@ export function RestockRunBoard({
 
   return (
     <div className="space-y-6 pb-24">
+      {sections.length > 0 && (
+        <SectionNav sections={sections} current={section} counts={sectionCounts} onPick={pickSection} />
+      )}
+
       {/* Who's running + progress */}
       <div className="rounded-[20px] border border-[var(--tk-line)] bg-white p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

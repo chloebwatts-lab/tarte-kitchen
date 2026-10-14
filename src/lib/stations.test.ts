@@ -73,3 +73,16 @@ test("sectionRank orders venue sections, then the legacy header, then everything
   assert.ok(sectionRank("Production") < sectionRank("Station restock"))
   assert.ok(sectionRank("Station restock") < sectionRank("Zzz"))
 })
+
+test("sectionFromParam only accepts the venue's own sections", () => {
+  const { sectionFromParam } = require("./stations") as typeof import("./stations")
+  assert.equal(sectionFromParam("BEACH_HOUSE", "Café"), "Café")
+  assert.equal(sectionFromParam("BEACH_HOUSE", "KP"), "KP")
+  assert.equal(sectionFromParam("BURLEIGH", "Market grill"), "Market grill")
+  assert.equal(sectionFromParam("BURLEIGH", "Café"), null, "another venue's section")
+  assert.equal(sectionFromParam("BEACH_HOUSE", "cafe"), null, "exact spelling only")
+  assert.equal(sectionFromParam("TEA_GARDEN", "Café"), null)
+  assert.equal(sectionFromParam("BOTH", "Café"), null)
+  assert.equal(sectionFromParam("BEACH_HOUSE", null), null)
+  assert.equal(sectionFromParam("BEACH_HOUSE", ""), null)
+})

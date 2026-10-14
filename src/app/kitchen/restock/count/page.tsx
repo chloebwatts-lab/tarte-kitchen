@@ -6,7 +6,7 @@ import { RestockCountSheet } from "@/components/kitchen/RestockCountSheet"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
-import { isKitchenStation, stationLabel } from "@/lib/stations"
+import { isKitchenStation, sectionFromParam, stationLabel } from "@/lib/stations"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
 
@@ -32,6 +32,7 @@ export default async function RestockCountPage({
       : null
   if (!venue) return <KitchenVenuePicker next="/kitchen/restock" title="Prep list" blurb="Pick your venue once. This device opens your prep list from then on." />
   const station = isKitchenStation(stationParam) ? stationParam : "MAIN"
+  const section = sectionFromParam(venue, typeof sp.section === "string" ? sp.section : null)
 
   const sheet = await getCountSheet({ venue, station })
   const venueLabel = VENUE_LABEL[venue].replace(/\s*\(.*\)$/, "")
@@ -79,7 +80,7 @@ export default async function RestockCountPage({
         </p>
       </div>
 
-      <RestockCountSheet initialSheet={sheet} />
+      <RestockCountSheet initialSheet={sheet} initialSection={section} />
     </div>
   )
 }

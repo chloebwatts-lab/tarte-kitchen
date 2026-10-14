@@ -20,6 +20,7 @@ import {
   type SiblingItem,
 } from "@/lib/actions/restock"
 import { PREP_SECTION_OWNER, prepSectionsFor, sectionHint, sectionPrompt, stationLabel, STATION_SHORT_LABEL } from "@/lib/stations"
+import { SectionNav, WHOLE_LIST } from "@/components/kitchen/SectionNav"
 import {
   NEEDED_BY_TIMES,
   formatNeededBy,
@@ -35,8 +36,11 @@ import {
  */
 export function RestockCountSheet({
   initialSheet,
+  initialSection = null,
 }: {
   initialSheet: CountSheet
+  /** A section to open on (from ?section=), or null for the whole list. */
+  initialSection?: string | null
 }) {
   const [sheet, setSheet] = useState(initialSheet)
   const [lines, setLines] = useState<CountSheetLine[]>(initialSheet.lines)
@@ -54,7 +58,24 @@ export function RestockCountSheet({
   // A sectioned list (Beach House, Burleigh): a new prep goes into the
   // section the chef picks, who makes it or which station it is for.
   const sections = prepSectionsFor(initialSheet.venue)
-  const [newItemSection, setNewItemSection] = useState<string>(sections[0] ?? "Station restock")
+  // Section buttons at the top (Chloe, 14 Oct 2026): a section shows only
+  // its own items; Whole list shows everything. Kept in ?section= so a
+  // kitchen can bookmark its own view.
+  const [section, setSection] = useState<string>(
+    initialSection && (sections as readonly string[]).includes(initialSection) ? initialSection : WHOLE_LIST
+  )
+  const [newItemSection, setNewItemSection] = useState<string>(
+    initialSection && (sections as readonly string[]).includes(initialSection) ? initialSection : (sections[0] ?? "Station restock")
+  )
+
+  function pickSection(next: string) {
+    setSection(next)
+    if (next !== WHOLE_LIST) setNewItemSection(next)
+    const url = new URL(window.location.href)
+    if (next === WHOLE_LIST) url.searchParams.delete("section")
+    else url.searchParams.set("section", next)
+    window.history.replaceState(null, "", url.toString())
+  }
   // Debounce timers per (itemId, field)
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
@@ -67,11 +88,18 @@ export function RestockCountSheet({
   const groups = useMemo(() => {
     const map = new Map<string, CountSheetLine[]>()
     for (const l of lines) {
+      if (section !== WHOLE_LIST && l.category !== section) continue
       const arr = map.get(l.category) ?? []
       arr.push(l)
       map.set(l.category, arr)
     }
     return Array.from(map.entries())
+  }, [lines, section])
+
+  const sectionCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const l of lines) counts[l.category] = (counts[l.category] ?? 0) + 1
+    return counts
   }, [lines])
 
   const requestedCount =
@@ -261,6 +289,10 @@ export function RestockCountSheet({
 
   return (
     <div className="space-y-6 pb-32">
+      {sections.length > 0 && (
+        <SectionNav sections={sections} current={section} counts={sectionCounts} onPick={pickSection} />
+      )}
+
       {/* Progress strip */}
       <div className="rounded-[20px] border border-[var(--tk-line)] bg-white p-5">
         <div className="flex items-center justify-between text-[12px] font-medium uppercase tracking-widest text-[var(--tk-ink-soft)]">

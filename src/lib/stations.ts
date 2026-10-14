@@ -142,3 +142,14 @@ export function sectionRank(category: string): number {
   if (category === "Station restock") return ALL_PREP_SECTIONS.length
   return ALL_PREP_SECTIONS.length + 1
 }
+
+/**
+ * The ?section= a chef bookmarked, if it is one of the venue's sections.
+ * Anything else (another venue's section, rubbish, nothing) is the whole
+ * list.
+ */
+export function sectionFromParam(venue: Venue, raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const sections: readonly string[] = prepSectionsFor(venue)
+  return sections.includes(raw) ? raw : null
+}
