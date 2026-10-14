@@ -356,3 +356,60 @@ describe("surname spelling fallback: hyphenated surnames run together (Kim, 14 O
     assert.deepEqual(surnameCandidates("Wu", staff), ["TSAI-CHI WU"], "Wu itself was already tried by the caller")
   })
 })
+
+// ─── Added by test-guard, 14 Oct 2026: edges of the run-together match ──────
+
+describe("surname spelling fallback: edges of the run-together match", () => {
+  const held = [{ lastName: "TSAI-CHI WU" }, { lastName: "Martínez Carretero" }, { lastName: "Wu" }]
+
+  test("a typed word equal to one held word is not a run; it only counts when every typed word is held", () => {
+    // "tsai" is a single held word. On its own the whole-word rule finds the
+    // surname; next to a word Shifts does not hold, neither rule does.
+    assert.deepEqual(surnameCandidates("Tsai", held), ["TSAI-CHI WU"])
+    assert.deepEqual(surnameCandidates("Tsai Nguyen", held), [])
+    assert.deepEqual(surnameCandidates("Wu Nguyen", held), [])
+  })
+
+  test("a run can span every held word, and the fully joined name is an exact match not a partial", () => {
+    const four = [{ lastName: "Tsai-Chi Wu Lee" }, { lastName: "Tsai-Chi Wu" }]
+    // Joined to one word it is the same surname and comes first; the three
+    // word run of the four word surname follows as a partial.
+    assert.deepEqual(surnameCandidates("tsaichiwu", four), ["Tsai-Chi Wu", "Tsai-Chi Wu Lee"])
+    assert.deepEqual(surnameCandidates("TsaiChiWuLee", four), ["Tsai-Chi Wu Lee"])
+    assert.deepEqual(surnameCandidates("Chiwulee", four), ["Tsai-Chi Wu Lee"])
+  })
+
+  test("a typed word longer than the whole joined surname, or past its end, never matches", () => {
+    assert.deepEqual(surnameCandidates("Tsaichiwuxyz", held), [])
+    assert.deepEqual(surnameCandidates("Tsaichiwuu", held), [])
+    assert.deepEqual(surnameCandidates("Tsaichi Wu Lee", held), [], "as many words as Shifts holds, or more, is not a partial match")
+    assert.deepEqual(surnameCandidates("Tsaichiwu Lee Kim", held), [])
+    assert.deepEqual(surnameCandidates("Wutsai", held), [], "the words have to be consecutive and in order")
+    assert.deepEqual(surnameCandidates("Tsaiwu", held), [], "skipping a middle word is not a run")
+  })
+
+  test("a run is at least four letters so two short halves cannot match by accident", () => {
+    const short = [{ lastName: "Le-Vu An" }, { lastName: "Ng-Ho" }]
+    assert.deepEqual(surnameCandidates("Levu", short), ["Le-Vu An"])
+    assert.deepEqual(surnameCandidates("Vuan", short), ["Le-Vu An"])
+    assert.deepEqual(surnameCandidates("Ngho", short), ["Ng-Ho"], "the whole name joined is the same spelling, whatever its length")
+    assert.deepEqual(surnameCandidates("Lev", short), [])
+  })
+
+  test("the joined form respects accents being dropped, and the cap still holds", () => {
+    assert.deepEqual(surnameCandidates("MartinezCarretero", held), ["Martínez Carretero"])
+    assert.deepEqual(surnameCandidates("martínezcarretero", held), ["Martínez Carretero"])
+    const many = Array.from({ length: 10 }, (_, i) => ({ lastName: `Tsai-Chi Wu ${i}` }))
+    const out = surnameCandidates("Tsaichi", many)
+    assert.equal(out.length, MAX_SURNAME_CANDIDATES)
+    assert.deepEqual(out, ["Tsai-Chi Wu 0", "Tsai-Chi Wu 1", "Tsai-Chi Wu 2"])
+    assert.equal(surnameCandidates("TsaiChiWu0", many).length, 1, "an exact joined match is one candidate, not the cap")
+  })
+
+  test("blank, null and whitespace surnames in the list never throw on the joined path", () => {
+    const blanks = [{ lastName: "" }, { lastName: "   " }, { lastName: null }, { lastName: "TSAI-CHI WU" }] as unknown as Array<Pick<ShiftsStaff, "lastName">>
+    assert.deepEqual(surnameCandidates("Tsaichi", blanks), ["TSAI-CHI WU"])
+    assert.deepEqual(surnameCandidates("TsaiChiWu", blanks), ["TSAI-CHI WU"])
+    assert.deepEqual(surnameCandidates("", blanks), [])
+  })
+})

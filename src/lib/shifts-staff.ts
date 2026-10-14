@@ -85,11 +85,10 @@ export function surnameCandidates(typed: string, staff: ReadonlyArray<Pick<Shift
       same.push(held)
       continue
     }
+    // Every typed word is one of the held words, or ("Tsaichi" for Tsai-Chi
+    // Wu, Kim, 14 Oct 2026) a run of them written as one.
     const words = f.split(" ")
-    if (words.length > typedWords.length && typedWords.every((w) => words.includes(w))) part.push(held)
-    // "Tsaichi Wu" for "Tsai-Chi Wu": the typed words, run together, are a
-    // run of the held words (Kim, 14 Oct 2026).
-    else if (words.length > typedWords.length && typedWords.some((w) => w.length >= 4 && isRunOf(w, words))) part.push(held)
+    if (words.length > typedWords.length && typedWords.every((w) => words.includes(w) || (w.length >= 4 && isRunOf(w, words)))) part.push(held)
   }
   return [...same, ...part].slice(0, MAX_SURNAME_CANDIDATES)
 }

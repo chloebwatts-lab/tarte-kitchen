@@ -1578,7 +1578,7 @@ model PastryProductPhoto {
 model PastryPrepTask {
   id        String    @id @default(cuid())
   venue     Venue
-  /// DAILY | AFTERNOON
+  /// DAILY | AFTERNOON | PASTRY_ROOM (src/lib/pastry/section.ts)
   list      String
   label     String
   sortOrder Int       @default(0)
@@ -1600,7 +1600,7 @@ model PastryPrepTask {
 model PastryListNote {
   id        String   @id @default(cuid())
   venue     Venue
-  /// DAILY | AFTERNOON
+  /// DAILY | AFTERNOON | PASTRY_ROOM (src/lib/pastry/section.ts)
   list      String
   text      String   @default("")
   updatedBy String?

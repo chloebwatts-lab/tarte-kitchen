@@ -122,3 +122,26 @@ test("emptyLists has one entry per list, pastry room included", () => {
   lists.DAILY.push("x")
   assert.deepEqual(lists.AFTERNOON, [], "each list gets its own value")
 })
+
+test("isPrepList accepts exactly the keys in PREP_LISTS and nothing that merely looks like one", () => {
+  const { isPrepList, PREP_LISTS } = require("./section") as typeof import("./section")
+  for (const l of PREP_LISTS) assert.equal(isPrepList(l.key), true, l.key)
+  assert.equal(PREP_LISTS.length, 3)
+  assert.equal(isPrepList("PASTRY ROOM"), false)
+  assert.equal(isPrepList("pastry_room"), false)
+  assert.equal(isPrepList(""), false)
+  assert.equal(isPrepList(undefined), false)
+  assert.equal(isPrepList({ key: "DAILY" }), false)
+  assert.equal(new Set(PREP_LISTS.map((l) => l.key)).size, PREP_LISTS.length, "list keys are unique")
+})
+
+test("emptyLists calls the maker once per list and works for primitives", () => {
+  const { emptyLists, PREP_LISTS } = require("./section") as typeof import("./section")
+  let calls = 0
+  const notes = emptyLists<string>(() => {
+    calls++
+    return ""
+  })
+  assert.equal(calls, PREP_LISTS.length)
+  assert.deepEqual(notes, { DAILY: "", AFTERNOON: "", PASTRY_ROOM: "" })
+})
