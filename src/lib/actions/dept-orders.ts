@@ -1,6 +1,8 @@
 "use server"
 
-import { assertPage, assertTier } from "@/lib/tier-auth"
+import { assertPage, assertTier, getTier } from "@/lib/tier-auth"
+import { getPerson } from "@/lib/person-session"
+import { mayEditPar, parsePar } from "@/lib/dept-par"
 
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
@@ -74,6 +76,8 @@ export type DeptFormRow = {
   enteredBy: string | null
   /** Set once the line has gone out on an order, locks the row. */
   orderedAt: string | null
+  /** Par level in packs for this venue, set by the department head. Null = none set. */
+  par: number | null
 }
 
 export type DeptForm = {
@@ -87,6 +91,8 @@ export type DeptForm = {
   rows: DeptFormRow[]
   /** False = packPrice arrives as 0 on every row. */
   showPrices: boolean
+  /** True for the department head (and the owner): the Par column is editable. */
+  canEditPar: boolean
 }
 
 export type EodSupplierLine = {
@@ -236,7 +242,7 @@ export async function getDeptForm(params: {
   const date = todayAest()
   const showPrices = await isManagerAuthed()
 
-  const [owner, items, request] = await Promise.all([
+  const [owner, items, request, pars, tier, person] = await Promise.all([
     db.deptOrderOwner.findUnique({
       where: { venue_dept: { venue, dept } },
       select: { ownerName: true },
@@ -246,9 +252,18 @@ export async function getDeptForm(params: {
       where: { venue_dept_requestDate: { venue, dept, requestDate: date } },
       include: { lines: true },
     }),
+    db.deptItemPar.findMany({ where: { venue }, select: { approvedItemId: true, par: true } }),
+    getTier(),
+    getPerson(),
   ])
 
   const lineByItem = new Map((request?.lines ?? []).map((l) => [l.approvedItemId, l]))
+  const parByItem = new Map(pars.map((p) => [p.approvedItemId, Number(p.par)]))
+  const canEditPar = mayEditPar({
+    ownerName: owner?.ownerName,
+    person: person ? { id: person.id, name: person.name } : null,
+    tier,
+  })
 
   const rows: DeptFormRow[] = items
     .filter((it) => it.resolvedDept === dept)
@@ -267,6 +282,7 @@ export async function getDeptForm(params: {
         note: line?.note ?? null,
         enteredBy: line?.enteredBy ?? null,
         orderedAt: line?.orderedAt?.toISOString() ?? null,
+        par: parByItem.get(it.id) ?? null,
       }
     })
 
@@ -280,7 +296,71 @@ export async function getDeptForm(params: {
     notes: request?.notes ?? null,
     rows,
     showPrices,
+    canEditPar,
   }
+}
+
+/**
+ * Set or clear the par level for one item at one venue. Department head
+ * only (Jess for pastry, 14 Oct 2026), checked here as well as on the form:
+ * an action can be called with just the staff cookie.
+ */
+export async function saveItemPar(params: {
+  venue: Venue
+  dept: OrderDept
+  approvedItemId: string
+  /** Packs. Null, 0 or rubbish clears it. */
+  par: number | string | null
+}): Promise<{ ok: boolean; error?: string; par: number | null }> {
+  await assertTier("STAFF")
+  const { venue, dept, approvedItemId } = params
+  const [owner, tier, person, item] = await Promise.all([
+    db.deptOrderOwner.findUnique({ where: { venue_dept: { venue, dept } }, select: { ownerName: true } }),
+    getTier(),
+    getPerson(),
+    db.approvedSupplierItem.findUnique({ where: { id: approvedItemId }, select: { id: true, name: true, category: true, dept: true } }),
+  ])
+  if (!item) return { ok: false, error: "Item not found", par: null }
+  if (deptForItem(item) !== dept) return { ok: false, error: `${item.name} isn't a ${DEPT_LABEL[dept]} item`, par: null }
+  const allowed = mayEditPar({
+    ownerName: owner?.ownerName,
+    person: person ? { id: person.id, name: person.name } : null,
+    tier,
+  })
+  if (!allowed) {
+    return { ok: false, error: `Only ${owner?.ownerName ?? "the department head"} can change par levels.`, par: null }
+  }
+  const par = parsePar(params.par)
+  if (par == null) {
+    await db.deptItemPar.deleteMany({ where: { venue, approvedItemId } })
+  } else {
+    await db.deptItemPar.upsert({
+      where: { venue_approvedItemId: { venue, approvedItemId } },
+      create: { venue, approvedItemId, par: new Decimal(par), updatedBy: person?.name ?? null },
+      update: { par: new Decimal(par), updatedBy: person?.name ?? null },
+    })
+  }
+  revalidatePath("/kitchen/order")
+  return { ok: true, par }
+}
+
+/** The notes box at the bottom of the form: today's request notes, saved as typed. */
+export async function saveDeptNotes(params: {
+  venue: Venue
+  dept: OrderDept
+  notes: string
+}): Promise<{ ok: boolean; error?: string }> {
+  await assertTier("STAFF")
+  const request = await findOrCreateRequest(params.venue, params.dept)
+  if (request.status === "APPROVED")
+    return { ok: false, error: "Already approved. Reopen it to make changes." }
+  const notes = params.notes.replace(/\r\n?/g, "\n").slice(0, 2000).trimEnd()
+  await db.deptOrderRequest.update({
+    where: { id: request.id },
+    data: { notes: notes || null },
+  })
+  revalidatePath("/kitchen/order")
+  return { ok: true }
 }
 
 /** Create today's request lazily, the first time anyone enters something. */

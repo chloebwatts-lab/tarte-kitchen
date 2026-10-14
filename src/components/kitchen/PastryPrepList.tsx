@@ -1,33 +1,87 @@
 "use client"
 
-import { useOptimistic, useState, useTransition } from "react"
-import { Plus, X } from "lucide-react"
+import { useEffect, useOptimistic, useRef, useState, useTransition } from "react"
+import { Check, Loader2, Plus, X } from "lucide-react"
 import { KitchenTick } from "@/components/kitchen/KitchenTick"
-import { addPrepTask, removePrepTask, setPrepTick, type PrepTaskRow } from "@/lib/actions/pastry-section"
-import { MAX_TASK_LENGTH, type PrepListKey } from "@/lib/pastry/section"
+import {
+  addPrepTask,
+  removePrepTask,
+  savePrepListNote,
+  setPrepPriority,
+  setPrepTick,
+  type PrepTaskRow,
+} from "@/lib/actions/pastry-section"
+import {
+  DEFAULT_PRIORITY,
+  MAX_LIST_NOTE_LENGTH,
+  MAX_TASK_LENGTH,
+  PRIORITIES,
+  PRIORITY_LABEL,
+  byPriority,
+  nextPriority,
+  type PrepListKey,
+  type Priority,
+} from "@/lib/pastry/section"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
 
+/** The number's colour: urgent reads red, medium gold, not urgent quiet. */
+const PRIORITY_STYLE: Record<Priority, { bg: string; fg: string }> = {
+  1: { bg: "var(--tk-warn)", fg: "white" },
+  2: { bg: "var(--tk-gold-soft)", fg: "#8a6d1f" },
+  3: { bg: "var(--tk-bg)", fg: "var(--tk-ink-soft)" },
+}
+
+function PriorityBadge({
+  priority,
+  onClick,
+  label,
+  size = 32,
+}: {
+  priority: Priority
+  onClick?: () => void
+  label: string
+  size?: number
+}) {
+  const s = PRIORITY_STYLE[priority]
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={PRIORITY_LABEL[priority]}
+      className="flex shrink-0 items-center justify-center rounded-full text-[15px] font-bold tabular-nums transition active:scale-95"
+      style={{ width: size, height: size, background: s.bg, color: s.fg }}
+    >
+      {priority}
+    </button>
+  )
+}
+
 /**
- * One loose prep list. Add a line, tick it when it's done, take it off when
- * it's no longer needed. Deliberately no "complete" state and no sign-off:
- * it is the team's own running list, not a checklist.
+ * One loose prep list. Add a line with a priority number (1 urgent, 2
+ * medium, 3 not urgent), tick it when it's done, take it off when it's no
+ * longer needed, and leave free text underneath. Deliberately no "complete"
+ * state and no sign-off: it is the team's own running list, not a checklist.
  */
 export function PastryPrepList({
   venue,
   list,
   title,
   tasks,
+  notes,
 }: {
   venue: Venue
   list: PrepListKey
   title: string
   tasks: PrepTaskRow[]
+  notes: string
 }) {
   const [, start] = useTransition()
   const [rows, setRows] = useOptimistic(tasks)
   const [label, setLabel] = useState("")
   const [everyDay, setEveryDay] = useState(true)
+  const [priority, setPriority] = useState<Priority>(DEFAULT_PRIORITY)
   const [removing, setRemoving] = useState<string | null>(null)
 
   const done = rows.filter((r) => r.done).length
@@ -38,6 +92,15 @@ export function PastryPrepList({
     start(async () => {
       setRows(rows.map((r) => (r.id === row.id ? { ...r, done: !row.done, doneBy: null } : r)))
       await setPrepTick(row.id, !row.done)
+    })
+  }
+
+  function cycle(row: PrepTaskRow) {
+    if (row.id.startsWith("new-")) return
+    const next = nextPriority(row.priority)
+    start(async () => {
+      setRows(byPriority(rows.map((r) => (r.id === row.id ? { ...r, priority: next } : r))))
+      await setPrepPriority(row.id, next)
     })
   }
 
@@ -54,9 +117,11 @@ export function PastryPrepList({
     const text = label.trim()
     if (!text) return
     setLabel("")
+    const p = priority
+    setPriority(DEFAULT_PRIORITY)
     start(async () => {
-      setRows([...rows, { id: `new-${Date.now()}`, label: text, everyDay, done: false, doneBy: null }])
-      await addPrepTask({ venue, list, label: text, everyDay })
+      setRows(byPriority([...rows, { id: `new-${Date.now()}`, label: text, priority: p, everyDay, done: false, doneBy: null }]))
+      await addPrepTask({ venue, list, label: text, everyDay, priority: p })
     })
   }
 
@@ -87,6 +152,11 @@ export function PastryPrepList({
           {rows.map((r) => (
             <li key={r.id} className="flex items-center gap-3 border-t border-[var(--tk-line)] px-4 py-2.5">
               <KitchenTick done={r.done} onClick={() => tick(r)} size={42} />
+              <PriorityBadge
+                priority={r.priority}
+                onClick={() => cycle(r)}
+                label={`${r.label}: priority ${r.priority}, ${PRIORITY_LABEL[r.priority]}. Tap to change`}
+              />
               <button type="button" onClick={() => tick(r)} className="min-w-0 flex-1 text-left">
                 <div
                   className={`text-[17px] leading-snug ${
@@ -161,16 +231,94 @@ export function PastryPrepList({
           </button>
         </div>
         {label.trim() && (
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setEveryDay(true)} aria-pressed={everyDay} className={chip(everyDay)}>
-              Every day
-            </button>
-            <button type="button" onClick={() => setEveryDay(false)} aria-pressed={!everyDay} className={chip(!everyDay)}>
-              Just today
-            </button>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[13px] text-[var(--tk-ink-soft)]">Priority</span>
+              {PRIORITIES.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPriority(p)}
+                  aria-pressed={priority === p}
+                  className={`flex min-h-[34px] items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition ${
+                    priority === p ? "ring-2 ring-[var(--tk-charcoal)]" : ""
+                  }`}
+                  style={{ background: PRIORITY_STYLE[p].bg, color: PRIORITY_STYLE[p].fg }}
+                >
+                  <span className="tabular-nums">{p}</span>
+                  <span className="font-medium">{PRIORITY_LABEL[p]}</span>
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setEveryDay(true)} aria-pressed={everyDay} className={chip(everyDay)}>
+                Every day
+              </button>
+              <button type="button" onClick={() => setEveryDay(false)} aria-pressed={!everyDay} className={chip(!everyDay)}>
+                Just today
+              </button>
+            </div>
           </div>
         )}
       </form>
+
+      <ListNotes venue={venue} list={list} title={title} initial={notes} />
+    </div>
+  )
+}
+
+/**
+ * Free text under the list. Saves itself a moment after typing stops, so
+ * nobody has to find a button; the last person to type wins.
+ */
+function ListNotes({ venue, list, title, initial }: { venue: Venue; list: PrepListKey; title: string; initial: string }) {
+  const [text, setText] = useState(initial)
+  const [state, setState] = useState<"idle" | "saving" | "saved">("idle")
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const latest = useRef(initial)
+
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current)
+  }, [])
+
+  function change(next: string) {
+    setText(next)
+    latest.current = next
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(async () => {
+      setState("saving")
+      await savePrepListNote({ venue, list, text: latest.current })
+      setState("saved")
+    }, 700)
+  }
+
+  return (
+    <div className="border-t border-[var(--tk-line)] px-4 py-3.5">
+      <div className="mb-1.5 flex items-center justify-between">
+        <label htmlFor={`notes-${list}`} className="text-[13px] font-semibold uppercase tracking-[0.08em] text-[var(--tk-ink-soft)]">
+          Notes
+        </label>
+        <span className="text-[12px] text-[var(--tk-ink-mute)]">
+          {state === "saving" ? (
+            <span className="inline-flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" /> saving
+            </span>
+          ) : state === "saved" ? (
+            <span className="inline-flex items-center gap-1 text-[var(--tk-done)]">
+              <Check className="h-3 w-3" /> saved
+            </span>
+          ) : null}
+        </span>
+      </div>
+      <textarea
+        id={`notes-${list}`}
+        value={text}
+        onChange={(e) => change(e.target.value)}
+        maxLength={MAX_LIST_NOTE_LENGTH}
+        rows={3}
+        placeholder={`Anything the ${title.toLowerCase()} team should know. Saves as you type.`}
+        className="w-full resize-y rounded-[12px] border border-[var(--tk-line)] bg-[var(--tk-bg)] px-3.5 py-2.5 text-[15px] leading-snug text-[var(--tk-charcoal)] outline-none focus:border-[var(--tk-charcoal)]"
+      />
     </div>
   )
 }

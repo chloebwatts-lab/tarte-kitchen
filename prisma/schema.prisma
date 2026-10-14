@@ -81,6 +81,7 @@ model ApprovedSupplierItem {
   updatedAt    DateTime  @updatedAt
 
   deptOrderLines DeptOrderLine[]
+  pars           DeptItemPar[]
 
   @@unique([supplierId, name])
   @@index([supplierId])
@@ -1581,6 +1582,8 @@ model PastryPrepTask {
   list      String
   label     String
   sortOrder Int       @default(0)
+  /// 1 = urgent, 2 = medium, 3 = not urgent (Jess, 14 Oct 2026). Lists sort by it.
+  priority  Int       @default(2)
   onlyDay   DateTime? @db.Date
   isActive  Boolean   @default(true)
   createdBy String?
@@ -1590,6 +1593,21 @@ model PastryPrepTask {
   ticks PastryPrepTick[]
 
   @@index([venue, list, isActive])
+}
+
+/// Free text under one pastry prep list ("Notes" at the bottom, Jess,
+/// 14 Oct 2026). One row per venue and list, overwritten as people type.
+model PastryListNote {
+  id        String   @id @default(cuid())
+  venue     Venue
+  /// DAILY | AFTERNOON
+  list      String
+  text      String   @default("")
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([venue, list])
 }
 
 /// A task ticked off on one Brisbane day. No row = not done yet.
@@ -2741,6 +2759,24 @@ model DeptOrderRequest {
 
   @@unique([venue, dept, requestDate])
   @@index([venue, requestDate])
+}
+
+/// Par level: the stock a venue keeps of one approved item, in packs, set by
+/// the department head (Jess for pastry, 14 Oct 2026) and shown beside the
+/// order quantity so the team can see what to top up to. Per venue, since
+/// Burleigh and Beach House hold different amounts.
+model DeptItemPar {
+  id             String               @id @default(cuid())
+  venue          Venue
+  approvedItemId String
+  item           ApprovedSupplierItem @relation(fields: [approvedItemId], references: [id], onDelete: Cascade)
+  par            Decimal              @db.Decimal(10, 2)
+  updatedBy      String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@unique([venue, approvedItemId])
+  @@index([approvedItemId])
 }
 
 model DeptOrderLine {

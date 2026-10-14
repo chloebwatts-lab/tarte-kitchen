@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   AlertTriangle,
   Check,
@@ -17,6 +17,8 @@ import {
   approveDeptRequest,
   reopenDeptRequest,
   saveDeptLine,
+  saveDeptNotes,
+  saveItemPar,
   type DeptForm,
   type DeptFormRow,
 } from "@/lib/actions/dept-orders"
@@ -40,9 +42,20 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [noteOpen, setNoteOpen] = useState<string | null>(null)
+  const [notes, setNotes] = useState(initialForm.notes ?? "")
+  const [notesState, setNotesState] = useState<"idle" | "saving" | "saved">("idle")
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  const notesRef = useRef(initialForm.notes ?? "")
 
   const locked = status === "APPROVED"
+  // Par levels: the department head's targets. Everyone sees them, only the
+  // head (or the owner) changes them.
+  const canEditPar = initialForm.canEditPar
+
+  useEffect(() => {
+    const map = timers.current
+    return () => map.forEach((t) => clearTimeout(t))
+  }, [])
 
   const added = rows.filter((r) => (r.quantity ?? 0) > 0)
   const total = added.reduce((s, r) => s + (r.quantity ?? 0) * r.packPrice, 0)
@@ -112,6 +125,53 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
     }
   }
 
+  function changeNotes(next: string) {
+    setNotes(next)
+    notesRef.current = next
+    const existing = timers.current.get("notes")
+    if (existing) clearTimeout(existing)
+    timers.current.set(
+      "notes",
+      setTimeout(async () => {
+        setNotesState("saving")
+        const res = await saveDeptNotes({ venue: initialForm.venue, dept: initialForm.dept, notes: notesRef.current })
+        if (!res.ok) setError(res.error ?? "Couldn't save the notes.")
+        setNotesState("saved")
+      }, 700)
+    )
+  }
+
+  function changePar(row: DeptFormRow, raw: string) {
+    const cleaned = raw.replace(/[^0-9.]/g, "")
+    const next = cleaned === "" ? null : Number(cleaned)
+    if (next != null && Number.isNaN(next)) return
+    patch(row.approvedItemId, { par: next })
+    const key = `${row.approvedItemId}|par`
+    const existing = timers.current.get(key)
+    if (existing) clearTimeout(existing)
+    timers.current.set(
+      key,
+      setTimeout(() => {
+        setSavingCount((n) => n + 1)
+        saveItemPar({
+          venue: initialForm.venue,
+          dept: initialForm.dept,
+          approvedItemId: row.approvedItemId,
+          par: next,
+        })
+          .then((res) => {
+            if (!res.ok) setError(res.error ?? "Couldn't save the par level.")
+            else {
+              setError(null)
+              patch(row.approvedItemId, { par: res.par })
+            }
+          })
+          .catch(() => setError("Couldn't save. Check the connection."))
+          .finally(() => setSavingCount((n) => n - 1))
+      }, 600)
+    )
+  }
+
   function bump(row: DeptFormRow, delta: number) {
     if (locked || row.orderedAt) return
     const next = Math.max(0, (row.quantity ?? 0) + delta)
@@ -132,7 +192,7 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
       venue: initialForm.venue,
       dept: initialForm.dept,
       approvedBy: name.trim(),
-      notes: emptyDay ? "Nothing needed today" : null,
+      notes: emptyDay && !notes.trim() ? "Nothing needed today" : notes.trim() || null,
     })
     setBusy(false)
     if (res.ok) {
@@ -180,6 +240,12 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
             It&apos;s on the order sheet now. It goes out once every section is
             in.
           </p>
+          {notes.trim() && notes.trim() !== "Nothing needed today" ? (
+            <p className="mx-auto mt-4 max-w-md whitespace-pre-line rounded-[14px] bg-[var(--tk-bg)] px-4 py-3 text-left text-[14px] leading-snug text-[var(--tk-charcoal)]">
+              <span className="block text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--tk-ink-soft)]">Notes</span>
+              {notes.trim()}
+            </p>
+          ) : null}
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <button
               onClick={handleReopen}
@@ -313,6 +379,11 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
             {supplierName}
           </div>
           <div className="overflow-hidden rounded-[18px] border border-[var(--tk-line)] bg-white">
+            <div className="flex items-center gap-3 border-b border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--tk-ink-mute)]">
+              <div className="min-w-0 flex-1">Item</div>
+              <div className="w-16 shrink-0 text-center">Par</div>
+              <div className="w-[152px] shrink-0 text-center">Order</div>
+            </div>
             {supplierRows.map((row) => {
               const qty = row.quantity ?? 0
               const sent = row.orderedAt != null
@@ -347,8 +418,27 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
                       ) : null}
                     </div>
 
+                    {canEditPar ? (
+                      <input
+                        inputMode="decimal"
+                        value={row.par == null ? "" : String(row.par)}
+                        placeholder="–"
+                        aria-label={`Par level for ${row.name}`}
+                        onChange={(e) => changePar(row, e.target.value)}
+                        className="h-11 w-16 shrink-0 rounded-[12px] border border-dashed border-[var(--tk-line)] bg-[var(--tk-bg)] text-center text-[15px] font-semibold text-[var(--tk-charcoal)] outline-none focus:border-solid focus:border-[var(--tk-charcoal)]"
+                      />
+                    ) : (
+                      <div
+                        className="flex h-11 w-16 shrink-0 items-center justify-center rounded-[12px] bg-[var(--tk-bg)] text-[15px] font-semibold tabular-nums text-[var(--tk-ink-soft)]"
+                        aria-label={`Par level for ${row.name}: ${row.par ?? "not set"}`}
+                        title="Par level, set by the department head"
+                      >
+                        {row.par ?? "–"}
+                      </div>
+                    )}
+
                     {sent ? (
-                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[var(--tk-bg)] px-3 py-1.5 text-[12px] font-semibold text-[var(--tk-ink-soft)]">
+                      <span className="inline-flex w-[152px] shrink-0 items-center justify-center gap-1.5 rounded-full bg-[var(--tk-bg)] px-3 py-1.5 text-[12px] font-semibold text-[var(--tk-ink-soft)]">
                         <Lock className="h-3.5 w-3.5" />
                         Ordered
                       </span>
@@ -419,6 +509,35 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
           </div>
         </div>
       ))}
+
+      {/* Notes for the head and the order sheet */}
+      <div className="rounded-[18px] border border-[var(--tk-line)] bg-white px-4 py-3.5">
+        <div className="mb-1.5 flex items-center justify-between">
+          <label htmlFor="dept-order-notes" className="text-[13px] font-semibold uppercase tracking-[0.08em] text-[var(--tk-ink-soft)]">
+            Notes
+          </label>
+          <span className="text-[12px] text-[var(--tk-ink-mute)]">
+            {notesState === "saving" ? (
+              <span className="inline-flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" /> saving
+              </span>
+            ) : notesState === "saved" ? (
+              <span className="inline-flex items-center gap-1 text-[var(--tk-done)]">
+                <Check className="h-3 w-3" /> saved
+              </span>
+            ) : null}
+          </span>
+        </div>
+        <textarea
+          id="dept-order-notes"
+          value={notes}
+          onChange={(e) => changeNotes(e.target.value)}
+          maxLength={2000}
+          rows={3}
+          placeholder="Anything about today's order: what to chase, what to hold off on. Saves as you type."
+          className="w-full resize-y rounded-[12px] border border-[var(--tk-line)] bg-[var(--tk-bg)] px-3.5 py-2.5 text-[15px] leading-snug text-[var(--tk-charcoal)] outline-none focus:border-[var(--tk-charcoal)]"
+        />
+      </div>
 
       {/* Sticky footer: running total + approve */}
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--tk-line)] bg-white/95 px-5 py-4 backdrop-blur">

@@ -49,3 +49,48 @@ export function noteVisible(note: { doneAt: Date | null }, now = new Date()): bo
   if (!note.doneAt) return true
   return now.getTime() - note.doneAt.getTime() < SORTED_NOTE_DAYS * 86_400_000
 }
+
+// ─── Priority (Jess, 14 Oct 2026) ───────────────────────────────────────────
+
+/** 1 = urgent, 2 = medium, 3 = not urgent. The number is what shows on the list. */
+export const PRIORITIES = [1, 2, 3] as const
+export type Priority = (typeof PRIORITIES)[number]
+export const DEFAULT_PRIORITY: Priority = 2
+
+export const PRIORITY_LABEL: Record<Priority, string> = {
+  1: "Urgent",
+  2: "Medium",
+  3: "Not urgent",
+}
+
+export function isPriority(v: unknown): v is Priority {
+  return v === 1 || v === 2 || v === 3
+}
+
+/** Anything that is not exactly 1, 2 or 3 (a string "1" included) is medium. */
+export function toPriority(v: unknown): Priority {
+  const n = typeof v === "string" ? Number(v) : v
+  return isPriority(n) ? n : DEFAULT_PRIORITY
+}
+
+/** Tapping the number walks 1, 2, 3, 1. */
+export function nextPriority(p: Priority): Priority {
+  return p === 1 ? 2 : p === 2 ? 3 : 1
+}
+
+/** Urgent first; inside a priority the list keeps the order jobs were added. */
+export function byPriority<T extends { priority: number }>(rows: readonly T[]): T[] {
+  return rows
+    .map((r, i) => ({ r, i }))
+    .sort((a, b) => a.r.priority - b.r.priority || a.i - b.i)
+    .map(({ r }) => r)
+}
+
+// ─── Notes under a list ─────────────────────────────────────────────────────
+
+export const MAX_LIST_NOTE_LENGTH = 1000
+
+/** Free text keeps its line breaks; only trailing space and the cap go. */
+export function cleanNote(raw: string): string {
+  return raw.replace(/\r\n?/g, "\n").replace(/[ \t]+\n/g, "\n").slice(0, MAX_LIST_NOTE_LENGTH).trimEnd()
+}

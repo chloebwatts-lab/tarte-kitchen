@@ -10,11 +10,15 @@ import {
   MAX_PRODUCT_NAME_LENGTH,
   MAX_TASK_LENGTH,
   SORTED_NOTE_DAYS,
+  byPriority,
+  cleanNote,
   cleanText,
   isPrepList,
   noteVisible,
   taskOnDay,
+  toPriority,
   type PrepListKey,
+  type Priority,
 } from "@/lib/pastry/section"
 
 type SingleVenue = Exclude<Venue, "BOTH">
@@ -22,6 +26,8 @@ type SingleVenue = Exclude<Venue, "BOTH">
 export interface PrepTaskRow {
   id: string
   label: string
+  /** 1 urgent, 2 medium, 3 not urgent. */
+  priority: Priority
   everyDay: boolean
   done: boolean
   doneBy: string | null
@@ -39,6 +45,8 @@ export interface PastryNoteRow {
 export interface PastrySection {
   day: string
   lists: Record<PrepListKey, PrepTaskRow[]>
+  /** The free text under each list. */
+  listNotes: Record<PrepListKey, string>
   notes: PastryNoteRow[]
 }
 
@@ -64,7 +72,7 @@ function refresh() {
 /** Today's two prep lists with their ticks, plus the notes for Jess. */
 export async function getPastrySection(venue: SingleVenue): Promise<PastrySection> {
   const day = brisbaneDay()
-  const [tasks, notes] = await Promise.all([
+  const [tasks, notes, listNoteRows] = await Promise.all([
     db.pastryPrepTask.findMany({
       where: { venue, isActive: true, OR: [{ onlyDay: null }, { onlyDay: dayDate(day) }] },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
@@ -77,6 +85,7 @@ export async function getPastrySection(venue: SingleVenue): Promise<PastrySectio
       },
       orderBy: { createdAt: "desc" },
     }),
+    db.pastryListNote.findMany({ where: { venue } }),
   ])
 
   const lists: Record<PrepListKey, PrepTaskRow[]> = { DAILY: [], AFTERNOON: [] }
@@ -86,15 +95,22 @@ export async function getPastrySection(venue: SingleVenue): Promise<PastrySectio
     lists[t.list].push({
       id: t.id,
       label: t.label,
+      priority: toPriority(t.priority),
       everyDay: t.onlyDay === null,
       done: !!tick,
       doneBy: tick?.doneBy ?? null,
     })
   }
+  lists.DAILY = byPriority(lists.DAILY)
+  lists.AFTERNOON = byPriority(lists.AFTERNOON)
+
+  const listNotes: Record<PrepListKey, string> = { DAILY: "", AFTERNOON: "" }
+  for (const n of listNoteRows) if (isPrepList(n.list)) listNotes[n.list] = n.text
 
   return {
     day,
     lists,
+    listNotes,
     notes: notes
       .filter((n) => noteVisible(n))
       .sort((a, b) => Number(!!a.doneAt) - Number(!!b.doneAt))
@@ -114,6 +130,8 @@ export async function addPrepTask(params: {
   list: PrepListKey
   label: string
   everyDay: boolean
+  /** 1, 2 or 3; anything else lands as medium. */
+  priority?: number
 }): Promise<void> {
   const label = cleanText(params.label, MAX_TASK_LENGTH)
   if (!label || !isPrepList(params.list)) return
@@ -127,10 +145,31 @@ export async function addPrepTask(params: {
       venue: params.venue,
       list: params.list,
       label,
+      priority: toPriority(params.priority),
       sortOrder: (last?.sortOrder ?? 0) + 1,
       onlyDay: params.everyDay ? null : dayDate(brisbaneDay()),
       createdBy: await who(),
     },
+  })
+  refresh()
+}
+
+/** Change a job's priority number (1 urgent, 2 medium, 3 not urgent). */
+export async function setPrepPriority(taskId: string, priority: number): Promise<void> {
+  if (!taskId) return
+  await db.pastryPrepTask.updateMany({ where: { id: taskId }, data: { priority: toPriority(priority) } })
+  refresh()
+}
+
+/** The free text under one list. Saved as typed; last writer wins. */
+export async function savePrepListNote(params: { venue: SingleVenue; list: PrepListKey; text: string }): Promise<void> {
+  if (!isPrepList(params.list)) return
+  const text = cleanNote(params.text)
+  const updatedBy = await who()
+  await db.pastryListNote.upsert({
+    where: { venue_list: { venue: params.venue, list: params.list } },
+    create: { venue: params.venue, list: params.list, text, updatedBy },
+    update: { text, updatedBy },
   })
   refresh()
 }

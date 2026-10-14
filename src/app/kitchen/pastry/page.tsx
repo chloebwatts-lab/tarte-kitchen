@@ -152,11 +152,18 @@ export default async function PastrySectionPage({
       <div className="space-y-3">
         <div className="grid gap-4 md:grid-cols-2 md:items-start">
           {PREP_LISTS.map((l) => (
-            <PastryPrepList key={l.key} venue={venue} list={l.key} title={l.title} tasks={section.lists[l.key]} />
+            <PastryPrepList
+              key={l.key}
+              venue={venue}
+              list={l.key}
+              title={l.title}
+              tasks={section.lists[l.key]}
+              notes={section.listNotes[l.key]}
+            />
           ))}
         </div>
         <p className="px-1 text-[13px] leading-snug text-[var(--tk-ink-mute)]">
-          These two lists are yours: add jobs, tick them as you go. Nothing has to be finished or signed off, and the ticks clear overnight.
+          These two lists are yours: add jobs, tick them as you go. The number is the priority (1 urgent, 2 medium, 3 not urgent); tap it to change it. Nothing has to be finished or signed off, and the ticks clear overnight.
         </p>
       </div>
 
