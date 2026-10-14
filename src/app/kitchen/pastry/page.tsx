@@ -163,7 +163,7 @@ export default async function PastrySectionPage({
           ))}
         </div>
         <p className="px-1 text-[13px] leading-snug text-[var(--tk-ink-mute)]">
-          These two lists are yours: add jobs, tick them as you go. The number is the priority (1 urgent, 2 medium, 3 not urgent); tap it to change it. Nothing has to be finished or signed off, and the ticks clear overnight.
+          These lists are yours: add jobs, tick them as you go. The number is the priority (1 urgent, 2 medium, 3 not urgent); tap it to change it. Nothing has to be finished or signed off, and the ticks clear overnight.
         </p>
       </div>
 

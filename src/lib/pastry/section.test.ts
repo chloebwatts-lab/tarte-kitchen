@@ -9,9 +9,10 @@ test("cleanText trims, collapses whitespace and caps length", () => {
   assert.equal(cleanText("ab   cd", 3), "ab")
 })
 
-test("isPrepList only accepts the two lists", () => {
+test("isPrepList only accepts the three lists", () => {
   assert.equal(isPrepList("DAILY"), true)
   assert.equal(isPrepList("AFTERNOON"), true)
+  assert.equal(isPrepList("PASTRY_ROOM"), true)
   assert.equal(isPrepList("daily"), false)
   assert.equal(isPrepList(null), false)
 })
@@ -111,4 +112,13 @@ test("cleanNote: inner blank lines and leading indent stay, line-end tabs and CR
   assert.equal(cleanNote(""), "")
   const capped = cleanNote("x".repeat(MAX_LIST_NOTE_LENGTH - 1) + "   y")
   assert.equal(capped.length, MAX_LIST_NOTE_LENGTH - 1, "the cap never leaves a trailing space behind")
+})
+
+test("emptyLists has one entry per list, pastry room included", () => {
+  const { emptyLists, PREP_LISTS } = require("./section") as typeof import("./section")
+  const lists = emptyLists<string[]>(() => [])
+  assert.deepEqual(Object.keys(lists), PREP_LISTS.map((l) => l.key))
+  assert.deepEqual(lists.PASTRY_ROOM, [])
+  lists.DAILY.push("x")
+  assert.deepEqual(lists.AFTERNOON, [], "each list gets its own value")
 })

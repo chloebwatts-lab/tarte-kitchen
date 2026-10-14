@@ -7,12 +7,19 @@
 export const PREP_LISTS = [
   { key: "DAILY", title: "Daily prep" },
   { key: "AFTERNOON", title: "Afternoon prep" },
+  // Jess, 14 Oct 2026: the pastry room's own list.
+  { key: "PASTRY_ROOM", title: "Pastry room prep list" },
 ] as const
 
 export type PrepListKey = (typeof PREP_LISTS)[number]["key"]
 
 export function isPrepList(v: unknown): v is PrepListKey {
-  return v === "DAILY" || v === "AFTERNOON"
+  return PREP_LISTS.some((l) => l.key === v)
+}
+
+/** An empty record with one entry per list, for building the section. */
+export function emptyLists<T>(make: () => T): Record<PrepListKey, T> {
+  return Object.fromEntries(PREP_LISTS.map((l) => [l.key, make()])) as Record<PrepListKey, T>
 }
 
 /** Who the pastry notes are for. */

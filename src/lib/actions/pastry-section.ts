@@ -13,6 +13,7 @@ import {
   byPriority,
   cleanNote,
   cleanText,
+  emptyLists,
   isPrepList,
   noteVisible,
   taskOnDay,
@@ -69,7 +70,7 @@ function refresh() {
   revalidatePath("/kitchen/pastry/products")
 }
 
-/** Today's two prep lists with their ticks, plus the notes for Jess. */
+/** Today's prep lists with their ticks, plus the notes for Jess. */
 export async function getPastrySection(venue: SingleVenue): Promise<PastrySection> {
   const day = brisbaneDay()
   const [tasks, notes, listNoteRows] = await Promise.all([
@@ -88,7 +89,7 @@ export async function getPastrySection(venue: SingleVenue): Promise<PastrySectio
     db.pastryListNote.findMany({ where: { venue } }),
   ])
 
-  const lists: Record<PrepListKey, PrepTaskRow[]> = { DAILY: [], AFTERNOON: [] }
+  const lists = emptyLists<PrepTaskRow[]>(() => [])
   for (const t of tasks) {
     if (!isPrepList(t.list) || !taskOnDay(t, day)) continue
     const tick = t.ticks[0] ?? null
@@ -101,10 +102,9 @@ export async function getPastrySection(venue: SingleVenue): Promise<PastrySectio
       doneBy: tick?.doneBy ?? null,
     })
   }
-  lists.DAILY = byPriority(lists.DAILY)
-  lists.AFTERNOON = byPriority(lists.AFTERNOON)
+  for (const key of Object.keys(lists) as PrepListKey[]) lists[key] = byPriority(lists[key])
 
-  const listNotes: Record<PrepListKey, string> = { DAILY: "", AFTERNOON: "" }
+  const listNotes = emptyLists<string>(() => "")
   for (const n of listNoteRows) if (isPrepList(n.list)) listNotes[n.list] = n.text
 
   return {
