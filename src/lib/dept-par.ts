@@ -31,6 +31,9 @@ export function mayEditPar(args: { ownerName: string | null | undefined; person:
   return meetsTier(args.tier, "MANAGER")
 }
 
+/** Nobody holds a hundred thousand packs of anything; above this is a typo. */
+export const MAX_PAR = 99_999
+
 /**
  * A par typed on the form: packs, never negative, two decimals. Null clears
  * it. Rubbish ("abc", "-2") also clears rather than saving something odd.
@@ -38,6 +41,8 @@ export function mayEditPar(args: { ownerName: string | null | undefined; person:
 export function parsePar(raw: string | number | null | undefined): number | null {
   if (raw == null) return null
   const n = typeof raw === "number" ? raw : Number(String(raw).trim())
-  if (!Number.isFinite(n) || n <= 0) return null
-  return Math.round(n * 100) / 100
+  if (!Number.isFinite(n)) return null
+  const rounded = Math.round(n * 100) / 100
+  if (rounded <= 0 || rounded > MAX_PAR) return null
+  return rounded
 }

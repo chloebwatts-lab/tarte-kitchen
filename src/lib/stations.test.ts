@@ -86,3 +86,15 @@ test("sectionFromParam only accepts the venue's own sections", () => {
   assert.equal(sectionFromParam("BEACH_HOUSE", null), null)
   assert.equal(sectionFromParam("BEACH_HOUSE", ""), null)
 })
+
+// ─── Added by test-guard, 14 Oct 2026 ───────────────────────────────────────
+
+test("sectionFromParam: undefined, the Whole-list sentinel and padded names are the whole list", () => {
+  const { sectionFromParam } = require("./stations") as typeof import("./stations")
+  assert.equal(sectionFromParam("BEACH_HOUSE", undefined), null)
+  assert.equal(sectionFromParam("BEACH_HOUSE", "ALL"), null, "WHOLE_LIST is not a section")
+  assert.equal(sectionFromParam("BEACH_HOUSE", " Café"), null)
+  assert.equal(sectionFromParam("BEACH_HOUSE", "Main prep"), "Main prep")
+  assert.equal(sectionFromParam("BURLEIGH", "Production"), "Production")
+  assert.equal(sectionFromParam("BURLEIGH", "Main prep"), null, "Beach House section at Burleigh")
+})

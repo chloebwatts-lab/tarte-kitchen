@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import {
   AlertTriangle,
   Check,
@@ -52,10 +52,6 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
   // head (or the owner) changes them.
   const canEditPar = initialForm.canEditPar
 
-  useEffect(() => {
-    const map = timers.current
-    return () => map.forEach((t) => clearTimeout(t))
-  }, [])
 
   const added = rows.filter((r) => (r.quantity ?? 0) > 0)
   const total = added.reduce((s, r) => s + (r.quantity ?? 0) * r.packPrice, 0)
@@ -141,10 +137,10 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
     )
   }
 
+  // Par is whole packs on the form (digits only), so what is typed is what shows.
   function changePar(row: DeptFormRow, raw: string) {
-    const cleaned = raw.replace(/[^0-9.]/g, "")
+    const cleaned = raw.replace(/[^0-9]/g, "").slice(0, 5)
     const next = cleaned === "" ? null : Number(cleaned)
-    if (next != null && Number.isNaN(next)) return
     patch(row.approvedItemId, { par: next })
     const key = `${row.approvedItemId}|par`
     const existing = timers.current.get(key)
@@ -420,7 +416,7 @@ export function DeptOrderForm({ initialForm }: { initialForm: DeptForm }) {
 
                     {canEditPar ? (
                       <input
-                        inputMode="decimal"
+                        inputMode="numeric"
                         value={row.par == null ? "" : String(row.par)}
                         placeholder="–"
                         aria-label={`Par level for ${row.name}`}

@@ -77,3 +77,38 @@ test("list notes keep line breaks, lose trailing space, cap at the limit", () =>
   assert.equal(cleanNote("   "), "")
   assert.equal(cleanNote("x".repeat(MAX_LIST_NOTE_LENGTH + 50)).length, MAX_LIST_NOTE_LENGTH)
 })
+
+// ─── Added by test-guard, 14 Oct 2026 ───────────────────────────────────────
+
+test("toPriority: numeric strings from a form land, everything else is medium", () => {
+  const { toPriority } = require("./section") as typeof import("./section")
+  assert.equal(toPriority(" 3 "), 3, "Number() trims")
+  assert.equal(toPriority("1.0"), 1)
+  assert.equal(toPriority(""), 2, "empty string is 0, not a priority")
+  assert.equal(toPriority("0"), 2)
+  assert.equal(toPriority(1.5), 2)
+  assert.equal(toPriority(-1), 2)
+  assert.equal(toPriority(true), 2)
+  assert.equal(toPriority(undefined), 2)
+  assert.equal(toPriority([1]), 2, "an array is not a number")
+})
+
+test("byPriority: same priority keeps added order, done state does not reorder", () => {
+  const { byPriority } = require("./section") as typeof import("./section")
+  const rows = [
+    { id: "laminate", priority: 2, done: true },
+    { id: "egg wash", priority: 2, done: false },
+    { id: "danish", priority: 2, done: true },
+  ]
+  assert.deepEqual(byPriority(rows).map((r) => r.id), ["laminate", "egg wash", "danish"])
+  assert.deepEqual(byPriority([{ id: "only", priority: 1 }]).map((r) => r.id), ["only"])
+})
+
+test("cleanNote: inner blank lines and leading indent stay, line-end tabs and CR go", () => {
+  const { cleanNote, MAX_LIST_NOTE_LENGTH } = require("./section") as typeof import("./section")
+  assert.equal(cleanNote("Bridor croissant x 60\t\r\n\r\n  - proof at 6am\n\n"), "Bridor croissant x 60\n\n  - proof at 6am")
+  assert.equal(cleanNote("\r\n"), "")
+  assert.equal(cleanNote(""), "")
+  const capped = cleanNote("x".repeat(MAX_LIST_NOTE_LENGTH - 1) + "   y")
+  assert.equal(capped.length, MAX_LIST_NOTE_LENGTH - 1, "the cap never leaves a trailing space behind")
+})
