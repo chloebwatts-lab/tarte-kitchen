@@ -1,14 +1,16 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import type { Venue } from "@/generated/prisma/client"
+import type { OrderDept, Venue } from "@/generated/prisma/client"
 import { db } from "@/lib/db"
+import { deptForItem } from "@/lib/departments"
 import { getPerson } from "@/lib/person-session"
 import { DONE_KEEP_DAYS, cleanRequestText, type CatalogueChoice, type OrderRequestRow } from "@/lib/order-requests/shared"
 
 function refresh() {
   revalidatePath("/kitchen/restock")
   revalidatePath("/kitchen/restock/orders")
+  revalidatePath("/kitchen/pastry")
 }
 
 const withItem = {
@@ -17,6 +19,8 @@ const withItem = {
 
 function toRow(r: {
   id: string
+  dept: OrderDept
+  qty: unknown
   text: string
   note: string | null
   approvedItemId: string | null
@@ -28,6 +32,8 @@ function toRow(r: {
 }): OrderRequestRow {
   return {
     id: r.id,
+    dept: r.dept,
+    qty: r.qty == null ? null : Number(r.qty),
     // The catalogue name wins if the item was renamed since.
     text: r.approvedItem?.name ?? r.text,
     approvedItemId: r.approvedItem?.id ?? null,
@@ -43,10 +49,11 @@ function toRow(r: {
 }
 
 /** Open requests, newest first, then the ones ticked in the last few days. */
-export async function listOrderRequests(venue: Venue): Promise<OrderRequestRow[]> {
+export async function listOrderRequests(venue: Venue, dept: OrderDept = "KITCHEN"): Promise<OrderRequestRow[]> {
   const rows = await db.prepOrderRequest.findMany({
     where: {
       venue,
+      dept,
       OR: [{ doneAt: null }, { doneAt: { gte: new Date(Date.now() - DONE_KEEP_DAYS * 86_400_000) } }],
     },
     include: withItem,
@@ -62,7 +69,7 @@ export async function listOrderRequests(venue: Venue): Promise<OrderRequestRow[]
 export async function listRequestCatalogue(): Promise<CatalogueChoice[]> {
   const items = await db.approvedSupplierItem.findMany({
     where: { active: true },
-    select: { id: true, name: true, packSize: true, category: true, supplier: { select: { name: true } } },
+    select: { id: true, name: true, packSize: true, category: true, dept: true, supplier: { select: { name: true } } },
     orderBy: [{ name: "asc" }],
   })
   return items.map((i) => ({
@@ -71,13 +78,19 @@ export async function listRequestCatalogue(): Promise<CatalogueChoice[]> {
     supplier: i.supplier.name,
     packSize: i.packSize,
     category: i.category,
+    dept: deptForItem(i),
   }))
 }
 
+/** How many requests nobody has ticked yet, for a tile. */
+export async function countOpenOrderRequests(venue: Venue, dept: OrderDept = "KITCHEN"): Promise<number> {
+  return db.prepOrderRequest.count({ where: { venue, dept, doneAt: null } })
+}
+
 /** Open requests only, for the end-of-day email. */
-export async function openOrderRequests(venue: Venue): Promise<OrderRequestRow[]> {
+export async function openOrderRequests(venue: Venue, dept: OrderDept = "KITCHEN"): Promise<OrderRequestRow[]> {
   const rows = await db.prepOrderRequest.findMany({
-    where: { venue, doneAt: null },
+    where: { venue, dept, doneAt: null },
     include: withItem,
     orderBy: { createdAt: "desc" },
   })
@@ -86,10 +99,13 @@ export async function openOrderRequests(venue: Venue): Promise<OrderRequestRow[]
 
 export async function addOrderRequest(params: {
   venue: Venue
+  dept?: OrderDept
   /// A product picked from the order list, or null for something typed.
   approvedItemId?: string | null
   /// What was typed, when nothing was picked.
   text?: string | null
+  /// Packs wanted, already parsed (parseQty); null = some.
+  qty?: number | null
   note?: string | null
   /// The name typed on the page; the signed-in person's name otherwise.
   createdBy?: string | null
@@ -112,8 +128,9 @@ export async function addOrderRequest(params: {
     if (!text) return { ok: false, error: "Say what needs ordering" }
   }
 
+  const qty = params.qty != null && Number.isFinite(params.qty) && params.qty > 0 ? Math.round(params.qty * 100) / 100 : null
   const row = await db.prepOrderRequest.create({
-    data: { venue: params.venue, text, approvedItemId, note, createdBy },
+    data: { venue: params.venue, dept: params.dept ?? "KITCHEN", text, approvedItemId, qty, note, createdBy },
     include: withItem,
   })
   refresh()

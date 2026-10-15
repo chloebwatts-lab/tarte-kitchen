@@ -223,7 +223,7 @@ export async function getRestockHub(venue: Venue): Promise<RestockHub> {
       orderBy: { restockedAt: "desc" },
       select: { restockedBy: true, restockedAt: true },
     }),
-    db.prepOrderRequest.count({ where: { venue, doneAt: null } }),
+    db.prepOrderRequest.count({ where: { venue, dept: "KITCHEN", doneAt: null } }),
   ])
 
   return {
@@ -488,6 +488,41 @@ export async function saveCountLine(params: {
     },
     update: patch,
   })
+  return { ok: true }
+}
+
+/**
+ * Several priority numbers at once: the chef moved one prep to a new
+ * number and the rest of its section shuffled around it (Chloe, 15 Oct
+ * 2026). Each line's number is set as given; null clears it.
+ */
+export async function saveCountRanks(params: {
+  sheetId: string
+  ranks: { itemId: string; priorityRank: number | null }[]
+}): Promise<{ ok: boolean; error?: string }> {
+  const sheet = await db.restockSheet.findUnique({
+    where: { id: params.sheetId },
+    select: { status: true },
+  })
+  if (!sheet) return { ok: false, error: "Sheet not found" }
+  if (sheet.status === "RESTOCKED") {
+    await db.restockSheet.update({ where: { id: params.sheetId }, data: { status: "IN_PROGRESS" } })
+  }
+  await db.$transaction(
+    params.ranks.map((r) =>
+      db.restockLine.upsert({
+        where: { sheetId_itemId: { sheetId: params.sheetId, itemId: r.itemId } },
+        create: {
+          sheetId: params.sheetId,
+          itemId: r.itemId,
+          priorityRank: r.priorityRank,
+          priority: r.priorityRank != null,
+        },
+        update: { priorityRank: r.priorityRank, priority: r.priorityRank != null },
+      })
+    )
+  )
+  revalidatePath("/kitchen/restock")
   return { ok: true }
 }
 
@@ -900,6 +935,27 @@ export async function dropCarryLine(params: {
   })
   revalidatePath("/kitchen/restock")
   return { ok: true }
+}
+
+/**
+ * Let every earlier night's unmade request go at once (Chloe, 15 Oct
+ * 2026): the "Clear all" on the Still to make tab. Only the lines given,
+ * so what the chef saw is what is cleared; lines already dealt with are
+ * left as they are.
+ */
+export async function dropCarryLines(params: {
+  lineIds: string[]
+  droppedBy: string
+}): Promise<{ ok: boolean; cleared?: number; error?: string }> {
+  const by = params.droppedBy.trim()
+  if (!by) return { ok: false, error: "Add your name first" }
+  if (params.lineIds.length === 0) return { ok: true, cleared: 0 }
+  const res = await db.restockLine.updateMany({
+    where: { id: { in: params.lineIds }, carriedAt: null, droppedAt: null },
+    data: { droppedAt: new Date(), droppedBy: by },
+  })
+  revalidatePath("/kitchen/restock")
+  return { ok: true, cleared: res.count }
 }
 
 /**

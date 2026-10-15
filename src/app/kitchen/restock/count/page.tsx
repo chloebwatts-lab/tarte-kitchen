@@ -64,7 +64,8 @@ export default async function RestockCountPage({
           for anything you want made,
           and leave it empty for anything you&apos;re fine on. Tap the star
           in the order you want things made; each section numbers its own
-          from 1. Tap an item&apos;s name to say when you need it. It saves as you go. Send it to the prep chef
+          from 1, and tapping a number lets you move it. Tap an item&apos;s
+          name to say when you need it. It saves as you go. Send it to the prep chef
           when you&apos;re done.
         </p>
         <p className="mt-2 text-[14px] text-[var(--tk-ink-soft)]">

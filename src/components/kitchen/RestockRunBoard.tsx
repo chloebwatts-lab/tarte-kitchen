@@ -6,6 +6,7 @@ import {
   carryLineToToday,
   completeRestockRun,
   dropCarryLine,
+  dropCarryLines,
   supplyRunLine,
   type CarryoverLine,
   type RestockRun,
@@ -211,6 +212,26 @@ export function RestockRunBoard({
       return
     }
     setRun((prev) => ({ ...prev, carryover: prev.carryover.filter((c) => c.lineId !== line.lineId) }))
+  }
+
+  /** Let every earlier request on view go at once (Chloe, 15 Oct 2026). */
+  async function dropAll(lines: CarryoverLine[]) {
+    const by = requireName()
+    if (!by || lines.length === 0) return
+    const ok = window.confirm(
+      `Clear all ${lines.length} earlier request${lines.length === 1 ? "" : "s"} as not needed? They come off this tab and are not shortfalls.`
+    )
+    if (!ok) return
+    setBusyLine("ALL")
+    setError(null)
+    const res = await dropCarryLines({ lineIds: lines.map((l) => l.lineId), droppedBy: by })
+    setBusyLine(null)
+    if (!res.ok) {
+      setError(res.error ?? "Couldn't clear. Try again.")
+      return
+    }
+    const gone = new Set(lines.map((l) => l.lineId))
+    setRun((prev) => ({ ...prev, carryover: prev.carryover.filter((c) => !gone.has(c.lineId)) }))
   }
 
   async function handleFinish() {
@@ -448,13 +469,26 @@ export function RestockRunBoard({
       {tab === "earlier" && (
         <div className="space-y-3">
           <div
-            className="rounded-[16px] px-5 py-4 text-[14px] leading-snug"
+            className="flex flex-wrap items-center gap-3 rounded-[16px] px-5 py-4 text-[14px] leading-snug"
             style={{ background: "#fdf6e3", color: "#8a6d1f" }}
           >
-            <strong>Asked for on an earlier night and not made.</strong> Add
-            what is still wanted to today&apos;s list, and let the rest go.
-            Anything left here drops off after three days and shows as a
-            shortfall on its own day&apos;s report.
+            <div className="min-w-0 flex-1">
+              <strong>Asked for on an earlier night and not made.</strong> Add
+              what is still wanted to today&apos;s list, and let the rest go.
+              Anything left here drops off after three days and shows as a
+              shortfall on its own day&apos;s report.
+            </div>
+            {visibleCarry.length > 0 && (
+              <button
+                type="button"
+                onClick={() => dropAll(visibleCarry)}
+                disabled={busyLine === "ALL"}
+                className="min-h-[40px] shrink-0 rounded-full border px-4 text-[14px] font-semibold transition active:scale-95 disabled:opacity-40"
+                style={{ borderColor: "#e3cf96", color: "#8a6d1f", background: "white" }}
+              >
+                {busyLine === "ALL" ? <Loader2 className="h-4 w-4 animate-spin" /> : `Clear all${section !== WHOLE_LIST ? ` in ${section}` : ""}`}
+              </button>
+            )}
           </div>
           {visibleCarry.length === 0 ? (
             <div className="rounded-[18px] border border-dashed border-[var(--tk-line)] bg-white px-5 py-6 text-center text-[14px] text-[var(--tk-ink-soft)]">

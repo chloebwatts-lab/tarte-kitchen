@@ -8,10 +8,13 @@ import { addOrderRequest, setOrderRequestDone } from "@/lib/actions/order-reques
 import {
   MAX_ORDER_REQUEST_LENGTH,
   matchCatalogue,
+  parseQty,
   productDetail,
+  qtyLabel,
   type CatalogueChoice,
   type OrderRequestRow,
 } from "@/lib/order-requests/shared"
+import type { OrderDept } from "@/generated/prisma/client"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
 
@@ -33,10 +36,13 @@ const when = new Intl.DateTimeFormat("en-AU", {
  */
 export function OrderRequests({
   venue,
+  dept = "KITCHEN",
   initial,
   catalogue,
 }: {
   venue: Venue
+  /** Whose list: the kitchen's or pastry's. Its own products lead the search. */
+  dept?: OrderDept
   initial: OrderRequestRow[]
   catalogue: CatalogueChoice[]
 }) {
@@ -46,14 +52,15 @@ export function OrderRequests({
   // Set when the chef says the thing is not on the list: the typed words
   // become the request as they are.
   const [typed, setTyped] = useState(false)
+  const [qty, setQty] = useState("")
   const [note, setNote] = useState("")
   const [name, setName] = useRememberedName()
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const matches = useMemo(
-    () => (picked || typed ? [] : matchCatalogue(catalogue, query)),
-    [catalogue, query, picked, typed]
+    () => (picked || typed ? [] : matchCatalogue(catalogue, query, 8, dept)),
+    [catalogue, query, picked, typed, dept]
   )
   const open = rows.filter((r) => !r.done)
   const done = rows.filter((r) => r.done)
@@ -77,8 +84,10 @@ export function OrderRequests({
     setError(null)
     const res = await addOrderRequest({
       venue,
+      dept,
       approvedItemId: picked?.id ?? null,
       text: picked ? null : query,
+      qty: parseQty(qty),
       note,
       createdBy: name,
     })
@@ -91,6 +100,7 @@ export function OrderRequests({
     setPicked(null)
     setTyped(false)
     setQuery("")
+    setQty("")
     setNote("")
   }
 
@@ -198,14 +208,27 @@ export function OrderRequests({
         )}
 
         {(picked || typed) && (
-          <input
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            maxLength={MAX_ORDER_REQUEST_LENGTH}
-            placeholder="Anything to add? For tomorrow, didn't arrive, how many..."
-            aria-label="Note"
-            className="min-h-[52px] w-full rounded-[14px] border border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 text-[16px] text-[var(--tk-charcoal)] outline-none focus:border-[var(--tk-sage)]"
-          />
+          <div className="flex gap-3">
+            <input
+              value={qty}
+              onChange={(e) => setQty(e.target.value)}
+              inputMode="decimal"
+              placeholder="How many"
+              aria-label={picked?.packSize ? `How many (${picked.packSize})` : "How many"}
+              className="min-h-[52px] w-[120px] shrink-0 rounded-[14px] border border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 text-center text-[16px] tabular-nums text-[var(--tk-charcoal)] outline-none focus:border-[var(--tk-sage)]"
+            />
+            <input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              maxLength={MAX_ORDER_REQUEST_LENGTH}
+              placeholder="Anything to add? For tomorrow, didn't arrive..."
+              aria-label="Note"
+              className="min-h-[52px] min-w-0 flex-1 rounded-[14px] border border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 text-[16px] text-[var(--tk-charcoal)] outline-none focus:border-[var(--tk-sage)]"
+            />
+          </div>
+        )}
+        {(picked || typed) && picked?.packSize && (
+          <p className="text-[13px] text-[var(--tk-ink-mute)]">How many is in packs: {picked.packSize} each.</p>
         )}
 
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -294,6 +317,7 @@ function Row({ row, onToggle }: { row: OrderRequestRow; onToggle: () => void }) 
               row.done ? "text-[var(--tk-ink-mute)] line-through" : "font-semibold text-[var(--tk-charcoal)]"
             }`}
           >
+            {row.qty != null && <span className="tabular-nums">{qtyLabel(row.qty)} </span>}
             {row.text}
           </span>
           {detail ? (

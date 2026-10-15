@@ -134,3 +134,32 @@ export function carriedRequest(
   if (!today || today.doneEarlier) return outstanding
   return Math.round(((today.requested ?? 0) + outstanding) * 100) / 100
 }
+
+/**
+ * Move one prep to a chosen priority number and shuffle the rest of its
+ * sequence around it (Chloe, 15 Oct 2026): a chef who had something at 2
+ * when another 2 came in moves it to 3 without clearing the list. The
+ * item is lifted out, the others keep their order, the item goes in at
+ * the asked position, and the sequence is renumbered 1..n with no gaps.
+ * A number past the end puts it last; 0 or less puts it first. Returns
+ * every line whose number changed (the moved one included), so the
+ * caller saves exactly those.
+ */
+export function moveRank<T extends { id: string; priorityRank: number | null }>(
+  lines: readonly T[],
+  id: string,
+  newRank: number
+): { id: string; priorityRank: number }[] {
+  const ranked = lines
+    .filter((l) => l.priorityRank != null && l.id !== id)
+    .sort((a, b) => (a.priorityRank as number) - (b.priorityRank as number))
+  const moved = lines.find((l) => l.id === id)
+  if (!moved) return []
+  const at = Math.min(Math.max(Math.round(newRank), 1), ranked.length + 1) - 1
+  const order = [...ranked.slice(0, at), moved, ...ranked.slice(at)]
+  const changed: { id: string; priorityRank: number }[] = []
+  order.forEach((l, i) => {
+    if (l.priorityRank !== i + 1) changed.push({ id: l.id, priorityRank: i + 1 })
+  })
+  return changed
+}

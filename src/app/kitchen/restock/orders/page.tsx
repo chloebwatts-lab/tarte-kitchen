@@ -7,6 +7,7 @@ import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VENUE_LABEL } from "@/lib/venues"
+import type { OrderDept } from "@/generated/prisma/client"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
 
@@ -37,7 +38,10 @@ export default async function OrderRequestsPage({
       : null
   if (!venue) return <KitchenVenuePicker next="/kitchen/restock/orders" title="Order requests" blurb="Pick your venue once. This device opens your prep list from then on." />
 
-  const [rows, catalogue] = await Promise.all([listOrderRequests(venue), listRequestCatalogue()])
+  // Each department keeps its own list: the kitchen's lives on the prep
+  // page, pastry's on the pastry page (Chloe, 15 Oct 2026).
+  const dept: OrderDept = sp.dept === "PASTRY" ? "PASTRY" : "KITCHEN"
+  const [rows, catalogue] = await Promise.all([listOrderRequests(venue, dept), listRequestCatalogue()])
   const venueLabel = VENUE_LABEL[venue].replace(/\s*\(.*\)$/, "")
 
   return (
@@ -46,7 +50,9 @@ export default async function OrderRequestsPage({
         crumbs={[
           { label: "Venues", href: "/kitchen" },
           { label: venueLabel, href: `/kitchen?venue=${venue}` },
-          { label: "Prep list", href: `/kitchen/restock?venue=${venue}` },
+          dept === "PASTRY"
+            ? { label: "Pastry", href: `/kitchen/pastry?venue=${venue}` }
+            : { label: "Prep list", href: `/kitchen/restock?venue=${venue}` },
           { label: "Order requests" },
         ]}
       />
@@ -56,18 +62,19 @@ export default async function OrderRequestsPage({
           className="tk-display leading-none text-[var(--tk-charcoal)]"
           style={{ fontSize: 40, fontWeight: 700, letterSpacing: "-0.025em" }}
         >
-          Order requests
+          {dept === "PASTRY" ? "Pastry order requests" : "Order requests"}
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
           Notice something running out, or missing from a delivery? Find it
-          on the order list and add it, with your name, so the head chef sees
-          everything in one place when placing orders. Not on the list? Type
-          it. Tick each one once it is ordered.
+          on the order list and add it, with how many and your name, so{" "}
+          {dept === "PASTRY" ? "whoever places the pastry order" : "the head chef"} sees
+          everything in one place. Not on the list? Type it. Tick each one once
+          it is ordered.
         </p>
         <div className="mt-3"><VenueSwitch current={venue} /></div>
       </div>
 
-      <OrderRequests venue={venue} initial={rows} catalogue={catalogue} />
+      <OrderRequests venue={venue} dept={dept} initial={rows} catalogue={catalogue} />
     </div>
   )
 }

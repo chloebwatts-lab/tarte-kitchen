@@ -1,5 +1,6 @@
-import type { Venue } from "@/generated/prisma/client"
+import type { OrderDept, Venue } from "@/generated/prisma/client"
 import { APP_URL, button, list, para, shell, type ListItem } from "@/lib/email/brand"
+import { DEPT_LABEL } from "@/lib/departments"
 import { VENUE_SHORT_LABEL } from "@/lib/venues"
 
 /**
@@ -15,8 +16,12 @@ export const DONE_KEEP_DAYS = 3
 
 export interface OrderRequestRow {
   id: string
+  /** Whose list: the kitchen's or pastry's. */
+  dept: OrderDept
   /** The product: the catalogue name, or what was typed. */
   text: string
+  /** How many packs, when said. */
+  qty: number | null
   /** Set when the product was picked from the catalogue. */
   approvedItemId: string | null
   supplier: string | null
@@ -38,6 +43,23 @@ export interface CatalogueChoice {
   supplier: string
   packSize: string | null
   category: string | null
+  /** The department that orders it, so pastry's list leads with pastry's products. */
+  dept: OrderDept
+}
+
+/** A quantity as typed: whole or decimal packs, nothing else. */
+export function parseQty(raw: string | null | undefined): number | null {
+  const t = (raw ?? "").trim().replace(",", ".")
+  if (!t) return null
+  const n = Number(t)
+  if (!Number.isFinite(n) || n <= 0) return null
+  return Math.round(n * 100) / 100
+}
+
+/** "2 ×" in front of a product, or nothing. */
+export function qtyLabel(qty: number | null): string {
+  if (qty == null) return ""
+  return `${Number.isInteger(qty) ? qty : qty.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")} ×`
 }
 
 export function cleanRequestText(raw: string): string {
@@ -49,9 +71,16 @@ export function cleanRequestText(raw: string): string {
  * that starts with the words typed, then a name containing them, then a
  * supplier or category match. Every word typed has to appear somewhere.
  * Nothing until two characters are typed, so the list is not the whole
- * catalogue.
+ * catalogue. With a department given, its own products come before the
+ * other departments' at the same match strength (pastry sees Jess's list
+ * first), but nothing is hidden.
  */
-export function matchCatalogue(items: readonly CatalogueChoice[], query: string, limit = 8): CatalogueChoice[] {
+export function matchCatalogue(
+  items: readonly CatalogueChoice[],
+  query: string,
+  limit = 8,
+  preferDept?: OrderDept | null
+): CatalogueChoice[] {
   const q = query.replace(/\s+/g, " ").trim().toLowerCase()
   if (q.length < 2) return []
   const words = q.split(" ")
@@ -60,12 +89,13 @@ export function matchCatalogue(items: readonly CatalogueChoice[], query: string,
     const name = item.name.toLowerCase()
     const rest = `${item.supplier} ${item.category ?? ""} ${item.packSize ?? ""}`.toLowerCase()
     if (!words.every((w) => name.includes(w) || rest.includes(w))) continue
-    const score = name.startsWith(q) ? 0 : name.includes(q) ? 1 : words.every((w) => name.includes(w)) ? 2 : 3
-    scored.push({ item, score })
+    const strength = name.startsWith(q) ? 0 : name.includes(q) ? 1 : words.every((w) => name.includes(w)) ? 2 : 3
+    const other = preferDept && item.dept !== preferDept ? 1 : 0
+    scored.push({ item, score: strength * 2 + other })
   }
   return scored
     .sort((a, b) => a.score - b.score || a.item.name.localeCompare(b.item.name) || a.item.supplier.localeCompare(b.item.supplier))
-    .slice(0, limit)
+    .slice(0, Math.max(0, limit))
     .map((s) => s.item)
 }
 
@@ -75,18 +105,24 @@ export function productDetail(r: Pick<OrderRequestRow, "supplier" | "packSize">)
 }
 
 /**
- * Who gets the end-of-day email of open requests, per venue. Jose runs
- * the Beach House orders. ORDER_REQUEST_TO_<VENUE> in the environment
- * overrides (comma separated); an empty override turns the email off.
+ * Who gets the end-of-day email of open requests, per venue and
+ * department. Jose runs the Beach House kitchen orders; nobody is set for
+ * pastry yet. ORDER_REQUEST_TO_<DEPT>_<VENUE> in the environment overrides
+ * (comma separated; ORDER_REQUEST_TO_<VENUE> still works for the kitchen);
+ * an empty override turns the email off.
  */
-const DEFAULT_RECIPIENTS: Partial<Record<Venue, string[]>> = {
-  BEACH_HOUSE: ["jseluis957@gmail.com"],
+const DEFAULT_RECIPIENTS: Partial<Record<`${OrderDept}_${Venue}`, string[]>> = {
+  KITCHEN_BEACH_HOUSE: ["jseluis957@gmail.com"],
 }
 
-export function orderRequestRecipients(venue: Venue, env: Record<string, string | undefined> = process.env): string[] {
-  const raw = env[`ORDER_REQUEST_TO_${venue}`]
+export function orderRequestRecipients(
+  venue: Venue,
+  dept: OrderDept = "KITCHEN",
+  env: Record<string, string | undefined> = process.env
+): string[] {
+  const raw = env[`ORDER_REQUEST_TO_${dept}_${venue}`] ?? (dept === "KITCHEN" ? env[`ORDER_REQUEST_TO_${venue}`] : undefined)
   if (raw != null) return raw.split(",").map((s) => s.trim()).filter(Boolean)
-  return DEFAULT_RECIPIENTS[venue] ?? []
+  return DEFAULT_RECIPIENTS[`${dept}_${venue}`] ?? []
 }
 
 const whenFmt = new Intl.DateTimeFormat("en-AU", {
@@ -108,22 +144,25 @@ function brisbaneDay(iso: string): string {
  */
 export function renderOrderRequestEmail(params: {
   venue: Venue
+  dept?: OrderDept
   open: OrderRequestRow[]
   now?: Date
 }): { subject: string; html: string; text: string } {
   const now = params.now ?? new Date()
-  const venueLabel = VENUE_SHORT_LABEL[params.venue]
+  const dept = params.dept ?? "KITCHEN"
+  const venueLabel = dept === "KITCHEN" ? VENUE_SHORT_LABEL[params.venue] : `${VENUE_SHORT_LABEL[params.venue]} ${DEPT_LABEL[dept].toLowerCase()}`
   const todayYmd = brisbaneDay(now.toISOString())
   const open = [...params.open].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   const addedToday = open.filter((r) => brisbaneDay(r.createdAt) === todayYmd).length
   const n = open.length
   const subject = `${venueLabel} order requests: ${n} to order${addedToday ? ` (${addedToday} new today)` : ""}`
-  const url = `${APP_URL}/kitchen/restock/orders?venue=${params.venue}`
+  const url = `${APP_URL}/kitchen/restock/orders?venue=${params.venue}${dept === "KITCHEN" ? "" : `&dept=${dept}`}`
+  const line = (r: OrderRequestRow) => `${qtyLabel(r.qty)} ${r.text}`.trim()
 
   const items: ListItem[] = open.map((r) => {
     const isToday = brisbaneDay(r.createdAt) === todayYmd
     return {
-      text: r.text,
+      text: line(r),
       detail: [
         productDetail(r) ?? "not on the order list, typed in",
         r.note ? `"${r.note}"` : null,
@@ -141,7 +180,7 @@ export function renderOrderRequestEmail(params: {
     kicker: "Order requests",
     title: `${n} thing${n === 1 ? "" : "s"} to order`,
     subtitle: `${venueLabel} · what the chefs noted as needed or missing`,
-    preheader: open.map((r) => r.text).join(", "),
+    preheader: open.map(line).join(", "),
     sections: [
       list(items),
       para("Tick each one on the prep page once it is on an order, and it leaves this list."),
@@ -154,7 +193,7 @@ export function renderOrderRequestEmail(params: {
     "",
     ...open.map(
       (r) =>
-        `- ${r.text}${productDetail(r) ? ` [${productDetail(r)}]` : " [not on the order list]"}${r.note ? ` "${r.note}"` : ""}${r.createdBy ? ` (${r.createdBy}, ${whenFmt.format(new Date(r.createdAt))})` : ` (${whenFmt.format(new Date(r.createdAt))})`}`
+        `- ${line(r)}${productDetail(r) ? ` [${productDetail(r)}]` : " [not on the order list]"}${r.note ? ` "${r.note}"` : ""}${r.createdBy ? ` (${r.createdBy}, ${whenFmt.format(new Date(r.createdAt))})` : ` (${whenFmt.format(new Date(r.createdAt))})`}`
     ),
     "",
     `Tick each one once it is on an order: ${url}`,

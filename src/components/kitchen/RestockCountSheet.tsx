@@ -14,13 +14,14 @@ import {
   addCatalogItem,
   reopenCountSheet,
   saveCountLine,
+  saveCountRanks,
   submitCountSheet,
   type CountSheet,
   type CountSheetLine,
   type SiblingItem,
 } from "@/lib/actions/restock"
 import { PREP_SECTION_OWNER, prepSectionsFor, sectionHint, sectionPrompt, sectionTone, stationLabel, STATION_SHORT_LABEL, type SectionTone } from "@/lib/stations"
-import { nextPriorityRank, rankSequence } from "@/lib/restock-order"
+import { moveRank, nextPriorityRank, rankSequence } from "@/lib/restock-order"
 import { SectionNav, WHOLE_LIST } from "@/components/kitchen/SectionNav"
 import {
   NEEDED_BY_TIMES,
@@ -132,15 +133,46 @@ export function RestockCountSheet({
     )
   }
 
-  function toggleRank(line: CountSheetLine) {
-    if (line.priorityRank != null) {
-      patchLine(line.itemId, { priorityRank: null, priority: false })
-      persist(line.itemId, { priorityRank: null })
-    } else {
-      const next = nextRank(line.category)
-      patchLine(line.itemId, { priorityRank: next, priority: true })
-      persist(line.itemId, { priorityRank: next })
-    }
+  /** Star tap on an unnumbered prep: the next number in its section. */
+  function giveRank(line: CountSheetLine) {
+    const next = nextRank(line.category)
+    patchLine(line.itemId, { priorityRank: next, priority: true })
+    persist(line.itemId, { priorityRank: next })
+  }
+
+  function clearRank(line: CountSheetLine) {
+    patchLine(line.itemId, { priorityRank: null, priority: false })
+    persist(line.itemId, { priorityRank: null })
+  }
+
+  /**
+   * Move a prep to a chosen number (Chloe, 15 Oct 2026): a 2 that should
+   * be a 3 goes to 3 and the old 3 becomes 2, no clearing the list. The
+   * rest of its section renumbers around it, 1..n with no gaps.
+   */
+  function moveRankTo(line: CountSheetLine, newRank: number) {
+    const seq = rankSequence(sections.length > 0, line.category)
+    const inSeq = lines
+      .filter((l) => rankSequence(sections.length > 0, l.category) === seq)
+      .map((l) => ({ id: l.itemId, priorityRank: l.priorityRank }))
+    const changes = moveRank(inSeq, line.itemId, newRank)
+    if (changes.length === 0) return
+    setLines((prev) =>
+      prev.map((l) => {
+        const c = changes.find((x) => x.id === l.itemId)
+        return c ? { ...l, priorityRank: c.priorityRank, priority: true } : l
+      })
+    )
+    setSavingCount((n) => n + 1)
+    saveCountRanks({
+      sheetId: sheet.sheetId,
+      ranks: changes.map((c) => ({ itemId: c.id, priorityRank: c.priorityRank })),
+    })
+      .then((res) => {
+        if (!res.ok) setError(res.error ?? "Couldn't save. Try again.")
+      })
+      .catch(() => setError("Couldn't save. Check the connection."))
+      .finally(() => setSavingCount((n) => n - 1))
   }
 
   function patchSib(itemId: string, patch: Partial<SiblingItem>) {
@@ -359,8 +391,18 @@ export function RestockCountSheet({
                 key={line.itemId}
                 line={line}
                 tone={sectionTone(sheet.venue, line.category)}
+                sectionName={sections.length > 0 ? line.category : null}
+                rankCount={
+                  lines.filter(
+                    (l) =>
+                      l.priorityRank != null &&
+                      rankSequence(sections.length > 0, l.category) === rankSequence(sections.length > 0, line.category)
+                  ).length
+                }
                 readOnly={readOnly}
-                onToggleRank={() => toggleRank(line)}
+                onGiveRank={() => giveRank(line)}
+                onClearRank={() => clearRank(line)}
+                onMoveRank={(n) => moveRankTo(line, n)}
                 onChange={(patch, debounceKey) => {
                   patchLine(line.itemId, patch)
                   persist(line.itemId, patch, debounceKey)
@@ -569,18 +611,40 @@ export function RestockCountSheet({
 function CountRow({
   line,
   tone,
+  sectionName,
+  rankCount,
   readOnly,
   onChange,
-  onToggleRank,
+  onGiveRank,
+  onClearRank,
+  onMoveRank,
 }: {
   line: CountSheetLine
   /** The section's colour for the priority number. */
   tone: SectionTone
+  /** The section the number counts within, or null on a plain list. */
+  sectionName: string | null
+  /** How many preps in that sequence have a number, for "2 of 5". */
+  rankCount: number
   readOnly: boolean
   onChange: (patch: Partial<CountSheetLine>, debounceKey?: string) => void
-  onToggleRank: () => void
+  onGiveRank: () => void
+  onClearRank: () => void
+  onMoveRank: (newRank: number) => void
 }) {
   const [showNote, setShowNote] = useState(!!line.note || !!line.neededBy)
+  // Tapping a number opens its editor instead of clearing it (Chloe, 15
+  // Oct 2026): move it up or down, type the number it should be, or remove.
+  const [rankOpen, setRankOpen] = useState(false)
+  const [rankText, setRankText] = useState("")
+  const rankShown = line.priorityRank != null && rankOpen
+
+  function commitRankText() {
+    const n = Number(rankText.trim())
+    setRankText("")
+    if (!rankText.trim() || !Number.isFinite(n)) return
+    onMoveRank(Math.round(n))
+  }
   const days = useMemo(() => neededByDays(), [])
   const picked = line.neededBy ? splitNeededBy(line.neededBy) : null
   // Day defaults to tomorrow once a time is tapped; time defaults to open
@@ -654,14 +718,15 @@ function CountRow({
         />
         <button
           disabled={readOnly}
-          onClick={onToggleRank}
+          onClick={() => (line.priorityRank != null ? setRankOpen((o) => !o) : onGiveRank())}
           className="flex h-11 w-11 items-center justify-center justify-self-center rounded-full transition active:scale-90"
-          aria-label={`${line.name} priority order`}
+          aria-label={line.priorityRank != null ? `${line.name} is priority ${line.priorityRank}, change it` : `${line.name} priority order`}
+          aria-expanded={line.priorityRank != null ? rankOpen : undefined}
         >
           {line.priorityRank != null ? (
             <span
               className="flex h-8 w-8 items-center justify-center rounded-full text-[15px] font-bold tabular-nums"
-              style={{ background: tone.bg, color: tone.fg }}
+              style={{ background: tone.bg, color: tone.fg, outline: rankShown ? "2px solid var(--tk-charcoal)" : "none", outlineOffset: 2 }}
             >
               {line.priorityRank}
             </span>
@@ -670,6 +735,47 @@ function CountRow({
           )}
         </button>
       </div>
+      {rankShown && (
+        <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
+          <span className="mr-1 text-[12px] font-semibold uppercase tracking-wider text-[var(--tk-ink-soft)]">
+            Priority {line.priorityRank} of {rankCount}
+            {sectionName ? ` in ${sectionName}` : ""}
+          </span>
+          <Chip disabled={readOnly || line.priorityRank === 1} on={false} onClick={() => onMoveRank((line.priorityRank ?? 1) - 1)}>
+            Up
+          </Chip>
+          <Chip disabled={readOnly || line.priorityRank === rankCount} on={false} onClick={() => onMoveRank((line.priorityRank ?? 1) + 1)}>
+            Down
+          </Chip>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={rankText}
+            onChange={(e) => setRankText(e.target.value.replace(/[^0-9]/g, ""))}
+            onBlur={commitRankText}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                commitRankText()
+              }
+            }}
+            placeholder="No."
+            aria-label={`Make ${line.name} priority number`}
+            className="min-h-[36px] w-[64px] rounded-full border border-[var(--tk-line)] bg-white text-center text-[14px] font-semibold tabular-nums text-[var(--tk-charcoal)] outline-none focus:border-[var(--tk-sage)]"
+          />
+          <button
+            type="button"
+            disabled={readOnly}
+            onClick={() => {
+              setRankOpen(false)
+              onClearRank()
+            }}
+            className="ml-auto text-[13px] font-medium text-[var(--tk-ink-soft)] underline underline-offset-2"
+          >
+            Remove priority
+          </button>
+        </div>
+      )}
       {showNote && (
         <div className="space-y-2 px-4 pb-3">
           <div className="flex flex-wrap items-center gap-1.5">

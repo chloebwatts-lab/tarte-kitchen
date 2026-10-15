@@ -2334,6 +2334,11 @@ model RestockLine {
 model PrepOrderRequest {
   id        String    @id @default(cuid())
   venue     Venue
+  /// Whose list it is on: the kitchen's (the prep page) or pastry's (the
+  /// pastry page, Chloe 15 Oct 2026). Each department sees its own.
+  dept      OrderDept @default(KITCHEN)
+  /// How many packs, when the chef said. Null = "some".
+  qty       Decimal?  @db.Decimal(10, 2)
   /// The product as it reads on the page: the catalogue item's name when
   /// one was picked, otherwise whatever the chef typed.
   text      String
@@ -2349,7 +2354,7 @@ model PrepOrderRequest {
   doneAt    DateTime?
   doneBy    String?
 
-  @@index([venue, doneAt])
+  @@index([venue, dept, doneAt])
   @@index([approvedItemId])
 }
 

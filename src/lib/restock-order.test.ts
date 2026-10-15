@@ -6,6 +6,7 @@ import {
   compareRunItems,
   doneInEarlierRun,
   isCarryoverLine,
+  moveRank,
   nextPriorityRank,
   orderPrepItems,
   outstandingQty,
@@ -254,5 +255,67 @@ describe("make prep order with priorities and plain items mixed", () => {
         }
       }
     }
+  })
+})
+
+describe("moving a priority number by hand (Chloe, 15 Oct 2026)", () => {
+  const lines = [
+    { id: "buns", priorityRank: 1 },
+    { id: "pico", priorityRank: 2 },
+    { id: "wc", priorityRank: 3 },
+    { id: "lemons", priorityRank: null },
+  ]
+
+  test("a 2 moved to 3 swaps with the old 3, nothing else changes", () => {
+    assert.deepEqual(moveRank(lines, "pico", 3), [
+      { id: "wc", priorityRank: 2 },
+      { id: "pico", priorityRank: 3 },
+    ])
+  })
+
+  test("a 3 moved to 1 pushes the others down one", () => {
+    assert.deepEqual(moveRank(lines, "wc", 1), [
+      { id: "wc", priorityRank: 1 },
+      { id: "buns", priorityRank: 2 },
+      { id: "pico", priorityRank: 3 },
+    ])
+  })
+
+  test("an unnumbered prep given a number joins the sequence there", () => {
+    assert.deepEqual(moveRank(lines, "lemons", 2), [
+      { id: "lemons", priorityRank: 2 },
+      { id: "pico", priorityRank: 3 },
+      { id: "wc", priorityRank: 4 },
+    ])
+  })
+
+  test("a number past the end puts it last, zero puts it first, same number is a no-op", () => {
+    assert.deepEqual(moveRank(lines, "buns", 99), [
+      { id: "pico", priorityRank: 1 },
+      { id: "wc", priorityRank: 2 },
+      { id: "buns", priorityRank: 3 },
+    ])
+    assert.deepEqual(moveRank(lines, "wc", 0), [
+      { id: "wc", priorityRank: 1 },
+      { id: "buns", priorityRank: 2 },
+      { id: "pico", priorityRank: 3 },
+    ])
+    assert.deepEqual(moveRank(lines, "pico", 2), [])
+  })
+
+  test("gaps close: a list numbered 1, 5, 9 comes back 1, 2, 3", () => {
+    const gappy = [
+      { id: "a", priorityRank: 1 },
+      { id: "b", priorityRank: 5 },
+      { id: "c", priorityRank: 9 },
+    ]
+    assert.deepEqual(moveRank(gappy, "c", 3), [
+      { id: "b", priorityRank: 2 },
+      { id: "c", priorityRank: 3 },
+    ])
+  })
+
+  test("an unknown id changes nothing", () => {
+    assert.deepEqual(moveRank(lines, "nope", 1), [])
   })
 })

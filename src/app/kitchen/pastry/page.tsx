@@ -1,13 +1,14 @@
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
-import { ArrowRight, CakeSlice, Croissant, Images, ShoppingCart, SprayCan, Thermometer } from "lucide-react"
+import { ArrowRight, CakeSlice, Croissant, Images, PackageSearch, ShoppingCart, SprayCan, Thermometer } from "lucide-react"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { PastryNotes } from "@/components/kitchen/PastryNotes"
 import { PastryPrepList } from "@/components/kitchen/PastryPrepList"
 import { listChecklistTemplates, type ChecklistTemplateSummary } from "@/lib/actions/checklists"
+import { countOpenOrderRequests } from "@/lib/actions/order-requests"
 import { getPastrySection, listPastryGallery } from "@/lib/actions/pastry-section"
 import { longDay } from "@/lib/high-tea/prep"
 import { PREP_LISTS } from "@/lib/pastry/section"
@@ -118,10 +119,11 @@ export default async function PastrySectionPage({
   const venue = await pastryVenue(await searchParams)
   if (!venue) return <KitchenVenuePicker />
 
-  const [section, templates, products] = await Promise.all([
+  const [section, templates, products, openRequests] = await Promise.all([
     getPastrySection(venue),
     listChecklistTemplates({ venue }),
     listPastryGallery(venue),
+    countOpenOrderRequests(venue, "PASTRY"),
   ])
   const pastry = templates.filter((t) => `${t.area ?? ""} ${t.name}`.toLowerCase().includes("pastry"))
   const temps = pastry.filter((t) => t.isFoodSafety)
@@ -202,6 +204,16 @@ export default async function PastrySectionPage({
           sub="What pastry needs ordered, into the one daily order."
           href={`/kitchen/order/pastry?venue=${venue}`}
           icon={<ShoppingCart className="h-6 w-6" strokeWidth={1.8} />}
+        />
+        <Tile
+          title="Order requests"
+          sub={
+            openRequests > 0
+              ? `${openRequests} to order. Running out or missing from a delivery, noted as you go.`
+              : "Running out of something, or it didn't arrive? Note it here as you go."
+          }
+          href={`/kitchen/restock/orders?venue=${venue}&dept=PASTRY`}
+          icon={<PackageSearch className="h-6 w-6" strokeWidth={1.8} />}
         />
         <Tile
           title="High tea prep"
