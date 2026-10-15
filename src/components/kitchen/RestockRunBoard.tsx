@@ -1,15 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowRight, Check, Flag, History, Loader2, Star } from "lucide-react"
+import { ArrowRight, Check, Flag, History, Loader2, Star, Sunrise } from "lucide-react"
 import {
-  clearStaleRunSheet,
+  carryLineToToday,
   completeRestockRun,
+  dropCarryLine,
   supplyRunLine,
+  type CarryoverLine,
   type RestockRun,
   type RunStationLine,
 } from "@/lib/actions/restock"
-import { prepSectionsFor, sectionHint, sectionRank, STATION_SHORT_LABEL } from "@/lib/stations"
+import { prepSectionsFor, sectionHint, sectionRank, sectionTone, STATION_SHORT_LABEL } from "@/lib/stations"
 import { SectionNav, WHOLE_LIST } from "@/components/kitchen/SectionNav"
 import { formatNeededBy, isLate } from "@/lib/restock-needed-by"
 import type { KitchenStation } from "@/generated/prisma/client"
@@ -77,28 +79,23 @@ export function RestockRunBoard({
   }
   const [finishing, setFinishing] = useState(false)
   const [finished, setFinished] = useState(false)
-  const [clearing, setClearing] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // "Still to make" (Jose, 15 Oct 2026): earlier nights' requests left
+  // unmade sit on their own tab, with a button to bring each onto today's
+  // list or mark it not needed. Opens on that tab when today has nothing.
+  const [tab, setTab] = useState<"today" | "earlier">(
+    initialRun.items.length === 0 && initialRun.carryover.length > 0 ? "earlier" : "today"
+  )
+  const [busyLine, setBusyLine] = useState<string | null>(null)
 
   const today = todayAestYmd()
   const allLines = run.items.flatMap((i) => i.stations)
   const suppliedLines = allLines.filter((l) => l.supplied != null)
   const gapLines = allLines.filter((l) => l.supplied == null)
 
-  // The newest count in the run is "current"; anything older stacked under
-  // it (the finish step was skipped), or older than last night outright,
-  // gets flagged for clearing.
   const latestDate = run.sheets.reduce(
     (max, s) => (s.sheetDate > max ? s.sheetDate : max),
     ""
-  )
-  const yesterday = new Date(Date.parse(today) - 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split("T")[0]
-  const oldSheets = run.sheets.filter(
-    (s) =>
-      (s.sheetDate < latestDate || s.sheetDate < yesterday) &&
-      s.sheetDate < today
   )
 
   const stationsInRun = Array.from(
@@ -174,40 +171,46 @@ export function RestockRunBoard({
     if (!res.ok) setError("Couldn't save. Try again.")
   }
 
-  async function clearSheet(sheetId: string) {
-    if (!name.trim()) {
+  function requireName(): string | null {
+    const n = name.trim()
+    if (!n) {
       setError("Add your name at the top first")
       window.scrollTo({ top: 0, behavior: "smooth" })
-      return
+      return null
     }
-    const sheet = run.sheets.find((s) => s.sheetId === sheetId)
-    const ok = window.confirm(
-      `Clear the ${sheet ? STATION_SHORT_LABEL[sheet.station] : ""} count from ${sheet ? shortDate(sheet.sheetDate) : "that night"}? Its requests come off this run. Anything not delivered shows as a shortfall on that day's report.`
-    )
-    if (!ok) return
-    setClearing(sheetId)
+    return n
+  }
+
+  /**
+   * Bring an earlier night's unmade request onto today's list. The page
+   * reloads so the item shows under today's list with the right totals.
+   */
+  async function carryIn(line: CarryoverLine) {
+    const by = requireName()
+    if (!by) return
+    setBusyLine(line.lineId)
     setError(null)
-    const res = await clearStaleRunSheet({ sheetId, clearedBy: name.trim() })
-    setClearing(null)
+    const res = await carryLineToToday({ lineId: line.lineId, carriedBy: by })
+    setBusyLine(null)
     if (!res.ok) {
-      setError(res.error ?? "Couldn't clear. Try again.")
+      setError(res.error ?? "Couldn't add it. Try again.")
       return
     }
-    setRun((prev) => ({
-      ...prev,
-      sheets: prev.sheets.filter((s) => s.sheetId !== sheetId),
-      items: prev.items
-        .map((item) => {
-          const stations = item.stations.filter((l) => l.sheetId !== sheetId)
-          return {
-            ...item,
-            stations,
-            totalRequested: stations.reduce((t, l) => t + l.requested, 0),
-            totalSupplied: stations.reduce((t, l) => t + (l.supplied ?? 0), 0),
-          }
-        })
-        .filter((item) => item.stations.length > 0),
-    }))
+    window.location.reload()
+  }
+
+  async function dropLine(line: CarryoverLine) {
+    const by = requireName()
+    if (!by) return
+    setBusyLine(line.lineId)
+    setError(null)
+    const res = await dropCarryLine({ lineId: line.lineId, droppedBy: by })
+    setBusyLine(null)
+    if (!res.ok) {
+      setError(res.error ?? "Couldn't save. Try again.")
+      return
+    }
+    setRun((prev) => ({ ...prev, carryover: prev.carryover.filter((c) => c.lineId !== line.lineId) }))
   }
 
   async function handleFinish() {
@@ -233,7 +236,7 @@ export function RestockRunBoard({
     else setError(res.error ?? "Couldn't finish. Try again.")
   }
 
-  if (run.items.length === 0 && !finished) {
+  if (run.items.length === 0 && run.carryover.length === 0 && !finished) {
     return (
       <div className="rounded-[24px] border border-dashed border-[var(--tk-line)] bg-white p-10 text-center">
         <p className="text-[16px] font-semibold text-[var(--tk-charcoal)]">
@@ -299,10 +302,15 @@ export function RestockRunBoard({
       : run.items.filter((i) =>
           i.stations.some((s) => s.station === stationFilter)
         )
+  const stationCarry =
+    stationFilter === "ALL" ? run.carryover : run.carryover.filter((c) => c.station === stationFilter)
   const sectionCounts: Record<string, number> = {}
-  for (const i of stationItems) sectionCounts[i.category] = (sectionCounts[i.category] ?? 0) + 1
+  for (const i of tab === "today" ? stationItems : stationCarry)
+    sectionCounts[i.category] = (sectionCounts[i.category] ?? 0) + 1
   const visibleItems =
     section === WHOLE_LIST ? stationItems : stationItems.filter((i) => i.category === section)
+  const visibleCarry =
+    section === WHOLE_LIST ? stationCarry : stationCarry.filter((c) => c.category === section)
   const priorityItems = visibleItems.filter((i) => i.priority)
   const normalItems = visibleItems.filter((i) => !i.priority)
   // On a sectioned list, everything that is not a priority is grouped by
@@ -360,57 +368,36 @@ export function RestockRunBoard({
         )}
       </div>
 
-      {/* Old counts that never got closed out */}
-      {oldSheets.length > 0 && (
-        <div
-          className="rounded-[20px] border p-5"
-          style={{ borderColor: "#e3cf96", background: "#fdf6e3" }}
-        >
-          <div
-            className="flex items-center gap-1.5 text-[14px] font-semibold"
-            style={{ color: "#8a6d1f" }}
-          >
-            <History className="h-4 w-4" />
-            Old counts are stacked on this run
-          </div>
-          <p className="mt-1 text-[13px] leading-snug" style={{ color: "#8a6d1f" }}>
-            These earlier nights were never finished, so their requests are
-            added on top of the newest count. If they were already handled,
-            clear them. Undelivered lines go down as shortfalls on their own
-            day&apos;s report.
-          </p>
-          <div className="mt-3 space-y-2">
-            {oldSheets.map((s) => (
-              <div
-                key={s.sheetId}
-                className="flex items-center justify-between gap-3 rounded-[14px] bg-white px-4 py-2.5"
+      {/* Today's list, or what earlier nights left unmade */}
+      <div className="flex flex-wrap items-center gap-3 px-1">
+        <div className="inline-flex rounded-full border border-[var(--tk-line)] bg-white p-1">
+          {(
+            [
+              { key: "today", label: "Today's prep", count: run.items.length, icon: Sunrise },
+              { key: "earlier", label: "Still to make from earlier", count: run.carryover.length, icon: History },
+            ] as const
+          ).map((t) => {
+            const active = tab === t.key
+            const Icon = t.icon
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setTab(t.key)}
+                aria-pressed={active}
+                className="flex min-h-[44px] items-center gap-1.5 rounded-full px-4 text-[15px] font-semibold transition"
+                style={{
+                  background: active ? "var(--tk-charcoal)" : "transparent",
+                  color: active ? "#fff" : t.key === "earlier" && t.count > 0 ? "#8a6d1f" : "var(--tk-ink-soft)",
+                }}
               >
-                <div className="text-[14px] text-[var(--tk-charcoal)]">
-                  <span className="font-medium">
-                    {STATION_SHORT_LABEL[s.station]} · {shortDate(s.sheetDate)}
-                  </span>{" "}
-                  <span className="text-[var(--tk-ink-soft)]">
-                    {s.countedBy ? `by ${s.countedBy} · ` : ""}
-                    {s.lineCount} request{s.lineCount === 1 ? "" : "s"}
-                  </span>
-                </div>
-                <button
-                  onClick={() => clearSheet(s.sheetId)}
-                  disabled={clearing === s.sheetId}
-                  className="shrink-0 rounded-full border px-4 py-1.5 text-[13px] font-medium transition active:scale-95 disabled:opacity-40"
-                  style={{ borderColor: "#e3cf96", color: "#8a6d1f" }}
-                >
-                  {clearing === s.sheetId ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Clear"
-                  )}
-                </button>
-              </div>
-            ))}
-          </div>
+                <Icon className="h-4 w-4" />
+                {t.label} <span className="tabular-nums opacity-70">({t.count})</span>
+              </button>
+            )
+          })}
         </div>
-      )}
+      </div>
 
       {/* Kitchen filter: Beach House runs two kitchens */}
       {showToggle && (
@@ -458,20 +445,120 @@ export function RestockRunBoard({
         </div>
       )}
 
-      {priorityItems.length > 0 && (
+      {tab === "earlier" && (
+        <div className="space-y-3">
+          <div
+            className="rounded-[16px] px-5 py-4 text-[14px] leading-snug"
+            style={{ background: "#fdf6e3", color: "#8a6d1f" }}
+          >
+            <strong>Asked for on an earlier night and not made.</strong> Add
+            what is still wanted to today&apos;s list, and let the rest go.
+            Anything left here drops off after three days and shows as a
+            shortfall on its own day&apos;s report.
+          </div>
+          {visibleCarry.length === 0 ? (
+            <div className="rounded-[18px] border border-dashed border-[var(--tk-line)] bg-white px-5 py-6 text-center text-[14px] text-[var(--tk-ink-soft)]">
+              Nothing left over{section !== WHOLE_LIST ? ` for ${section}` : ""}. All earlier requests were made or dealt with.
+            </div>
+          ) : (
+            visibleCarry.map((c) => {
+              const tone = sectionTone(run.venue, c.category)
+              const busy = busyLine === c.lineId
+              return (
+                <div key={c.lineId} className="rounded-[18px] border border-[var(--tk-line)] bg-white p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {c.priorityRank != null && (
+                          <span
+                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[13px] font-bold tabular-nums"
+                            style={{ background: tone.bg, color: tone.fg }}
+                          >
+                            {c.priorityRank}
+                          </span>
+                        )}
+                        <span className="text-[18px] font-semibold leading-snug text-[var(--tk-charcoal)]" style={{ letterSpacing: "-0.01em" }}>
+                          {c.name}
+                        </span>
+                        {c.unit && <span className="text-[13px] text-[var(--tk-ink-soft)]">{c.unit}</span>}
+                        {sectioned && (
+                          <span
+                            className="shrink-0 rounded-full px-2.5 py-0.5 text-[12px] font-semibold"
+                            style={{ background: "var(--tk-charcoal-soft)", color: "var(--tk-ink-soft)" }}
+                          >
+                            {c.category}
+                          </span>
+                        )}
+                        <span
+                          className="shrink-0 rounded-full px-2 py-0.5 text-[12px] font-semibold"
+                          style={{ background: "#fdf6e3", color: "#8a6d1f" }}
+                        >
+                          {c.sheetDate >= today ? "this morning's run" : nightLabel(c.sheetDate, today)}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-[15px] text-[var(--tk-charcoal)]">
+                        Still to make <span className="font-semibold tabular-nums">{formatQty(c.outstanding)}</span>
+                        <span className="text-[13px] text-[var(--tk-ink-soft)]">
+                          {" "}
+                          (asked for {formatQty(c.requested)}
+                          {c.supplied != null ? `, ${formatQty(c.supplied)} made` : ""}
+                          {c.countedBy ? `, by ${c.countedBy}` : ""})
+                        </span>
+                      </div>
+                      {c.note && <div className="text-[13px] italic text-[var(--tk-ink-soft)]">“{c.note}”</div>}
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => carryIn(c)}
+                      disabled={busy}
+                      className="flex min-h-[44px] items-center gap-2 rounded-full px-5 text-[15px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-40"
+                      style={{ background: "var(--tk-charcoal)" }}
+                    >
+                      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sunrise className="h-4 w-4" />}
+                      Add to today&apos;s prep
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => dropLine(c)}
+                      disabled={busy}
+                      className="min-h-[44px] rounded-full border border-[var(--tk-line)] bg-white px-5 text-[15px] font-medium text-[var(--tk-ink-soft)] transition active:scale-[0.98] disabled:opacity-40"
+                    >
+                      Not needed
+                    </button>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
+
+      {tab === "today" && run.items.length === 0 && (
+        <div className="rounded-[18px] border border-dashed border-[var(--tk-line)] bg-white px-5 py-6 text-center text-[14px] text-[var(--tk-ink-soft)]">
+          {run.sheets.length > 0
+            ? "The latest count didn't request anything."
+            : "No kitchen has entered an evening count yet."}{" "}
+          Anything brought in from earlier nights lands here.
+        </div>
+      )}
+
+      {tab === "today" && priorityItems.length > 0 && (
         <div className="space-y-2">
           <div
             className="tk-caps flex items-center gap-1.5 px-1"
             style={{ color: "#8a6d1f" }}
           >
             <Star className="h-3.5 w-3.5" fill="var(--tk-gold)" stroke="var(--tk-gold)" />
-            Priority: work top to bottom
+            Priority: work top to bottom{sectioned ? ", section by section" : ""}
           </div>
           {priorityItems.map((item) => (
             <RunItemCard
               key={item.itemId}
               item={item}
               section={sectioned ? item.category : undefined}
+              tone={sectionTone(run.venue, item.category)}
               today={today}
               latestDate={latestDate}
               onToggle={toggleSupplied}
@@ -481,7 +568,8 @@ export function RestockRunBoard({
         </div>
       )}
 
-      {sectioned &&
+      {tab === "today" &&
+        sectioned &&
         normalGroups.map(([category, items]) => (
           <div key={category} className="space-y-2">
             <div className="tk-caps flex items-baseline gap-2 px-1" style={{ color: "var(--tk-ink-mute)" }}>
@@ -493,6 +581,7 @@ export function RestockRunBoard({
               <RunItemCard
                 key={item.itemId}
                 item={item}
+                tone={sectionTone(run.venue, item.category)}
                 today={today}
                 latestDate={latestDate}
                 onToggle={toggleSupplied}
@@ -502,7 +591,7 @@ export function RestockRunBoard({
           </div>
         ))}
 
-      {!sectioned && normalItems.length > 0 && (
+      {tab === "today" && !sectioned && normalItems.length > 0 && (
         <div className="space-y-2">
           {priorityItems.length > 0 && (
             <div className="tk-caps px-1" style={{ color: "var(--tk-ink-mute)" }}>
@@ -513,6 +602,7 @@ export function RestockRunBoard({
             <RunItemCard
               key={item.itemId}
               item={item}
+              tone={sectionTone(run.venue, item.category)}
               today={today}
               latestDate={latestDate}
               onToggle={toggleSupplied}
@@ -523,6 +613,7 @@ export function RestockRunBoard({
       )}
 
       {/* Finish */}
+      {tab === "today" && run.items.length > 0 && (
       <div className="rounded-[20px] border border-[var(--tk-line)] bg-white p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-[14px] text-[var(--tk-ink-soft)]">
@@ -560,6 +651,7 @@ export function RestockRunBoard({
           </p>
         )}
       </div>
+      )}
     </div>
   )
 }
@@ -567,6 +659,7 @@ export function RestockRunBoard({
 function RunItemCard({
   item,
   section,
+  tone,
   today,
   latestDate,
   onToggle,
@@ -576,6 +669,8 @@ function RunItemCard({
   /// Shown when the card sits outside its section group (the priority
   /// block), so two stations' copies of one prep stay tellable apart.
   section?: string
+  /// The section's colour for the priority number.
+  tone: { bg: string; fg: string }
   today: string
   latestDate: string
   onToggle: (line: RunStationLine) => void
@@ -600,7 +695,7 @@ function RunItemCard({
             {item.priorityRank != null ? (
               <span
                 className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[13px] font-bold tabular-nums"
-                style={{ background: "var(--tk-gold)", color: "#5d4a12" }}
+                style={{ background: tone.bg, color: tone.fg }}
               >
                 {item.priorityRank}
               </span>

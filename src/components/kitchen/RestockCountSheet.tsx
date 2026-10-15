@@ -19,7 +19,8 @@ import {
   type CountSheetLine,
   type SiblingItem,
 } from "@/lib/actions/restock"
-import { PREP_SECTION_OWNER, prepSectionsFor, sectionHint, sectionPrompt, stationLabel, STATION_SHORT_LABEL } from "@/lib/stations"
+import { PREP_SECTION_OWNER, prepSectionsFor, sectionHint, sectionPrompt, sectionTone, stationLabel, STATION_SHORT_LABEL, type SectionTone } from "@/lib/stations"
+import { nextPriorityRank, rankSequence } from "@/lib/restock-order"
 import { SectionNav, WHOLE_LIST } from "@/components/kitchen/SectionNav"
 import {
   NEEDED_BY_TIMES,
@@ -116,16 +117,18 @@ export function RestockCountSheet({
    * Jose's priority system: a tap order, not a flag. First tap = 1,
    * next = 2, and so on; tapping a ranked item clears its number
    * (later numbers keep their value; gaps don't matter, order does).
+   *
+   * Each section numbers its own prep from 1 (Jose, 15 Oct 2026): the
+   * Café's first priority is Café 1, not 18 after the Restaurant's
+   * seventeen. A plain list is one sequence. Requests from the other
+   * kitchen are their own sequence.
    */
-  // Ranks form one sequence across the whole sheet, other-kitchen
-  // requests included.
-  function nextRank() {
-    return (
-      Math.max(
-        0,
-        ...lines.map((l) => l.priorityRank ?? 0),
-        ...sibs.map((s) => s.priorityRank ?? 0)
-      ) + 1
+  function nextRank(category: string) {
+    const seq = rankSequence(sections.length > 0, category)
+    return nextPriorityRank(
+      lines
+        .filter((l) => rankSequence(sections.length > 0, l.category) === seq)
+        .map((l) => l.priorityRank)
     )
   }
 
@@ -134,7 +137,7 @@ export function RestockCountSheet({
       patchLine(line.itemId, { priorityRank: null, priority: false })
       persist(line.itemId, { priorityRank: null })
     } else {
-      const next = nextRank()
+      const next = nextRank(line.category)
       patchLine(line.itemId, { priorityRank: next, priority: true })
       persist(line.itemId, { priorityRank: next })
     }
@@ -151,7 +154,7 @@ export function RestockCountSheet({
       patchSib(item.itemId, { priorityRank: null })
       persist(item.itemId, { priorityRank: null })
     } else {
-      const next = nextRank()
+      const next = nextPriorityRank(sibs.map((s) => s.priorityRank))
       patchSib(item.itemId, { priorityRank: next })
       persist(item.itemId, { priorityRank: next })
     }
@@ -355,6 +358,7 @@ export function RestockCountSheet({
               <CountRow
                 key={line.itemId}
                 line={line}
+                tone={sectionTone(sheet.venue, line.category)}
                 readOnly={readOnly}
                 onToggleRank={() => toggleRank(line)}
                 onChange={(patch, debounceKey) => {
@@ -564,11 +568,14 @@ export function RestockCountSheet({
 
 function CountRow({
   line,
+  tone,
   readOnly,
   onChange,
   onToggleRank,
 }: {
   line: CountSheetLine
+  /** The section's colour for the priority number. */
+  tone: SectionTone
   readOnly: boolean
   onChange: (patch: Partial<CountSheetLine>, debounceKey?: string) => void
   onToggleRank: () => void
@@ -654,7 +661,7 @@ function CountRow({
           {line.priorityRank != null ? (
             <span
               className="flex h-8 w-8 items-center justify-center rounded-full text-[15px] font-bold tabular-nums"
-              style={{ background: "var(--tk-gold)", color: "#5d4a12" }}
+              style={{ background: tone.bg, color: tone.fg }}
             >
               {line.priorityRank}
             </span>

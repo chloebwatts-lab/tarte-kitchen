@@ -189,6 +189,7 @@ export default async function RestockReportPage({
                     {sheet.lines.map((l, i) => {
                       const short =
                         (l.requested ?? 0) > 0 &&
+                        !l.outcome &&
                         sheet.status === "RESTOCKED" &&
                         (l.supplied == null || l.supplied < l.requested!)
                       const fully =
@@ -242,6 +243,11 @@ export default async function RestockReportPage({
                               <span className="inline-flex items-center gap-1 font-medium text-[var(--tk-done)]">
                                 <Check className="h-3.5 w-3.5" />
                                 {l.supplied}
+                              </span>
+                            ) : l.outcome ? (
+                              <span className="text-[12px] font-medium" style={{ color: "#8a6d1f" }}>
+                                {l.supplied != null ? `${l.supplied} · ` : ""}
+                                {l.outcome === "carried" ? "moved to a later list" : "not needed"}
                               </span>
                             ) : (
                               <span className="text-[var(--tk-ink-soft)]">

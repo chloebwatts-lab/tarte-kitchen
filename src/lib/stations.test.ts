@@ -9,6 +9,7 @@ import {
   sectionHint,
   sectionPrompt,
   sectionRank,
+  sectionTone,
   VENUE_PREP_SECTIONS,
 } from "./stations"
 
@@ -97,4 +98,15 @@ test("sectionFromParam: undefined, the Whole-list sentinel and padded names are 
   assert.equal(sectionFromParam("BEACH_HOUSE", "Main prep"), "Main prep")
   assert.equal(sectionFromParam("BURLEIGH", "Production"), "Production")
   assert.equal(sectionFromParam("BURLEIGH", "Main prep"), null, "Beach House section at Burleigh")
+})
+
+test("sectionTone: a colour per section, gold first and for anything unsectioned", () => {
+  const bh = prepSectionsFor("BEACH_HOUSE").map((s) => sectionTone("BEACH_HOUSE", s).bg)
+  assert.equal(bh[0], "var(--tk-gold)")
+  assert.equal(new Set(bh).size, bh.length)
+  assert.equal(sectionTone("BEACH_HOUSE", "Station restock").bg, "var(--tk-gold)")
+  assert.equal(sectionTone("TEA_GARDEN", "Station restock").bg, "var(--tk-gold)")
+  // Burleigh has five sections and five colours, none shared
+  const bu = prepSectionsFor("BURLEIGH").map((s) => sectionTone("BURLEIGH", s).bg)
+  assert.equal(new Set(bu).size, bu.length)
 })

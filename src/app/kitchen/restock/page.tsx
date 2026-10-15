@@ -6,6 +6,7 @@ import {
   ClipboardList,
   FileText,
   Moon,
+  ShoppingCart,
   Sunrise,
 } from "lucide-react"
 import { cookies } from "next/headers"
@@ -191,6 +192,51 @@ export default async function RestockHubPage({
                 : ""}
             </div>
           </div>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--tk-bg)] text-[var(--tk-ink-soft)] transition group-hover:bg-[var(--tk-charcoal)] group-hover:text-white">
+            <ArrowRight className="h-[18px] w-[18px]" />
+          </div>
+        </Link>
+      </div>
+
+      {/* Jose, 15 Oct 2026: a place to note what needs ordering or did not
+          arrive, as chefs notice it through the day. On the prep page, not
+          on the prep list. */}
+      <div className="space-y-3">
+        <div className="tk-caps px-1" style={{ color: "var(--tk-ink-mute)" }}>
+          <ShoppingCart className="mr-1.5 inline h-3.5 w-3.5" />
+          Any time: for the next order
+        </div>
+        <Link
+          href={`/kitchen/restock/orders?venue=${venue}`}
+          className="group flex min-h-[88px] items-center gap-5 rounded-[16px] border border-[var(--tk-line)] bg-white px-5 py-4 transition active:scale-[0.997]"
+        >
+          <div
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px]"
+            style={{ background: "var(--tk-warn-soft)", color: "var(--tk-warn)" }}
+          >
+            <ShoppingCart className="h-6 w-6" strokeWidth={1.8} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div
+              className="text-[19px] font-semibold leading-snug text-[var(--tk-charcoal)]"
+              style={{ letterSpacing: "-0.01em" }}
+            >
+              ORDER REQUESTS
+            </div>
+            <div className="mt-0.5 text-[14px] text-[var(--tk-ink-soft)]">
+              {hub.openOrderRequests > 0
+                ? `${hub.openOrderRequests} to order · running out or missing from a delivery`
+                : "Running out of something, or it didn't arrive? Note it here"}
+            </div>
+          </div>
+          {hub.openOrderRequests > 0 && (
+            <div
+              className="hidden shrink-0 rounded-full px-3 py-1.5 text-[12px] font-semibold sm:block"
+              style={{ background: "var(--tk-warn-soft)", color: "var(--tk-warn)" }}
+            >
+              {hub.openOrderRequests} waiting
+            </div>
+          )}
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--tk-bg)] text-[var(--tk-ink-soft)] transition group-hover:bg-[var(--tk-charcoal)] group-hover:text-white">
             <ArrowRight className="h-[18px] w-[18px]" />
           </div>

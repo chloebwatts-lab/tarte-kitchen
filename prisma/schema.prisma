@@ -2310,11 +2310,36 @@ model RestockLine {
   note       String?
   suppliedBy String?
   suppliedAt DateTime?
+  /// Jose, 15 Oct 2026: a request an earlier night left unmade sits on the
+  /// morning run's "Still to make" tab. Bringing it onto today's list sets
+  /// carriedAt (the outstanding amount moved to the newest sheet); "Not
+  /// needed" sets droppedAt. Either way it stops showing and is not a
+  /// shortfall on the report.
+  carriedAt  DateTime?
+  carriedBy  String?
+  droppedAt  DateTime?
+  droppedBy  String?
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
   @@unique([sheetId, itemId])
   @@index([itemId])
+}
+
+/// "Order Requests" on the prep page (Jose, 15 Oct 2026): anything a chef
+/// notices through the day that needs ordering, or did not arrive with a
+/// delivery. The head chef ticks it once it is on an order. Ticked rows
+/// drop off the page a few days later.
+model PrepOrderRequest {
+  id        String    @id @default(cuid())
+  venue     Venue
+  text      String
+  createdBy String?
+  createdAt DateTime  @default(now())
+  doneAt    DateTime?
+  doneBy    String?
+
+  @@index([venue, doneAt])
 }
 
 // ─── Maintenance module (MaintainX replacement) ─────────────────────────────

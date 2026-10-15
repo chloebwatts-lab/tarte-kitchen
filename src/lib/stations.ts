@@ -153,3 +153,30 @@ export function sectionFromParam(venue: Venue, raw: string | null | undefined): 
   const sections: readonly string[] = prepSectionsFor(venue)
   return sections.includes(raw) ? raw : null
 }
+
+// ─── Section colours ────────────────────────────────────────────────
+
+export interface SectionTone {
+  bg: string
+  fg: string
+}
+
+/**
+ * One colour per section for the priority numbers (Chloe, 15 Oct 2026):
+ * each section numbers its own prep from 1, so on the whole list a
+ * Restaurant 1 and a Café 1 must be tellable apart at a glance. The first
+ * section keeps the gold the numbers have always been; a plain list, and
+ * anything outside the venue's sections, is gold too.
+ */
+const SECTION_TONES: readonly SectionTone[] = [
+  { bg: "var(--tk-gold)", fg: "#5d4a12" },
+  { bg: "#c9ddd0", fg: "#1f4a33" },
+  { bg: "#cfddf0", fg: "#1f3b5e" },
+  { bg: "#f0d3c8", fg: "#6e2f1c" },
+  { bg: "#e2d6f0", fg: "#45286b" },
+]
+
+export function sectionTone(venue: Venue, category: string): SectionTone {
+  const i = (prepSectionsFor(venue) as readonly string[]).indexOf(category)
+  return SECTION_TONES[i >= 0 ? i % SECTION_TONES.length : 0]
+}

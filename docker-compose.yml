@@ -245,6 +245,11 @@ services:
         # agenda items, per venue, with owner and age. Open items only.
         # Preview at /api/cron/daily-accountability?preview=1 (office login).
         0 7 * * * curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/daily-accountability 2>&1
+        # 17:10 AEST (07:10 UTC) daily — the prep page's open Order Requests
+        # (what chefs noted as running out or missing from a delivery) to
+        # whoever places that venue's orders: Jose for Beach House. Nothing
+        # sent when the list is empty. Preview: /api/cron/order-requests?preview=1
+        10 7 * * * curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/order-requests 2>&1
         30 21 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/check-service-emails 2>&1
         # Tea Garden high tea prep list, to hello@ and Shawna. For a service
         # day D: first list 09:00 AEST two days before (23:00 UTC), updated

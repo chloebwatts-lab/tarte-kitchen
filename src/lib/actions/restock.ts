@@ -8,7 +8,15 @@ import {
   Venue,
 } from "@/generated/prisma/client"
 import { prepSectionsFor, sectionRank, stationsForVenue } from "@/lib/stations"
-import { LEARN_WINDOW_DAYS, doneInEarlierRun, orderPrepItems } from "@/lib/restock-order"
+import {
+  LEARN_WINDOW_DAYS,
+  carriedRequest,
+  compareRunItems,
+  doneInEarlierRun,
+  isCarryoverLine,
+  orderPrepItems,
+  outstandingQty,
+} from "@/lib/restock-order"
 
 // ------------------------------------------------------------------
 // The head chef's paper system, digitised:
@@ -103,8 +111,33 @@ export interface RunItem {
   stations: RunStationLine[]
 }
 
+/**
+ * A request from an earlier night that is still to make (Jose, 15 Oct
+ * 2026). Shown on the run's "Still to make" tab rather than stacked into
+ * today's list; the prep chef brings it onto today's list or marks it not
+ * needed.
+ */
+export interface CarryoverLine {
+  lineId: string
+  sheetId: string
+  sheetDate: string
+  station: KitchenStation
+  countedBy: string | null
+  itemId: string
+  name: string
+  unit: string | null
+  category: string
+  requested: number
+  supplied: number | null
+  /// Requested less supplied: what is still to make.
+  outstanding: number
+  priorityRank: number | null
+  note: string | null
+}
+
 export interface RestockRun {
   venue: Venue
+  /// The newest night's count(s): today's list.
   sheets: {
     sheetId: string
     station: KitchenStation
@@ -117,6 +150,8 @@ export interface RestockRun {
     lineCount: number
   }[]
   items: RunItem[]
+  /// Earlier nights' requests left unmade, newest night first.
+  carryover: CarryoverLine[]
 }
 
 export interface RestockHub {
@@ -133,6 +168,8 @@ export interface RestockHub {
   }[]
   pendingRunSheets: number
   lastRestock: { restockedBy: string | null; restockedAt: string } | null
+  /// Order requests nobody has ticked yet (Jose, 15 Oct 2026).
+  openOrderRequests: number
 }
 
 function todayAest(): Date {
@@ -158,7 +195,7 @@ export async function getRestockHub(venue: Venue): Promise<RestockHub> {
   const today = todayAest()
 
   const staleCutoff = new Date(today.getTime() - 3 * 24 * 60 * 60 * 1000)
-  const [sheets, pending, lastRestocked] = await Promise.all([
+  const [sheets, pending, lastRestocked, openOrderRequests] = await Promise.all([
     db.restockSheet.findMany({
       where: { venue, sheetDate: today },
       include: { lines: { select: { available: true, requested: true } } },
@@ -186,6 +223,7 @@ export async function getRestockHub(venue: Venue): Promise<RestockHub> {
       orderBy: { restockedAt: "desc" },
       select: { restockedBy: true, restockedAt: true },
     }),
+    db.prepOrderRequest.count({ where: { venue, doneAt: null } }),
   ])
 
   return {
@@ -215,6 +253,7 @@ export async function getRestockHub(venue: Venue): Promise<RestockHub> {
           restockedAt: lastRestocked.restockedAt.toISOString(),
         }
       : null,
+    openOrderRequests,
   }
 }
 
@@ -561,12 +600,17 @@ export async function addCatalogItem(params: {
 
 /**
  * Every count waiting for the venue, one line per catalogue item so the
- * prep chef makes each thing ONCE, with the nights that asked for it under
+ * prep chef makes each thing ONCE, with the kitchens that asked for it under
  * it. The same prep listed on two stations (Burleigh's grills each count
  * their own bottles) stays two lines, each under its own section. Includes
  * both SUBMITTED sheets and unsent IN_PROGRESS sheets that contain real
  * entries, a closing chef forgetting to tap "Send" must never lose the
  * count. Sheets older than 3 days are ignored as stale.
+ *
+ * Today's list is the newest night's count. Anything an earlier night in
+ * the window asked for and did not get (an unfinished run, or a finished
+ * one with shortfalls) comes back as `carryover` for the "Still to make"
+ * tab (Jose, 15 Oct 2026), not stacked into the list.
  */
 export async function getRestockRun(venue: Venue): Promise<RestockRun> {
   const staleCutoff = new Date(todayAest().getTime() - 3 * 24 * 60 * 60 * 1000)
@@ -577,7 +621,7 @@ export async function getRestockRun(venue: Venue): Promise<RestockRun> {
       },
     },
   }
-  const sheets = await db.restockSheet.findMany({
+  const waiting = await db.restockSheet.findMany({
     where: {
       venue,
       sheetDate: { gte: staleCutoff },
@@ -592,11 +636,17 @@ export async function getRestockRun(venue: Venue): Promise<RestockRun> {
 
   // A sheet reopened after a run still carries that run's finished lines.
   // They are history, not work, so they stay off the next run.
-  for (const sheet of sheets) {
+  for (const sheet of waiting) {
     sheet.lines = sheet.lines.filter(
       (l) => !doneInEarlierRun(l.suppliedAt, sheet.restockedAt)
     )
   }
+
+  const latestDate = waiting.reduce(
+    (max, s) => (ymd(s.sheetDate) > max ? ymd(s.sheetDate) : max),
+    ""
+  )
+  const sheets = waiting.filter((s) => ymd(s.sheetDate) === latestDate)
 
   const itemsByKey = new Map<string, RunItem>()
   for (const sheet of sheets) {
@@ -646,16 +696,53 @@ export async function getRestockRun(venue: Venue): Promise<RestockRun> {
     }
   }
 
-  const catRank = sectionRank
   const items = Array.from(itemsByKey.values()).sort(
+    compareRunItems(prepSectionsFor(venue).length > 0)
+  )
+
+  // Still to make: every earlier night in the window, finished or not.
+  // With no count waiting at all, that includes this morning's finished
+  // run, so its shortfalls can go onto tonight's list.
+  const earlier = await db.restockSheet.findMany({
+    where: {
+      venue,
+      sheetDate: latestDate
+        ? { gte: staleCutoff, lt: new Date(latestDate) }
+        : { gte: staleCutoff },
+    },
+    include: { lines: { include: { item: true } } },
+    orderBy: [{ sheetDate: "desc" }, { station: "asc" }],
+  })
+  const carryover: CarryoverLine[] = []
+  for (const sheet of earlier) {
+    for (const line of sheet.lines) {
+      const requested = num(line.requested)
+      const supplied = num(line.supplied)
+      if (!isCarryoverLine({ requested, supplied, carriedAt: line.carriedAt, droppedAt: line.droppedAt })) continue
+      carryover.push({
+        lineId: line.id,
+        sheetId: sheet.id,
+        sheetDate: ymd(sheet.sheetDate),
+        station: sheet.station,
+        countedBy: sheet.countedBy,
+        itemId: line.itemId,
+        name: line.item.name,
+        unit: line.item.unit,
+        category: line.item.category,
+        requested: requested ?? 0,
+        supplied,
+        outstanding: outstandingQty(requested, supplied),
+        priorityRank: line.priorityRank,
+        note: line.note,
+      })
+    }
+  }
+  carryover.sort(
     (a, b) =>
-      Number(b.priority) - Number(a.priority) ||
-      // Anything with a deadline comes first, earliest deadline on top
-      (a.neededBy ?? "9").localeCompare(b.neededBy ?? "9") ||
-      // Within priority items: Jose's rank order, unranked stars last
-      (a.priorityRank ?? 99) - (b.priorityRank ?? 99) ||
-      catRank(a.category) - catRank(b.category) ||
+      b.sheetDate.localeCompare(a.sheetDate) ||
+      sectionRank(a.category) - sectionRank(b.category) ||
       a.category.localeCompare(b.category) ||
+      (a.priorityRank ?? 99) - (b.priorityRank ?? 99) ||
       a.name.localeCompare(b.name)
   )
 
@@ -671,6 +758,7 @@ export async function getRestockRun(venue: Venue): Promise<RestockRun> {
       lineCount: s.lines.filter((l) => (num(l.requested) ?? 0) > 0).length,
     })),
     items,
+    carryover,
   }
 }
 
@@ -692,38 +780,123 @@ export async function supplyRunLine(params: {
 }
 
 /**
- * Drop ONE old count out of the run without logging any deliveries, for
- * when a night's requests were handled off-app (or superseded by a newer
- * count) and would otherwise stack on top of tonight's. Only sheets from
- * before today can be cleared; unsupplied lines show as shortfalls on that
- * date's report rather than vanishing.
+ * Bring a request an earlier night left unmade onto today's list (Jose,
+ * 15 Oct 2026). The outstanding amount goes onto the newest unfinished
+ * sheet for that kitchen, or onto today's sheet when there is none yet,
+ * and the old line is marked carried so it leaves the "Still to make"
+ * tab and is not a shortfall on its own day's report. When the old line
+ * is already on today's sheet (this morning's shortfall, tonight's list
+ * not started) it simply becomes a fresh request on that sheet.
  */
-export async function clearStaleRunSheet(params: {
-  sheetId: string
-  clearedBy: string
+export async function carryLineToToday(params: {
+  lineId: string
+  carriedBy: string
 }): Promise<{ ok: boolean; error?: string }> {
-  const clearedBy = params.clearedBy.trim()
-  if (!clearedBy) return { ok: false, error: "Add your name first" }
+  const by = params.carriedBy.trim()
+  if (!by) return { ok: false, error: "Add your name first" }
 
-  const sheet = await db.restockSheet.findUnique({
-    where: { id: params.sheetId },
-    select: { status: true, sheetDate: true },
+  const line = await db.restockLine.findUnique({
+    where: { id: params.lineId },
+    include: { sheet: true },
   })
-  if (!sheet) return { ok: false, error: "Sheet not found" }
-  if (sheet.status === "RESTOCKED") return { ok: true }
-  if (ymd(sheet.sheetDate) >= ymd(todayAest()))
-    return {
-      ok: false,
-      error: "That's today's count, finish the run instead of clearing it",
-    }
+  if (!line) return { ok: false, error: "Line not found" }
+  if (line.carriedAt || line.droppedAt) return { ok: true }
+  const outstanding = outstandingQty(num(line.requested), num(line.supplied))
+  if (outstanding <= 0) return { ok: false, error: "Nothing left to make on that line" }
 
-  await db.restockSheet.update({
-    where: { id: params.sheetId },
-    data: {
-      status: "RESTOCKED",
-      restockedBy: clearedBy,
-      restockedAt: new Date(),
+  const { venue, station } = line.sheet
+  const today = todayAest()
+  let target = await db.restockSheet.findFirst({
+    where: {
+      venue,
+      station,
+      sheetDate: { gt: line.sheet.sheetDate, lte: today },
+      status: { not: "RESTOCKED" },
     },
+    orderBy: { sheetDate: "desc" },
+  })
+  if (!target) {
+    target = await db.restockSheet.findUnique({
+      where: { venue_station_sheetDate: { venue, station, sheetDate: today } },
+    })
+  }
+  if (!target) {
+    try {
+      target = await db.restockSheet.create({ data: { venue, station, sheetDate: today } })
+    } catch {
+      target = await db.restockSheet.findUniqueOrThrow({
+        where: { venue_station_sheetDate: { venue, station, sheetDate: today } },
+      })
+    }
+  }
+
+  const now = new Date()
+  if (target.id === line.sheetId) {
+    // This morning's shortfall onto tonight's list: same sheet, fresh request.
+    await db.restockLine.update({
+      where: { id: line.id },
+      data: { requested: outstanding, supplied: null, suppliedBy: null, suppliedAt: null, neededBy: null },
+    })
+  } else {
+    const existing = await db.restockLine.findUnique({
+      where: { sheetId_itemId: { sheetId: target.id, itemId: line.itemId } },
+    })
+    const requested = carriedRequest(
+      outstanding,
+      existing
+        ? {
+            requested: num(existing.requested),
+            doneEarlier: doneInEarlierRun(existing.suppliedAt, target.restockedAt),
+          }
+        : null
+    )
+    await db.$transaction([
+      db.restockLine.upsert({
+        where: { sheetId_itemId: { sheetId: target.id, itemId: line.itemId } },
+        create: {
+          sheetId: target.id,
+          itemId: line.itemId,
+          requested,
+          note: line.note,
+        },
+        update: {
+          requested,
+          supplied: null,
+          suppliedBy: null,
+          suppliedAt: null,
+          note: existing?.note ?? line.note,
+        },
+      }),
+      db.restockLine.update({
+        where: { id: line.id },
+        data: { carriedAt: now, carriedBy: by },
+      }),
+    ])
+  }
+  // A finished sheet opens again as the live list, as a chef's edit would.
+  if (target.status === "RESTOCKED") {
+    await db.restockSheet.update({ where: { id: target.id }, data: { status: "IN_PROGRESS" } })
+  }
+  revalidatePath("/kitchen/restock")
+  return { ok: true }
+}
+
+/**
+ * Mark an earlier night's unmade request as not needed any more. It leaves
+ * the "Still to make" tab and is not a shortfall on the report.
+ */
+export async function dropCarryLine(params: {
+  lineId: string
+  droppedBy: string
+}): Promise<{ ok: boolean; error?: string }> {
+  const by = params.droppedBy.trim()
+  if (!by) return { ok: false, error: "Add your name first" }
+  const line = await db.restockLine.findUnique({ where: { id: params.lineId }, select: { carriedAt: true, droppedAt: true } })
+  if (!line) return { ok: false, error: "Line not found" }
+  if (line.carriedAt || line.droppedAt) return { ok: true }
+  await db.restockLine.update({
+    where: { id: params.lineId },
+    data: { droppedAt: new Date(), droppedBy: by },
   })
   revalidatePath("/kitchen/restock")
   return { ok: true }
@@ -795,6 +968,9 @@ export interface ReportSheet {
     priority: boolean
     priorityRank: number | null
     note: string | null
+    /// What became of a request left unmade: brought onto a later list,
+    /// or marked not needed. Null for everything else.
+    outcome: "carried" | "not_needed" | null
   }[]
 }
 
@@ -850,6 +1026,7 @@ export async function getRestockReport(params: {
         priority: l.priority,
         priorityRank: l.priorityRank,
         note: l.note,
+        outcome: l.carriedAt ? "carried" : l.droppedAt ? "not_needed" : null,
       })),
   }))
 
@@ -864,6 +1041,8 @@ export async function getRestockReport(params: {
         itemsRequested++
         if (l.supplied != null && l.supplied >= l.requested!) {
           itemsSupplied++
+        } else if (l.outcome) {
+          // Brought onto a later list or let go: not a shortfall here.
         } else if (s.status === "RESTOCKED") {
           shortfalls.push({
             name: l.name,
