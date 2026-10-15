@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic"
 
 import { db } from "@/lib/db"
 import { getValidXeroAccessToken, getPostedPayRuns, type ProcessedPayRun } from "@/lib/xero/client"
-import { mergePayRunsByWeek, payRunOrgs } from "@/lib/labour/payruns"
+import { fetchShiftsPayRuns, mergePayRunsByWeek, payRunOrgs, shiftsPayRunsConfigured } from "@/lib/labour/payruns"
 
 /**
  * Weekly labour cost (gross + super per posted pay run), both Xero orgs.
@@ -17,30 +17,8 @@ import { mergePayRunsByWeek, payRunOrgs } from "@/lib/labour/payruns"
  */
 async function payRunsFromShifts(fromDate: Date): Promise<ProcessedPayRun[]> {
   const all: ProcessedPayRun[] = []
-  for (const org of payRunOrgs()) all.push(...(await payRunsFromShiftsOrg(org, fromDate)))
+  for (const org of payRunOrgs()) all.push(...(await fetchShiftsPayRuns(org, fromDate)))
   return mergePayRunsByWeek(all)
-}
-
-async function payRunsFromShiftsOrg(org: string, fromDate: Date): Promise<ProcessedPayRun[]> {
-  const url = new URL(process.env.SHIFTS_PAYRUNS_URL!)
-  url.searchParams.set("org", org)
-  url.searchParams.set("from", fromDate.toISOString().slice(0, 10))
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${process.env.SHIFTS_SECRET}` },
-    cache: "no-store",
-  })
-  const body = (await res.json()) as {
-    ok?: boolean
-    error?: string
-    payRuns?: Array<Omit<ProcessedPayRun, "weekStart" | "weekEnd" | "paymentDate"> & { weekStart: string; weekEnd: string; paymentDate: string }>
-  }
-  if (!res.ok || !body.ok) throw new Error(`Tarte Shifts pay-runs feed (${org}): ${body.error ?? res.status}`)
-  return (body.payRuns ?? []).map((r) => ({
-    ...r,
-    weekStart: new Date(r.weekStart),
-    weekEnd: new Date(r.weekEnd),
-    paymentDate: new Date(r.paymentDate),
-  }))
 }
 
 export async function GET(request: Request) {
@@ -50,8 +28,8 @@ export async function GET(request: Request) {
   }
 
   const results = {
-    source: process.env.SHIFTS_PAYRUNS_URL && process.env.SHIFTS_SECRET ? "tarte-shifts" : "xero",
-    orgs: process.env.SHIFTS_PAYRUNS_URL && process.env.SHIFTS_SECRET ? payRunOrgs() : [],
+    source: shiftsPayRunsConfigured() ? "tarte-shifts" : "xero",
+    orgs: shiftsPayRunsConfigured() ? payRunOrgs() : [],
     synced: 0,
     skipped: 0,
     errors: [] as string[],

@@ -46,6 +46,16 @@ export function hasSessionCookie(cookie: string): boolean {
 
 export interface UberDaily { date: string; sales: number; orders: number }
 
+/**
+ * Uber reports sales at menu prices inc GST, before its commission. Louise's
+ * weekly revenue counts them ex GST alongside the POS (w/e 13 Oct 2026:
+ * Square $99,581.16 + Uber $4,977.93 / 1.1 = $104,106.55 vs her
+ * $104,106.61), so that is the figure Kitchen adds to POS revenue.
+ */
+export function uberSalesExGst(salesIncGst: number): number {
+  return Math.round((salesIncGst / 1.1) * 100) / 100
+}
+
 interface HomepageResponse {
   status?: string
   data?: {

@@ -77,7 +77,7 @@ function aestDayName(d: Date): string {
  * in which case the total already IS ex GST. Counting a raw inc-GST
  * total as ex-GST inflated spend by 10% on those invoices.
  */
-function exGstInvoiceAmount(inv: {
+export function exGstInvoiceAmount(inv: {
   subtotal: { toString(): string } | null
   total: { toString(): string } | null
   gst: { toString(): string } | null

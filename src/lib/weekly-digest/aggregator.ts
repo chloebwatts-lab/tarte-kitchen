@@ -19,6 +19,14 @@ import { lastCompletedTarteWeek } from "@/lib/dates"
 import { TG_PASTRY_REVENUE_SHARE } from "@/lib/labour/buckets"
 import { recodeLabourWeek } from "@/lib/labour/recode"
 import {
+  fetchShiftsPayRuns,
+  payRunForWeek,
+  PAY_RUN_ORG_VENUES,
+  shiftsPayRunsConfigured,
+} from "@/lib/labour/payruns"
+import { uberSalesExGst } from "@/lib/uber/client"
+import { sharedSplit } from "@/lib/spend/shared-split"
+import {
   buildCommitmentsSection,
   type CommitmentsSection,
 } from "@/lib/commitments/digest"
@@ -214,6 +222,10 @@ interface WastageSection {
 
 interface CogsSection {
   weekStartWed: string | null
+  /** "report" = Louise's COGS sheet for the digest week (Xero bills ex gas);
+   * "invoices" = supplier invoices in hand, provisional, her sheet not in
+   * yet; null = nothing usable for the week. */
+  source?: "report" | "invoices" | null
   perVenue: Array<{
     venue: string
     revenueExGst: number | null
@@ -235,11 +247,20 @@ interface CogsSection {
 
 interface LabourSection {
   weekStartWed: string | null
+  /** "report" = Louise's payroll PDFs for the digest week; "payrun" = the
+   * posted Xero pay runs per entity, provisional, her report not in yet;
+   * null = nothing usable for the week. */
+  source?: "report" | "payrun" | null
   perVenue: Array<{
     venue: string
     revenueExGst: number | null
     grossWages: number
     overallPct: number | null
+    /** Louise's headline wage % exactly as her report states it (before
+     * the standing cross-venue salary adjustment in overallPct). */
+    reportedPct?: number | null
+    /** True for the pay-run fallback: venue totals only, no dept split. */
+    provisional?: boolean
     /** Wage % with admin salaries stripped (Olivia + the Shawna half),
      * the number to compare against Deputy's view. Standing ask from
      * Chloe 2026-08-28: always show this beside the headline. */
@@ -643,18 +664,41 @@ async function buildWastage(week: DigestWeek): Promise<WastageSection> {
   }
 }
 
-async function buildCogs(): Promise<CogsSection> {
-  // Most recent week that has cogs data for any venue
-  const latest = await db.weeklyCogs.findFirst({
-    orderBy: { weekStartWed: "desc" },
-    select: { weekStartWed: true },
-  })
-  if (!latest)
-    return { weekStartWed: null, perVenue: [] }
+/**
+ * POS revenue (Lightspeed / Square end-of-day, ex GST) plus Uber Eats sales
+ * ex GST, per venue, for a date range. This is Louise's revenue basis when
+ * her report is not in yet: for w/e 13 Oct 2026 her Beach House revenue
+ * equalled Square + Uber ex GST within 6 cents, Tea Garden to the cent and
+ * Burleigh within $70.
+ */
+async function posPlusUberRevenue(start: Date, end: Date): Promise<Map<Venue, number>> {
+  const [pos, uber] = await Promise.all([
+    db.dailySalesSummary.findMany({
+      where: { date: { gte: start, lte: end } },
+      select: { venue: true, totalRevenueExGst: true },
+    }),
+    db.dailyUberSales.findMany({
+      where: { date: { gte: start, lte: end } },
+      select: { venue: true, salesIncGst: true },
+    }),
+  ])
+  const out = new Map<Venue, number>()
+  for (const r of pos) out.set(r.venue, (out.get(r.venue) ?? 0) + Number(r.totalRevenueExGst))
+  for (const r of uber) out.set(r.venue, (out.get(r.venue) ?? 0) + uberSalesExGst(Number(r.salesIncGst)))
+  return out
+}
 
+async function buildCogs(week: DigestWeek): Promise<CogsSection> {
+  // Louise's COGS sheet for THIS digest week only. Until 16 Oct 2026 the
+  // digest took the latest sheet in the table, so a week whose sheet had
+  // not arrived silently went out with the previous week's figures under
+  // the current week's header (w/e 13 Oct 2026 showed w/e 6 Oct's 22%;
+  // hers were 24.4% Burleigh / 29.4% Currumbin). A missing sheet now falls
+  // back to the invoices in hand, labelled provisional.
   const rows = await db.weeklyCogs.findMany({
-    where: { weekStartWed: latest.weekStartWed },
+    where: { weekStartWed: week.start },
   })
+  if (rows.length === 0) return buildCogsFromInvoices(week)
 
   // Tea Garden has no separate COGS report: Louise's "Currumbin" xlsx
   // covers Beach House + Tea Garden combined ingredient/coffee costs.
@@ -664,7 +708,7 @@ async function buildCogs(): Promise<CogsSection> {
   // pct is left as the "as-reported" number; we override with the
   // combined-revenue pct so the digest reflects reality.
   const labour = await db.labourWeekActual.findMany({
-    where: { weekStartWed: latest.weekStartWed },
+    where: { weekStartWed: week.start },
     select: { venue: true, revenueExGst: true },
   })
   const tgRevenue =
@@ -762,27 +806,106 @@ async function buildCogs(): Promise<CogsSection> {
   }
 
   return {
-    weekStartWed: dateKey(latest.weekStartWed),
+    weekStartWed: dateKey(week.start),
+    source: "report",
     perVenue,
   }
 }
 
-async function buildLabour(): Promise<LabourSection> {
-  const latest = await db.labourWeekActual.findFirst({
-    orderBy: { weekStartWed: "desc" },
-    select: { weekStartWed: true },
-  })
-  if (!latest) return { weekStartWed: null, perVenue: [] }
+const UNCOUNTED_INVOICE_STATUSES = ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CONFIRMATION", "REJECTED"] as const
 
+/**
+ * COGS from the supplier invoices ingested at accounts@ for the week, used
+ * only while Louise's sheet for the week is missing. Same ex-GST amount and
+ * shared-invoice split as the live /spend tracker. Reads low until the late
+ * invoices land, so every row says so.
+ */
+async function buildCogsFromInvoices(week: DigestWeek): Promise<CogsSection> {
+  const empty: CogsSection = { weekStartWed: null, source: null, perVenue: [] }
+  const nextWed = new Date(week.start.getTime() + 7 * 86400000)
+  const { exGstInvoiceAmount } = await import("@/lib/spend/current-week")
+  const [invoices, revenue, targets] = await Promise.all([
+    db.invoice.findMany({
+      where: {
+        invoiceDate: { gte: week.start, lt: nextWed },
+        status: { notIn: [...UNCOUNTED_INVOICE_STATUSES] },
+      },
+      select: { venue: true, supplierName: true, total: true, subtotal: true, gst: true },
+    }),
+    posPlusUberRevenue(week.start, week.end),
+    db.venueCogsTarget.findMany(),
+  ])
+  if (invoices.length === 0) return empty
+
+  const spend = { BURLEIGH: 0, CURRUMBIN: 0 }
+  let unassigned = 0
+  for (const inv of invoices) {
+    const amt = exGstInvoiceAmount(inv)
+    if (inv.venue === Venue.BURLEIGH) spend.BURLEIGH += amt
+    else if (inv.venue === Venue.BEACH_HOUSE || inv.venue === Venue.TEA_GARDEN) spend.CURRUMBIN += amt
+    else if (inv.venue === Venue.BOTH) {
+      const sp = sharedSplit(inv.supplierName)
+      spend.BURLEIGH += amt * sp.BURLEIGH
+      spend.CURRUMBIN += amt * sp.CURRUMBIN
+    } else unassigned += amt
+  }
+  const targetFor = (v: Venue) => {
+    const t = targets.find((x) => x.venue === v)
+    return t ? Number(t.targetPct) : null
+  }
+  const caveat =
+    `Provisional: supplier invoices received at accounts@ so far, ex GST, before late invoices` +
+    (unassigned > 0 ? `; $${Math.round(unassigned).toLocaleString()} of invoices have no venue yet and are left out` : "") +
+    `. Louise's Xero COGS replaces this once her COGS sheet for the week is uploaded.`
+  const row = (venue: string, dollars: number, rev: number, target: number | null, note: string) => {
+    const pct = rev > 0 ? Math.round((dollars / rev) * 1000) / 10 : null
+    return {
+      venue,
+      revenueExGst: rev > 0 ? Math.round(rev * 100) / 100 : null,
+      totalCogs: Math.round(dollars * 100) / 100,
+      cogsPct: pct,
+      targetPct: target,
+      delta: pct != null && target != null ? pct - target : null,
+      biggestCategory: null,
+      nonFoodFoh: null,
+      note,
+    }
+  }
+  const burleighRev = revenue.get(Venue.BURLEIGH) ?? 0
+  const currumbinRev = (revenue.get(Venue.BEACH_HOUSE) ?? 0) + (revenue.get(Venue.TEA_GARDEN) ?? 0)
+  return {
+    weekStartWed: dateKey(week.start),
+    source: "invoices",
+    perVenue: [
+      row("Burleigh", spend.BURLEIGH, burleighRev, targetFor(Venue.BURLEIGH), caveat),
+      row(
+        "Beach House + Tea Garden",
+        spend.CURRUMBIN,
+        currumbinRev,
+        targetFor(Venue.BEACH_HOUSE),
+        "Same basis. Revenue is POS plus Uber Eats, ex GST."
+      ),
+    ],
+  }
+}
+
+async function buildLabour(week: DigestWeek): Promise<LabourSection> {
+  // Louise's payroll PDFs for THIS digest week only. Until 16 Oct 2026 the
+  // digest took the latest week in the table, so a week whose PDFs had not
+  // arrived went out with the previous week's wage % under the current
+  // week's header (w/e 13 Oct 2026 showed w/e 6 Oct's 36.6% / 35.9%; hers
+  // were 39.1% / 38.2%). Missing PDFs now fall back to the posted Xero pay
+  // runs per entity, labelled provisional.
   const rows = await db.labourWeekActual.findMany({
-    where: { weekStartWed: latest.weekStartWed },
+    where: { weekStartWed: week.start },
   })
+  if (rows.length === 0) return buildLabourFromPayRuns(week)
 
-  // Rebuild dept splits from Deputy worked areas where timesheet coverage
-  // allows: the bookkeeper's columns code people by home profile, not the
-  // area they worked, which mis-grades the bucket targets (see
+  // Rebuild dept splits from worked areas where timesheet coverage allows:
+  // the bookkeeper's columns code people by home profile, not the area
+  // they worked, which mis-grades the bucket targets (see
   // src/lib/labour/recode.ts). Venue cash totals stay the bookkeeper's.
-  const recode = await recodeLabourWeek(latest.weekStartWed).catch(() => null)
+  const recode = await recodeLabourWeek(week.start).catch(() => null)
 
   const perVenue: LabourSection["perVenue"] = SINGLE_VENUES.map((v) => {
     const r = rows.find((x) => x.venue === v)
@@ -792,6 +915,7 @@ async function buildLabour(): Promise<LabourSection> {
         revenueExGst: null,
         grossWages: 0,
         overallPct: null,
+        reportedPct: null,
         exAdminPct: null,
         departmentGroups: [],
       }
@@ -799,6 +923,8 @@ async function buildLabour(): Promise<LabourSection> {
     const rev = r.revenueExGst ? Number(r.revenueExGst) : null
     const gross = rc ? rc.adjustedGrossWages : Number(r.grossWages)
     const overallPct = rev && rev > 0 ? (gross / rev) * 100 : null
+    // Her headline, untouched, so the digest can be read against her report.
+    const reportedPct = rev && rev > 0 ? (Number(r.grossWages) / rev) * 100 : null
     const admin = r.wagesAdmin != null ? Number(r.wagesAdmin) : 0
     const exAdminPct =
       rev && rev > 0 && admin > 0 ? ((gross - admin) / rev) * 100 : null
@@ -861,13 +987,52 @@ async function buildLabour(): Promise<LabourSection> {
       revenueExGst: rev,
       grossWages: gross,
       overallPct,
+      reportedPct,
       exAdminPct,
       departmentGroups: groups,
       recoded: !!rc,
     }
   })
 
-  return { weekStartWed: dateKey(latest.weekStartWed), perVenue }
+  return { weekStartWed: dateKey(week.start), source: "report", perVenue }
+}
+
+/**
+ * Venue wage totals from the posted Xero pay runs (gross + super, Louise's
+ * basis: her three venue totals for w/e 13 Oct 2026 summed to the posted
+ * runs to the cent) on POS + Uber revenue. Per entity only: Tarte Bakery
+ * pays Burleigh, Tarte Currumbin pays Beach House + Tea Garden, and her
+ * cross-venue transfers (about $450 that week) are not applied. No dept
+ * split: that needs her report.
+ */
+async function buildLabourFromPayRuns(week: DigestWeek): Promise<LabourSection> {
+  const empty: LabourSection = { weekStartWed: null, source: null, perVenue: [] }
+  if (!shiftsPayRunsConfigured()) return empty
+  const revenue = await posPlusUberRevenue(week.start, week.end)
+  const perVenue: LabourSection["perVenue"] = []
+  for (const o of PAY_RUN_ORG_VENUES) {
+    let run = null
+    try {
+      run = payRunForWeek(await fetchShiftsPayRuns(o.org, week.start), week.start)
+    } catch (e) {
+      console.error("[weekly-digest] pay-run fallback:", e instanceof Error ? e.message : e)
+      continue
+    }
+    if (!run) continue
+    const rev = o.venues.reduce((s, v) => s + (revenue.get(v as Venue) ?? 0), 0)
+    perVenue.push({
+      venue: o.label,
+      revenueExGst: rev > 0 ? Math.round(rev * 100) / 100 : null,
+      grossWages: run.totalCost,
+      overallPct: rev > 0 ? (run.totalCost / rev) * 100 : null,
+      reportedPct: null,
+      exAdminPct: null,
+      departmentGroups: [],
+      provisional: true,
+    })
+  }
+  if (perVenue.length === 0) return empty
+  return { weekStartWed: dateKey(week.start), source: "payrun", perVenue }
 }
 
 async function buildTopSellers(
@@ -943,23 +1108,17 @@ async function buildSales(week: DigestWeek): Promise<SalesSection> {
   const lastWeekEnd = new Date(week.end.getTime() - 7 * 86400000)
 
   // Prefer Louise Kilgour's Mge-PDF revenue (LabourWeekActual.revenueExGst).
-  // It includes online sales + event revenue that Lightspeed POS misses.
-  // Fall back to summing DailySalesSummary if the PDF hasn't been uploaded
-  // for that week yet (digest may run before Thursday upload).
+  // It includes online sales + event revenue that the POS misses. Fall
+  // back to POS end-of-day plus Uber Eats ex GST (her basis, see
+  // posPlusUberRevenue) if the PDF hasn't been uploaded for that week yet.
   const [
     thisWeekSummaries,
     lastWeekSummaries,
     thisWeekLouise,
     lastWeekLouise,
   ] = await Promise.all([
-    db.dailySalesSummary.findMany({
-      where: { date: { gte: week.start, lte: week.end } },
-      select: { venue: true, totalRevenueExGst: true },
-    }),
-    db.dailySalesSummary.findMany({
-      where: { date: { gte: lastWeekStart, lte: lastWeekEnd } },
-      select: { venue: true, totalRevenueExGst: true },
-    }),
+    posPlusUberRevenue(week.start, week.end),
+    posPlusUberRevenue(lastWeekStart, lastWeekEnd),
     db.labourWeekActual.findMany({
       where: { weekStartWed: week.start },
       select: { venue: true, revenueExGst: true },
@@ -970,8 +1129,7 @@ async function buildSales(week: DigestWeek): Promise<SalesSection> {
     }),
   ])
 
-  const sumSummariesBy = (rows: typeof thisWeekSummaries, v: Venue) =>
-    rows.filter((r) => r.venue === v).reduce((s, r) => s + Number(r.totalRevenueExGst), 0)
+  const sumSummariesBy = (rows: typeof thisWeekSummaries, v: Venue) => rows.get(v) ?? 0
 
   const louiseFor = (rows: typeof thisWeekLouise, v: Venue): number | null => {
     const row = rows.find((r) => r.venue === v)
@@ -1119,8 +1277,8 @@ export async function buildWeeklyDigestSnapshot(
       buildReviewsSection(week),
       buildPriceSpikes(week),
       buildWastage(week),
-      buildCogs(),
-      buildLabour(),
+      buildCogs(week),
+      buildLabour(week),
       buildTopSellers(week),
       buildSales(week),
       buildOperations(week),
@@ -1133,10 +1291,11 @@ export async function buildWeeklyDigestSnapshot(
   return {
     weekStart: week.startKey,
     weekEnd: week.endKey,
-    labourWeekStart: labour.weekStartWed,
-    labourWeekEnd: labour.weekStartWed
-      ? dateKey(new Date(new Date(labour.weekStartWed).getTime() + 6 * 86400000))
-      : null,
+    labourWeekStart: labour.weekStartWed ?? cogs.weekStartWed,
+    labourWeekEnd:
+      (labour.weekStartWed ?? cogs.weekStartWed)
+        ? dateKey(new Date(new Date((labour.weekStartWed ?? cogs.weekStartWed)!).getTime() + 6 * 86400000))
+        : null,
     reviews,
     priceSpikes,
     wastage,

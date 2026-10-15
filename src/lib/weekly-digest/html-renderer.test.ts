@@ -600,3 +600,200 @@ test("headline and section notes are escaped into the HTML", () => {
   assert.ok(html.includes("Fish &amp; chips &lt;b&gt;up&lt;/b&gt;"))
   assert.ok(html.includes("Burleigh soft, Currumbin flat."))
 })
+
+// ------------------------------------------------- week-anchored labour (16 Oct 2026)
+
+test("pay-run fallback renders a provisional wage line per entity, no department table, and says why", () => {
+  const html = renderDigestHtml(
+    snapshot({
+      labourWeekStart: "2026-10-07",
+      labourWeekEnd: "2026-10-13",
+      labour: {
+        weekStartWed: "2026-10-07",
+        source: "payrun",
+        perVenue: [
+          { venue: "Burleigh", revenueExGst: 117948.37, grossWages: 45686.46, overallPct: 38.73, reportedPct: null, exAdminPct: null, departmentGroups: [], provisional: true },
+          { venue: "Beach House + Tea Garden", revenueExGst: 111062.96, grossWages: 42651.16, overallPct: 38.4, reportedPct: null, exAdminPct: null, departmentGroups: [], provisional: true },
+        ],
+      },
+    }),
+    narrative
+  )
+  assert.ok(html.includes("Provisional 38.73%"))
+  assert.ok(html.includes("$45,686 posted pay run incl super"))
+  assert.ok(html.includes("Beach House + Tea Garden"))
+  assert.ok(html.includes("Louise&#39;s payroll report for this week is not in yet") || html.includes("Louise's payroll report for this week is not in yet"))
+  assert.ok(!html.includes("No labour data uploaded for this week."))
+  assert.ok(html.includes("Provisional until Louise"))
+  const text = renderDigestText(
+    snapshot({
+      labour: {
+        weekStartWed: "2026-10-07",
+        source: "payrun",
+        perVenue: [{ venue: "Burleigh", revenueExGst: 117948.37, grossWages: 45686.46, overallPct: 38.73, exAdminPct: null, departmentGroups: [], provisional: true }],
+      },
+    }),
+    narrative
+  )
+  assert.ok(text.includes("Burleigh, provisional (posted pay run) 38.7%"))
+})
+
+test("Louise's own headline is printed beside the adjusted overall when the cross-venue shift moves it", () => {
+  const base = snapshot()
+  // Burleigh carries the +$1,400 cross-venue salary, so our 45% is above
+  // her printed 43.9%; Tea Garden has no adjustment and the two agree.
+  const html = renderDigestHtml(
+    snapshot({
+      labour: {
+        ...base.labour,
+        source: "report",
+        perVenue: base.labour.perVenue.map((v) =>
+          v.venue === "Burleigh" ? { ...v, reportedPct: 43.9 } : { ...v, reportedPct: v.overallPct }
+        ),
+      },
+    }),
+    narrative
+  )
+  assert.ok(html.includes("Louise&#39;s report 43.90%") || html.includes("Louise's report 43.90%"))
+  // Venues where the two agree do not repeat the number.
+  assert.equal((html.match(/Louise(&#39;|')s report/g) ?? []).length, 1)
+  const text = renderDigestText(
+    snapshot({
+      labour: {
+        ...base.labour,
+        perVenue: base.labour.perVenue.map((v) => (v.venue === "Burleigh" ? { ...v, reportedPct: 43.9 } : v)),
+      },
+    }),
+    narrative
+  )
+  assert.ok(text.includes("Burleigh, overall 45.0% (ex admin 41.2%) (Louise's report 43.9%)"))
+})
+
+// ------------------------------------------ invoice COGS fallback (16 Oct 2026)
+// When Louise's COGS sheet for the week is missing the aggregator builds two
+// provisional rows from supplier invoices: no food/non-food split, a caveat
+// in the note, and the footer must flag the whole labour/COGS block.
+
+test("invoice fallback: provisional COGS rows render with the caveat, blanks for non-food and category, and the footer says so", () => {
+  const snap = snapshot({
+    labourWeekStart: "2026-10-07",
+    labourWeekEnd: "2026-10-13",
+    cogs: {
+      weekStartWed: "2026-10-07",
+      source: "invoices",
+      perVenue: [
+        {
+          venue: "Burleigh",
+          revenueExGst: 117948.37,
+          totalCogs: 26656.33,
+          cogsPct: 22.6,
+          targetPct: 28,
+          delta: 22.6 - 28,
+          biggestCategory: null,
+          nonFoodFoh: null,
+          note: "Provisional: supplier invoices received at accounts@ so far, ex GST, before late invoices; $1,204 of invoices have no venue yet and are left out. Louise's Xero COGS replaces this once her COGS sheet for the week is uploaded.",
+        },
+        {
+          venue: "Beach House + Tea Garden",
+          revenueExGst: 111062.96,
+          totalCogs: 28432.12,
+          cogsPct: 25.6,
+          targetPct: 29,
+          delta: 25.6 - 29,
+          biggestCategory: null,
+          nonFoodFoh: null,
+          note: "Same basis. Revenue is POS plus Uber Eats, ex GST.",
+        },
+      ],
+    },
+  })
+  const html = renderDigestHtml(snap, narrative)
+  assert.ok(html.includes("22.60%"))
+  assert.ok(html.includes("25.60%"))
+  assert.ok(html.includes("-5.40%"), "under target reads as a negative delta pill")
+  assert.ok(html.includes("-3.40%"))
+  assert.ok(html.includes("$1,204 of invoices have no venue yet and are left out"))
+  assert.ok(html.includes("Revenue is POS plus Uber Eats, ex GST."))
+  assert.ok(html.includes(">24.1%<"), "COGS tile averages the two provisional rows")
+  assert.match(html, /Labour &amp; COGS reflect Wed 2026-10-07 → Tue 2026-10-13\. Provisional until Louise(&#39;|')s report for that week is uploaded\./)
+  assert.ok(!/NaN|Infinity|undefined/.test(html))
+  const text = renderDigestText(snap, narrative)
+  assert.match(text, /Burleigh\s+22\.6%\s+target 28\.0%\s+non-food —/)
+  assert.match(text, /Beach House \+ Tea Garden 25\.6%\s+target 29\.0%\s+non-food —/)
+})
+
+test("report-sourced labour and COGS carry no provisional wording anywhere", () => {
+  const base = snapshot()
+  const html = renderDigestHtml(
+    snapshot({ labour: { ...base.labour, source: "report" }, cogs: { ...base.cogs, source: "report" } }),
+    narrative
+  )
+  assert.ok(!/[Pp]rovisional/.test(html))
+  assert.ok(html.includes("Labour &amp; COGS reflect Wed 2026-09-16 → Tue 2026-09-22."))
+  // Stored digests from before the source field existed behave the same.
+  const legacy = renderDigestHtml(snapshot(), narrative)
+  assert.ok(!/[Pp]rovisional/.test(legacy))
+})
+
+test("labour from her report but COGS from invoices still flags the footer as provisional", () => {
+  const base = snapshot()
+  const html = renderDigestHtml(
+    snapshot({ labour: { ...base.labour, source: "report" }, cogs: { ...base.cogs, source: "invoices" } }),
+    narrative
+  )
+  assert.match(html, /Provisional until Louise(&#39;|')s report for that week is uploaded\./)
+  assert.ok(!html.includes("Provisional 45.00%"), "the wage rows themselves stay as reported")
+})
+
+test("nothing for the week at all: wages section explains both sources are missing and the footer says not yet uploaded", () => {
+  const nothing = snapshot({
+    labourWeekStart: null,
+    labourWeekEnd: null,
+    labour: { weekStartWed: null, source: null, perVenue: [] },
+    cogs: { weekStartWed: null, source: null, perVenue: [] },
+  })
+  const html = renderDigestHtml(nothing, narrative)
+  assert.ok(html.includes("No labour data uploaded for this week."))
+  assert.ok(html.includes("no posted pay run was found for it"))
+  assert.ok(html.includes("Labour &amp; COGS not yet uploaded for this week."))
+  assert.ok(!/Provisional until/.test(html))
+  assert.ok(!/NaN|Infinity|undefined/.test(html))
+  const text = renderDigestText(nothing, narrative)
+  assert.ok(text.includes("WAGES vs TARGET\n\nCOGS\n\n"), "no venue lines under either heading")
+})
+
+test("pay run posted but no POS revenue on file yet: dollars shown, no percentage, no division by zero", () => {
+  const labour: WeeklyDigestSnapshot["labour"] = {
+    weekStartWed: "2026-10-07",
+    source: "payrun",
+    perVenue: [
+      { venue: "Burleigh", revenueExGst: null, grossWages: 45686.46, overallPct: null, reportedPct: null, exAdminPct: null, departmentGroups: [], provisional: true },
+    ],
+  }
+  const html = renderDigestHtml(snapshot({ labour }), narrative)
+  assert.ok(html.includes("$45,686 posted pay run incl super, no revenue on file for the week yet"))
+  assert.ok(!html.includes("Provisional —"))
+  assert.ok(!/NaN|Infinity|undefined/.test(html))
+  const text = renderDigestText(snapshot({ labour }), narrative)
+  assert.ok(text.includes("Burleigh, provisional (posted pay run) —"))
+})
+
+test("Louise's headline is not repeated when it matches ours to within half a basis point, or is unknown", () => {
+  const base = snapshot()
+  const nearlySame = snapshot({
+    labour: {
+      ...base.labour,
+      perVenue: base.labour.perVenue.map((v) => ({ ...v, reportedPct: v.overallPct != null ? v.overallPct + 0.004 : null })),
+    },
+  })
+  assert.ok(!/Louise(&#39;|')s report/.test(renderDigestHtml(nearlySame, narrative)))
+  assert.ok(!renderDigestText(nearlySame, narrative).includes("Louise's report"))
+  // Just over the line it shows, with her number not ours.
+  const over = snapshot({
+    labour: {
+      ...base.labour,
+      perVenue: base.labour.perVenue.map((v) => (v.venue === "Burleigh" ? { ...v, reportedPct: 45.006 } : v)),
+    },
+  })
+  assert.match(renderDigestHtml(over, narrative), /Louise(&#39;|')s report 45\.01%/)
+})

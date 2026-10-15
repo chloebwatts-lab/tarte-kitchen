@@ -242,13 +242,14 @@ function salesSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative
 }
 
 function wagesSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative) {
-  if (snapshot.labour.perVenue.every((v) => v.departmentGroups.length === 0)) {
+  const provisional = snapshot.labour.source === "payrun"
+  if (snapshot.labour.perVenue.every((v) => v.departmentGroups.length === 0 && !v.provisional)) {
     return `${sectionHeader("Wages vs target", narrative.sectionNotes.wages)}
-      <div style="padding:8px 28px 0;color:${C.inkMute};font-size:13px;">No labour data uploaded for this week.</div>`
+      <div style="padding:8px 28px 0;color:${C.inkMute};font-size:13px;">No labour data uploaded for this week. Louise's payroll report for the week is not in Kitchen yet and no posted pay run was found for it.</div>`
   }
 
   const venueBlocks = snapshot.labour.perVenue
-    .filter((v) => v.departmentGroups.length > 0)
+    .filter((v) => v.departmentGroups.length > 0 || v.provisional)
     .map((v) => {
       const groupRows = v.departmentGroups
         .map((g) => {
@@ -268,9 +269,18 @@ function wagesSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative
             </tr>`
         })
         .join("")
-      const overall =
-        v.overallPct != null
-          ? `Overall ${fmtPct(v.overallPct, { decimals: 2 })}${v.exAdminPct != null ? ` · ex admin ${fmtPct(v.exAdminPct, { decimals: 2 })}` : ""} · ${fmtMoney(v.grossWages)} wages on ${fmtMoney(v.revenueExGst ?? 0)} revenue`
+      // Her headline sits beside ours whenever the standing cross-venue
+      // adjustment moves it, so the email reads against her report.
+      const louise =
+        v.reportedPct != null && v.overallPct != null && Math.abs(v.reportedPct - v.overallPct) >= 0.005
+          ? ` · Louise's report ${fmtPct(v.reportedPct, { decimals: 2 })}`
+          : ""
+      const overall = v.provisional
+        ? v.overallPct != null
+          ? `Provisional ${fmtPct(v.overallPct, { decimals: 2 })} · ${fmtMoney(v.grossWages)} posted pay run incl super on ${fmtMoney(v.revenueExGst ?? 0)} POS + Uber Eats revenue`
+          : `${fmtMoney(v.grossWages)} posted pay run incl super, no revenue on file for the week yet`
+        : v.overallPct != null
+          ? `Overall ${fmtPct(v.overallPct, { decimals: 2 })}${v.exAdminPct != null ? ` · ex admin ${fmtPct(v.exAdminPct, { decimals: 2 })}` : ""}${louise} · ${fmtMoney(v.grossWages)} wages on ${fmtMoney(v.revenueExGst ?? 0)} revenue`
           : "—"
       return `
         <div style="margin:0 18px 12px;">
@@ -290,8 +300,13 @@ function wagesSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative
   return `
     ${sectionHeader("Wages vs target", narrative.sectionNotes.wages)}
     <div style="height:14px;"></div>
-    ${venueBlocks}
-    <div style="padding:4px 28px 0;color:${C.inkMute};font-size:11px;font-style:italic;">Beach House Pastry % is measured against Beach House revenue plus 50% of Tea Garden revenue, since that pastry team also bakes for Tea Garden.</div>${
+    ${venueBlocks}${
+      provisional
+        ? `
+    <div style="padding:4px 28px 0;color:${C.inkMute};font-size:11px;font-style:italic;">Provisional: Louise's payroll report for this week is not in yet. These are the posted Xero pay runs per entity (Tarte Bakery pays Burleigh, Tarte Currumbin pays Beach House and Tea Garden) on POS plus Uber Eats revenue, before her cross-venue transfers, the admin split and department coding. Upload her PDFs at kitchen.tarte.com.au/labour and the department lines come back.</div>`
+        : `
+    <div style="padding:4px 28px 0;color:${C.inkMute};font-size:11px;font-style:italic;">Beach House Pastry % is measured against Beach House revenue plus 50% of Tea Garden revenue, since that pastry team also bakes for Tea Garden.</div>`
+    }${
       snapshot.labour.perVenue.some((v) => v.recoded)
         ? `
     <div style="padding:4px 28px 0;color:${C.inkMute};font-size:11px;font-style:italic;">Department splits are rebuilt from Deputy worked areas (juice bar counts as FOH); venue totals are the bookkeeper's, adjusted for the standing cross-venue salary allocation.</div>`
@@ -995,9 +1010,10 @@ function actionList(narrative: DigestNarrative) {
 }
 
 function footer(snapshot: WeeklyDigestSnapshot) {
+  const provisional = snapshot.labour.source === "payrun" || snapshot.cogs.source === "invoices"
   const labourRange =
     snapshot.labourWeekStart && snapshot.labourWeekEnd
-      ? `Labour & COGS reflect Wed ${snapshot.labourWeekStart} → Tue ${snapshot.labourWeekEnd}.`
+      ? `Labour & COGS reflect Wed ${snapshot.labourWeekStart} → Tue ${snapshot.labourWeekEnd}.${provisional ? " Provisional until Louise's report for that week is uploaded." : ""}`
       : "Labour & COGS not yet uploaded for this week."
   return `
     <tr>
@@ -1069,8 +1085,14 @@ export function renderDigestText(
   lines.push(``)
   lines.push(`WAGES vs TARGET`)
   for (const v of snapshot.labour.perVenue) {
-    if (!v.departmentGroups.length) continue
-    lines.push(`  ${v.venue}, overall ${v.overallPct != null ? fmtPct(v.overallPct) : "—"}${v.exAdminPct != null ? ` (ex admin ${fmtPct(v.exAdminPct)})` : ""}`)
+    if (!v.departmentGroups.length && !v.provisional) continue
+    const louise =
+      v.reportedPct != null && v.overallPct != null && Math.abs(v.reportedPct - v.overallPct) >= 0.005
+        ? ` (Louise's report ${fmtPct(v.reportedPct)})`
+        : ""
+    lines.push(
+      `  ${v.venue}, ${v.provisional ? "provisional (posted pay run) " : "overall "}${v.overallPct != null ? fmtPct(v.overallPct) : "—"}${v.exAdminPct != null ? ` (ex admin ${fmtPct(v.exAdminPct)})` : ""}${louise}`
+    )
     for (const g of v.departmentGroups) {
       const target = g.target ? `${g.target.min}-${g.target.max}%` : "no target"
       lines.push(

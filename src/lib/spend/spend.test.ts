@@ -591,3 +591,37 @@ test("arrivalCompleteness: share of spend dated to today that had arrived by thi
   // Too little history: no estimate
   assert.equal(arrivalCompleteness(rows.slice(0, 5), monday6pm, 6), null)
 })
+
+// --------------------------------------------------- ex-GST invoice amount
+// Now exported: the Friday digest's provisional COGS (invoices in hand when
+// Louise's sheet for the week is missing) must read each invoice the same
+// way the live tracker does.
+
+import { exGstInvoiceAmount } from "./current-week"
+
+test("exGstInvoiceAmount: a parsed subtotal wins outright, even when the totals disagree with it", () => {
+  // Fermex, 4 x Anchor butter 5kg: subtotal line found by the parser
+  assert.equal(exGstInvoiceAmount({ subtotal: "212.00", total: "233.20", gst: "21.20" }), 212)
+  assert.equal(exGstInvoiceAmount({ subtotal: "212.00", total: "999.99", gst: null }), 212)
+})
+
+test("exGstInvoiceAmount: no subtotal line strips GST from the inc-GST total, unless the invoice says GST is zero", () => {
+  const stripped = exGstInvoiceAmount({ subtotal: null, total: "233.20", gst: "21.20" })
+  assert.ok(Math.abs(stripped - 212) < 1e-9, `233.20 / 1.1 = 212, got ${stripped}`)
+  // GST-free produce run (fresh fruit and veg): the total already IS ex GST
+  assert.equal(exGstInvoiceAmount({ subtotal: null, total: "95.40", gst: "0.00" }), 95.4)
+  assert.equal(exGstInvoiceAmount({ subtotal: null, total: "95.40", gst: "0" }), 95.4)
+  // GST unknown: assume it is in there
+  const unknown = exGstInvoiceAmount({ subtotal: null, total: "95.40", gst: null })
+  assert.ok(Math.abs(unknown - 95.4 / 1.1) < 1e-9)
+})
+
+test("exGstInvoiceAmount: credit notes stay negative so they net off, and an empty invoice is $0 not NaN", () => {
+  // Global Food & Wine credit, stored negative by the parser
+  assert.equal(exGstInvoiceAmount({ subtotal: "-1417.27", total: "-1559.00", gst: "-141.73" }), -1417.27)
+  const creditNoSubtotal = exGstInvoiceAmount({ subtotal: null, total: "-1559.00", gst: "-141.73" })
+  assert.ok(Math.abs(creditNoSubtotal - -1417.272727) < 1e-5)
+  assert.equal(exGstInvoiceAmount({ subtotal: null, total: null, gst: null }), 0)
+  assert.equal(exGstInvoiceAmount({ subtotal: null, total: null, gst: "0" }), 0)
+  assert.equal(exGstInvoiceAmount({ subtotal: "0", total: "0", gst: "0" }), 0)
+})

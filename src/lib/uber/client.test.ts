@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { parseCookieInput, hasSessionCookie, parseHomepageDaily, parseTodayMetrics } from "./client"
+import { parseCookieInput, hasSessionCookie, parseHomepageDaily, parseTodayMetrics, uberSalesExGst } from "./client"
 
 test("parseCookieInput: bare header value, cookie: line, and a Copy-as-cURL paste", () => {
   assert.equal(parseCookieInput("sid=abc; csid=def"), "sid=abc; csid=def")
@@ -205,4 +205,11 @@ test("nextDay: plain calendar arithmetic, month and year ends", () => {
   assert.equal(nextDay("2026-10-07"), "2026-10-08")
   assert.equal(nextDay("2026-10-31"), "2026-11-01")
   assert.equal(nextDay("2026-12-31"), "2027-01-01")
+})
+
+test("uberSalesExGst strips GST the way Louise's weekly revenue does (w/e 13 Oct 2026 Beach House)", () => {
+  assert.equal(uberSalesExGst(4977.93), 4525.39)
+  // Square $99,581.16 + Uber ex GST lands on her $104,106.61 within 6 cents.
+  assert.ok(Math.abs(99581.16 + uberSalesExGst(4977.93) - 104106.61) < 0.1)
+  assert.equal(uberSalesExGst(0), 0)
 })
