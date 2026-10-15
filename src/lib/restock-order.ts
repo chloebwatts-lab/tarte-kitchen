@@ -76,8 +76,10 @@ export interface RunOrderable {
  * Order of the Make prep list. Priorities first. On a sectioned list the
  * numbers restart per section, so the priorities run section by section
  * (Restaurant 1, 2, 3, then Café 1, 2, 3) rather than 1, 1, 2, 2; a
- * deadline still lifts an item to the top of its section. On a plain list
- * the numbers are one sequence and the earliest deadline leads.
+ * deadline still lifts a priority to the top of its section. Everything
+ * without a priority follows, earliest deadline first, then by section.
+ * On a plain list the numbers are one sequence and the earliest deadline
+ * leads.
  */
 export function compareRunItems(sectioned: boolean): (a: RunOrderable, b: RunOrderable) => number {
   return (a, b) =>

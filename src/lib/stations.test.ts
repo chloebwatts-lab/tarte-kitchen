@@ -110,3 +110,18 @@ test("sectionTone: a colour per section, gold first and for anything unsectioned
   const bu = prepSectionsFor("BURLEIGH").map((s) => sectionTone("BURLEIGH", s).bg)
   assert.equal(new Set(bu).size, bu.length)
 })
+
+test("sectionTone: another venue's section, BOTH, and a plain list all read gold; Burleigh's fifth section has its own colour", () => {
+  assert.equal(sectionTone("BURLEIGH", "Café").bg, "var(--tk-gold)", "Beach House section shown at Burleigh")
+  assert.equal(sectionTone("BOTH", "Restaurant").bg, "var(--tk-gold)")
+  assert.equal(sectionTone("TEA_GARDEN", "").bg, "var(--tk-gold)")
+  assert.notEqual(sectionTone("BURLEIGH", "Production").bg, "var(--tk-gold)")
+  assert.equal(sectionTone("BURLEIGH", "Production").bg, sectionTone("BURLEIGH", "Production").bg)
+  // Same section name gives the same colour on both the count sheet and the run
+  assert.deepEqual(sectionTone("BEACH_HOUSE", "Café"), sectionTone("BEACH_HOUSE", "Café"))
+  // Every tone pairs a background with a readable foreground
+  for (const s of prepSectionsFor("BURLEIGH")) {
+    const t = sectionTone("BURLEIGH", s)
+    assert.ok(t.bg && t.fg, `tone for ${s}`)
+  }
+})

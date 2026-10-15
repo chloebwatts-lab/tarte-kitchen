@@ -143,3 +143,116 @@ describe("carry-over of prep left unmade", () => {
     assert.equal(carriedRequest(0.5, { requested: 0.25, doneEarlier: false }), 0.75)
   })
 })
+
+// ─── Added by test-guard, 15 Oct 2026 ───────────────────────────────────────
+
+describe("carry-over arithmetic on fractional kitchen quantities", () => {
+  test("outstanding and carried amounts round to 2dp, no float dust", () => {
+    // 1 tray asked, 0.9 made: 0.1 left (1 - 0.9 is 0.09999... in floats)
+    assert.equal(outstandingQty(1, 0.9), 0.1)
+    // 3 asked, 0.1 + 0.2 made
+    assert.equal(outstandingQty(3, 0.1 + 0.2), 2.7)
+    assert.equal(carriedRequest(0.1, { requested: 0.2, doneEarlier: false }), 0.3)
+    assert.equal(carriedRequest(1.1, { requested: 2.2, doneEarlier: false }), 3.3)
+    // Half a batch onto a sheet already asking for a quarter and a half
+    assert.equal(carriedRequest(0.5, { requested: 0.75, doneEarlier: false }), 1.25)
+  })
+
+  test("nasty inputs: negative or dust-sized requests carry nothing", () => {
+    assert.equal(outstandingQty(-2, null), 0)
+    assert.equal(outstandingQty(0.004, null), 0, "rounds away to nothing")
+    assert.equal(isCarryoverLine({ requested: -2, supplied: null, carriedAt: null, droppedAt: null }), false)
+    assert.equal(isCarryoverLine({ requested: 0, supplied: null, carriedAt: null, droppedAt: null }), false)
+    // Over-delivered line is settled, never a negative carry
+    assert.equal(isCarryoverLine({ requested: 2, supplied: 2.5, carriedAt: null, droppedAt: null }), false)
+  })
+
+  test("carrying onto today's line that asks for nothing yet, or was already made, uses the outstanding amount only", () => {
+    assert.equal(carriedRequest(2, { requested: 0, doneEarlier: false }), 2)
+    assert.equal(carriedRequest(2, { requested: null, doneEarlier: true }), 2)
+    assert.equal(carriedRequest(0, { requested: 3, doneEarlier: false }), 3, "nothing outstanding adds nothing")
+  })
+})
+
+describe("priority numbers: sequences and odd ranks", () => {
+  test("a plain list is one sequence whatever the category; a sectioned list keys on the section", () => {
+    assert.equal(rankSequence(false, "Café"), "ALL")
+    assert.equal(rankSequence(false, "Station restock"), "ALL")
+    assert.equal(rankSequence(true, "Café"), "Café")
+    assert.notEqual(rankSequence(true, "Restaurant"), rankSequence(true, "Café"))
+  })
+
+  test("zero and negative ranks never pull the next number below 1; any iterable works", () => {
+    assert.equal(nextPriorityRank([0, -3]), 1)
+    assert.equal(nextPriorityRank(new Set([2, 7])), 8)
+    assert.equal(nextPriorityRank([2.5]), 3.5, "odd data passes through rather than being hidden")
+  })
+})
+
+describe("make prep order with priorities and plain items mixed", () => {
+  const item = (name: string, category: string, rank: number | null, neededBy: string | null = null, priority = rank != null) => ({
+    name,
+    category,
+    priority,
+    priorityRank: rank,
+    neededBy,
+  })
+  const early = "2026-10-16T00:00:00.000Z"
+  const later = "2026-10-16T04:00:00.000Z"
+
+  test("sectioned: every priority, from any section, sits above every plain item, deadline or not", () => {
+    const items = [
+      item("Lemons", "Restaurant", null, early),
+      item("Pico", "Café", 1),
+      item("Burger buns", "Café", null, later),
+      item("Hollandaise", "Restaurant", null),
+      item("Goat cream", "Main prep", null, later),
+      item("W.C.", "Café", null),
+      item("Star only", "Restaurant", null, null, true),
+    ]
+    const out = [...items].sort(compareRunItems(true)).map((i) => i.name)
+    // Restaurant star (no number) leads Café 1: sections run in order before numbers.
+    // Plain items: deadlines first (earliest, then by section for a tie), then section order, then name.
+    assert.deepEqual(out, ["Star only", "Pico", "Lemons", "Burger buns", "Goat cream", "Hollandaise", "W.C."])
+  })
+
+  test("sectioned: within one section a numbered item beats a bare star, and a deadline beats both", () => {
+    const items = [
+      item("Bare star", "Restaurant", null, null, true),
+      item("Steak", "Restaurant", 2),
+      item("Parsley oil", "Restaurant", 1),
+      item("Stock", "Restaurant", 3, later),
+    ]
+    const out = [...items].sort(compareRunItems(true)).map((i) => i.name)
+    assert.deepEqual(out, ["Stock", "Parsley oil", "Steak", "Bare star"])
+  })
+
+  test("plain list: two items with the same number and section fall back to name, never swap unpredictably", () => {
+    const a = item("Aioli", "Station restock", 1)
+    const b = item("Buns", "Station restock", 1)
+    assert.equal(Math.sign(compareRunItems(false)(a, b)), -1)
+    assert.equal(Math.sign(compareRunItems(false)(b, a)), 1)
+    assert.equal(compareRunItems(false)(a, { ...a }), 0)
+  })
+
+  test("the comparator is antisymmetric across every pair, sectioned and plain", () => {
+    const sample = [
+      item("Lemons", "Restaurant", null, early),
+      item("Pico", "Café", 1),
+      item("Buns", "Café", null, later),
+      item("Hollandaise", "Restaurant", null),
+      item("Star", "Restaurant", null, null, true),
+      item("Stock", "Restaurant", 3, later),
+      item("Burger ball", "Production", 1),
+      item("Goat cream", "Main kitchen larder", 2, early),
+    ]
+    for (const sectioned of [true, false]) {
+      const cmp = compareRunItems(sectioned)
+      for (const a of sample) {
+        for (const b of sample) {
+          assert.equal(Math.sign(cmp(a, b)) + Math.sign(cmp(b, a)), 0, `${a.name} vs ${b.name} (sectioned=${sectioned})`)
+        }
+      }
+    }
+  })
+})
