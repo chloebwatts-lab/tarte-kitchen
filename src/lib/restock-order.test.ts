@@ -319,3 +319,110 @@ describe("moving a priority number by hand (Chloe, 15 Oct 2026)", () => {
     assert.deepEqual(moveRank(lines, "nope", 1), [])
   })
 })
+
+// ─── Added by test-guard, 15 Oct 2026: moveRank edges ───────────────────────
+
+describe("moving a priority number: lone, unranked and duplicated numbers", () => {
+  test("the only numbered prep stays 1 whatever number is asked for, and nothing is saved", () => {
+    const lines = [
+      { id: "hollandaise", priorityRank: 1 },
+      { id: "guac", priorityRank: null },
+      { id: "chives", priorityRank: null },
+    ]
+    assert.deepEqual(moveRank(lines, "hollandaise", 5), [])
+    assert.deepEqual(moveRank(lines, "hollandaise", 1), [])
+    assert.deepEqual(moveRank(lines, "hollandaise", 0), [])
+    assert.deepEqual(moveRank(lines, "hollandaise", -3), [])
+  })
+
+  test("with nothing numbered yet, any number asked for becomes 1 and only that line changes", () => {
+    const lines = [
+      { id: "burger-ball", priorityRank: null },
+      { id: "goat-cream", priorityRank: null },
+      { id: "pico", priorityRank: null },
+    ]
+    assert.deepEqual(moveRank(lines, "goat-cream", 3), [{ id: "goat-cream", priorityRank: 1 }])
+    assert.deepEqual(moveRank(lines, "pico", 1), [{ id: "pico", priorityRank: 1 }])
+    assert.deepEqual(moveRank([], "pico", 1), [], "empty section: nothing to move")
+  })
+
+  test("Chloe's case: two preps both at 2 off the paper sheet, one moved to 3, the other keeps 2", () => {
+    const lines = [
+      { id: "buns", priorityRank: 1 },
+      { id: "pico", priorityRank: 2 },
+      { id: "wc", priorityRank: 2 },
+      { id: "lemons", priorityRank: null },
+    ]
+    // Either twin moved to 3 is the only line that changes: the other already holds 2
+    assert.deepEqual(moveRank(lines, "wc", 3), [{ id: "wc", priorityRank: 3 }])
+    assert.deepEqual(moveRank(lines, "pico", 3), [{ id: "pico", priorityRank: 3 }])
+    // Moved to 1 instead: it leads, buns slips to 2, the twin settles at 3
+    assert.deepEqual(moveRank(lines, "wc", 1), [
+      { id: "wc", priorityRank: 1 },
+      { id: "buns", priorityRank: 2 },
+      { id: "pico", priorityRank: 3 },
+    ])
+  })
+
+  test("duplicates elsewhere in the sequence are renumbered 1..n with no gaps and no repeats", () => {
+    const lines = [
+      { id: "a", priorityRank: 1 },
+      { id: "b", priorityRank: 2 },
+      { id: "c", priorityRank: 2 },
+      { id: "d", priorityRank: 3 },
+      { id: "e", priorityRank: 3 },
+    ]
+    const changes = moveRank(lines, "e", 1)
+    const after = new Map(lines.map((l) => [l.id, l.priorityRank as number]))
+    for (const c of changes) after.set(c.id, c.priorityRank)
+    assert.deepEqual([...after.values()].sort((x, y) => x - y), [1, 2, 3, 4, 5])
+    assert.equal(after.get("e"), 1)
+    // paper order of the ties is kept: b before c, d stays ahead of nothing else at 3
+    assert.ok((after.get("b") as number) < (after.get("c") as number))
+    assert.ok((after.get("c") as number) < (after.get("d") as number))
+  })
+
+  test("asking for the number it already holds while a twin shares it still settles the twin", () => {
+    const lines = [
+      { id: "a", priorityRank: 1 },
+      { id: "b", priorityRank: 2 },
+      { id: "c", priorityRank: 2 },
+    ]
+    // c asked to be 2: it sits at 2, b (the other 2, earlier on paper) drops to 3
+    assert.deepEqual(moveRank(lines, "c", 2), [{ id: "b", priorityRank: 3 }])
+  })
+
+  test("a fractional number rounds to the nearest whole position; lines passed in are never mutated", () => {
+    const lines = [
+      { id: "a", priorityRank: 1 },
+      { id: "b", priorityRank: 2 },
+      { id: "c", priorityRank: 3 },
+    ]
+    const snapshot = JSON.stringify(lines)
+    assert.deepEqual(moveRank(lines, "c", 1.4), [
+      { id: "c", priorityRank: 1 },
+      { id: "a", priorityRank: 2 },
+      { id: "b", priorityRank: 3 },
+    ])
+    assert.deepEqual(moveRank(lines, "a", 2.5), [
+      { id: "b", priorityRank: 1 },
+      { id: "c", priorityRank: 2 },
+      { id: "a", priorityRank: 3 },
+    ])
+    assert.equal(JSON.stringify(lines), snapshot)
+  })
+
+  test("the result never carries a null, a zero, or a number past the count of numbered preps", () => {
+    const lines = [
+      { id: "a", priorityRank: 4 },
+      { id: "b", priorityRank: 4 },
+      { id: "c", priorityRank: 9 },
+      { id: "d", priorityRank: null },
+    ]
+    for (const [id, n] of [["d", 99], ["c", -1], ["a", 2], ["b", 0]] as const) {
+      for (const c of moveRank(lines, id, n)) {
+        assert.ok(Number.isInteger(c.priorityRank) && c.priorityRank >= 1 && c.priorityRank <= 4, `${id}->${n}: ${c.id}=${c.priorityRank}`)
+      }
+    }
+  })
+})

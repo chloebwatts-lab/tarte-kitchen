@@ -51,9 +51,9 @@ export interface CatalogueChoice {
 export function parseQty(raw: string | null | undefined): number | null {
   const t = (raw ?? "").trim().replace(",", ".")
   if (!t) return null
-  const n = Number(t)
+  const n = Math.round(Number(t) * 100) / 100
   if (!Number.isFinite(n) || n <= 0) return null
-  return Math.round(n * 100) / 100
+  return n
 }
 
 /** "2 ×" in front of a product, or nothing. */

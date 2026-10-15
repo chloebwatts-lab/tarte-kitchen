@@ -140,9 +140,29 @@ export function RestockCountSheet({
     persist(line.itemId, { priorityRank: next })
   }
 
+  /** Remove a number; the rest of its section closes up (1, 3 becomes 1, 2). */
   function clearRank(line: CountSheetLine) {
-    patchLine(line.itemId, { priorityRank: null, priority: false })
-    persist(line.itemId, { priorityRank: null })
+    const seq = rankSequence(sections.length > 0, line.category)
+    const others = lines
+      .filter((l) => l.itemId !== line.itemId && l.priorityRank != null && rankSequence(sections.length > 0, l.category) === seq)
+      .sort((a, b) => (a.priorityRank as number) - (b.priorityRank as number))
+    const changes: { itemId: string; priorityRank: number | null }[] = [{ itemId: line.itemId, priorityRank: null }]
+    others.forEach((l, i) => {
+      if (l.priorityRank !== i + 1) changes.push({ itemId: l.itemId, priorityRank: i + 1 })
+    })
+    setLines((prev) =>
+      prev.map((l) => {
+        const c = changes.find((x) => x.itemId === l.itemId)
+        return c ? { ...l, priorityRank: c.priorityRank, priority: c.priorityRank != null } : l
+      })
+    )
+    setSavingCount((n) => n + 1)
+    saveCountRanks({ sheetId: sheet.sheetId, ranks: changes })
+      .then((res) => {
+        if (!res.ok) setError(res.error ?? "Couldn't save. Try again.")
+      })
+      .catch(() => setError("Couldn't save. Check the connection."))
+      .finally(() => setSavingCount((n) => n - 1))
   }
 
   /**

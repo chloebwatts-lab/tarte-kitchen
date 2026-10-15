@@ -386,3 +386,155 @@ describe("quantity and department on a request (Chloe, 15 Oct 2026)", () => {
     assert.match(mail.html, /orders\?venue=BURLEIGH&amp;dept=PASTRY|orders\?venue=BURLEIGH&dept=PASTRY/)
   })
 })
+
+// ─── Added by test-guard, 15 Oct 2026: quantity and recipient edges ─────────
+
+describe("parseQty rounding and sizes", () => {
+  test("rounds to two decimals, half up, and keeps float dust out", () => {
+    assert.equal(parseQty("0.333"), 0.33)
+    assert.equal(parseQty("0.335"), 0.34)
+    assert.equal(parseQty("2.999"), 3)
+    assert.equal(parseQty("1.005"), 1, "float 1.005 is just under, rounds down like a calculator")
+    assert.equal(parseQty("12.5"), 12.5)
+    assert.equal(parseQty(" 0.1 "), 0.1)
+  })
+
+  test("a quantity that rounds away to nothing is no quantity, not zero", () => {
+    assert.equal(parseQty("0.004"), null)
+    assert.equal(parseQty("0.001"), null)
+    assert.equal(parseQty("0.005"), 0.01, "half a hundredth rounds up to the smallest quantity")
+    assert.equal(parseQty("0.00"), null)
+  })
+
+  test("large values pass through whole: 60 cartons, 1000 packs, exponent notation", () => {
+    assert.equal(parseQty("60"), 60)
+    assert.equal(parseQty("1000"), 1000)
+    assert.equal(parseQty("99999999"), 99999999)
+    assert.equal(parseQty("1e3"), 1000)
+    assert.equal(parseQty("Infinity"), null)
+    assert.equal(parseQty("NaN"), null)
+  })
+
+  test("a comma is a decimal point (1,5 packs), so a thousands comma reads as a decimal", () => {
+    assert.equal(parseQty("1,5"), 1.5)
+    assert.equal(parseQty("1,000"), 1)
+    assert.equal(parseQty("1,5,0"), null, "a second comma is not a number")
+    assert.equal(parseQty("2 x"), null)
+    assert.equal(parseQty("x2"), null)
+    assert.equal(parseQty(undefined), null)
+    assert.equal(parseQty("  "), null)
+  })
+
+  test("qtyLabel trims trailing zeros and shows big numbers whole", () => {
+    assert.equal(qtyLabel(2.25), "2.25 ×")
+    assert.equal(qtyLabel(0.1 + 0.2), "0.3 ×")
+    assert.equal(qtyLabel(1000), "1000 ×")
+    assert.equal(qtyLabel(0.5), "0.5 ×")
+    assert.equal(qtyLabel(60), "60 ×")
+  })
+})
+
+describe("recipients: the legacy ORDER_REQUEST_TO_<VENUE> is the kitchen's only", () => {
+  const legacy = { ORDER_REQUEST_TO_BEACH_HOUSE: "chef@tarte.com.au", ORDER_REQUEST_TO_BURLEIGH: "vini@tarte.com.au" }
+
+  test("the kitchen reads it; no other department does, and they get nobody by default", () => {
+    assert.deepEqual(orderRequestRecipients("BEACH_HOUSE", "KITCHEN", legacy), ["chef@tarte.com.au"])
+    assert.deepEqual(orderRequestRecipients("BURLEIGH", "KITCHEN", legacy), ["vini@tarte.com.au"])
+    for (const dept of ["PASTRY", "COFFEE_BAR", "FRONT_OF_HOUSE"] as const) {
+      assert.deepEqual(orderRequestRecipients("BEACH_HOUSE", dept, legacy), [], dept)
+      assert.deepEqual(orderRequestRecipients("BURLEIGH", dept, legacy), [], dept)
+      assert.deepEqual(orderRequestRecipients("BEACH_HOUSE", dept, {}), [], `${dept} has no built-in default`)
+    }
+  })
+
+  test("the department-specific key wins over the legacy one, even when empty", () => {
+    const both = { ...legacy, ORDER_REQUEST_TO_KITCHEN_BEACH_HOUSE: "jose@tarte.com.au" }
+    assert.deepEqual(orderRequestRecipients("BEACH_HOUSE", "KITCHEN", both), ["jose@tarte.com.au"])
+    const off = { ...legacy, ORDER_REQUEST_TO_KITCHEN_BEACH_HOUSE: "" }
+    assert.deepEqual(orderRequestRecipients("BEACH_HOUSE", "KITCHEN", off), [], "empty specific key switches it off despite the legacy value")
+    // Specific key unset (undefined) falls through to legacy
+    assert.deepEqual(orderRequestRecipients("BEACH_HOUSE", "KITCHEN", { ...legacy, ORDER_REQUEST_TO_KITCHEN_BEACH_HOUSE: undefined }), ["chef@tarte.com.au"])
+  })
+
+  test("the department defaults to the kitchen when not given, so the old cron call still reaches Jose", () => {
+    assert.deepEqual(orderRequestRecipients("BEACH_HOUSE", undefined, {}), ["jseluis957@gmail.com"])
+    assert.deepEqual(orderRequestRecipients("BEACH_HOUSE", undefined, legacy), ["chef@tarte.com.au"])
+  })
+
+  test("pastry's key for one venue never reaches another venue or the kitchen", () => {
+    const env = { ORDER_REQUEST_TO_PASTRY_BURLEIGH: "jess@tarte.com.au" }
+    assert.deepEqual(orderRequestRecipients("BURLEIGH", "PASTRY", env), ["jess@tarte.com.au"])
+    assert.deepEqual(orderRequestRecipients("BEACH_HOUSE", "PASTRY", env), [])
+    assert.deepEqual(orderRequestRecipients("BURLEIGH", "KITCHEN", env), [])
+    assert.deepEqual(orderRequestRecipients("BOTH", "PASTRY", env), [])
+  })
+})
+
+describe("the email with quantities and departments", () => {
+  const now = new Date("2026-10-15T07:00:00Z")
+  const row = (over: Partial<OrderRequestRow>): OrderRequestRow => ({
+    id: "r",
+    dept: "KITCHEN",
+    qty: null,
+    text: "Anchor Butter Unsalted 5kg",
+    approvedItemId: "bf-butter",
+    supplier: "Bidfood",
+    packSize: "5kg",
+    note: null,
+    createdBy: "Michel",
+    createdAt: "2026-10-15T01:00:00Z",
+    done: false,
+    doneBy: null,
+    doneAt: null,
+    ...over,
+  })
+
+  test("a fractional quantity and a missing one both read cleanly, text and html", () => {
+    const mail = renderOrderRequestEmail({
+      venue: "BEACH_HOUSE",
+      open: [row({ id: "a", qty: 1.5 }), row({ id: "b", qty: null, text: "Bridor Croissant 90g carton of 60", createdAt: "2026-10-15T00:00:00Z" })],
+      now,
+    })
+    assert.match(mail.text, /- 1\.5 × Anchor Butter Unsalted 5kg \[Bidfood · 5kg\] \(Michel, /)
+    assert.match(mail.text, /- Bridor Croissant 90g carton of 60 \[Bidfood · 5kg\]/)
+    assert.doesNotMatch(mail.text, /- {2}Bridor|null ×|undefined/)
+    assert.match(mail.html, /1\.5 × Anchor Butter Unsalted 5kg/)
+    // the kitchen's email keeps the plain venue name and the plain URL
+    assert.equal(mail.subject, "Beach House order requests: 2 to order (2 new today)")
+    assert.doesNotMatch(mail.html, /dept=/)
+  })
+
+  test("another department names itself in the subject and links to its own list", () => {
+    const mail = renderOrderRequestEmail({ venue: "TEA_GARDEN", dept: "COFFEE_BAR", open: [row({ dept: "COFFEE_BAR", qty: 60 })], now })
+    assert.equal(mail.subject, "Tea Garden coffee & bar order requests: 1 to order (1 new today)")
+    assert.match(mail.text, /- 60 × Anchor Butter/)
+    assert.match(mail.text, /orders\?venue=TEA_GARDEN&dept=COFFEE_BAR/)
+  })
+})
+
+describe("catalogue preference by department", () => {
+  const items: CatalogueChoice[] = [
+    { id: "p-flour", name: "Flour Plain 12.5kg", supplier: "Manildra", packSize: "12.5kg", category: "Baking", dept: "PASTRY" },
+    { id: "k-flour", name: "Flour Plain 12.5kg", supplier: "Bidfood", packSize: "12.5kg", category: "Pantry", dept: "KITCHEN" },
+    { id: "k-corn", name: "Flour Corn 1kg", supplier: "Bidfood", packSize: "1kg", category: "Pantry", dept: "KITCHEN" },
+    { id: "p-rice", name: "Rice Flour 1kg", supplier: "Manildra", packSize: "1kg", category: "Baking", dept: "PASTRY" },
+  ]
+  const ids = (q: string, dept?: CatalogueChoice["dept"] | null, limit?: number) => matchCatalogue(items, q, limit ?? 8, dept).map((i) => i.id)
+
+  test("null or no preference ranks by match strength then name then supplier", () => {
+    assert.deepEqual(ids("flour"), ["k-corn", "k-flour", "p-flour", "p-rice"])
+    assert.deepEqual(ids("flour", null), ids("flour"))
+  })
+
+  test("own department first at equal strength; the other's identical product is still listed", () => {
+    assert.deepEqual(ids("flour", "PASTRY"), ["p-flour", "k-corn", "k-flour", "p-rice"])
+    assert.deepEqual(ids("flour", "KITCHEN"), ["k-corn", "k-flour", "p-flour", "p-rice"])
+    // a department with nothing in the catalogue changes nothing
+    assert.deepEqual(ids("flour", "FRONT_OF_HOUSE"), ids("flour"))
+  })
+
+  test("a small limit keeps the preferred department's product, not the alphabetical one", () => {
+    assert.deepEqual(ids("flour plain", "PASTRY", 1), ["p-flour"])
+    assert.deepEqual(ids("flour plain", "KITCHEN", 1), ["k-flour"])
+  })
+})
