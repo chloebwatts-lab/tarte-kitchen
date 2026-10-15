@@ -1,11 +1,17 @@
 "use client"
 
-import { useState } from "react"
-import { Loader2, Plus, ShoppingCart } from "lucide-react"
+import { useMemo, useState } from "react"
+import { Loader2, PackageSearch, Plus, ShoppingCart, X } from "lucide-react"
 import { KitchenTick } from "@/components/kitchen/KitchenTick"
 import { useRememberedName } from "@/components/kitchen/use-remembered-name"
 import { addOrderRequest, setOrderRequestDone } from "@/lib/actions/order-requests"
-import { MAX_ORDER_REQUEST_LENGTH, type OrderRequestRow } from "@/lib/order-requests/shared"
+import {
+  MAX_ORDER_REQUEST_LENGTH,
+  matchCatalogue,
+  productDetail,
+  type CatalogueChoice,
+  type OrderRequestRow,
+} from "@/lib/order-requests/shared"
 
 type Venue = "BURLEIGH" | "BEACH_HOUSE" | "TEA_GARDEN"
 
@@ -21,34 +27,71 @@ const when = new Intl.DateTimeFormat("en-AU", {
 /**
  * Order Requests (Jose, 15 Oct 2026): anything a chef notices through the
  * day that needs ordering, or did not arrive with a delivery, written down
- * as they go. The head chef ticks each one once it is on an order.
+ * as they go. The product comes from the approved order list (Chloe, 15
+ * Oct 2026), searched as you type; something not on the list is typed in.
+ * The head chef ticks each one once it is on an order.
  */
-export function OrderRequests({ venue, initial }: { venue: Venue; initial: OrderRequestRow[] }) {
+export function OrderRequests({
+  venue,
+  initial,
+  catalogue,
+}: {
+  venue: Venue
+  initial: OrderRequestRow[]
+  catalogue: CatalogueChoice[]
+}) {
   const [rows, setRows] = useState(initial)
-  const [text, setText] = useState("")
+  const [query, setQuery] = useState("")
+  const [picked, setPicked] = useState<CatalogueChoice | null>(null)
+  // Set when the chef says the thing is not on the list: the typed words
+  // become the request as they are.
+  const [typed, setTyped] = useState(false)
+  const [note, setNote] = useState("")
   const [name, setName] = useRememberedName()
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const matches = useMemo(
+    () => (picked || typed ? [] : matchCatalogue(catalogue, query)),
+    [catalogue, query, picked, typed]
+  )
   const open = rows.filter((r) => !r.done)
   const done = rows.filter((r) => r.done)
+  const canAdd = !!picked || (typed && query.trim().length > 0)
+
+  function pick(item: CatalogueChoice) {
+    setPicked(item)
+    setTyped(false)
+    setQuery(item.name)
+  }
+
+  function clearPick() {
+    setPicked(null)
+    setTyped(false)
+    setQuery("")
+  }
 
   async function add() {
-    const t = text.trim()
-    if (!t || adding) return
+    if (!canAdd || adding) return
     setAdding(true)
     setError(null)
-    const res = await addOrderRequest({ venue, text: t, createdBy: name })
+    const res = await addOrderRequest({
+      venue,
+      approvedItemId: picked?.id ?? null,
+      text: picked ? null : query,
+      note,
+      createdBy: name,
+    })
     setAdding(false)
-    if (!res.ok || !res.id) {
+    if (!res.ok || !res.row) {
       setError(res.error ?? "Couldn't save. Try again.")
       return
     }
-    setRows((prev) => [
-      { id: res.id!, text: t, createdBy: name.trim() || null, createdAt: new Date().toISOString(), done: false, doneBy: null, doneAt: null },
-      ...prev,
-    ])
-    setText("")
+    setRows((prev) => [res.row!, ...prev])
+    setPicked(null)
+    setTyped(false)
+    setQuery("")
+    setNote("")
   }
 
   async function toggle(r: OrderRequestRow) {
@@ -79,14 +122,92 @@ export function OrderRequests({ venue, initial }: { venue: Venue; initial: Order
         <div className="tk-caps" style={{ color: "var(--tk-ink-mute)" }}>
           Add a request
         </div>
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          maxLength={MAX_ORDER_REQUEST_LENGTH}
-          placeholder="White wine vinegar for tomorrow, detergent didn't arrive..."
-          aria-label="What needs ordering or didn't arrive"
-          className="min-h-[56px] w-full rounded-[14px] border border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 text-[17px] text-[var(--tk-charcoal)] outline-none focus:border-[var(--tk-sage)]"
-        />
+
+        {picked || typed ? (
+          <div
+            className="flex items-center gap-3 rounded-[14px] px-4 py-3"
+            style={{ background: picked ? "var(--tk-sage-soft)" : "var(--tk-gold-soft)" }}
+          >
+            <div className="min-w-0 flex-1">
+              <div className="text-[17px] font-semibold leading-snug text-[var(--tk-charcoal)]">
+                {picked ? picked.name : query.trim()}
+              </div>
+              <div className="text-[13px] text-[var(--tk-ink-soft)]">
+                {picked
+                  ? productDetail({ supplier: picked.supplier, packSize: picked.packSize })
+                  : "Not on the order list. The head chef will find a supplier."}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={clearPick}
+              aria-label="Choose something else"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[var(--tk-ink-soft)]"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        ) : (
+          <div className="relative">
+            <PackageSearch className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--tk-ink-mute)]" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              maxLength={MAX_ORDER_REQUEST_LENGTH}
+              placeholder="Search the order list: vinegar, detergent, butter..."
+              aria-label="Search the order list"
+              autoComplete="off"
+              className="min-h-[56px] w-full rounded-[14px] border border-[var(--tk-line)] bg-[var(--tk-bg)] pl-12 pr-4 text-[17px] text-[var(--tk-charcoal)] outline-none focus:border-[var(--tk-sage)]"
+            />
+          </div>
+        )}
+
+        {!picked && !typed && query.trim().length >= 2 && (
+          <div className="overflow-hidden rounded-[14px] border border-[var(--tk-line)]">
+            {matches.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => pick(m)}
+                className="flex w-full items-center gap-3 border-b border-[var(--tk-line)] bg-white px-4 py-3 text-left transition hover:bg-[var(--tk-bg)] active:bg-[var(--tk-bg)]"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="text-[16px] font-medium leading-snug text-[var(--tk-charcoal)]">{m.name}</div>
+                  <div className="text-[13px] text-[var(--tk-ink-soft)]">
+                    {productDetail({ supplier: m.supplier, packSize: m.packSize })}
+                  </div>
+                </div>
+                <Plus className="h-4 w-4 shrink-0 text-[var(--tk-ink-mute)]" />
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setTyped(true)}
+              className="flex w-full items-center gap-3 bg-[var(--tk-bg)] px-4 py-3 text-left"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="text-[15px] font-medium text-[var(--tk-charcoal)]">
+                  {matches.length === 0 ? "Nothing on the order list matches. " : "Not one of these? "}
+                  Add &ldquo;{query.trim()}&rdquo; as typed
+                </div>
+                <div className="text-[13px] text-[var(--tk-ink-soft)]">The head chef will sort out where it comes from.</div>
+              </div>
+              <Plus className="h-4 w-4 shrink-0 text-[var(--tk-ink-mute)]" />
+            </button>
+          </div>
+        )}
+
+        {(picked || typed) && (
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={MAX_ORDER_REQUEST_LENGTH}
+            placeholder="Anything to add? For tomorrow, didn't arrive, how many..."
+            aria-label="Note"
+            className="min-h-[52px] w-full rounded-[14px] border border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 text-[16px] text-[var(--tk-charcoal)] outline-none focus:border-[var(--tk-sage)]"
+          />
+        )}
+
         <div className="flex flex-col gap-3 sm:flex-row">
           <input
             type="text"
@@ -99,7 +220,7 @@ export function OrderRequests({ venue, initial }: { venue: Venue; initial: Order
           />
           <button
             type="submit"
-            disabled={!text.trim() || adding}
+            disabled={!canAdd || adding}
             className="flex min-h-[52px] items-center justify-center gap-2 rounded-[14px] px-7 text-[16px] font-semibold text-white transition active:scale-[0.985] disabled:opacity-40"
             style={{ background: "var(--tk-charcoal)" }}
           >
@@ -107,6 +228,11 @@ export function OrderRequests({ venue, initial }: { venue: Venue; initial: Order
             Add to the list
           </button>
         </div>
+        {!picked && !typed && (
+          <p className="text-[13px] text-[var(--tk-ink-mute)]">
+            Start typing and pick the product, so the head chef knows exactly which one and from whom.
+          </p>
+        )}
       </form>
 
       {error && (
@@ -157,17 +283,31 @@ export function OrderRequests({ venue, initial }: { venue: Venue; initial: Order
 }
 
 function Row({ row, onToggle }: { row: OrderRequestRow; onToggle: () => void }) {
+  const detail = productDetail(row)
   return (
     <li className="flex items-center gap-3 border-b border-[var(--tk-line)] px-4 py-3 last:border-b-0">
       <KitchenTick done={row.done} onClick={onToggle} size={44} />
       <div className="min-w-0 flex-1">
-        <div
-          className={`text-[17px] leading-snug ${
-            row.done ? "text-[var(--tk-ink-mute)] line-through" : "font-semibold text-[var(--tk-charcoal)]"
-          }`}
-        >
-          {row.text}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <span
+            className={`text-[17px] leading-snug ${
+              row.done ? "text-[var(--tk-ink-mute)] line-through" : "font-semibold text-[var(--tk-charcoal)]"
+            }`}
+          >
+            {row.text}
+          </span>
+          {detail ? (
+            <span className="text-[13px] text-[var(--tk-ink-soft)]">{detail}</span>
+          ) : (
+            <span
+              className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+              style={{ background: "var(--tk-gold-soft)", color: "#8a6d1f" }}
+            >
+              not on the order list
+            </span>
+          )}
         </div>
+        {row.note && <div className="text-[14px] italic text-[var(--tk-ink-soft)]">“{row.note}”</div>}
         <div className="text-[13px] text-[var(--tk-ink-mute)]">
           {[
             row.createdBy,

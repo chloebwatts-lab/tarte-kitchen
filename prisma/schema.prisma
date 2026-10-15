@@ -82,6 +82,7 @@ model ApprovedSupplierItem {
 
   deptOrderLines DeptOrderLine[]
   pars           DeptItemPar[]
+  orderRequests  PrepOrderRequest[]
 
   @@unique([supplierId, name])
   @@index([supplierId])
@@ -2333,13 +2334,23 @@ model RestockLine {
 model PrepOrderRequest {
   id        String    @id @default(cuid())
   venue     Venue
+  /// The product as it reads on the page: the catalogue item's name when
+  /// one was picked, otherwise whatever the chef typed.
   text      String
+  /// The approved supplier item picked from the catalogue (Chloe, 15 Oct
+  /// 2026), so the head chef knows exactly which product and supplier.
+  /// Null when the thing is not on the order list and was typed instead.
+  approvedItemId String?
+  approvedItem   ApprovedSupplierItem? @relation(fields: [approvedItemId], references: [id], onDelete: SetNull)
+  /// "for tomorrow", "didn't arrive with Bidfood".
+  note      String?
   createdBy String?
   createdAt DateTime  @default(now())
   doneAt    DateTime?
   doneBy    String?
 
   @@index([venue, doneAt])
+  @@index([approvedItemId])
 }
 
 // ─── Maintenance module (MaintainX replacement) ─────────────────────────────

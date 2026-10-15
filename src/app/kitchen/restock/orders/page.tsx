@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import { cookies } from "next/headers"
-import { listOrderRequests } from "@/lib/actions/order-requests"
+import { listOrderRequests, listRequestCatalogue } from "@/lib/actions/order-requests"
 import { OrderRequests } from "@/components/kitchen/OrderRequests"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
@@ -37,7 +37,7 @@ export default async function OrderRequestsPage({
       : null
   if (!venue) return <KitchenVenuePicker next="/kitchen/restock/orders" title="Order requests" blurb="Pick your venue once. This device opens your prep list from then on." />
 
-  const rows = await listOrderRequests(venue)
+  const [rows, catalogue] = await Promise.all([listOrderRequests(venue), listRequestCatalogue()])
   const venueLabel = VENUE_LABEL[venue].replace(/\s*\(.*\)$/, "")
 
   return (
@@ -59,14 +59,15 @@ export default async function OrderRequestsPage({
           Order requests
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
-          Notice something running out, or missing from a delivery? Write it
-          here as you go, with your name, so the head chef sees everything in
-          one place when placing orders. Tick it once it is ordered.
+          Notice something running out, or missing from a delivery? Find it
+          on the order list and add it, with your name, so the head chef sees
+          everything in one place when placing orders. Not on the list? Type
+          it. Tick each one once it is ordered.
         </p>
         <div className="mt-3"><VenueSwitch current={venue} /></div>
       </div>
 
-      <OrderRequests venue={venue} initial={rows} />
+      <OrderRequests venue={venue} initial={rows} catalogue={catalogue} />
     </div>
   )
 }
