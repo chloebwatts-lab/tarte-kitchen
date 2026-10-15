@@ -104,7 +104,7 @@ export async function addOrderRequest(params: {
       where: { id: params.approvedItemId },
       select: { id: true, name: true, active: true },
     })
-    if (!item) return { ok: false, error: "That product is not on the order list any more. Type it instead." }
+    if (!item || !item.active) return { ok: false, error: "That product is not on the order list any more. Type it instead." }
     text = item.name
     approvedItemId = item.id
   } else {

@@ -181,3 +181,153 @@ describe("picking the product from the order list (Chloe, 15 Oct 2026)", () => {
     assert.match(mail.html, /not on the order list, typed in/)
   })
 })
+
+// ─── Added by test-guard, 15 Oct 2026: catalogue matcher edges ──────────────
+
+describe("catalogue matcher edges (test-guard, 15 Oct 2026)", () => {
+  const items: CatalogueChoice[] = [
+    { id: "bf-butter", name: "Anchor Butter Unsalted 5kg", supplier: "Bidfood", packSize: "5kg", category: "Dairy" },
+    { id: "pfd-butter", name: "Anchor Butter Unsalted 5kg", supplier: "PFD", packSize: "5kg", category: "Dairy" },
+    { id: "aa-butter", name: "Anchor Butter Unsalted 5kg", supplier: "AA Fresh", packSize: "5kg", category: "Dairy" },
+    { id: "croissant", name: "Croissant Butter 90g (Bridor)", supplier: "Bridor", packSize: "carton of 60", category: "Bakery" },
+    { id: "prov-vin", name: "White Wine Vinegar (Provedores)", supplier: "The Provedores", packSize: "2L", category: "Pantry" },
+    { id: "blue-roll", name: "Blue Roll Centrefeed", supplier: "Bunzl", packSize: null, category: null },
+    { id: "cream", name: "Cream Pure 35% 10L", supplier: "Bidfood", packSize: "10L", category: "Dairy" },
+  ]
+  const ids = (q: string, limit?: number) => matchCatalogue(items, q, limit).map((i) => i.id)
+
+  test("case does not matter, in the query or the catalogue", () => {
+    assert.deepEqual(ids("ANCHOR BUTTER"), ["aa-butter", "bf-butter", "pfd-butter"])
+    assert.deepEqual(ids("white wine vinegar"), ids("White Wine VINEGAR"))
+    assert.deepEqual(ids("bUnZl"), ["blue-roll"])
+  })
+
+  test("punctuation in a name is matched literally, and the bare word matches too", () => {
+    assert.deepEqual(ids("(provedores)"), ["prov-vin"])
+    assert.deepEqual(ids("provedores"), ["prov-vin"])
+    assert.deepEqual(ids("(bridor)"), ["croissant"])
+    assert.deepEqual(ids("35%"), ["cream"])
+    // a stray bracket that is in nobody's name matches nothing rather than crashing
+    assert.deepEqual(ids("((("), [])
+  })
+
+  test("extra spaces, tabs and newlines in the query collapse to single words", () => {
+    assert.deepEqual(ids("   white    wine   "), ids("white wine"))
+    assert.deepEqual(ids("white\twine\nvinegar"), ["prov-vin"])
+    // a query of only whitespace is nothing typed
+    assert.deepEqual(ids("      "), [])
+    // one real character padded with spaces is still under the two-character floor
+    assert.deepEqual(ids("  b  "), [])
+  })
+
+  test("a two-character query is enough, and a two-word query where each word is one letter is not special", () => {
+    // "an" starts the three Anchor butters (score 0), and also sits inside "Croissant" and the "Pantry" category
+    assert.deepEqual(ids("an"), ["aa-butter", "bf-butter", "pfd-butter", "croissant", "prov-vin"])
+    // "a b": the collapsed query is 3 chars so it runs; "a" and "b" appear in all butter names and the croissant
+    assert.ok(ids("a b").length >= 4)
+  })
+
+  test("limit 0 returns nothing, limit 1 returns the best one, default is eight", () => {
+    assert.deepEqual(ids("anchor", 0), [])
+    assert.deepEqual(ids("anchor", 1), ["aa-butter"])
+    const many: CatalogueChoice[] = Array.from({ length: 20 }, (_, i) => ({
+      id: `m${i}`,
+      name: `Flour Bakers ${String(i).padStart(2, "0")}kg`,
+      supplier: "Manildra",
+      packSize: null,
+      category: "Dry",
+    }))
+    assert.equal(matchCatalogue(many, "flour").length, 8)
+    assert.equal(matchCatalogue(many, "flour", 20).length, 20)
+    assert.equal(matchCatalogue(many, "flour", 100).length, 20)
+  })
+
+  test("the same product name across suppliers lists every supplier, alphabetically", () => {
+    const out = matchCatalogue(items, "anchor butter unsalted 5kg")
+    assert.deepEqual(
+      out.map((i) => [i.id, i.supplier]),
+      [
+        ["aa-butter", "AA Fresh"],
+        ["bf-butter", "Bidfood"],
+        ["pfd-butter", "PFD"],
+      ]
+    )
+    // naming the supplier narrows it to that one
+    assert.deepEqual(ids("anchor pfd"), ["pfd-butter"])
+    assert.deepEqual(ids("pfd"), ["pfd-butter"])
+  })
+
+  test("a word only found in the pack size or supplier still matches, behind name matches", () => {
+    // "carton" is only in the croissant pack size
+    assert.deepEqual(ids("carton"), ["croissant"])
+    // "60" only in pack size, "croissant" in name: score 3 (not all words in name) but still the only hit
+    assert.deepEqual(ids("croissant 60"), ["croissant"])
+    // "butter" in every butter name and the croissant name; "bidfood" only in one supplier
+    assert.deepEqual(ids("butter bidfood"), ["bf-butter"])
+    // a name match outranks a supplier-only match for the same word
+    assert.deepEqual(ids("bridor"), ["croissant"])
+  })
+
+  test("null pack size and null category never break matching or ranking", () => {
+    assert.deepEqual(ids("blue roll"), ["blue-roll"])
+    assert.deepEqual(ids("centrefeed"), ["blue-roll"])
+    // the word "null" must not accidentally match items whose pack/category is missing
+    assert.deepEqual(ids("null"), [])
+  })
+
+  test("ranking: starts-with beats contains beats all-words-in-name beats supplier-or-category", () => {
+    const ranked: CatalogueChoice[] = [
+      { id: "contains", name: "Vinegar White Wine 5L", supplier: "Bidfood", packSize: "5L", category: "Pantry" },
+      { id: "category", name: "Oil Olive Extra Virgin 4L", supplier: "Bidfood", packSize: "4L", category: "White Wine" },
+      { id: "starts", name: "White Wine Vinegar (Provedores)", supplier: "The Provedores", packSize: "2L", category: "Pantry" },
+      { id: "scattered", name: "Wine Cooking White 1L", supplier: "Bidfood", packSize: "1L", category: "Pantry" },
+    ]
+    assert.deepEqual(
+      matchCatalogue(ranked, "white wine").map((i) => i.id),
+      ["starts", "contains", "scattered", "category"]
+    )
+  })
+})
+
+describe("email row for a picked product with a note", () => {
+  test("a picked product shows supplier and pack, a note in quotes, and never the typed-in tag", () => {
+    const row: OrderRequestRow = {
+      id: "r1",
+      text: "Anchor Butter Unsalted 5kg",
+      approvedItemId: "bf-butter",
+      supplier: "Bidfood",
+      packSize: "5kg",
+      note: "didn't arrive with Tuesday's delivery",
+      createdBy: "Michel",
+      createdAt: "2026-10-15T01:00:00Z",
+      done: false,
+      doneBy: null,
+      doneAt: null,
+    }
+    const mail = renderOrderRequestEmail({ venue: "BURLEIGH", open: [row], now: new Date("2026-10-15T07:00:00Z") })
+    assert.match(mail.text, /- Anchor Butter Unsalted 5kg \[Bidfood · 5kg\] "didn't arrive with Tuesday's delivery" \(Michel, /)
+    assert.doesNotMatch(mail.text, /not on the order list/)
+    assert.doesNotMatch(mail.html, /not on the order list/)
+    assert.match(mail.html, /Bidfood · 5kg/)
+    // the note is HTML-escaped (apostrophe is fine, but angle brackets must not pass through raw)
+    const nasty = renderOrderRequestEmail({
+      venue: "BURLEIGH",
+      open: [{ ...row, note: "<b>urgent</b>" }],
+      now: new Date("2026-10-15T07:00:00Z"),
+    })
+    assert.doesNotMatch(nasty.html, /<b>urgent<\/b>/)
+    assert.match(nasty.html, /&lt;b&gt;urgent&lt;\/b&gt;/)
+  })
+
+  test("a supplier with no pack size reads as the supplier alone, in the email and the detail line", () => {
+    assert.equal(productDetail({ supplier: "Bunzl", packSize: null }), "Bunzl")
+    assert.equal(productDetail({ supplier: null, packSize: "5kg" }), "5kg")
+    assert.equal(productDetail({ supplier: "", packSize: "" }), null)
+    const mail = renderOrderRequestEmail({
+      venue: "TEA_GARDEN",
+      open: [{ id: "x", text: "Blue Roll Centrefeed", approvedItemId: "blue-roll", supplier: "Bunzl", packSize: null, note: null, createdBy: null, createdAt: "2026-10-15T01:00:00Z", done: false, doneBy: null, doneAt: null }],
+      now: new Date("2026-10-15T07:00:00Z"),
+    })
+    assert.match(mail.text, /- Blue Roll Centrefeed \[Bunzl\] \(/)
+  })
+})
