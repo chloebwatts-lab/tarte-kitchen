@@ -823,7 +823,7 @@ const UNCOUNTED_INVOICE_STATUSES = ["ERROR", "STATEMENT", "DUPLICATE", "ORDER_CO
 async function buildCogsFromInvoices(week: DigestWeek): Promise<CogsSection> {
   const empty: CogsSection = { weekStartWed: null, source: null, perVenue: [] }
   const nextWed = new Date(week.start.getTime() + 7 * 86400000)
-  const { exGstInvoiceAmount } = await import("@/lib/spend/current-week")
+  const { exGstInvoiceAmount } = await import("@/lib/spend/gst")
   const [invoices, revenue, targets] = await Promise.all([
     db.invoice.findMany({
       where: {

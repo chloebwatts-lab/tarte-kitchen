@@ -597,7 +597,7 @@ test("arrivalCompleteness: share of spend dated to today that had arrived by thi
 // Louise's sheet for the week is missing) must read each invoice the same
 // way the live tracker does.
 
-import { exGstInvoiceAmount } from "./current-week"
+import { exGstInvoiceAmount } from "./gst"
 
 test("exGstInvoiceAmount: a parsed subtotal wins outright, even when the totals disagree with it", () => {
   // Fermex, 4 x Anchor butter 5kg: subtotal line found by the parser
