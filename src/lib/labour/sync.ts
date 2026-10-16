@@ -4,6 +4,7 @@ import { labourSource, type LabourSource } from "@/lib/labour/source"
 import {
   fetchShiftsLabour,
   labourRowsFromFeed,
+  SALARY_ID_PREFIX,
   ShiftsFeedError,
   type LabourRowInput,
 } from "@/lib/shifts/labour"
@@ -67,12 +68,19 @@ export async function syncLabourFromShifts(now = new Date()): Promise<LabourSync
   // Same idempotency the Deputy sync used: the window is replaced wholesale
   // so edits, deletions and late approvals are picked up. Rows older than
   // the windows (history the digest recode reads) are never touched.
-  const rosterRows = mapped.roster.filter((r) => r.shiftStart >= rosterStart && r.shiftStart < rosterEnd)
+  const isSalary = (r: LabourRowInput) => r.deputyId.startsWith(SALARY_ID_PREFIX)
+  const rosterRows = mapped.roster.filter((r) => !isSalary(r) && r.shiftStart >= rosterStart && r.shiftStart < rosterEnd)
   const tsRows = mapped.timesheets.filter((r) => r.shiftStart >= tsStart)
+  // Salary placement follows the punches, so last week's rows are rewritten
+  // with the timesheets (the Friday digest recode reads them) while last
+  // week's real roster rows are left alone.
+  const salaryRows = mapped.roster.filter((r) => isSalary(r) && r.shiftStart >= tsStart && r.shiftStart < rosterEnd)
 
   await db.$transaction(async (tx) => {
     await tx.labourShift.deleteMany({ where: { source: "ROSTER", shiftStart: { gte: rosterStart, lt: rosterEnd } } })
+    await tx.labourShift.deleteMany({ where: { source: "ROSTER", deputyId: { startsWith: SALARY_ID_PREFIX }, shiftStart: { gte: tsStart } } })
     if (rosterRows.length) await tx.labourShift.createMany({ data: rosterRows, skipDuplicates: true })
+    if (salaryRows.length) await tx.labourShift.createMany({ data: salaryRows, skipDuplicates: true })
     await tx.labourShift.deleteMany({ where: { source: "TIMESHEET", shiftStart: { gte: tsStart } } })
     if (tsRows.length) await tx.labourShift.createMany({ data: tsRows, skipDuplicates: true })
   })
@@ -102,8 +110,8 @@ export async function syncLabourFromShifts(now = new Date()): Promise<LabourSync
   return {
     source: "shifts",
     roster: {
-      upserted: rosterRows.length,
-      skipped: mapped.skipped + (mapped.roster.length - rosterRows.length),
+      upserted: rosterRows.length + salaryRows.length,
+      skipped: mapped.skipped + (mapped.roster.length - rosterRows.length - salaryRows.length),
       total: feed.shifts.length,
       windowStart: day(rosterStart),
       windowEnd: day(rosterEnd),

@@ -41,6 +41,8 @@ export interface FeedShift {
   cost: number
   isOpen: boolean
   published: boolean
+  /** The person is salaried: cost is 0, their pay arrives in `salaries`. */
+  salaried?: boolean
 }
 
 export interface FeedTimesheet {
@@ -58,15 +60,27 @@ export interface FeedTimesheet {
   /** Gross $ ex super, 0 for salaried staff. */
   cost: number
   approved: boolean
+  salaried?: boolean
 }
 
+/**
+ * Salary roll-up, no names. Since 16 Oct 2026 Tarte Shifts places each
+ * salary by the day the person was rostered or clocked at a venue and
+ * department (daily rate = weekly salary / days placed), and sends one
+ * entry per venue + bucket + DAY (`day` + `gross`). The original weekly
+ * form (`weeklyGross`, no `day`) is still accepted.
+ */
 export interface FeedSalary {
   venue: ShiftsVenue
   /** The team the salary belongs to. Names are never sent, only the roll-up. */
   bucket: ShiftsBucket
-  /** Sum of weekly gross (ex super) for active salaried staff counted in
-   * wage %, i.e. includeInWagePct = true, not sandbox. */
-  weeklyGross: number
+  /** Weekly form: sum of weekly gross (ex super) for active salaried staff
+   * counted in wage %, i.e. includeInWagePct = true, not sandbox. */
+  weeklyGross?: number
+  /** Daily form: AEST day (YYYY-MM-DD) and that day's gross for the group. */
+  day?: string
+  gross?: number
+  weekStartWed?: string
   headcount: number
 }
 
@@ -158,9 +172,12 @@ export interface LabourRowInput {
   isOpen: boolean
   source: "ROSTER" | "TIMESHEET"
   published: boolean | null
+  salaried?: boolean
 }
 
 export const SHIFTS_ID_PREFIX = "shifts-"
+/** Salary roll-up rows (weekly or daily) carry this id prefix. */
+export const SALARY_ID_PREFIX = `${SHIFTS_ID_PREFIX}salary-`
 
 /**
  * Deputy priced salaried staff through per-venue "Salary X" placeholder
@@ -261,6 +278,7 @@ export function labourRowsFromFeed(feed: ShiftsLabourFeed, rosterWeeks: Date[], 
       isOpen,
       source: "ROSTER",
       published: s.published === true,
+      salaried: s.salaried === true,
     })
   }
 
@@ -288,25 +306,60 @@ export function labourRowsFromFeed(feed: ShiftsLabourFeed, rosterWeeks: Date[], 
       isOpen: false,
       source: "TIMESHEET",
       published: null,
+      salaried: t.salaried === true,
     })
   }
 
-  // Salary roll-ups: one placeholder row per venue + bucket per roster week.
+  // Salary roll-ups. Daily form: one placeholder row per venue + bucket +
+  // day at that day's 00:00 AEST, the salary placed where the people were
+  // that day. Weekly form: one row per venue + bucket per roster week.
+  const byDay = new Map<string, { venue: ShiftsVenue; bucket: ShiftsBucket; day: string; gross: number }>()
   const byKey = new Map<string, { venue: ShiftsVenue; bucket: ShiftsBucket; gross: number; heads: number }>()
   for (const s of feed.salaries ?? []) {
-    if (!VENUES.has(s.venue) || !BUCKETS.has(s.bucket) || num(s.weeklyGross) <= 0) continue
+    if (!VENUES.has(s.venue) || !BUCKETS.has(s.bucket)) continue
+    if (typeof s.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s.day)) {
+      if (num(s.gross) <= 0) continue
+      const key = `${s.venue}|${s.bucket}|${s.day}`
+      const cur = byDay.get(key) ?? { venue: s.venue, bucket: s.bucket, day: s.day, gross: 0 }
+      cur.gross += num(s.gross)
+      byDay.set(key, cur)
+      continue
+    }
+    if (num(s.weeklyGross) <= 0) continue
     const key = `${s.venue}|${s.bucket}`
     const cur = byKey.get(key) ?? { venue: s.venue, bucket: s.bucket, gross: 0, heads: 0 }
     cur.gross += num(s.weeklyGross)
     cur.heads += num(s.headcount)
     byKey.set(key, cur)
   }
+  for (const { venue, bucket, day, gross } of byDay.values()) {
+    const area = SALARY_PLACEHOLDER_AREA[venue][bucket]
+    const start = new Date(new Date(`${day}T00:00:00.000Z`).getTime() - 10 * 3600_000)
+    if (!Number.isFinite(start.getTime())) continue
+    roster.push({
+      deputyId: `${SALARY_ID_PREFIX}${venue}-${bucket}-${day}`,
+      employeeName: area,
+      employeeId: null,
+      venue: venue as Venue,
+      shiftStart: start,
+      shiftEnd: new Date(start.getTime() + 3600_000),
+      hours: 0,
+      cost: round2(gross),
+      payRate: null,
+      area,
+      approved: false,
+      isOpen: false,
+      source: "ROSTER",
+      published: true,
+      salaried: true,
+    })
+  }
   for (const wed of rosterWeeks) {
     const wedIso = aestDateIso(wed)
     for (const { venue, bucket, gross } of byKey.values()) {
       const area = SALARY_PLACEHOLDER_AREA[venue][bucket]
       roster.push({
-        deputyId: `${SHIFTS_ID_PREFIX}salary-${venue}-${bucket}-${wedIso}`,
+        deputyId: `${SALARY_ID_PREFIX}${venue}-${bucket}-${wedIso}`,
         employeeName: area,
         employeeId: null,
         venue: venue as Venue,
@@ -320,6 +373,7 @@ export function labourRowsFromFeed(feed: ShiftsLabourFeed, rosterWeeks: Date[], 
         isOpen: false,
         source: "ROSTER",
         published: true,
+        salaried: true,
       })
     }
   }

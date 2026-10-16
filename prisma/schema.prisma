@@ -863,6 +863,11 @@ model LabourShift {
   /// staff (the GM desk's roster-horizon check). Null for Deputy rows and
   /// timesheets.
   published       Boolean?
+  /// Tarte Shifts rows: the person is on a salary, so the row's cost is 0
+  /// and their pay arrives through the daily salary roll-up rows instead.
+  /// The digest recode uses it to keep salaried hours out of the hourly
+  /// rate pool. Always false for Deputy rows.
+  salaried        Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

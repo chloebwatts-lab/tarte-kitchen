@@ -21,10 +21,20 @@
  * role works in the Burleigh kitchen. Standing internal correction
  * (reporting only, never payroll): the weekly gross+super moves from the
  * Beach House total to Burleigh, and the gross lands in Burleigh chefsKp.
+ *
+ * Weeks fed by Tarte Shifts (LABOUR_SOURCE=shifts, ids "shifts-*") carry
+ * the salaries themselves: each salaried person's weekly salary (synced
+ * from Xero) placed by the day they were rostered or clocked at a venue and
+ * department, as daily "Salary <card>" ROSTER rows with no names (see
+ * src/lib/shifts/labour.ts). For those weeks KNOWN_WEEKLY and the
+ * cross-venue gross push are skipped: the rows already say where every
+ * salary went, and salaried timesheets (flagged `salaried`) are kept out
+ * of the hourly rate pool. Louise's venue totals are still the cash.
  */
 import { db } from "@/lib/db"
 import { Venue } from "@/generated/prisma/enums"
 import { bucketFor, type Bucket } from "./buckets"
+import { SALARY_ID_PREFIX, SHIFTS_ID_PREFIX } from "@/lib/shifts/labour"
 
 /** Weekly gross+super moved Beach House -> Burleigh (reporting only). */
 export const CROSS_VENUE_WEEKLY_TOTAL = 1400.0
@@ -125,23 +135,34 @@ export async function recodeLabourWeek(
   const windowStart = new Date(weekStartWed.getTime() - 10 * 3600 * 1000)
   const windowEnd = new Date(windowStart.getTime() + 7 * 86400 * 1000)
 
-  const [shifts, actuals] = await Promise.all([
+  const [shifts, salaryRows, actuals] = await Promise.all([
     db.labourShift.findMany({
       where: {
         source: "TIMESHEET",
         shiftStart: { gte: windowStart, lt: windowEnd },
       },
       select: {
+        deputyId: true,
         employeeName: true,
         venue: true,
         area: true,
         hours: true,
         cost: true,
+        salaried: true,
       },
+    }),
+    db.labourShift.findMany({
+      where: {
+        source: "ROSTER",
+        deputyId: { startsWith: SALARY_ID_PREFIX },
+        shiftStart: { gte: windowStart, lt: windowEnd },
+      },
+      select: { venue: true, area: true, cost: true },
     }),
     db.labourWeekActual.findMany({ where: { weekStartWed } }),
   ])
   if (shifts.length < 100) return null // sync gap; don't pretend
+  const fromShifts = shifts.some((s) => s.deputyId.startsWith(SHIFTS_ID_PREFIX))
 
   type Cell = { venue: Venue; bucket: Bucket; hours: number; dollars: number | null }
   const cells: Cell[] = []
@@ -155,15 +176,30 @@ export async function recodeLabourWeek(
       hours: Number(s.hours),
       dollars: Number(s.cost) > 0 ? Number(s.cost) : null,
     }
+    if (fromShifts && s.salaried) {
+      // Paid through the salary rows below, whatever hours they punched.
+      cell.dollars = 0
+      zeroed.add(cell)
+    }
     cells.push(cell)
     const list = byPerson.get(s.employeeName) ?? []
     list.push(cell)
     byPerson.set(s.employeeName, list)
   }
 
-  // Fixed-weekly staff: spread weekly gross across worked areas by hours,
-  // or append to home bucket when salaried with no timesheets.
-  for (const k of KNOWN_WEEKLY) {
+  if (fromShifts) {
+    // Daily salary roll-ups, already placed by venue + department + day.
+    for (const r of salaryRows) {
+      const dollars = Number(r.cost)
+      if (!(dollars > 0)) continue
+      cells.push({ venue: r.venue, bucket: bucketFor(r.venue, r.area), hours: 0, dollars })
+    }
+  }
+
+  // Fixed-weekly staff (Deputy-fed weeks only): spread weekly gross across
+  // worked areas by hours, or append to home bucket when salaried with no
+  // timesheets.
+  for (const k of fromShifts ? [] : KNOWN_WEEKLY) {
     const owned: Cell[] = []
     for (const [name, list] of byPerson) if (k.match.test(name.trim())) owned.push(...list)
     const totalHours = owned.reduce((s, c) => s + c.hours, 0)
@@ -195,20 +231,22 @@ export async function recodeLabourWeek(
   // clocked in at Burleigh since w/e 8 Sep 2026 with no Deputy cost, so
   // zero its worked cells first; otherwise those hours are also priced at
   // the average kitchen rate below and the salary is counted twice.
-  for (const [name, list] of byPerson) {
-    if (CROSS_VENUE_MATCH.test(name.trim())) {
-      for (const c of list) {
-        c.dollars = 0
-        zeroed.add(c)
+  if (!fromShifts) {
+    for (const [name, list] of byPerson) {
+      if (CROSS_VENUE_MATCH.test(name.trim())) {
+        for (const c of list) {
+          c.dollars = 0
+          zeroed.add(c)
+        }
       }
     }
+    cells.push({
+      venue: Venue.BURLEIGH,
+      bucket: "chefsKp",
+      hours: 0,
+      dollars: CROSS_VENUE_WEEKLY_GROSS,
+    })
   }
-  cells.push({
-    venue: Venue.BURLEIGH,
-    bucket: "chefsKp",
-    hours: 0,
-    dollars: CROSS_VENUE_WEEKLY_GROSS,
-  })
 
   // Estimate leftovers at the venue+bucket average hourly rate.
   const pool = new Map<string, { dollars: number; hours: number }>()

@@ -29,11 +29,11 @@ source from `LABOUR_SOURCE`:
 
 The Deputy client is untouched. Nothing is deleted.
 
-## NEEDS SHIFTS: the endpoint Kitchen calls
+## The endpoint Kitchen calls
 
-Tarte Shifts does not serve this yet (probed 9 Oct 2026: 404). Build it in
-`tarte-shifts/src/app/api/internal/labour/route.ts`, same bearer check as the
-other internal routes (`bearerOk(..., process.env.CRON_SECRET)`).
+Served by Tarte Shifts since 16 Oct 2026
+(`tarte-shifts/src/app/api/internal/labour/route.ts`, same bearer check as
+the other internal routes, `bearerOk(..., process.env.CRON_SECRET)`).
 
 ```
 GET /api/internal/labour?from=YYYY-MM-DD&to=YYYY-MM-DD
@@ -65,7 +65,8 @@ last Wednesday to this Wednesday + 4 weeks (about 5 weeks). Response:
                                    // gross ex super, day-type rate applied,
                                    // 0 for SALARY staff and for open shifts
     "isOpen": false,
-    "published": true
+    "published": true,
+    "salaried": false
   }],
 
   // Timesheet rows with clockIn in [from, to): every venue, approved or
@@ -81,14 +82,23 @@ last Wednesday to this Wednesday + 4 weeks (about 5 weeks). Response:
     "breakMin": 30,
     "hours": 7.47,                 // timesheetHours() (live when clockOut null)
     "cost": 240.3,                 // timesheetGross(): gross ex super, 0 for SALARY
-    "approved": true
+    "approved": true,
+    "salaried": false
   }],
 
-  // Weekly salary roll-up, NO names. Active, not sandbox, employmentType
-  // SALARY, includeInWagePct true. Grouped by the employee's venue and the
-  // bucket of their default area (Area.bucket; OTHER when no default area).
+  // Salary roll-up, NO names, placed BY THE DAY WORKED (Chloe, 16 Oct
+  // 2026): each salaried person's weekly salary (synced from Xero's pay
+  // templates nightly) is split across the days they were clocked, else
+  // rostered, at a venue + department; daily rate = weekly / days placed,
+  // two places in one day share the day. No shifts all week = home venue
+  // and default area, a seventh per day. One entry per venue + bucket +
+  // day; Kitchen writes each as a "Salary <card>" ROSTER row at that day's
+  // 00:00 AEST (hours 0, salaried true). Shift and timesheet rows for
+  // salaried people carry `salaried: true` so the digest recode never
+  // prices their hours. The older weekly form ({weeklyGross}, no day) is
+  // still accepted by Kitchen.
   "salaries": [
-    { "venue": "BURLEIGH", "bucket": "CHEFS_KP", "weeklyGross": 4196.34, "headcount": 3 }
+    { "venue": "BURLEIGH", "bucket": "PASTRY", "weekStartWed": "2026-10-14", "day": "2026-10-15", "gross": 461.54, "headcount": 2 }
   ],
 
   // Optional. What getRosterWeek shows as the week's forecast (ex GST):

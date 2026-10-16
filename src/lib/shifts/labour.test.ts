@@ -204,3 +204,114 @@ test("ShiftsFeedError knows a missing endpoint from a dead one", () => {
   assert.equal(new ShiftsFeedError("x", 502).missingEndpoint, false)
   assert.equal(new ShiftsFeedError("x", 0).missingEndpoint, false)
 })
+
+test("daily salary roll-ups: one placeholder row per venue + bucket + day at that day's 00:00 AEST, salaried flag set", () => {
+  const f = feed({
+    shifts: [],
+    timesheets: [],
+    salaries: [
+      { venue: "BURLEIGH", bucket: "PASTRY", day: "2026-10-07", gross: 461.54, headcount: 2 },
+      { venue: "BURLEIGH", bucket: "PASTRY", day: "2026-10-07", gross: 100, headcount: 1 }, // same group twice: summed
+      { venue: "BEACH_HOUSE", bucket: "PASTRY", day: "2026-10-10", gross: 153.85, headcount: 1 },
+      { venue: "BEACH_HOUSE", bucket: "PASTRY", day: "2026-10-11", gross: 0, headcount: 1 }, // nothing placed: dropped
+      { venue: "BEACH_HOUSE", bucket: "PASTRY", day: "10/10/2026", gross: 50, headcount: 1 }, // bad day, no weeklyGross: dropped
+    ],
+  })
+  const { roster } = labourRowsFromFeed(f, [WED, NEXT_WED])
+  assert.equal(roster.length, 2) // daily entries never multiply by roster weeks
+  const wed = roster.find((r) => r.deputyId === `${SHIFTS_ID_PREFIX}salary-BURLEIGH-PASTRY-2026-10-07`)!
+  assert.equal(wed.cost, 561.54)
+  assert.equal(wed.area, "Salary PASTRY BURLEIGH")
+  assert.equal(wed.shiftStart.toISOString(), "2026-10-06T14:00:00.000Z") // Wed 00:00 AEST
+  assert.equal(wed.hours, 0)
+  assert.equal(wed.salaried, true)
+  assert.equal(wed.source, "ROSTER")
+  const sat = roster.find((r) => r.venue === "BEACH_HOUSE")!
+  assert.equal(sat.cost, 153.85)
+  assert.equal(sat.shiftStart.toISOString(), "2026-10-09T14:00:00.000Z")
+  assert.equal(sat.area, "Salary Pastry Currumbin")
+})
+
+test("salaried shifts and timesheets carry the flag; hourly rows do not", () => {
+  const f = feed({
+    shifts: [
+      { id: "s1", venue: "BURLEIGH", area: "Pastry", employeeId: "e1", employeeName: "Eden Lord", start: "2026-10-07T00:00:00Z", end: "2026-10-07T08:00:00Z", hours: 8, cost: 0, isOpen: false, published: true, salaried: true },
+      { id: "s2", venue: "BURLEIGH", area: "FOH", employeeId: "e2", employeeName: "Lacey Corby", start: "2026-10-07T00:00:00Z", end: "2026-10-07T08:00:00Z", hours: 8, cost: 264, isOpen: false, published: true },
+    ],
+    timesheets: [
+      { id: "t1", venue: "BURLEIGH", area: "Pastry", employeeId: "e1", employeeName: "Eden Lord", clockIn: "2026-10-07T00:00:00Z", clockOut: "2026-10-07T08:00:00Z", hours: 8, cost: 0, approved: true, salaried: true },
+    ],
+    salaries: [],
+  })
+  const { roster, timesheets } = labourRowsFromFeed(f, [])
+  assert.equal(roster.find((r) => r.employeeName === "Eden Lord")?.salaried, true)
+  assert.equal(roster.find((r) => r.employeeName === "Lacey Corby")?.salaried, false)
+  assert.equal(timesheets[0].salaried, true)
+})
+
+test("daily salary rows: every AEST day of a trading week lands inside the recode window for that week, the next Wednesday does not", () => {
+  // recodeLabourWeek reads [weekStartWed UTC-midnight - 10h, +7d).
+  const weekStartWed = new Date("2026-10-07T00:00:00.000Z")
+  const windowStart = new Date(weekStartWed.getTime() - 10 * 3600 * 1000)
+  const windowEnd = new Date(windowStart.getTime() + 7 * 86400 * 1000)
+  const days = ["2026-10-06", "2026-10-07", "2026-10-08", "2026-10-09", "2026-10-10", "2026-10-11", "2026-10-12", "2026-10-13", "2026-10-14"]
+  const f = feed({
+    shifts: [],
+    timesheets: [],
+    salaries: days.map((day) => ({ venue: "BURLEIGH" as const, bucket: "CHEFS_KP" as const, day, gross: 210.33, headcount: 1 })),
+  })
+  const { roster } = labourRowsFromFeed(f, [])
+  assert.equal(roster.length, 9)
+  const inWindow = roster.filter((r) => r.shiftStart >= windowStart && r.shiftStart < windowEnd).map((r) => r.deputyId.slice(-10)).sort()
+  assert.deepEqual(inWindow, ["2026-10-07", "2026-10-08", "2026-10-09", "2026-10-10", "2026-10-11", "2026-10-12", "2026-10-13"])
+  // Wed 7 Oct's row is the very first instant of the window; Tue 6 Oct's is the last week.
+  assert.equal(roster.find((r) => r.deputyId.endsWith("2026-10-07"))!.shiftStart.getTime(), windowStart.getTime())
+  assert.ok(roster.find((r) => r.deputyId.endsWith("2026-10-06"))!.shiftStart < windowStart)
+  assert.ok(roster.find((r) => r.deputyId.endsWith("2026-10-14"))!.shiftStart >= windowEnd)
+  // One week of a $1,472.31 salary placed every day sums back to the week (2 cent rounding at most).
+  const week = roster.filter((r) => r.shiftStart >= windowStart && r.shiftStart < windowEnd).reduce((s, r) => s + r.cost, 0)
+  assert.ok(Math.abs(week - 1472.31) < 0.02, String(week))
+  assert.equal(new Set(roster.map((r) => r.deputyId)).size, 9)
+  for (const r of roster) assert.equal(bucketFor(r.venue, r.area), "chefsKp")
+})
+
+test("daily salary rows: nasty gross values are dropped, never stored as negative or NaN", () => {
+  const f = feed({
+    shifts: [],
+    timesheets: [],
+    salaries: [
+      { venue: "BURLEIGH", bucket: "PASTRY", day: "2026-10-07", gross: -50, headcount: 1 },
+      { venue: "BURLEIGH", bucket: "PASTRY", day: "2026-10-08", gross: Number.NaN, headcount: 1 },
+      { venue: "BURLEIGH", bucket: "PASTRY", day: "2026-10-09", gross: "abc" as never, headcount: 1 },
+      { venue: "BURLEIGH", bucket: "PASTRY", day: "2026-10-10", headcount: 1 }, // neither gross nor weeklyGross
+      { venue: "BURLEIGH", bucket: "PASTRY", day: "2026-10-11", gross: "153.85" as never, headcount: 1 }, // numeric string: accepted
+      { venue: "BURLEIGH", bucket: "PASTRY", day: "2026-13-40", gross: 100, headcount: 1 }, // shape ok, impossible date
+      { venue: "MARS" as never, bucket: "PASTRY", day: "2026-10-07", gross: 100, headcount: 1 },
+      { venue: "BURLEIGH", bucket: "ADMIN" as never, day: "2026-10-07", gross: 100, headcount: 1 },
+    ],
+  })
+  const { roster } = labourRowsFromFeed(f, [WED])
+  assert.equal(roster.length, 1)
+  assert.equal(roster[0].deputyId, `${SHIFTS_ID_PREFIX}salary-BURLEIGH-PASTRY-2026-10-11`)
+  assert.equal(roster[0].cost, 153.85)
+  for (const r of roster) assert.ok(Number.isFinite(r.cost) && r.cost >= 0)
+})
+
+test("salaried flag: absent or non-boolean never flags a row; open shifts are never salaried", () => {
+  const f = feed({
+    shifts: [
+      { id: "s1", venue: "BURLEIGH", area: "Pastry", employeeId: "e1", employeeName: "Eden Lord", start: "2026-10-07T00:00:00Z", end: "2026-10-07T08:00:00Z", hours: 8, cost: 0, isOpen: false, published: true, salaried: "true" as never },
+      { id: "s2", venue: "BURLEIGH", area: "Pastry", employeeId: null, employeeName: null, start: "2026-10-07T00:00:00Z", end: "2026-10-07T08:00:00Z", hours: 8, cost: 0, isOpen: true, published: true, salaried: true },
+    ],
+    timesheets: [
+      { id: "t1", venue: "BURLEIGH", area: "Pastry", employeeId: "e1", employeeName: "Eden Lord", clockIn: "2026-10-07T00:00:00Z", clockOut: "2026-10-07T08:00:00Z", hours: 8, cost: 0, approved: true },
+    ],
+    salaries: [],
+  })
+  const { roster, timesheets } = labourRowsFromFeed(f, [])
+  assert.equal(roster[0].salaried, false)
+  assert.equal(roster[1].isOpen, true)
+  // The mapper passes the feed's flag through for open shifts too; it is harmless (cost 0, no name) but noted.
+  assert.equal(typeof roster[1].salaried, "boolean")
+  assert.equal(timesheets[0].salaried, false)
+})
