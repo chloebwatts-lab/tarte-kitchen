@@ -141,6 +141,23 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     note: "Currumbin seafood, paid by card via Stripe. Receipts go to shawna@ who forwards them to accounts@; mapped 2026-10-05",
   },
 
+  {
+    canonicalName: "The Fish Factory",
+    nameAliases: ["The Fish Factory", "Fish Factory"],
+    category: "seafood",
+    expectedIntervalDays: 2,
+    critical: true,
+    note: "Currumbin seafood, several deliveries a week (~$3k/wk). Invoices from accounts@fishfactory.com.au, mapped 2026-10-16 after the w/e 13 Oct COGS gap",
+  },
+  {
+    canonicalName: "Ocean Made Seafood",
+    nameAliases: ["Ocean Made Seafood", "Ocean Made", "Oceanmade"],
+    category: "seafood",
+    expectedIntervalDays: 7,
+    critical: false,
+    note: "Currumbin seafood via Fresho (orders@fresho.com, letterhead prints OCEANMADE), mapped 2026-10-16",
+  },
+
   // ---- Known to deliver but invoices NOT reaching accounts@ ----
   {
     canonicalName: "Pacific Wholesale",
@@ -229,7 +246,7 @@ export const EXPECTED_SUPPLIERS: ExpectedSupplier[] = [
     category: "specialty",
     expectedIntervalDays: 7,
     critical: false,
-    note: "Coffee, invoices via Unleashed (noreply@unleashedsoftware.com)",
+    note: "Coffee, one invoice per venue per week. Burleigh's comes via Unleashed (noreply@unleashedsoftware.com); Currumbin's only from accounts@parallelroasters.com, subject 'Tarte Beachouse' (mapped 2026-10-16)",
   },
   {
     canonicalName: "Mediterranean Markets",

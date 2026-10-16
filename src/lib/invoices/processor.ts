@@ -4,7 +4,9 @@ import type { ParsedInvoice } from "./parser"
 import {
   venueFromText,
   defaultVenueForSupplier,
+  type EmailVenueHint,
 } from "./venue-from-address"
+import { sanitiseInvoiceDate } from "./invoice-date"
 import type { InvoiceStatus } from "@/generated/prisma/client"
 import { evaluatePriceChange, effectiveUnitPrice } from "./units"
 import { streamForCategory } from "@/lib/price-alerts/classifier"
@@ -19,10 +21,21 @@ export interface ProcessingResult {
   priceChanges: number
 }
 
+/** What the ingestion loop knows about the EMAIL the PDF came in, which the
+ * PDF itself may not say. Absent on a re-parse from disk. */
+export interface ProcessContext {
+  /** Venue named by the sender or subject (Parallel Roasters). Beats the PDF. */
+  venueHint?: EmailVenueHint | null
+  /** When the email arrived (Gmail internalDate); the date guard measures
+   * the parsed invoice date against it. Without it the guard is skipped. */
+  emailDate?: Date | null
+}
+
 export async function processInvoice(
   invoiceId: string,
   supplierId: string,
-  parsedData: ParsedInvoice
+  parsedData: ParsedInvoice,
+  ctx: ProcessContext = {}
 ): Promise<ProcessingResult> {
   let matchedItems = 0
   let unmatchedItems = 0
@@ -37,6 +50,8 @@ export async function processInvoice(
   const isCreditNote = parsedData.documentType === "CREDIT_NOTE"
 
   // Venue resolution, most-reliable signal first:
+  //   0. the email itself, for suppliers whose PDFs never name the venue
+  //      (Parallel Roasters prints "tarte" for both; the subject says which)
   //   1. delivery (ship-to) address text
   //   2. bill-to / account block (who's charged, names the venue when
   //      there's no ship-to, e.g. Paramount/Pencilpay portal PDFs)
@@ -62,6 +77,7 @@ export async function processInvoice(
     pdfText.includes("tarte") ||
     (canonicalToken.length >= 3 && pdfText.includes(canonicalToken))
   const venue =
+    ctx.venueHint?.venue ??
     venueFromText(parsedData.deliveryAddress) ??
     venueFromText(parsedData.billTo) ??
     (pdfCorroboratesSupplier ? defaultVenueForSupplier(canonicalName) : null)
@@ -206,12 +222,29 @@ export async function processInvoice(
       : "Parsed with zero line items, needs manual review."
   }
 
+  // Date guard: a parsed date far from the email it arrived in is a misread
+  // (Cookers 10224572 came in as 2008-10-26 and vanished from every spend
+  // week). Substitute the email's date, flag for review, keep the spend.
+  // Only when the caller knows the email date: a re-process script running
+  // months later has no honest reference point and must keep the parsed date.
+  const dated = ctx.emailDate
+    ? sanitiseInvoiceDate(parsedData.invoiceDate, ctx.emailDate)
+    : {
+        date: parsedData.invoiceDate ? new Date(parsedData.invoiceDate) : null,
+        adjusted: false,
+        note: null,
+      }
+  if (dated.adjusted) {
+    if (status === "MATCHED") status = "EXTRACTED"
+    errorMessage = errorMessage ? `${errorMessage} ${dated.note}` : dated.note
+  }
+
   await db.$transaction([
     db.invoice.update({
       where: { id: invoiceId },
       data: {
         invoiceNumber: parsedData.invoiceNumber,
-        invoiceDate: parsedData.invoiceDate ? new Date(parsedData.invoiceDate) : null,
+        invoiceDate: dated.date,
         subtotal: parsedData.subtotal,
         gst: parsedData.gst,
         total: parsedData.total,

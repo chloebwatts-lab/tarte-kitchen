@@ -66,3 +66,48 @@ export function defaultVenueForSupplier(
   }
   return null
 }
+
+/**
+ * Venue read off the EMAIL that carried the PDF, for suppliers whose PDFs
+ * do not name the venue. Stronger than anything on the page for those
+ * suppliers, so processInvoice applies it first.
+ *
+ * Parallel Roasters (coffee) raises one invoice per venue per week, both
+ * with "tarte" as bill-to and deliver-to. Verified 2026-10-16 against Xero
+ * Tarte Currumbin (bills SI-8978 .. SI-9530, Jul to Oct 2026): not one of
+ * the 18 invoice numbers Unleashed emailed us in that period is a Currumbin
+ * bill, so the Unleashed stream (noreply@unleashedsoftware.com) is Burleigh
+ * only. Currumbin's invoice arrives only from accounts@parallelroasters.com
+ * with subject "Tarte Beachouse" (Burleigh's copy of the same week comes
+ * from that address too, subject "Tarte", and dedupes by invoice number).
+ * The 55/45 "one shared weekly invoice" rule of 20 Sep 2026 rested on the
+ * missing Currumbin stream and is gone.
+ */
+export interface EmailVenueHint {
+  venue: Venue
+  /** "subject": named by the sender in the subject line, overrides a stored
+   * venue. "sender": implied by the sending system, only fills a blank. */
+  source: "subject" | "sender"
+}
+
+export function venueHintFromEmail(
+  supplierName: string | null | undefined,
+  senderEmail: string | null | undefined,
+  subject: string | null | undefined
+): EmailVenueHint | null {
+  const sup = (supplierName ?? "").toLowerCase()
+  if (!sup.startsWith("parallel roasters")) return null
+  const from = (senderEmail ?? "").toLowerCase().trim()
+  const subj = (subject ?? "").toLowerCase()
+  if (from === "accounts@parallelroasters.com") {
+    if (/beach\W*house|beachouse|currumbin|\bbh\b/.test(subj)) {
+      return { venue: "BEACH_HOUSE", source: "subject" }
+    }
+    if (/tarte|burleigh/.test(subj)) return { venue: "BURLEIGH", source: "subject" }
+    return null
+  }
+  if (from === "noreply@unleashedsoftware.com") {
+    return { venue: "BURLEIGH", source: "sender" }
+  }
+  return null
+}

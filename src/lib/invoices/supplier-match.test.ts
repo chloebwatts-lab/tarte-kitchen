@@ -57,6 +57,8 @@ test("isIgnoredSender: catches non-food senders via letterhead OR display name",
 // ---------------------------------------------------------------- letterheadMatches
 
 test("letterheadMatches: real supplier letterheads confirm", () => {
+  // Fresho prints Ocean Made as one word
+  assert.equal(letterheadMatches("Ocean Made Seafood", "OCEANMADE"), "match")
   assert.equal(letterheadMatches("Bidfood", "Bidfood Gold Coast (Burleigh Marr Distribution) Pty Ltd"), "match")
   assert.equal(letterheadMatches("Fermex", "  FERMEX PTY LTD  "), "match")
   assert.equal(letterheadMatches("The Provedores", "Provedores Distribution Qld"), "match")
@@ -156,4 +158,20 @@ test("isReceiptTwin: Stripe receipt skipped only when its invoice is on the same
   assert.equal(isReceiptTwin(stripe[0], stripe), false)
   assert.equal(isReceiptTwin("Receipt-2454-6942.pdf", ["Receipt-2454-6942.pdf"]), false)
   assert.equal(isReceiptTwin(null, stripe), false)
+})
+
+test("Ocean Made via the Fresho relay: the one-word OCEANMADE letterhead resolves, and only through the alias", () => {
+  const OCEAN_MADE: SupplierRef = { id: "om", name: "Ocean Made Seafood" }
+  const GFW: SupplierRef = { id: "gfw", name: "Global Food & Wine" }
+  // sole candidate on orders@fresho.com: used to be "contradicted by letterhead"
+  assert.deepEqual(disambiguateSupplier([OCEAN_MADE], "OCEANMADE", "Fresho"), { supplier: OCEAN_MADE, reason: null })
+  // two Fresho suppliers on the same relay: "oceanmade" has no token in common with
+  // anything but the alias, so it picks Ocean Made and never ties on "seafood"
+  assert.equal(disambiguateSupplier([OCEAN_MADE, GFW], "OCEANMADE", "Fresho").supplier?.id, "om")
+  assert.equal(letterheadMatches("Ocean Made Seafood", "Ocean Made Pty Ltd"), "match")
+  assert.equal(letterheadMatches("Ocean Made Seafood", "oceanmade"), "match")
+  // the alias is scoped to the exact canonical name, a different supplier gains nothing from it
+  assert.equal(letterheadMatches("Global Food & Wine", "OCEANMADE"), "mismatch")
+  // a Fresho confirmation from another seller must not be filed as Ocean Made
+  assert.equal(letterheadMatches("Ocean Made Seafood", "Fresho Order Confirmation"), "mismatch")
 })

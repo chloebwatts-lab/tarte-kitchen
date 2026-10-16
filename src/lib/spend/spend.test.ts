@@ -2,7 +2,7 @@ import { test } from "node:test"
 import { isCompletedSalesDay } from "./sales-day"
 import { arrivalCompleteness } from "./arrival-lag"
 import assert from "node:assert/strict"
-import { sharedSplit, sharedSplitLabel, PARALLEL_SINGLE_INVOICE_FROM } from "./shared-split"
+import { sharedSplit, sharedSplitLabel } from "./shared-split"
 import { venueToBucket, SPEND_BUCKETS } from "./types"
 import { EXPECTED_SUPPLIERS, matchExpectedSupplier } from "./expected-suppliers"
 import { render, renderWithheld, SpendSnapshotInconsistent } from "./weekly-email"
@@ -19,12 +19,9 @@ test("shared invoices default to half each", () => {
   assert.equal(sharedSplitLabel("Breadtop"), "50/50")
 })
 
-test("Parallel Roasters is 55 Burleigh / 45 Currumbin, matched by case-insensitive prefix", () => {
-  assert.deepEqual(sharedSplit("Parallel Roasters"), { BURLEIGH: 0.55, CURRUMBIN: 0.45 })
-  assert.deepEqual(sharedSplit("  PARALLEL ROASTERS PTY LTD "), { BURLEIGH: 0.55, CURRUMBIN: 0.45 })
-  assert.equal(sharedSplitLabel("parallel roasters"), "55/45")
-  // a name that merely contains the words is not a prefix match
-  assert.deepEqual(sharedSplit("Not Parallel Roasters"), { BURLEIGH: 0.5, CURRUMBIN: 0.5 })
+test("Parallel Roasters no longer carries a special split (per-venue invoices since 2026-10-16)", () => {
+  assert.deepEqual(sharedSplit("Parallel Roasters"), { BURLEIGH: 0.5, CURRUMBIN: 0.5 })
+  assert.equal(sharedSplitLabel("parallel roasters"), "50/50")
 })
 
 test("every split sums to exactly one dollar per dollar (no money lost or invented)", () => {
@@ -33,16 +30,6 @@ test("every split sums to exactly one dollar per dollar (no money lost or invent
     assert.equal(Math.round((s.BURLEIGH + s.CURRUMBIN) * 1e9) / 1e9, 1)
     assert.ok(s.BURLEIGH > 0 && s.CURRUMBIN > 0)
   }
-  // a real weekly coffee invoice splits to the cent
-  const s = sharedSplit("Parallel Roasters")
-  const amt = 1234.56
-  assert.equal(Math.round(amt * s.BURLEIGH * 100) / 100, 679.01)
-  assert.equal(Math.round(amt * s.CURRUMBIN * 100) / 100, 555.55)
-  assert.equal(679.01 + 555.55, 1234.56)
-})
-
-test("single-invoice cutover for Parallel Roasters is 12 Aug 2026 UTC midnight", () => {
-  assert.equal(PARALLEL_SINGLE_INVOICE_FROM.toISOString(), "2026-08-12T00:00:00.000Z")
 })
 
 // ------------------------------------------------------------- buckets
@@ -64,6 +51,11 @@ test("supplier aliases match case- and whitespace-insensitively", () => {
   assert.equal(matchExpectedSupplier("Produce Oz by Jensens")?.canonicalName, "Jensens")
   assert.equal(matchExpectedSupplier("EAC Business Group")?.canonicalName, "Breadtop")
   assert.equal(matchExpectedSupplier("Paramount")?.canonicalName, "Paramount Liquor")
+  // Currumbin seafood added 2026-10-16 so a week without them reads "missing", not zero
+  assert.equal(matchExpectedSupplier("The Fish Factory")?.canonicalName, "The Fish Factory")
+  assert.equal(matchExpectedSupplier("Fish Factory")?.category, "seafood")
+  assert.equal(matchExpectedSupplier("Ocean Made Seafood")?.canonicalName, "Ocean Made Seafood")
+  assert.equal(matchExpectedSupplier("OCEANMADE")?.canonicalName, "Ocean Made Seafood")
 })
 
 test("near-misses do not match (exact alias only, no substring)", () => {
@@ -624,4 +616,18 @@ test("exGstInvoiceAmount: credit notes stay negative so they net off, and an emp
   assert.equal(exGstInvoiceAmount({ subtotal: null, total: null, gst: null }), 0)
   assert.equal(exGstInvoiceAmount({ subtotal: null, total: null, gst: "0" }), 0)
   assert.equal(exGstInvoiceAmount({ subtotal: "0", total: "0", gst: "0" }), 0)
+})
+
+test("Currumbin seafood coverage: Fish Factory is critical and near-daily, Ocean Made weekly and soft", () => {
+  const ff = matchExpectedSupplier("The Fish Factory")
+  assert.equal(ff?.critical, true)
+  assert.equal(ff?.expectedIntervalDays, 2)
+  const om = matchExpectedSupplier("Ocean Made")
+  assert.equal(om?.canonicalName, "Ocean Made Seafood")
+  assert.equal(om?.critical, false)
+  assert.equal(om?.expectedIntervalDays, 7)
+  assert.equal(om?.category, "seafood")
+  // Tasman, Fish Factory and Ocean Made are three distinct Currumbin seafood rows
+  assert.equal(matchExpectedSupplier("Tasman Star Seafood")?.canonicalName, "Tasman Distribution")
+  assert.notEqual(matchExpectedSupplier("Fish Factory")?.canonicalName, matchExpectedSupplier("Oceanmade")?.canonicalName)
 })

@@ -94,6 +94,10 @@ export const SUPPLIER_ALIASES: Record<string, string[]> = {
   cookers: ["cookers bulk oil"],
   easyvend: ["independent dairy"],
   eustralis: ["pencil.one", "pencilone", "pencil one", "eustralis food"],
+  // Fresho order confirmations print the seller as "OCEANMADE" (one word),
+  // which failed the letterhead check and parked every Ocean Made delivery
+  // in the unknown-sender queue (Currumbin seafood, mapped 2026-10-16).
+  "ocean made seafood": ["oceanmade", "ocean made"],
   "paramount liquor": ["tambavale"],
   "pixel bread": ["pixel bakehouse"],
   "son of a bunn": ["son of a bunn"],

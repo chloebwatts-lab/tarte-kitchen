@@ -16,7 +16,8 @@ import {
 } from "@/lib/gmail/client"
 import { saveInvoicePdf } from "@/lib/invoices/storage"
 import { parseInvoicePdf } from "@/lib/invoices/parser"
-import { processInvoice } from "@/lib/invoices/processor"
+import { processInvoice, type ProcessContext } from "@/lib/invoices/processor"
+import { venueHintFromEmail } from "@/lib/invoices/venue-from-address"
 import {
   disambiguateSupplier,
   isIgnoredSender,
@@ -25,7 +26,6 @@ import {
   isReceiptTwin,
   type SupplierRef,
 } from "@/lib/invoices/supplier-match"
-import { PARALLEL_SINGLE_INVOICE_FROM, sharedSplitLabel } from "@/lib/spend/shared-split"
 import { readFile } from "fs/promises"
 import path from "path"
 
@@ -111,7 +111,8 @@ async function finalizeParsedInvoice(
   invoiceId: string,
   supplier: SupplierRef,
   parsed: Awaited<ReturnType<typeof parseInvoicePdf>>,
-  stats: ProcessStats
+  stats: ProcessStats,
+  ctx: ProcessContext = {}
 ): Promise<void> {
   const parsedMeta = {
     invoiceNumber: parsed.invoiceNumber,
@@ -165,7 +166,7 @@ async function finalizeParsedInvoice(
               total: parsed.total,
             }),
       },
-      select: { id: true, invoiceNumber: true },
+      select: { id: true, invoiceNumber: true, venue: true },
     })
     if (dup) {
       await db.invoice.update({
@@ -176,6 +177,18 @@ async function finalizeParsedInvoice(
           errorMessage: `Duplicate of invoice ${dup.id}${dup.invoiceNumber ? ` (${dup.invoiceNumber})` : ""}`,
         },
       })
+      // The copy may know the venue when the original did not: Parallel
+      // Roasters' Unleashed email says nothing, the follow-up from
+      // accounts@parallelroasters.com names it in the subject. A subject
+      // hint corrects the kept row; a sender hint only fills a blank.
+      const hint = ctx.venueHint
+      if (
+        hint &&
+        hint.venue !== dup.venue &&
+        (hint.source === "subject" || dup.venue == null || dup.venue === "BOTH")
+      ) {
+        await db.invoice.update({ where: { id: dup.id }, data: { venue: hint.venue } })
+      }
       stats.duplicates++
       return
     }
@@ -225,7 +238,7 @@ async function finalizeParsedInvoice(
   // statements and order confirmations they DO belong in spend (negatively),
   // so they need their line items matched and stored like any other document.
   // processInvoice sets status CREDIT_NOTE and suppresses price alerts.
-  await processInvoice(invoiceId, supplier.id, parsed)
+  await processInvoice(invoiceId, supplier.id, parsed, ctx)
   if (parsed.documentType === "CREDIT_NOTE") stats.creditNotes++
   else stats.invoicesIngested++
 }
@@ -268,6 +281,9 @@ async function processMessages(
 
       const attachments = extractPdfAttachments(message)
       if (attachments.length === 0) continue
+      const subject = getHeader(message, "Subject") ?? null
+      const internalMs = Number(message.internalDate)
+      const emailDate = Number.isFinite(internalMs) && internalMs > 0 ? new Date(internalMs) : new Date()
 
       for (let attIdx = 0; attIdx < attachments.length; attIdx++) {
         const attachment = attachments[attIdx]
@@ -359,7 +375,10 @@ async function processMessages(
         })
 
         try {
-          await finalizeParsedInvoice(invoice.id, supplier, parsed, stats)
+          await finalizeParsedInvoice(invoice.id, supplier, parsed, stats, {
+            venueHint: venueHintFromEmail(supplier.name, senderEmail, subject),
+            emailDate,
+          })
         } catch (procErr) {
           const errMsg = procErr instanceof Error ? procErr.message : String(procErr)
           await db.invoice.update({
@@ -413,6 +432,7 @@ async function rescueStuckInvoices(stats: ProcessStats): Promise<void> {
       supplierId: true,
       supplierName: true,
       gmailMessageId: true,
+      createdAt: true,
     },
     orderBy: { createdAt: "asc" },
     take: 15,
@@ -434,11 +454,14 @@ async function rescueStuckInvoices(stats: ProcessStats): Promise<void> {
       }
       const pdfBuffer = await readFile(path.resolve(process.cwd(), inv.pdfUrl))
       const parsed = await parseInvoicePdf(pdfBuffer)
+      // No email in hand on a re-parse: the row was created when the email
+      // was first seen, so createdAt stands in for the email date.
       await finalizeParsedInvoice(
         inv.id,
         { id: inv.supplierId!, name: inv.supplierName },
         parsed,
-        stats
+        stats,
+        { emailDate: inv.createdAt }
       )
       stats.rescued++
     } catch (err) {
@@ -460,14 +483,15 @@ async function rescueStuckInvoices(stats: ProcessStats): Promise<void> {
  * panel:
  * - Breadtop is genuinely shared spend → venue BOTH (the spend tracker
  *   splits BOTH 50/50 between the Burleigh and Currumbin buckets).
- * - Parallel Roasters, invoices dated before 12 Aug 2026: they arrived as
- *   a pair, the LARGER is Burleigh's coffee order, the smaller Currumbin's.
- *   Only fires when exactly two unassigned invoices are waiting; other
- *   counts stay manual so we never guess.
- * - Parallel Roasters, from 12 Aug 2026: ONE invoice a week covers both
- *   venues, so it is shared spend → venue BOTH, which the tracker splits
- *   55% Burleigh, 45% Currumbin (Chloe 2026-09-20, ratio lives in
- *   src/lib/spend/shared-split.ts).
+ * - Parallel Roasters is one invoice PER VENUE per week, never shared.
+ *   Venue is read off the email at ingestion (venueHintFromEmail). Any row
+ *   still blank or BOTH came in through Unleashed, which only ever carries
+ *   Burleigh's invoice (verified against Xero Tarte Currumbin 2026-10-16:
+ *   none of the 18 Unleashed invoice numbers since July is a Currumbin
+ *   bill), so it is Burleigh's. Currumbin's always arrives from
+ *   accounts@parallelroasters.com with "Beachouse" in the subject.
+ *   The earlier rules (larger-of-a-pair to Burleigh; from 12 Aug 2026 one
+ *   BOTH invoice split 55/45) rested on that missing Currumbin stream.
  * - Tasman Distribution is always Currumbin, whatever address is printed.
  */
 async function applyStandingVenueRules(): Promise<string[]> {
@@ -495,47 +519,16 @@ async function applyStandingVenueRules(): Promise<string[]> {
   })
   if (tasman.count > 0) notes.push(`Tasman Distribution: ${tasman.count} → BEACH_HOUSE`)
 
-  const parallelShared = await db.invoice.updateMany({
+  const parallel = await db.invoice.updateMany({
     where: {
       supplierName: "Parallel Roasters",
-      venue: null,
+      OR: [{ venue: null }, { venue: "BOTH" }],
       status: activeStatuses,
-      invoiceDate: { gte: PARALLEL_SINGLE_INVOICE_FROM },
     },
-    data: { venue: "BOTH" },
+    data: { venue: "BURLEIGH" },
   })
-  if (parallelShared.count > 0) {
-    notes.push(
-      `Parallel Roasters: ${parallelShared.count} → BOTH (${sharedSplitLabel("Parallel Roasters")} Burleigh/Currumbin split)`
-    )
-  }
-
-  const parallel = await db.invoice.findMany({
-    where: {
-      supplierName: "Parallel Roasters",
-      venue: null,
-      status: activeStatuses,
-      total: { not: null },
-      invoiceDate: { lt: PARALLEL_SINGLE_INVOICE_FROM },
-    },
-    orderBy: { total: "desc" },
-    select: { id: true, total: true, invoiceDate: true },
-  })
-  // Only pair invoices dated within 7 days of each other, a stale rescued
-  // invoice must not pair with a current one. Missing dates stay manual.
-  const pairWindowMs = 7 * 24 * 60 * 60 * 1000
-  if (
-    parallel.length === 2 &&
-    parallel[0].invoiceDate != null &&
-    parallel[1].invoiceDate != null &&
-    Math.abs(parallel[0].invoiceDate.getTime() - parallel[1].invoiceDate.getTime()) <=
-      pairWindowMs
-  ) {
-    await db.invoice.update({ where: { id: parallel[0].id }, data: { venue: "BURLEIGH" } })
-    await db.invoice.update({ where: { id: parallel[1].id }, data: { venue: "BEACH_HOUSE" } })
-    notes.push(
-      `Parallel Roasters: $${Number(parallel[0].total)} → BURLEIGH, $${Number(parallel[1].total)} → BEACH_HOUSE`
-    )
+  if (parallel.count > 0) {
+    notes.push(`Parallel Roasters: ${parallel.count} unassigned/BOTH → BURLEIGH (Unleashed stream is Burleigh only)`)
   }
   return notes
 }

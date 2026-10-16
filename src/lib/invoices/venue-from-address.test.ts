@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { venueFromText, venueFromDeliveryAddress, defaultVenueForSupplier } from "./venue-from-address"
+import { venueFromText, venueFromDeliveryAddress, defaultVenueForSupplier, venueHintFromEmail } from "./venue-from-address"
 
 test("venueFromText: concept names beat suburb", () => {
   assert.equal(venueFromText("Tarte Beach House, Pacific Parade, Currumbin QLD 4223"), "BEACH_HOUSE")
@@ -48,4 +48,80 @@ test("defaultVenueForSupplier: multi-venue suppliers and empties are null", () =
   assert.equal(defaultVenueForSupplier(""), null)
   assert.equal(defaultVenueForSupplier(null), null)
   assert.equal(defaultVenueForSupplier(undefined), null)
+})
+
+// ---------------------------------------------------------- venueHintFromEmail
+
+test("Parallel Roasters: subject from accounts@parallelroasters.com names the venue", () => {
+  assert.deepEqual(venueHintFromEmail("Parallel Roasters", "accounts@parallelroasters.com", "Tarte Beachouse"), {
+    venue: "BEACH_HOUSE",
+    source: "subject",
+  })
+  assert.deepEqual(venueHintFromEmail("Parallel Roasters", "Accounts@ParallelRoasters.com ", "Beachouse payment"), {
+    venue: "BEACH_HOUSE",
+    source: "subject",
+  })
+  assert.deepEqual(venueHintFromEmail("Parallel Roasters", "accounts@parallelroasters.com", "Tarte"), {
+    venue: "BURLEIGH",
+    source: "subject",
+  })
+  assert.deepEqual(venueHintFromEmail("Parallel Roasters", "accounts@parallelroasters.com", "Tarte Payment"), {
+    venue: "BURLEIGH",
+    source: "subject",
+  })
+  // a subject that names neither stays manual
+  assert.equal(venueHintFromEmail("Parallel Roasters", "accounts@parallelroasters.com", "Statement"), null)
+})
+
+test("Parallel Roasters via Unleashed is Burleigh, as a weak (sender) hint", () => {
+  assert.deepEqual(
+    venueHintFromEmail("Parallel Roasters", "noreply@unleashedsoftware.com", "Tax Invoice: SI-00009537 from Parallel Roasters"),
+    { venue: "BURLEIGH", source: "sender" }
+  )
+})
+
+test("venueHintFromEmail: other suppliers and other senders give no hint", () => {
+  assert.equal(venueHintFromEmail("Bidfood", "accounts@parallelroasters.com", "Tarte Beachouse"), null)
+  assert.equal(venueHintFromEmail("Parallel Roasters", "messaging-service@post.xero.com", "Tarte Beachouse"), null)
+  assert.equal(venueHintFromEmail(null, null, null), null)
+})
+
+test("venueHintFromEmail: supplier match is a case-insensitive prefix, sender is case- and space-tolerant", () => {
+  // the DB name may carry a legal suffix; a name that merely contains the words is not Parallel Roasters
+  assert.deepEqual(
+    venueHintFromEmail("Parallel Roasters Pty Ltd", "accounts@parallelroasters.com", "Tarte Beachouse"),
+    { venue: "BEACH_HOUSE", source: "subject" }
+  )
+  assert.deepEqual(
+    venueHintFromEmail("PARALLEL ROASTERS", " NoReply@UnleashedSoftware.com ", "Tax Invoice: SI-00009541 from Parallel Roasters"),
+    { venue: "BURLEIGH", source: "sender" }
+  )
+  assert.equal(venueHintFromEmail("Not Parallel Roasters", "noreply@unleashedsoftware.com", "Tarte"), null)
+})
+
+test("venueHintFromEmail: every spelling of Currumbin in an accounts@ subject beats the Tarte fallback", () => {
+  for (const subj of ["Tarte Beach House", "Tarte BEACHOUSE invoice", "Invoice Tarte Currumbin", "beach  house"]) {
+    assert.deepEqual(
+      venueHintFromEmail("Parallel Roasters", "accounts@parallelroasters.com", subj),
+      { venue: "BEACH_HOUSE", source: "subject" },
+      subj
+    )
+  }
+  assert.deepEqual(
+    venueHintFromEmail("Parallel Roasters", "accounts@parallelroasters.com", "Burleigh invoice"),
+    { venue: "BURLEIGH", source: "subject" }
+  )
+})
+
+test("venueHintFromEmail: a blank subject from accounts@ gives no hint, Unleashed never needs one", () => {
+  assert.equal(venueHintFromEmail("Parallel Roasters", "accounts@parallelroasters.com", ""), null)
+  assert.equal(venueHintFromEmail("Parallel Roasters", "accounts@parallelroasters.com", null), null)
+  assert.equal(venueHintFromEmail("Parallel Roasters", "accounts@parallelroasters.com", undefined), null)
+  assert.deepEqual(venueHintFromEmail("Parallel Roasters", "noreply@unleashedsoftware.com", null), {
+    venue: "BURLEIGH",
+    source: "sender",
+  })
+  // a look-alike domain is not the sender
+  assert.equal(venueHintFromEmail("Parallel Roasters", "accounts@parallelroasters.com.evil.com", "Tarte Beachouse"), null)
+  assert.equal(venueHintFromEmail("Parallel Roasters", "someone@unleashedsoftware.com", "Tarte"), null)
 })
