@@ -51,7 +51,7 @@ export default async function RestockCountPage({
       <div className="px-1">
         <div
           className="tk-display leading-none text-[var(--tk-charcoal)]"
-          style={{ fontSize: 40, fontWeight: 700, letterSpacing: "-0.025em" }}
+          style={{ fontSize: 32, fontWeight: 700, letterSpacing: "-0.025em" }}
         >
           {venue === "BEACH_HOUSE"
             ? "Prep list, both kitchens"
@@ -59,25 +59,15 @@ export default async function RestockCountPage({
               ? "Prep list, all stations"
               : `${stationLabel(venue, station)} prep list`}
         </div>
-        <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
-          Put a number in <strong>Need</strong>{" "}
-          for anything you want made,
-          and leave it empty for anything you&apos;re fine on. Tap the star
-          in the order you want things made; each section numbers its own
-          from 1, and tapping a number lets you move it. Tap an item&apos;s
-          name to say when you need it. It saves as you go. Send it to the prep chef
-          when you&apos;re done.
-        </p>
-        <p className="mt-2 text-[14px] text-[var(--tk-ink-soft)]">
-          Got the Apple Pencil?{" "}
+        <p className="mt-1.5 max-w-3xl text-[14px] leading-snug text-[var(--tk-ink-soft)]">
+          Tap <strong>+</strong> for anything you want made. Star in the
+          order to make them. Tap a name for when, and a note. Saves as you go.{" "}
           <a
             href={`/kitchen/restock/paper?venue=${venue}&station=${station}`}
             className="font-medium text-[var(--tk-charcoal)] underline underline-offset-2"
           >
-            Try the paper-style sheet
-          </a>{" "}
-          and write in the boxes like the old printed one. Both fill in the
-          same count.
+            Apple Pencil? Use the paper-style sheet.
+          </a>
         </p>
       </div>
 

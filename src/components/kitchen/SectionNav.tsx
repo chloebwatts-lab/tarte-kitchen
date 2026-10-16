@@ -16,6 +16,8 @@ export function SectionNav({
   current,
   counts,
   onPick,
+  sticky = true,
+  dense = false,
 }: {
   sections: readonly string[]
   /** A section name, or WHOLE_LIST. */
@@ -23,16 +25,20 @@ export function SectionNav({
   /** Items per section, for the small number on each button. */
   counts?: Record<string, number>
   onPick: (section: string) => void
+  /** False when a parent toolbar is already sticky and holds this. */
+  sticky?: boolean
+  /** Smaller chips, for a toolbar that has to leave room for the list. */
+  dense?: boolean
 }) {
   if (sections.length === 0) return null
   const total = counts ? Object.values(counts).reduce((s, n) => s + n, 0) : null
   const chip = (on: boolean) =>
-    `flex min-h-[44px] items-center gap-1.5 rounded-full px-4 text-[15px] font-semibold transition active:scale-[0.98] ${
+    `flex items-center gap-1.5 rounded-full font-semibold transition active:scale-[0.98] ${dense ? "min-h-[38px] px-3 text-[14px]" : "min-h-[44px] px-4 text-[15px]"} ${
       on ? "bg-[var(--tk-charcoal)] text-white" : "border border-[var(--tk-line)] bg-white text-[var(--tk-ink-soft)]"
     }`
   return (
-    <nav aria-label="Sections" className="sticky top-0 z-10 -mx-1 bg-[var(--tk-bg)] px-1 py-2">
-      <div className="flex flex-wrap gap-2">
+    <nav aria-label="Sections" className={sticky ? "sticky top-0 z-10 -mx-1 bg-[var(--tk-bg)] px-1 py-2" : ""}>
+      <div className={`flex flex-wrap ${dense ? "gap-1.5" : "gap-2"}`}>
         <button type="button" onClick={() => onPick(WHOLE_LIST)} aria-pressed={current === WHOLE_LIST} className={chip(current === WHOLE_LIST)}>
           <LayoutList className="h-4 w-4" />
           Whole list
