@@ -115,8 +115,9 @@ export interface BucketSpendData {
   /// /spend page, the Sunday email and the Friday digest all print this
   /// and nothing else (checkSpendSnapshot in guards.ts enforces the sum).
   leftToSpend: number | null
-  /// Full-week spend projection + estimatedMissingSpend. "weighted"
-  /// divides spent-to-date by the elapsed weekdays' historical share of
+  /// Full-week spend projection + estimatedMissingSpend, from
+  /// estimatedSpentToDate (the same grossed-up basis as leftToSpend).
+  /// "weighted" divides it by the elapsed weekdays' historical share of
   /// a week's deliveries (8-wk profile); "flat" is spent ÷ days × 7.
   projectedEndOfWeek: number
   spendProjectionMethod: "weighted" | "flat"

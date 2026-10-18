@@ -33,6 +33,7 @@ import {
 import { sharedSplit } from "./shared-split"
 import { arrivalCompleteness, type ArrivalLagRow } from "./arrival-lag"
 import { isCompletedSalesDay } from "./sales-day"
+import { projectEndOfWeekSpend } from "./projection"
 import { suspectRevenueDay } from "./guards"
 import {
   EXPECTED_SUPPLIERS,
@@ -592,23 +593,15 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       budget == null
         ? null
         : Math.round((budget - estimatedSpentToDate) * 100) / 100
-    // Pace: project end-of-week spend. Preferred: divide by the share of
-    // a typical week's deliveries that lands on the elapsed weekdays
-    // (8-wk history). Fallback: flat daily-rate extrapolation.
-    // For the missing-supplier component, project the full weekly avg
-    // rather than scaling (these will land in full by week end).
-    const spendShare = spendShares[bucket]
-    const elapsedSpendShare = spendShare
-      ? spendShare.slice(0, daysElapsedFull).reduce((a, b) => a + b, 0)
-      : 0
-    const spendWeighted = spendShare != null && elapsedSpendShare >= 0.1
-    const projectedFromInvoices = spendWeighted
-      ? Math.round((spentToDate / elapsedSpendShare) * 100) / 100
-      : daysElapsedFull > 0
-      ? Math.round((spentToDate / daysElapsedFull) * 7 * 100) / 100
-      : 0
-    const projectedEndOfWeek =
-      Math.round((projectedFromInvoices + estimatedMissing) * 100) / 100
+    // Pace: project end-of-week spend from the same grossed-up basis as
+    // leftToSpend, so "left", "pace" and the COGS % agree (projection.ts).
+    const { projectedEndOfWeek, method: spendProjectionMethod } =
+      projectEndOfWeekSpend({
+        estimatedSpentToDate,
+        spendShare: spendShares[bucket],
+        daysElapsedFull,
+        estimatedMissing,
+      })
     let paceStatus: BucketSpendData["paceStatus"]
     if (budget == null) paceStatus = "no-forecast"
     else if (projectedEndOfWeek > budget * 1.05) paceStatus = "over"
@@ -717,7 +710,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       estimatedUninvoiced,
       leftToSpend,
       projectedEndOfWeek,
-      spendProjectionMethod: spendWeighted ? ("weighted" as const) : ("flat" as const),
+      spendProjectionMethod,
       revenueProjectionMethod:
         revenueToDateExGst == null
           ? null

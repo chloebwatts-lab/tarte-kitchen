@@ -71,8 +71,8 @@ export function checkBucket(b: BucketSpendData, todayAest: string): string[] {
       p.push(tag(`leftToSpend ${b.leftToSpend} + used ${b.estimatedSpentToDate} ≠ budget ${b.budget}`))
     if (b.paceStatus === "no-forecast") p.push(tag(`paceStatus no-forecast although budget is set`))
   }
-  if (b.projectedEndOfWeek + 0.01 < b.spentToDate)
-    p.push(tag(`projectedEndOfWeek ${b.projectedEndOfWeek} is below spentToDate ${b.spentToDate}`))
+  if (b.projectedEndOfWeek + 0.01 < b.estimatedSpentToDate)
+    p.push(tag(`projectedEndOfWeek ${b.projectedEndOfWeek} is below spend to date ${b.estimatedSpentToDate}`))
 
   // ---- revenue side
   const reported = b.revenueDaily.filter((d) => d.reported)

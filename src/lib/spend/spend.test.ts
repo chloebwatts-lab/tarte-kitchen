@@ -104,7 +104,7 @@ function bucket(over: Partial<BucketSpendData> & { bucket: BucketSpendData["buck
   if (forecastRevenue === undefined) forecastRevenue = budget == null ? null : (budget * 100) / targetPct
   const leftToSpend = over.leftToSpend !== undefined ? over.leftToSpend : budget == null ? null : Math.round((budget - estimatedSpentToDate) * 100) / 100
   const paceStatus = over.paceStatus ?? (budget == null ? "no-forecast" : "on-track")
-  const projectedEndOfWeek = over.projectedEndOfWeek ?? spentToDate
+  const projectedEndOfWeek = over.projectedEndOfWeek ?? estimatedSpentToDate
   const revenueToDateExGst = over.revenueToDateExGst ?? null
   const revenueDaysReported = over.revenueDaysReported ?? (revenueToDateExGst == null ? 0 : 1)
   const dates = ["2026-09-23", "2026-09-24", "2026-09-25", "2026-09-26", "2026-09-27", "2026-09-28", "2026-09-29"]
@@ -339,6 +339,7 @@ test("left to spend is the grossed-up basis the /spend headline uses, with the u
         estimatedUninvoiced: 4237,
         budget: 26880,
         leftToSpend: 3061,
+        projectedEndOfWeek: 26000,
         paceStatus: "watch",
       }),
     ],
@@ -425,6 +426,7 @@ test("last day with uninvoiced deliveries: detail inside the parens, then the wh
         estimatedUninvoiced: 300,
         budget: 10000,
         leftToSpend: 900,
+        projectedEndOfWeek: 9800,
         paceStatus: "watch",
       }),
     ],
@@ -439,7 +441,7 @@ test("last day with uninvoiced deliveries: detail inside the parens, then the wh
 
 test("HTML Spent column: grossed-up figure when there is a budget, raw invoiced figure when there is none", () => {
   const withBudget = render(
-    snapshot({ buckets: [bucket({ bucket: "BURLEIGH", spentToDate: 7000, estimatedSpentToDate: 7900, estimatedUninvoiced: 900, budget: 10000, leftToSpend: 2100 })] })
+    snapshot({ buckets: [bucket({ bucket: "BURLEIGH", spentToDate: 7000, estimatedSpentToDate: 7900, estimatedUninvoiced: 900, budget: 10000, leftToSpend: 2100, projectedEndOfWeek: 8500 })] })
   )
   assert.match(withBudget.html, /\$7,900/)
   assert.match(withBudget.html, /\$2,100/)
@@ -630,4 +632,51 @@ test("Currumbin seafood coverage: Fish Factory is critical and near-daily, Ocean
   // Tasman, Fish Factory and Ocean Made are three distinct Currumbin seafood rows
   assert.equal(matchExpectedSupplier("Tasman Star Seafood")?.canonicalName, "Tasman Distribution")
   assert.notEqual(matchExpectedSupplier("Fish Factory")?.canonicalName, matchExpectedSupplier("Oceanmade")?.canonicalName)
+})
+
+// --------------------------------------------------- end-of-week projection
+// The Sunday 18 Oct 2026 email read Currumbin "On track, 24.3% COGS" while
+// the same email counted $5,900 delivered-but-uninvoiced in "left to spend":
+// the pace divided invoices in hand only. Projection now shares the
+// grossed-up basis.
+
+import { projectEndOfWeekSpend } from "./projection"
+
+test("projection is taken from the grossed-up spend, not invoices in hand", () => {
+  // Wed..Sat are 65% of a normal week's deliveries
+  const share = [0.2, 0.15, 0.15, 0.15, 0.2, 0.1, 0.05]
+  const r = projectEndOfWeekSpend({ estimatedSpentToDate: 21290, spendShare: share, daysElapsedFull: 4, estimatedMissing: 0 })
+  assert.equal(r.method, "weighted")
+  assert.equal(r.projectedEndOfWeek, Math.round((21290 / 0.65) * 100) / 100)
+  // The old basis (invoices in hand, 15389) would have read on track against a 26740 budget
+  assert.ok(r.projectedEndOfWeek > 26740 * 1.05)
+})
+
+test("projection: missing-supplier weekly average is added in full, never scaled", () => {
+  const share = [0.25, 0.25, 0.25, 0.25, 0, 0, 0]
+  const r = projectEndOfWeekSpend({ estimatedSpentToDate: 1000, spendShare: share, daysElapsedFull: 2, estimatedMissing: 300 })
+  assert.equal(r.projectedEndOfWeek, 2000 + 300)
+})
+
+test("projection falls back to flat ÷days×7 without history or with a thin elapsed share", () => {
+  assert.deepEqual(
+    projectEndOfWeekSpend({ estimatedSpentToDate: 700, spendShare: null, daysElapsedFull: 2, estimatedMissing: 0 }),
+    { projectedEndOfWeek: 2450, method: "flat" }
+  )
+  // Only 5% of a week lands on Wednesday: too thin to divide by
+  const share = [0.05, 0.15, 0.2, 0.2, 0.2, 0.15, 0.05]
+  assert.equal(projectEndOfWeekSpend({ estimatedSpentToDate: 100, spendShare: share, daysElapsedFull: 1, estimatedMissing: 0 }).method, "flat")
+})
+
+test("projection never falls below the spend already counted", () => {
+  const share = [0.2, 0.15, 0.15, 0.15, 0.2, 0.1, 0.05]
+  for (const spent of [0, 1, 999.99, 50000]) {
+    const r = projectEndOfWeekSpend({ estimatedSpentToDate: spent, spendShare: share, daysElapsedFull: 7, estimatedMissing: 0 })
+    assert.ok(r.projectedEndOfWeek + 0.01 >= spent)
+  }
+})
+
+test("guard: a projection below the grossed-up spend to date is refused", () => {
+  const b = bucket({ bucket: "CURRUMBIN", spentToDate: 8000, estimatedSpentToDate: 9000, estimatedUninvoiced: 1000, budget: 12000, forecastRevenue: 40000, leftToSpend: 3000, projectedEndOfWeek: 8500, paceStatus: "on-track" })
+  assert.throws(() => render(snapshot({ buckets: [b] })), (e: unknown) => e instanceof SpendSnapshotInconsistent && /below spend to date/.test(e.problems.join()))
 })
