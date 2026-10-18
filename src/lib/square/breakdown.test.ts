@@ -1,6 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { computeDayBreakdown, channelForDevice, aestHour } from "./breakdown"
+import { computeDayBreakdown, channelForDevice, aestHour, reportingGroup } from "./breakdown"
+import { mergeItemName } from "./client"
 import type { SquareOrder, SquarePayment } from "./client"
 
 const money = (d: number) => ({ amount: Math.round(d * 100), currency: "AUD" })
@@ -338,4 +339,115 @@ test("computeDayBreakdown: paid orders use the order total, a partial refund on 
   assert.equal(b.paidIncGst, 53.8)
   assert.equal(b.paidOrders, 1)
   assert.equal(b.unmatchedPayments, 0)
+})
+
+// ── Reporting groups, Sides, merged product names, table attribution (Shawna, 18 Oct 2026) ──
+
+test("reportingGroup: drinks categories merge, everything else keeps its name", () => {
+  assert.equal(reportingGroup("Restaurant Wine & Beer"), "Alcohol")
+  assert.equal(reportingGroup("Restaurant Cocktails"), "Alcohol")
+  assert.equal(reportingGroup("Cafe Alcohol"), "Alcohol")
+  assert.equal(reportingGroup("Cafe Coffee & Tea"), "Coffee & Tea")
+  assert.equal(reportingGroup("Restaurant Coffee & Tea"), "Coffee & Tea")
+  assert.equal(reportingGroup("Juice Bar"), "Cold Drinks")
+  assert.equal(reportingGroup("Restaurant Drinks"), "Cold Drinks")
+  assert.equal(reportingGroup("restaurant   wine&beer"), "Alcohol")
+  assert.equal(reportingGroup("Cafe Food"), "Cafe Food")
+  assert.equal(reportingGroup(undefined), "Uncategorised")
+})
+
+test("mergeItemName: cafe full stop, restaurant ' - R' and 'Meal. - Toastie.' all become one name", () => {
+  assert.equal(mergeItemName("Cappuccino."), "Cappuccino")
+  assert.equal(mergeItemName("Cappuccino - R"), "Cappuccino")
+  assert.equal(mergeItemName("Cappuccino -R"), "Cappuccino")
+  assert.equal(mergeItemName("Kids Meal. - Toastie."), "Kids Meal - Toastie")
+  assert.equal(mergeItemName("Orange Juice. "), "Orange Juice")
+  assert.equal(mergeItemName("Ricotta Hotcakes"), "Ricotta Hotcakes")
+  assert.equal(mergeItemName(undefined), "")
+})
+
+test("computeDayBreakdown: merged groups, Sides from the Food Sides list, top 10 merges cafe and restaurant names", () => {
+  const orders: Array<SquareOrder & Record<string, unknown>> = [
+    { id: "o1", state: "COMPLETED", closed_at: "2026-10-18T00:05:00Z", total_money: money(42), total_tip_money: money(0), source: { name: "Point of Sale" },
+      line_items: [
+        // Eggs $26 with bacon ($6, Food Sides) and "No onion" ($0, Food Sides) and oat milk ($1, Milk list)
+        { name: "Eggs Your Way.", quantity: "1", total_money: money(26 + 6 + 1), catalog_object_id: "v-eggs",
+          modifiers: [
+            { catalog_object_id: "m-bacon", name: "Bacon", quantity: "1", base_price_money: money(6), total_price_money: money(6) },
+            { catalog_object_id: "m-noonion", name: "No onion", quantity: "1", base_price_money: money(0) },
+            { catalog_object_id: "m-oat", name: "Oat milk", quantity: "1", base_price_money: money(1), total_price_money: money(1) },
+          ] },
+        { name: "Cappuccino.", quantity: "2", total_money: money(9), catalog_object_id: "v-cap-cafe" },
+      ] },
+    { id: "o2", state: "COMPLETED", closed_at: "2026-10-18T02:05:00Z", total_money: money(86), total_tip_money: money(0), source: { name: "Point of Sale" },
+      line_items: [
+        // Two fish, each with halloumi x1 ($8): side units = 2
+        { name: "Fish & Chips", quantity: "2", total_money: money(70 + 16), catalog_object_id: "v-fish",
+          modifiers: [{ catalog_object_id: "m-hall", name: "Halloumi", quantity: "1", base_price_money: money(8), total_price_money: money(16) }] },
+        { name: "Cappuccino - R", quantity: "1", total_money: money(5), catalog_object_id: "v-cap-rest" },
+        { name: "Glass of Shiraz", quantity: "1", total_money: money(14), catalog_object_id: "v-shiraz" },
+        { name: "Orange Juice.", quantity: "1", total_money: money(9), catalog_object_id: "v-oj" },
+        { name: "Negroni", quantity: "1", total_money: money(22), catalog_object_id: "v-negroni" },
+      ] },
+  ]
+  const catalog = (id?: string) => ({
+    "v-eggs": { reportingCategory: "Cafe Food" }, "v-cap-cafe": { reportingCategory: "Cafe Coffee & Tea" },
+    "v-fish": { reportingCategory: "Restaurant Food" }, "v-cap-rest": { reportingCategory: "Restaurant Coffee & Tea" },
+    "v-shiraz": { reportingCategory: "Restaurant Wine & Beer" }, "v-oj": { reportingCategory: "Juice Bar" }, "v-negroni": { reportingCategory: "Restaurant Cocktails" },
+  } as Record<string, { reportingCategory: string }>)[id ?? ""]
+  const modList = (id?: string) => ({ "m-bacon": "Food Sides", "m-noonion": "Food Sides", "m-hall": "Food Sides", "m-oat": "Milk" } as Record<string, string>)[id ?? ""]
+  const b = computeDayBreakdown("2026-10-18", orders, [], catalog, () => undefined, null, modList)
+  const g = (name: string) => b.groups.find((x) => x.name === name)
+  // Sides: bacon 6 + halloumi 8 x 2 = 22, three units
+  assert.equal(g("Sides")?.sales, 22); assert.equal(g("Sides")?.qty, 3)
+  assert.deepEqual(g("Sides")?.topItems, [{ name: "Halloumi", qty: 2, sales: 16 }, { name: "Bacon", qty: 1, sales: 6 }])
+  // The dish groups lose the side money and say so; oat milk and "No onion" stay on the dish
+  assert.equal(g("Cafe Food")?.sales, 27); assert.equal(g("Cafe Food")?.countedUnderSides, 6)
+  assert.equal(g("Restaurant Food")?.sales, 70); assert.equal(g("Restaurant Food")?.countedUnderSides, 16)
+  assert.equal(g("Sides")?.countedUnderSides, undefined)
+  // Merged groups
+  assert.equal(g("Coffee & Tea")?.sales, 14); assert.equal(g("Coffee & Tea")?.qty, 3)
+  assert.deepEqual(g("Coffee & Tea")?.topItems, [{ name: "Cappuccino", qty: 3, sales: 14 }])
+  assert.equal(g("Alcohol")?.sales, 36)
+  assert.deepEqual(g("Alcohol")?.topItems.map((t) => t.name), ["Negroni", "Glass of Shiraz"])
+  assert.equal(g("Cold Drinks")?.sales, 9); assert.deepEqual(g("Cold Drinks")?.topItems, [{ name: "Orange Juice", qty: 1, sales: 9 }])
+  assert.equal(g("Cafe Coffee & Tea"), undefined); assert.equal(g("Juice Bar"), undefined)
+  // Groups still add up to the line items (sides moved, not added)
+  const sum = b.groups.reduce((s, x) => s + x.sales, 0)
+  assert.equal(Math.round(sum * 100) / 100, 33 + 9 + 86 + 5 + 14 + 9 + 22)
+})
+
+test("computeDayBreakdown: a side priced above the line (data error) is capped at the line, no modifier list means no Sides group", () => {
+  const orders: Array<SquareOrder & Record<string, unknown>> = [
+    { id: "o1", state: "COMPLETED", closed_at: "2026-10-18T00:05:00Z", total_money: money(5), total_tip_money: money(0),
+      line_items: [{ name: "Toast", quantity: "1", total_money: money(5), catalog_object_id: "v-toast",
+        modifiers: [{ catalog_object_id: "m-avo", name: "Avo", quantity: "1", base_price_money: money(9) }] }] },
+  ]
+  const cat = () => ({ reportingCategory: "Cafe Food" })
+  const capped = computeDayBreakdown("2026-10-18", orders, [], cat, () => undefined, null, () => "Food Sides")
+  assert.equal(capped.groups.find((g) => g.name === "Sides")?.sales, 9)
+  assert.equal(capped.groups.find((g) => g.name === "Cafe Food")?.sales, 0)
+  assert.equal(capped.groups.find((g) => g.name === "Cafe Food")?.countedUnderSides, 5)
+  const plain = computeDayBreakdown("2026-10-18", orders, [], cat, () => undefined)
+  assert.equal(plain.groups.find((g) => g.name === "Sides"), undefined)
+  assert.equal(plain.groups.find((g) => g.name === "Cafe Food")?.sales, 5)
+})
+
+test("computeDayBreakdown: restaurant sales go to the table owner, cafe sales to who took the payment", () => {
+  const orders: Array<SquareOrder & Record<string, unknown>> = [
+    // Pauline's table, paid on a handheld by Baily: Pauline's sale
+    { id: "r1", state: "COMPLETED", closed_at: "2026-10-18T02:30:00Z", total_money: money(120), total_tip_money: money(0), source: { name: "Point of Sale" },
+      created_by_team_member_id: "tm-pauline", line_items: [{ name: "Wine", quantity: "2", total_money: money(120) }] },
+    // Cafe order rung up by Hannah, paid at the till by Baily: Baily's sale, on Register 3
+    { id: "c1", state: "COMPLETED", closed_at: "2026-10-18T00:30:00Z", total_money: money(12), total_tip_money: money(0), source: { name: "Point of Sale" },
+      created_by_team_member_id: "tm-hannah", line_items: [{ name: "Flat White", quantity: "1", total_money: money(12) }] },
+  ]
+  const payments: Array<SquarePayment & Record<string, unknown>> = [
+    { id: "p1", status: "COMPLETED", order_id: "r1", amount_money: money(120), device_details: { device_name: "HH 4 - RESTAURANT" }, team_member_id: "tm-baily" },
+    { id: "p2", status: "COMPLETED", order_id: "c1", amount_money: money(12), device_details: { device_name: "Register 3 - Cafe" }, team_member_id: "tm-baily" },
+  ]
+  const team = (id?: string) => ({ "tm-baily": "Baily", "tm-pauline": "Pauline", "tm-hannah": "Hannah" } as Record<string, string>)[id ?? ""]
+  const b = computeDayBreakdown("2026-10-18", orders, payments, () => undefined, team)
+  assert.deepEqual(b.staff.map((s) => [s.name, s.channel, s.sales, s.registers]), [["Pauline", "RESTAURANT", 120, ["HH 4 - RESTAURANT"]], ["Baily", "CAFE", 12, ["Register 3 - Cafe"]]])
+  assert.equal(b.staff.find((s) => s.name === "Hannah"), undefined)
 })

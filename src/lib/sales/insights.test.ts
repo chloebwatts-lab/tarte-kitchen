@@ -214,3 +214,22 @@ test("headline: nothing sold yet, or no comparison data, gives -100% / nulls rat
   const h = headline(18420.5 + 3215.8, 1105.23, none, none)
   assert.deepEqual(h, { vsAvgPct: null, vsAvgDollars: null, vsAvgNoSurchargePct: null, onPaceFor: null, vsLastWeekPct: null, vsLastWeekDollars: null })
 })
+
+test("compareHourly: a Square day with its exact figure at this minute is not estimated; a day without one is", () => {
+  const rows: HourlyRow[] = [
+    { date: "2026-10-11", hour: 7, revenueIncGst: 1000, orders: 10, source: "SQUARE" },
+    { date: "2026-10-11", hour: 8, revenueIncGst: 3000, orders: 30, source: "SQUARE" },
+    { date: "2026-10-04", hour: 7, revenueIncGst: 800, orders: 8, source: "SQUARE" },
+    { date: "2026-10-04", hour: 8, revenueIncGst: 2400, orders: 24, source: "SQUARE" },
+  ]
+  const at759 = 7 * 60 + 59
+  // Exact for 11 Oct (Shawna's example: $1,915 paid + $489 on open tables); 4 Oct falls back to the hourly shape
+  const exact = compareHourly(rows, ["2026-10-11"], at759, new Map([["2026-10-11", 2403]]))
+  assert.equal(exact.avgToNow, 2403); assert.equal(exact.estimated, false); assert.equal(exact.avgDay, 4000)
+  const mixed = compareHourly(rows, ["2026-10-11", "2026-10-04"], at759, new Map([["2026-10-11", 2403]]))
+  assert.equal(mixed.estimated, true)
+  assert.equal(mixed.avgToNow, Math.round(((2403 + 800 * 59 / 60) / 2) * 100) / 100)
+  // Whole-day comparison ignores the exact map and is not estimated
+  const closed = compareHourly(rows, ["2026-10-11"], null, new Map([["2026-10-11", 2403]]))
+  assert.equal(closed.avgToNow, 4000); assert.equal(closed.estimated, false)
+})

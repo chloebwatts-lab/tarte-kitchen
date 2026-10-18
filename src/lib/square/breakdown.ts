@@ -5,7 +5,7 @@
  * No I/O here; fetch + caching live in live.ts and the sync.
  */
 import Decimal from "decimal.js"
-import { cents, cleanItemName, isPaidOrder, type SquareOrder, type SquarePayment } from "./client"
+import { cents, mergeItemName, isPaidOrder, type SquareOrder, type SquarePayment } from "./client"
 
 export type Channel = "CAFE" | "RESTAURANT" | "ONLINE" | "OTHER"
 
@@ -15,6 +15,33 @@ export interface CatalogLookup {
 export interface TeamLookup {
   (teamMemberId: string | undefined): string | undefined
 }
+/** Modifier catalogue id -> the modifier list it belongs to ("Food Sides"). */
+export interface ModifierListLookup {
+  (modifierId: string | undefined): string | undefined
+}
+
+/**
+ * Square reporting categories as the Sales page groups them (Shawna, 18 Oct
+ * 2026). Drinks were split cafe / restaurant in Square for the tills; the
+ * page shows them as one group each. Everything else keeps its own name.
+ */
+const GROUP_OF: Record<string, string> = {
+  "restaurant wine & beer": "Alcohol",
+  "restaurant cocktails": "Alcohol",
+  "cafe alcohol": "Alcohol",
+  "cafe coffee & tea": "Coffee & Tea",
+  "restaurant coffee & tea": "Coffee & Tea",
+  "juice bar": "Cold Drinks",
+  "restaurant drinks": "Cold Drinks",
+}
+export function reportingGroup(category: string | undefined): string {
+  const c = (category ?? "").replace(/\s+/g, " ").trim()
+  if (!c) return "Uncategorised"
+  return GROUP_OF[c.toLowerCase().replace(/\s*&\s*/g, " & ")] ?? c
+}
+
+export const SIDES_GROUP = "Sides"
+export const SIDES_MODIFIER_LIST = /food sides/i
 
 export interface RegisterRow {
   name: string
@@ -45,6 +72,8 @@ export interface GroupRow {
   sales: number
   qty: number
   topItems: Array<{ name: string; qty: number; sales: number }>
+  /** Paid add-ons on this group's dishes that are counted under Sides instead. */
+  countedUnderSides?: number
 }
 
 export interface DayBreakdown {
@@ -121,7 +150,8 @@ export function computeDayBreakdown(
   payments: SquarePayment[],
   catalog: CatalogLookup,
   team: TeamLookup,
-  nowAestHour: number | null = null
+  nowAestHour: number | null = null,
+  modifierListOf: ModifierListLookup = () => undefined
 ): DayBreakdown {
   // Payment facts per order: device + team member from the first completed
   // payment, and every completed payment by order for part payments.
@@ -148,7 +178,7 @@ export function computeDayBreakdown(
   const registers = new Map<string, RegisterRow>()
   const staff = new Map<string, StaffRow>()
   const staffChannels = new Map<string, StaffChannelRow>()
-  const groups = new Map<string, { sales: Decimal; qty: number; items: Map<string, { qty: number; sales: Decimal }> }>()
+  const groups = new Map<string, { sales: Decimal; qty: number; items: Map<string, { qty: number; sales: Decimal }>; fromDishes: Decimal }>()
   let paid = new Decimal(0), partPaid = new Decimal(0), openTotal = new Decimal(0), surcharge = new Decimal(0), tips = new Decimal(0)
   let openCount = 0, paidOrders = 0, unmatchedPayments = 0
   let surchargeName: string | null = null
@@ -201,7 +231,11 @@ export function computeDayBreakdown(
     const reg = registers.get(regName) ?? { name: regName, channel, sales: 0, orders: 0, avgSale: 0 }
     reg.sales += total.toNumber(); reg.orders++; registers.set(regName, reg)
 
-    const tmId = pay?.teamMemberId ?? o.created_by_team_member_id
+    // Restaurant sales go to whoever owns the table (Square's "attributed
+    // to"), cafe sales to whoever took the payment.
+    const tmId = channel === "RESTAURANT"
+      ? (o.created_by_team_member_id ?? pay?.teamMemberId)
+      : (pay?.teamMemberId ?? o.created_by_team_member_id)
     if (tmId && channel !== "ONLINE") {
       const row = staff.get(tmId) ?? { id: tmId, name: team(tmId) ?? "Unknown", channel, registers: [], sales: 0, orders: 0, avgSale: 0 }
       row.sales += total.toNumber(); row.orders++
@@ -216,12 +250,32 @@ export function computeDayBreakdown(
     for (const li of o.line_items ?? []) {
       if (li.item_type && li.item_type !== "ITEM") continue
       const info = catalog(li.catalog_object_id)
-      const groupName = info?.reportingCategory ?? "Uncategorised"
-      const itemName = cleanItemName(li.name) || info?.itemName || "Item"
+      const groupName = reportingGroup(info?.reportingCategory)
+      const itemName = mergeItemName(li.name) || info?.itemName || "Item"
       const qty = Math.round(parseFloat(li.quantity ?? "1")) || 0
-      const lineSales = cents(li.total_money)
-      const g = groups.get(groupName) ?? { sales: new Decimal(0), qty: 0, items: new Map() }
+      let lineSales = cents(li.total_money)
+      // Paid sides (modifiers on the "Food Sides" list with a price) are
+      // their own group, taken off the dish so they are not counted twice.
+      let movedToSides = new Decimal(0)
+      for (const m of li.modifiers ?? []) {
+        if (!SIDES_MODIFIER_LIST.test(modifierListOf(m.catalog_object_id) ?? "")) continue
+        const unit = cents(m.base_price_money)
+        if (unit.lte(0)) continue
+        const units = (Math.round(parseFloat(m.quantity ?? "1")) || 1) * qty
+        const value = unit.times(units)
+        const sideName = mergeItemName(m.name) || "Side"
+        const sg = groups.get(SIDES_GROUP) ?? { sales: new Decimal(0), qty: 0, items: new Map(), fromDishes: new Decimal(0) }
+        sg.sales = sg.sales.plus(value); sg.qty += units
+        const si = sg.items.get(sideName) ?? { qty: 0, sales: new Decimal(0) }
+        si.qty += units; si.sales = si.sales.plus(value); sg.items.set(sideName, si)
+        groups.set(SIDES_GROUP, sg)
+        movedToSides = movedToSides.plus(value)
+      }
+      if (movedToSides.gt(lineSales)) movedToSides = lineSales
+      lineSales = lineSales.minus(movedToSides)
+      const g = groups.get(groupName) ?? { sales: new Decimal(0), qty: 0, items: new Map(), fromDishes: new Decimal(0) }
       g.sales = g.sales.plus(lineSales); g.qty += qty
+      g.fromDishes = g.fromDishes.plus(movedToSides)
       const it = g.items.get(itemName) ?? { qty: 0, sales: new Decimal(0) }
       it.qty += qty; it.sales = it.sales.plus(lineSales); g.items.set(itemName, it)
       groups.set(groupName, g)
@@ -250,6 +304,7 @@ export function computeDayBreakdown(
     .map(([name, g]) => ({
       name, sales: r2(g.sales.toNumber()), qty: g.qty,
       topItems: [...g.items.entries()].map(([n, v]) => ({ name: n, qty: v.qty, sales: r2(v.sales.toNumber()) })).sort((a, b) => b.sales - a.sales).slice(0, 10),
+      ...(g.fromDishes.gt(0) ? { countedUnderSides: r2(g.fromDishes.toNumber()) } : {}),
     }))
     .sort((a, b) => b.sales - a.sales)
   void nowAestHour

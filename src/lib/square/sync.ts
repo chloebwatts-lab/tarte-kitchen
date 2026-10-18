@@ -10,7 +10,8 @@ import {
 import { fetchDayOrders, listPayments, aggregateOrders, aggregatePayments, cents } from "./client"
 import { getSquareConnection, getSquareAccessToken, squareLocations } from "./token"
 import { computeDayBreakdown } from "./breakdown"
-import { resolveCatalog, resolveTeam, persistDayBreakdown } from "./live"
+import { resolveCatalog, resolveTeam, persistDayBreakdown, resolveModifiers, modifierIdsOf } from "./live"
+import { dayOrderRows, persistDayOrders } from "./day-orders"
 import { computeUpsell } from "@/lib/sales/upsell"
 import { loadGroups, persistUpsell } from "./upsell-store"
 
@@ -157,9 +158,10 @@ export async function syncSquareSales(dates: string[]): Promise<SquareSyncResult
           ...(payments as Array<{ team_member_id?: string }>).map((p) => p.team_member_id ?? ""),
           ...(allOrders as Array<{ created_by_team_member_id?: string }>).map((o) => o.created_by_team_member_id ?? ""),
         ].filter(Boolean)
-        const [catalog, team, groups] = await Promise.all([resolveCatalog(token, variationIds), resolveTeam(token, teamIds), loadGroups()])
-        const breakdown = computeDayBreakdown(dateStr, allOrders, payments, (id) => (id ? catalog.get(id) : undefined), (id) => (id ? team.get(id) : undefined))
+        const [catalog, team, groups, modLists] = await Promise.all([resolveCatalog(token, variationIds), resolveTeam(token, teamIds), loadGroups(), resolveModifiers(token, modifierIdsOf(allOrders))])
+        const breakdown = computeDayBreakdown(dateStr, allOrders, payments, (id) => (id ? catalog.get(id) : undefined), (id) => (id ? team.get(id) : undefined), null, (id) => (id ? modLists.get(id) : undefined))
         await persistDayBreakdown(venue, dateStr, breakdown)
+        await persistDayOrders(venue, dateStr, dayOrderRows(dateStr, allOrders, payments))
         const upsell = computeUpsell(allOrders, payments, (id) => (id ? catalog.get(id)?.reportingCategory : undefined), (id) => (id ? team.get(id) : undefined), groups)
         await persistUpsell(venue, dateStr, upsell.rows)
       } catch (err) {

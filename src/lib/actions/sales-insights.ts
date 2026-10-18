@@ -5,6 +5,7 @@ import type { Venue } from "@/generated/prisma/client"
 import { isSquareVenueOn } from "@/lib/pos"
 import { assertFullManager } from "@/lib/manager-auth"
 import { fetchLiveDay } from "@/lib/square/live"
+import { loadDayOrders, exactAtMinute } from "@/lib/square/day-orders"
 import { uberDay, uberDailyRows, type UberDay } from "@/lib/uber/live"
 import type { DayBreakdown, Channel } from "@/lib/square/breakdown"
 import { shiftDate, tarteWeekStart } from "@/lib/sales/compare"
@@ -108,8 +109,17 @@ export async function getSalesInsights(venue: Venue, date: string, range: Range 
   const totals = totalRows.map((r) => ({ date: ymd(r.date), revenueIncGst: Number(r.totalRevenue), orders: r.totalOrders }))
   const hr = fillMissingHourly(stored.filter((r) => wanted.includes(r.date)), wanted, totals, stored)
   const cr = channelRows.map((r) => ({ date: ymd(r.date), channel: r.channel, revenueIncGst: Number(r.revenueIncGst), orders: r.orders }))
-  const hourlyCompare = compareHourly(hr, cmpDates, nowMinutes)
-  const lastWeek = compareHourly(hr, lwDates, nowMinutes)
+  // Square days compare on their real orders at this time of day: paid by
+  // now plus tables open now and paid later. Lightspeed days stay estimated.
+  const exact = new Map<string, number>()
+  if (nowMinutes !== null) {
+    await Promise.all(wanted.map(async (d) => {
+      const rowsForDay = await loadDayOrders(venue, d)
+      if (rowsForDay) exact.set(d, exactAtMinute(rowsForDay, nowMinutes).total)
+    }))
+  }
+  const hourlyCompare = compareHourly(hr, cmpDates, nowMinutes, exact)
+  const lastWeek = compareHourly(hr, lwDates, nowMinutes, exact)
   // Paid + open tables: the same figure as the card's headline.
   const todayRevenue = day ? day.paidIncGst + day.openTablesIncGst : 0
   const head = headline(todayRevenue, day?.surchargeIncGst ?? 0, hourlyCompare, lastWeek)

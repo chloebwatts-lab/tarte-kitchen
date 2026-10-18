@@ -21,17 +21,21 @@ export interface HourlyComparison {
   avgHourly: number[]
   /** Average full-day total across those days. */
   avgDay: number | null
-  /** Average cumulative revenue up to `nowHour` + fraction of that hour. */
+  /** Average revenue at this time of day: exact where the day's orders are known, else the hourly shape pro rata. */
   avgToNow: number | null
   daysUsed: number
-  estimated: boolean // any ESTIMATE-source day in the mix
+  /** True when any day in the mix was estimated (a Lightspeed day, or a Square day without its orders). */
+  estimated: boolean
 }
 
 /**
  * `nowMinutes` = minutes since Brisbane midnight for "at this time of day";
- * pass null for a closed day (compare whole days).
+ * pass null for a closed day (compare whole days). `exactToNow` holds, per
+ * Square day, what was paid by that minute plus tables open at that minute;
+ * those days are not estimated. Days without it fall back to the hourly
+ * shape pro rata and mark the comparison "(est.)".
  */
-export function compareHourly(rows: HourlyRow[], dates: string[], nowMinutes: number | null): HourlyComparison {
+export function compareHourly(rows: HourlyRow[], dates: string[], nowMinutes: number | null, exactToNow: Map<string, number> = new Map()): HourlyComparison {
   const byDate = new Map<string, HourlyRow[]>()
   for (const r of rows) if (dates.includes(r.date)) (byDate.get(r.date) ?? byDate.set(r.date, []).get(r.date)!).push(r)
   const used = dates.filter((d) => byDate.has(d))
@@ -39,10 +43,14 @@ export function compareHourly(rows: HourlyRow[], dates: string[], nowMinutes: nu
   let dayTotals = 0, toNow = 0, estimated = false
   for (const d of used) {
     const hrs = byDate.get(d)!
+    const exact = nowMinutes !== null ? exactToNow.get(d) : undefined
+    if (exact !== undefined) toNow += exact
+    else if (nowMinutes !== null) estimated = true
     for (const h of hrs) {
       avgHourly[h.hour] += h.revenueIncGst / used.length
       dayTotals += h.revenueIncGst
       if (h.source === "ESTIMATE") estimated = true
+      if (exact !== undefined) continue
       if (nowMinutes !== null) {
         const hourStart = h.hour * 60
         if (hourStart + 60 <= nowMinutes) toNow += h.revenueIncGst

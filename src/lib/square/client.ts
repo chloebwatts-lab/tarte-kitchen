@@ -21,6 +21,17 @@ interface Money {
   currency?: string
 }
 
+export interface SquareLineItemModifier {
+  uid?: string
+  /** The MODIFIER catalogue object; resolves to its modifier list. */
+  catalog_object_id?: string
+  name?: string
+  quantity?: string
+  /** Unit price; $0 for a free choice ("No onion"). */
+  base_price_money?: Money
+  total_price_money?: Money
+}
+
 export interface SquareLineItem {
   uid?: string
   name?: string
@@ -32,6 +43,7 @@ export interface SquareLineItem {
   total_discount_money?: Money
   total_tax_money?: Money
   total_money?: Money
+  modifiers?: SquareLineItemModifier[]
 }
 
 export interface SquareTender {
@@ -54,6 +66,8 @@ export interface SquareOrder {
   returns?: unknown[]
   tenders?: SquareTender[]
   net_amount_due_money?: Money
+  /** Open ticket / table name on Square for Restaurants orders. */
+  ticket_name?: string
 }
 
 export interface SquarePayment {
@@ -319,6 +333,22 @@ export function aggregateOrders(orders: SquareOrder[]): OrderAggregate {
 /** Square item names often end in a stray full stop ("Corona."). */
 export function cleanItemName(raw: string | undefined): string {
   return (raw ?? "").replace(/\s+/g, " ").replace(/[.\s]+$/, "").trim()
+}
+
+/**
+ * The name a product shows under in a top 10. Square holds the same product
+ * twice: the cafe version ends in a full stop ("Cappuccino.") and the
+ * restaurant one in " - R" ("Cappuccino - R"); a cafe combo puts the full
+ * stop before the dash ("Kids Meal. - Toastie."). All three become one row.
+ * Item-level sales and recipe matching keep cleanItemName, so dish
+ * mappings do not move.
+ */
+export function mergeItemName(raw: string | undefined): string {
+  return cleanItemName(raw)
+    .replace(/\.\s*-\s*/g, " - ")
+    .replace(/\s*-\s*R$/i, "")
+    .replace(/[.\s]+$/, "")
+    .trim()
 }
 
 export interface PaymentAggregate {

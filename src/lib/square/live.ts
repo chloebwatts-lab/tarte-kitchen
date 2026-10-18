@@ -85,6 +85,64 @@ export async function resolveCatalog(token: string, variationIds: string[]): Pro
   return out
 }
 
+// ─── Modifier cache ─────────────────────────────────────────────────────────
+
+/**
+ * Resolve order modifier ids to their modifier list name ("Food Sides").
+ * Unknown ids are fetched in one batch with their related MODIFIER_LIST
+ * objects and written to SquareCatalogModifier for next time.
+ */
+export async function resolveModifiers(token: string, modifierIds: string[]): Promise<Map<string, string | undefined>> {
+  const ids = [...new Set(modifierIds.filter(Boolean))]
+  const out = new Map<string, string | undefined>()
+  if (!ids.length) return out
+  const cached = await db.squareCatalogModifier.findMany({ where: { modifierId: { in: ids } } })
+  for (const c of cached) out.set(c.modifierId, c.modifierListName ?? undefined)
+  const missing = ids.filter((id) => !out.has(id))
+  for (let i = 0; i < missing.length; i += 500) {
+    const chunk = missing.slice(i, i + 500)
+    const res = await fetch(`${SQUARE_API}/catalog/batch-retrieve`, {
+      method: "POST", headers: headers(token),
+      body: JSON.stringify({ object_ids: chunk, include_related_objects: true, include_deleted_objects: true }),
+    })
+    if (!res.ok) continue
+    const data = (await res.json()) as {
+      objects?: Array<{ id: string; type: string; modifier_data?: { name?: string; modifier_list_id?: string } }>
+      related_objects?: Array<{ id: string; type: string; modifier_list_data?: { name?: string } }>
+    }
+    const lists = new Map((data.related_objects ?? []).filter((o) => o.type === "MODIFIER_LIST").map((o) => [o.id, o.modifier_list_data?.name]))
+    // Lists Square did not send alongside: fetch them by id.
+    const wantLists = [...new Set((data.objects ?? []).map((m) => m.modifier_data?.modifier_list_id ?? "").filter((id) => id && !lists.has(id)))]
+    if (wantLists.length) {
+      const lr = await fetch(`${SQUARE_API}/catalog/batch-retrieve`, {
+        method: "POST", headers: headers(token),
+        body: JSON.stringify({ object_ids: wantLists, include_deleted_objects: true }),
+      })
+      if (lr.ok) {
+        const ld = (await lr.json()) as { objects?: Array<{ id: string; type: string; modifier_list_data?: { name?: string } }> }
+        for (const l of ld.objects ?? []) if (l.type === "MODIFIER_LIST") lists.set(l.id, l.modifier_list_data?.name)
+      }
+    }
+    for (const m of data.objects ?? []) {
+      if (m.type !== "MODIFIER") continue
+      const listId = m.modifier_data?.modifier_list_id
+      const listName = listId ? lists.get(listId) : undefined
+      out.set(m.id, listName)
+      await db.squareCatalogModifier.upsert({
+        where: { modifierId: m.id },
+        update: { name: m.modifier_data?.name ?? "Modifier", modifierListId: listId ?? null, modifierListName: listName ?? null },
+        create: { modifierId: m.id, name: m.modifier_data?.name ?? "Modifier", modifierListId: listId ?? null, modifierListName: listName ?? null },
+      })
+    }
+  }
+  return out
+}
+
+/** Every modifier id on the orders' line items. */
+export function modifierIdsOf(orders: SquareOrder[]): string[] {
+  return orders.flatMap((o) => (o.line_items ?? []).flatMap((l) => (l.modifiers ?? []).map((m) => m.catalog_object_id ?? ""))).filter(Boolean)
+}
+
 // ─── Team cache ─────────────────────────────────────────────────────────────
 
 export async function resolveTeam(token: string, ids: string[]): Promise<Map<string, string>> {
@@ -144,8 +202,8 @@ export async function fetchLiveDay(venue: Venue, dateStr: string, opts: { force?
     ...(payments as Array<SquarePayment & { team_member_id?: string }>).map((p) => p.team_member_id ?? ""),
     ...(orders as Array<SquareOrder & { created_by_team_member_id?: string }>).map((o) => o.created_by_team_member_id ?? ""),
   ].filter(Boolean)
-  const [catalog, team, groups] = await Promise.all([resolveCatalog(token, variationIds), resolveTeam(token, teamIds), loadGroups()])
-  const breakdown = computeDayBreakdown(dateStr, orders, payments, (id) => (id ? catalog.get(id) : undefined), (id) => (id ? team.get(id) : undefined))
+  const [catalog, team, groups, modLists] = await Promise.all([resolveCatalog(token, variationIds), resolveTeam(token, teamIds), loadGroups(), resolveModifiers(token, modifierIdsOf(orders))])
+  const breakdown = computeDayBreakdown(dateStr, orders, payments, (id) => (id ? catalog.get(id) : undefined), (id) => (id ? team.get(id) : undefined), null, (id) => (id ? modLists.get(id) : undefined))
   const upsell = computeUpsell(orders, payments, (id) => (id ? catalog.get(id)?.reportingCategory : undefined), (id) => (id ? team.get(id) : undefined), groups)
   const value: LiveDay = { breakdown, upsell, fetchedAt: new Date().toISOString(), orders, payments }
   cache.set(key, { at: Date.now(), value })

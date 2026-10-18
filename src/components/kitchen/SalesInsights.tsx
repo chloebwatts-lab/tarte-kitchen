@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react"
 import { getSalesInsights, type SalesInsights as Data, type Range } from "@/lib/actions/sales-insights"
 import type { CompareMode } from "@/lib/sales/insights"
 import { VENUE_LABEL } from "@/lib/venues"
+import { LIGHTSPEED_AVG_SALE, vsLightspeedPct } from "@/lib/sales/benchmarks"
 
 const NAVY = "#1f3b4d", NAVY_SOFT = "#2a4b60", GOLD = "#e3b86f", GOLD_NOW = "#c9a46a", UBER = "#7fd1a8"
 const money0 = (n: number | null | undefined) => (n === null || n === undefined ? "n/a" : `$${Math.round(n).toLocaleString("en-AU")}`)
@@ -92,7 +93,6 @@ export function SalesInsights({ initial, view = "sales" }: { initial: Data; view
   const typical = (ch: string) => data.typical.find((t) => t.channel === ch)
   const channelsPaid = (day?.channels.CAFE.sales ?? 0) + (day?.channels.RESTAURANT.sales ?? 0) + (day?.channels.ONLINE.sales ?? 0)
   const share = (n: number) => (channelsPaid > 0 ? (n / channelsPaid) * 100 : 0)
-  const avgChange = (ch: string, avg: number) => { const t = typical(ch)?.typicalAvgSale; return t && t > 0 ? Math.round(((avg - t) / t) * 1000) / 10 : null }
   const venueLabel = VENUE_LABEL[initial.venue].replace(/\s*\(.*\)$/, "")
   const sourceNote = data.source === "LIVE" ? `Square live · refreshed ${data.fetchedAt ? new Date(data.fetchedAt).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit", timeZone: "Australia/Brisbane" }) : ""}` : data.source === "SQUARE" ? "Square, closed day" : data.source === "LIGHTSPEED" ? "Lightspeed day, from the export" : data.source === "ESTIMATE" ? "Lightspeed total, hourly shape estimated" : "No sales data for this day"
 
@@ -138,7 +138,7 @@ export function SalesInsights({ initial, view = "sales" }: { initial: Data; view
               <div>
                 <Pill pct={data.head.vsAvgPct} dollars={data.head.vsAvgDollars} />
                 <div className="mt-1 text-[13px] text-white/70">
-                  vs {COMPARE_LABEL[compare]}{data.isToday ? ` at ${new Date().toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit", timeZone: "Australia/Brisbane" })} (est.)` : ""}
+                  vs {COMPARE_LABEL[compare]}{data.isToday ? ` at ${new Date().toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit", timeZone: "Australia/Brisbane" })}${data.hourlyCompare.estimated ? " (est.)" : ""}` : ""}
                   {day && day.surchargeIncGst > 0 && data.head.vsAvgNoSurchargePct !== null && <> ({data.head.vsAvgNoSurchargePct >= 0 ? "▲" : "▼"} {Math.abs(data.head.vsAvgNoSurchargePct).toFixed(1)}% without surcharge)</>}
                   {data.hourlyCompare.daysUsed === 0 && " · no history for this weekday yet"}
                   {data.hourlyCompare.daysUsed > 0 && data.hourlyCompare.daysUsed < COMPARE_DAYS[compare] && ` · ${data.hourlyCompare.daysUsed} of ${COMPARE_DAYS[compare]} ${weekday(date)}s`}
@@ -148,7 +148,7 @@ export function SalesInsights({ initial, view = "sales" }: { initial: Data; view
               {compare !== "LAST_WEEK" && (
                 <div className="flex items-center gap-2">
                   <Pill pct={data.head.vsLastWeekPct} dollars={data.head.vsLastWeekDollars} />
-                  <span className="text-[13px] text-white/70">vs last {weekday(date)}{data.isToday ? " (est.)" : ""}</span>
+                  <span className="text-[13px] text-white/70">vs last {weekday(date)}{data.isToday && data.lastWeek.estimated ? " (est.)" : ""}</span>
                 </div>
               )}
               <div className="text-[14px] text-white/85">
@@ -220,7 +220,7 @@ export function SalesInsights({ initial, view = "sales" }: { initial: Data; view
       {!hourly && (<>
         <section className="rounded-3xl border border-[var(--tk-line)] bg-white p-5">
           <h2 className="text-[20px] font-semibold text-[var(--tk-charcoal)]">Categories</h2>
-          <p className="text-[13px] text-[var(--tk-ink-soft)]">Tap a category for its top 10.</p>
+          <p className="text-[13px] text-[var(--tk-ink-soft)]">{open > 0 ? "Paid orders only. " : ""}Tap a category for its top 10.</p>
           {day && day.groups.length > 0 ? (
             <div className="mt-3 divide-y divide-[var(--tk-line)]">
               {day.groups.map((g) => (
@@ -229,6 +229,9 @@ export function SalesInsights({ initial, view = "sales" }: { initial: Data; view
                     <span className="font-semibold">{g.name}<span className="ml-2 text-[12px] font-normal text-[var(--tk-ink-soft)]">{g.qty} items</span></span>
                     <span className="tabular-nums">{money0(g.sales)}<span className="ml-2 text-[12px] text-[var(--tk-ink-soft)]">{paid > 0 ? `${((g.sales / paid) * 100).toFixed(0)}%` : ""}</span></span>
                   </button>
+                  {g.countedUnderSides !== undefined && g.countedUnderSides > 0 && (
+                    <div className="-mt-1 pb-2 text-[12px] text-[var(--tk-ink-soft)]">{money0(g.countedUnderSides)} of add-ons on these dishes is counted under Sides</div>
+                  )}
                   {openGroup === g.name && (
                     <div className="mb-2 rounded-xl bg-[var(--tk-bg)] px-3 py-2 text-[14px]">
                       {g.topItems.map((it) => (
@@ -279,46 +282,59 @@ export function SalesInsights({ initial, view = "sales" }: { initial: Data; view
           )}
         </section>
 
-        {day && day.registers.length > 0 && (
+        {day && day.registers.length > 0 && (() => {
+          const cafeRegs = day.registers.filter((r) => r.channel === "CAFE")
+          const restRegs = day.registers.filter((r) => r.channel === "RESTAURANT")
+          const onlineRegs = day.registers.filter((r) => r.channel === "ONLINE")
+          const combined = (regs: typeof day.registers) => {
+            const sales = regs.reduce((n, r) => n + r.sales, 0), orders = regs.reduce((n, r) => n + r.orders, 0)
+            return { sales, orders, avg: orders > 0 ? sales / orders : 0 }
+          }
+          const rest = combined(restRegs), online = combined(onlineRegs)
+          const TillRow = ({ name, channel, sales, orders, avg }: { name: string; channel: "CAFE" | "RESTAURANT" | "ONLINE"; sales: number; orders: number; avg: number }) => (
+            <div className="flex items-center justify-between rounded-2xl bg-[var(--tk-bg)] px-4 py-3">
+              <div>
+                <div className="text-[16px] font-semibold text-[var(--tk-charcoal)]">{name}</div>
+                <div className="text-[13px] text-[var(--tk-ink-soft)]">{money0(sales)} · {orders} orders</div>
+              </div>
+              <div className="text-right">
+                <div className="text-[22px] font-bold leading-none tabular-nums text-[var(--tk-charcoal)]">{money2(avg)}</div>
+                <div className="mt-1"><SmallPill pct={vsLightspeedPct(channel, avg, orders)} /></div>
+              </div>
+            </div>
+          )
+          return (
           <section className="rounded-3xl border border-[var(--tk-line)] bg-white p-5">
             <h2 className="text-[20px] font-semibold text-[var(--tk-charcoal)]">Average sale per person</h2>
-            <p className="text-[13px] text-[var(--tk-ink-soft)]">Who took the payment. The arrow is against the {COMPARE_LABEL[compare]} for that area.</p>
-            {(["CAFE", "RESTAURANT", "ONLINE"] as const).map((ch) => {
-              const regs = day.registers.filter((r) => r.channel === ch)
-              if (!regs.length) return null
+            <p className="text-[13px] text-[var(--tk-ink-soft)]">{open > 0 ? "Paid orders only. " : ""}Restaurant sales go to whoever owns the table, cafe sales to whoever took the payment. Arrows are against the Lightspeed averages: cafe {money2(LIGHTSPEED_AVG_SALE.CAFE)}, Bopple {money2(LIGHTSPEED_AVG_SALE.ONLINE)}, restaurant {money2(LIGHTSPEED_AVG_SALE.RESTAURANT)}.</p>
+            <div className="mt-4 space-y-2">
+              {cafeRegs.map((r) => <TillRow key={r.name} name={r.name} channel="CAFE" sales={r.sales} orders={r.orders} avg={r.avgSale} />)}
+              {onlineRegs.length > 0 && <TillRow name="Bopple online" channel="ONLINE" sales={online.sales} orders={online.orders} avg={online.avg} />}
+              {restRegs.length > 0 && <TillRow name="Restaurant" channel="RESTAURANT" sales={rest.sales} orders={rest.orders} avg={rest.avg} />}
+            </div>
+            {(["CAFE", "RESTAURANT"] as const).map((ch) => {
               const staff = day.staff.filter((s) => s.channel === ch)
-              const sales = regs.reduce((n, r) => n + r.sales, 0), orders = regs.reduce((n, r) => n + r.orders, 0)
-              const avg = orders > 0 ? sales / orders : 0
+              if (!staff.length) return null
               return (
-                <div key={ch} className="mt-4">
-                  <div className="flex items-center justify-between rounded-2xl bg-[var(--tk-bg)] px-4 py-3">
-                    <div>
-                      <div className="text-[16px] font-semibold text-[var(--tk-charcoal)]">{ch === "CAFE" ? "Cafe" : ch === "RESTAURANT" ? "Restaurant" : "Bopple online"}</div>
-                      <div className="text-[13px] text-[var(--tk-ink-soft)]">{money0(sales)} · {orders} orders</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-[22px] font-bold leading-none tabular-nums text-[var(--tk-charcoal)]">{money2(avg)}</div>
-                      <div className="mt-1"><SmallPill pct={avgChange(ch, avg)} /></div>
-                    </div>
-                  </div>
-                  {staff.length > 0 && (
-                    <div className="divide-y divide-[var(--tk-line)] px-1">
-                      {staff.map((s) => (
-                        <div key={s.id} className="flex items-center justify-between gap-3 py-2.5">
-                          <div className="min-w-0">
-                            <div className="truncate text-[16px] font-medium text-[var(--tk-charcoal)]">{s.name}</div>
-                            <div className="text-[13px] text-[var(--tk-ink-soft)]">{money0(s.sales)} · {s.orders} orders</div>
-                          </div>
-                          <div className="shrink-0 text-[18px] font-semibold tabular-nums text-[var(--tk-charcoal)]">{money2(s.avgSale)}</div>
+                <div key={ch} className="mt-5">
+                  <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--tk-ink-soft)]">{ch === "CAFE" ? "Cafe staff" : "Restaurant staff"}</div>
+                  <div className="divide-y divide-[var(--tk-line)] px-1">
+                    {staff.map((s) => (
+                      <div key={s.id} className="flex items-center justify-between gap-3 py-2.5">
+                        <div className="min-w-0">
+                          <div className="truncate text-[16px] font-medium text-[var(--tk-charcoal)]">{s.name}</div>
+                          <div className="text-[13px] text-[var(--tk-ink-soft)]">{money0(s.sales)} · {s.orders} orders{ch === "CAFE" && s.registers.length > 0 ? ` · ${s.registers.join(", ")}` : ""}</div>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        <div className="shrink-0 text-[18px] font-semibold tabular-nums text-[var(--tk-charcoal)]">{money2(s.avgSale)}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )
             })}
           </section>
-        )}
+          )
+        })()}
 
       </div>}
     </div>

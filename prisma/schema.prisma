@@ -641,6 +641,40 @@ model SquareCatalogItem {
   updatedAt         DateTime @updatedAt
 }
 
+/// Modifier -> modifier list, cached from the Square catalogue. The Sides
+/// reporting group is every paid modifier on the "Food Sides" list.
+model SquareCatalogModifier {
+  modifierId       String   @id
+  name             String
+  modifierListId   String?
+  modifierListName String?
+  updatedAt        DateTime @updatedAt
+}
+
+/// One row per Square order on a venue-day: when it opened, when it was
+/// paid, its value ex tip, and whether it was a table. Feeds the exact
+/// same-time-of-day comparisons on the Sales page: sales paid by that time
+/// plus tables opened by then and paid later (Shawna, 18 Oct 2026).
+model SquareDayOrder {
+  id         String   @id @default(cuid())
+  date       DateTime @db.Date
+  venue      Venue
+  orderId    String
+  /// Minutes since Brisbane midnight of `date` when the order was opened.
+  createdMin Int
+  /// Minutes since Brisbane midnight when it was paid; null while unpaid.
+  paidMin    Int?
+  /// Order value inc GST, tips excluded.
+  paidIncGst Decimal  @db.Decimal(12, 2)
+  /// A restaurant table (ticket or handheld), as opposed to a counter sale.
+  table      Boolean  @default(false)
+  channel    String
+  createdAt  DateTime @default(now())
+
+  @@unique([venue, date, orderId])
+  @@index([venue, date])
+}
+
 model SquareTeamMember {
   id        String   @id
   name      String
