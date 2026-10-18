@@ -30,7 +30,7 @@ test("compareHourly: no data gives nulls, not NaN", () => {
   assert.equal(c.avgDay, null); assert.equal(c.avgToNow, null); assert.equal(c.daysUsed, 0)
 })
 
-test("headline: % vs average at this time, without surcharge, on pace, vs last week", () => {
+test("headline: % vs average at this time, without surcharge, on pace, vs last week (today = paid + open tables)", () => {
   const cmp = { avgHourly: [], avgDay: 30596, avgToNow: 24532, daysUsed: 4, estimated: false }
   const lw = { avgHourly: [], avgDay: 27810, avgToNow: 22452, daysUsed: 1, estimated: false }
   const h = headline(25036, 1192, cmp, lw)
@@ -163,4 +163,54 @@ test("fillMissingHourly: empty dates or all dates present returns the rows uncha
   const rows = day("2026-09-23", { 7: 50 })
   assert.equal(fillMissingHourly(rows, [], [{ date: "2026-09-23", revenueIncGst: 50, orders: null }], rows), rows)
   assert.equal(fillMissingHourly(rows, ["2026-09-23"], [], rows), rows)
+})
+
+test("headline: counting open tables lifts every figure versus paid alone, and the lift is exactly the open-table money", () => {
+  // Sunday 1:15pm at Tarte: $18,420.50 banked, $3,215.80 sitting on open lunch tables,
+  // Sunday surcharge $1,105.23 inside the paid figure. Four-week average to now $20,100 of a $30,596 day.
+  const cmp = { avgHourly: [], avgDay: 30596, avgToNow: 20100, daysUsed: 4, estimated: false }
+  const lw = { avgHourly: [], avgDay: 29210, avgToNow: 19800, daysUsed: 1, estimated: false }
+  const paid = 18420.5, open = 3215.8, surcharge = 1105.23
+  const paidOnly = headline(paid, surcharge, cmp, lw)
+  const withOpen = headline(paid + open, surcharge, cmp, lw)
+
+  // Paid alone reads as a down day; paid + open reads as the up day it actually is.
+  assert.equal(paidOnly.vsAvgPct, -8.4)
+  assert.equal(withOpen.vsAvgPct, 7.6)
+  assert.equal(paidOnly.vsAvgDollars, -1679.5)
+  assert.equal(withOpen.vsAvgDollars, 1536.3)
+  assert.equal(Math.round((withOpen.vsAvgDollars! - paidOnly.vsAvgDollars!) * 100) / 100, open)
+
+  // Surcharge is still taken off the combined figure.
+  assert.equal(withOpen.vsAvgNoSurchargePct, 2.1)
+
+  // On pace: share to now = 20100 / 30596; projection rounds to the nearest $100.
+  assert.equal(paidOnly.onPaceFor, 28000)
+  assert.equal(withOpen.onPaceFor, 32900)
+
+  // Same lift against last week.
+  assert.equal(paidOnly.vsLastWeekPct, -7)
+  assert.equal(withOpen.vsLastWeekPct, 9.3)
+  assert.equal(paidOnly.vsLastWeekDollars, -1379.5)
+  assert.equal(withOpen.vsLastWeekDollars, 1836.3)
+})
+
+test("headline: no open tables leaves the figures identical to paid alone", () => {
+  const cmp = { avgHourly: [], avgDay: 30596, avgToNow: 24532, daysUsed: 4, estimated: false }
+  const lw = { avgHourly: [], avgDay: 27810, avgToNow: 22452, daysUsed: 1, estimated: false }
+  assert.deepEqual(headline(25036 + 0, 1192, cmp, lw), headline(25036, 1192, cmp, lw))
+})
+
+test("headline: nothing sold yet, or no comparison data, gives -100% / nulls rather than NaN", () => {
+  const cmp = { avgHourly: [], avgDay: 30596, avgToNow: 20100, daysUsed: 4, estimated: false }
+  const opening = headline(0, 0, cmp, cmp)
+  assert.equal(opening.vsAvgPct, -100)
+  assert.equal(opening.vsAvgDollars, -20100)
+  assert.equal(opening.vsAvgNoSurchargePct, -100)
+  assert.equal(opening.onPaceFor, 0)
+  assert.equal(opening.vsLastWeekPct, -100)
+
+  const none = { avgHourly: [], avgDay: null, avgToNow: null, daysUsed: 0, estimated: false }
+  const h = headline(18420.5 + 3215.8, 1105.23, none, none)
+  assert.deepEqual(h, { vsAvgPct: null, vsAvgDollars: null, vsAvgNoSurchargePct: null, onPaceFor: null, vsLastWeekPct: null, vsLastWeekDollars: null })
 })

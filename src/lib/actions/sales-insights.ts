@@ -110,7 +110,9 @@ export async function getSalesInsights(venue: Venue, date: string, range: Range 
   const cr = channelRows.map((r) => ({ date: ymd(r.date), channel: r.channel, revenueIncGst: Number(r.revenueIncGst), orders: r.orders }))
   const hourlyCompare = compareHourly(hr, cmpDates, nowMinutes)
   const lastWeek = compareHourly(hr, lwDates, nowMinutes)
-  const head = headline(day?.paidIncGst ?? 0, day?.surchargeIncGst ?? 0, hourlyCompare, lastWeek)
+  // Paid + open tables: the same figure as the card's headline.
+  const todayRevenue = day ? day.paidIncGst + day.openTablesIncGst : 0
+  const head = headline(todayRevenue, day?.surchargeIncGst ?? 0, hourlyCompare, lastWeek)
   const typical = typicalChannels(cr, cmpDates)
 
   // ---- 1W / 1M daily series ----
@@ -127,8 +129,8 @@ export async function getSalesInsights(venue: Venue, date: string, range: Range 
     // Today's row in the summary table lags the live view; patch it in.
     if (day && isToday) {
       const i = daily.findIndex((r) => r.date === date)
-      if (i >= 0) daily[i] = { ...daily[i], revenueIncGst: day.paidIncGst }
-      else daily.push({ date, revenueIncGst: day.paidIncGst, orders: day.paidOrders })
+      if (i >= 0) daily[i] = { ...daily[i], revenueIncGst: todayRevenue }
+      else daily.push({ date, revenueIncGst: todayRevenue, orders: day.paidOrders })
     }
     const uberRows = await uberDailyRows(venue, days[0], days[days.length - 1])
     const uberBy = new Map(uberRows.map((r) => [r.date, r.sales]))

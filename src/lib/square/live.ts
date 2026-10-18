@@ -125,7 +125,7 @@ export interface LiveDay {
 }
 
 const cache = new Map<string, { at: number; value: LiveDay }>()
-const TTL_MS = 2 * 60 * 1000
+const TTL_MS = 45 * 1000
 
 export async function fetchLiveDay(venue: Venue, dateStr: string, opts: { force?: boolean } = {}): Promise<LiveDay | null> {
   const key = `${venue}|${dateStr}`

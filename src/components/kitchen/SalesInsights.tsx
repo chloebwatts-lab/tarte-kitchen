@@ -67,10 +67,15 @@ export function SalesInsights({ initial, view = "sales" }: { initial: Data; view
     start(async () => { setData(await getSalesInsights(initial.venue, d, r, c, { force })) })
   }
   useEffect(() => { load(date, range, compare) }, [date, range, compare]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Today refreshes every minute while the page is in front, and straight
+  // away when the phone comes back to it (a backgrounded tab pauses timers,
+  // so without this the first thing seen after a break is stale).
   useEffect(() => {
     if (!data.isToday) return
-    const t = setInterval(() => load(date, range, compare, true), 2 * 60 * 1000)
-    return () => clearInterval(t)
+    const refresh = () => { if (document.visibilityState === "visible") load(date, range, compare, true) }
+    const t = setInterval(refresh, 60 * 1000)
+    document.addEventListener("visibilitychange", refresh)
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", refresh) }
   }, [data.isToday, date, range, compare]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const day = data.day

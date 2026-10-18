@@ -111,24 +111,32 @@ export interface HeadlineComparison {
   vsLastWeekDollars: number | null
 }
 
+/**
+ * `todayRevenue` is the card's headline: paid sales plus the bills sitting
+ * on open tables, so a full lunch service reads as sales now rather than
+ * as a drop until the tables settle. The comparison days are hourly rows
+ * keyed by the hour each order closed, so an open table today is measured
+ * against money that was banked by this time on those days; the two meet
+ * once the day closes.
+ */
 export function headline(
-  todayPaid: number,
+  todayRevenue: number,
   todaySurcharge: number,
   cmp: HourlyComparison,
   lastWeek: HourlyComparison
 ): HeadlineComparison {
-  const vsAvgPct = pctChange(todayPaid, cmp.avgToNow)
-  const vsAvgDollars = cmp.avgToNow !== null ? Math.round((todayPaid - cmp.avgToNow) * 100) / 100 : null
-  const vsAvgNoSurchargePct = pctChange(todayPaid - todaySurcharge, cmp.avgToNow)
+  const vsAvgPct = pctChange(todayRevenue, cmp.avgToNow)
+  const vsAvgDollars = cmp.avgToNow !== null ? Math.round((todayRevenue - cmp.avgToNow) * 100) / 100 : null
+  const vsAvgNoSurchargePct = pctChange(todayRevenue - todaySurcharge, cmp.avgToNow)
   let onPaceFor: number | null = null
   if (cmp.avgDay && cmp.avgToNow && cmp.avgToNow > 0) {
     const share = cmp.avgToNow / cmp.avgDay
-    if (share > 0.05) onPaceFor = Math.round((todayPaid / share) / 100) * 100
+    if (share > 0.05) onPaceFor = Math.round((todayRevenue / share) / 100) * 100
   }
   return {
     vsAvgPct, vsAvgDollars, vsAvgNoSurchargePct, onPaceFor,
-    vsLastWeekPct: pctChange(todayPaid, lastWeek.avgToNow),
-    vsLastWeekDollars: lastWeek.avgToNow !== null ? Math.round((todayPaid - lastWeek.avgToNow) * 100) / 100 : null,
+    vsLastWeekPct: pctChange(todayRevenue, lastWeek.avgToNow),
+    vsLastWeekDollars: lastWeek.avgToNow !== null ? Math.round((todayRevenue - lastWeek.avgToNow) * 100) / 100 : null,
   }
 }
 
