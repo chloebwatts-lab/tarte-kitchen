@@ -256,13 +256,16 @@ export function computeDayBreakdown(
       let lineSales = cents(li.total_money)
       // Paid sides (modifiers on the "Food Sides" list with a price) are
       // their own group, taken off the dish so they are not counted twice.
+      // Never more than the line itself: a comped or discounted dish moves
+      // only what is left on it, so the groups still add up to the lines.
       let movedToSides = new Decimal(0)
       for (const m of li.modifiers ?? []) {
         if (!SIDES_MODIFIER_LIST.test(modifierListOf(m.catalog_object_id) ?? "")) continue
         const unit = cents(m.base_price_money)
         if (unit.lte(0)) continue
         const units = (Math.round(parseFloat(m.quantity ?? "1")) || 1) * qty
-        const value = unit.times(units)
+        const value = Decimal.min(unit.times(units), lineSales.minus(movedToSides))
+        if (value.lte(0)) continue
         const sideName = mergeItemName(m.name) || "Side"
         const sg = groups.get(SIDES_GROUP) ?? { sales: new Decimal(0), qty: 0, items: new Map(), fromDishes: new Decimal(0) }
         sg.sales = sg.sales.plus(value); sg.qty += units
@@ -271,7 +274,6 @@ export function computeDayBreakdown(
         groups.set(SIDES_GROUP, sg)
         movedToSides = movedToSides.plus(value)
       }
-      if (movedToSides.gt(lineSales)) movedToSides = lineSales
       lineSales = lineSales.minus(movedToSides)
       const g = groups.get(groupName) ?? { sales: new Decimal(0), qty: 0, items: new Map(), fromDishes: new Decimal(0) }
       g.sales = g.sales.plus(lineSales); g.qty += qty

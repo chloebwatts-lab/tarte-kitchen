@@ -417,7 +417,7 @@ test("computeDayBreakdown: merged groups, Sides from the Food Sides list, top 10
   assert.equal(Math.round(sum * 100) / 100, 33 + 9 + 86 + 5 + 14 + 9 + 22)
 })
 
-test("computeDayBreakdown: a side priced above the line (data error) is capped at the line, no modifier list means no Sides group", () => {
+test("computeDayBreakdown: a side priced above the line (comped dish) moves only what is on the line, no modifier list means no Sides group", () => {
   const orders: Array<SquareOrder & Record<string, unknown>> = [
     { id: "o1", state: "COMPLETED", closed_at: "2026-10-18T00:05:00Z", total_money: money(5), total_tip_money: money(0),
       line_items: [{ name: "Toast", quantity: "1", total_money: money(5), catalog_object_id: "v-toast",
@@ -425,8 +425,9 @@ test("computeDayBreakdown: a side priced above the line (data error) is capped a
   ]
   const cat = () => ({ reportingCategory: "Cafe Food" })
   const capped = computeDayBreakdown("2026-10-18", orders, [], cat, () => undefined, null, () => "Food Sides")
-  assert.equal(capped.groups.find((g) => g.name === "Sides")?.sales, 9)
+  assert.equal(capped.groups.find((g) => g.name === "Sides")?.sales, 5)
   assert.equal(capped.groups.find((g) => g.name === "Cafe Food")?.sales, 0)
+  assert.equal(capped.groups.reduce((n, g) => n + g.sales, 0), 5)
   assert.equal(capped.groups.find((g) => g.name === "Cafe Food")?.countedUnderSides, 5)
   const plain = computeDayBreakdown("2026-10-18", orders, [], cat, () => undefined)
   assert.equal(plain.groups.find((g) => g.name === "Sides"), undefined)
@@ -450,4 +451,69 @@ test("computeDayBreakdown: restaurant sales go to the table owner, cafe sales to
   const b = computeDayBreakdown("2026-10-18", orders, payments, () => undefined, team)
   assert.deepEqual(b.staff.map((s) => [s.name, s.channel, s.sales, s.registers]), [["Pauline", "RESTAURANT", 120, ["HH 4 - RESTAURANT"]], ["Baily", "CAFE", 12, ["Register 3 - Cafe"]]])
   assert.equal(b.staff.find((s) => s.name === "Hannah"), undefined)
+})
+
+test("computeDayBreakdown: side units are modifier qty x line qty, a free side or an unknown modifier is not a Side, and groups still sum to the lines", () => {
+  const orders: Array<SquareOrder & Record<string, unknown>> = [
+    { id: "o1", state: "COMPLETED", closed_at: "2026-10-18T02:05:00Z", total_money: money(3 * (26.9 + 2 * 6)), total_tip_money: money(0),
+      line_items: [
+        // Three Ricotta Hotcakes at $26.90, each with two bacon ($6): 6 side units, $36
+        { name: "Ricotta Hotcakes.", quantity: "3", total_money: money(3 * (26.9 + 2 * 6)), catalog_object_id: "v-hot",
+          modifiers: [
+            { catalog_object_id: "m-bacon", name: "Bacon.", quantity: "2", base_price_money: money(6), total_price_money: money(36) },
+            { catalog_object_id: "m-gf", name: "Gluten free", quantity: "1", base_price_money: money(0) },
+            // Not in the catalogue lookup at all (deleted modifier): stays on the dish
+            { catalog_object_id: "m-mystery", name: "Extra", quantity: "1", base_price_money: money(4) },
+            // No catalogue id at all
+            { name: "Ad hoc side", quantity: "1", base_price_money: money(5) },
+          ] },
+      ] },
+  ]
+  const modList = (id?: string) => ({ "m-bacon": "Food Sides", "m-gf": "Food Sides" } as Record<string, string>)[id ?? ""]
+  const b = computeDayBreakdown("2026-10-18", orders, [], () => ({ reportingCategory: "Cafe Food" }), () => undefined, null, modList)
+  const sides = b.groups.find((g) => g.name === "Sides")!
+  const food = b.groups.find((g) => g.name === "Cafe Food")!
+  assert.equal(sides.sales, 36); assert.equal(sides.qty, 6)
+  assert.deepEqual(sides.topItems, [{ name: "Bacon", qty: 6, sales: 36 }])
+  assert.equal(food.sales, 80.7); assert.equal(food.qty, 3); assert.equal(food.countedUnderSides, 36)
+  assert.deepEqual(food.topItems, [{ name: "Ricotta Hotcakes", qty: 3, sales: 80.7 }])
+  assert.equal(Math.round((sides.sales + food.sales) * 100) / 100, 116.7)
+  // Sides do not touch the money totals
+  assert.equal(b.paidIncGst, 116.7); assert.equal(b.paidOrders, 1)
+})
+
+test("computeDayBreakdown: a line with quantity 0 or a null modifier price moves nothing to Sides", () => {
+  const orders: Array<SquareOrder & Record<string, unknown>> = [
+    { id: "o1", state: "COMPLETED", closed_at: "2026-10-18T02:05:00Z", total_money: money(26.9), total_tip_money: money(0),
+      line_items: [
+        { name: "Eggs", quantity: "0", total_money: money(0), catalog_object_id: "v-eggs",
+          modifiers: [{ catalog_object_id: "m-bacon", name: "Bacon", quantity: "1", base_price_money: money(6) }] },
+        { name: "Toast", quantity: "1", total_money: money(26.9), catalog_object_id: "v-toast",
+          modifiers: [{ catalog_object_id: "m-avo", name: "Avo", quantity: "1" }] },
+      ] },
+  ]
+  const b = computeDayBreakdown("2026-10-18", orders, [], () => ({ reportingCategory: "Cafe Food" }), () => undefined, null, () => "Food Sides")
+  // A qty-0 line leaves an empty Sides row ($0, 0 items) rather than none; harmless, noted in the guard report
+  assert.equal(b.groups.find((g) => g.name === "Sides")?.sales ?? 0, 0)
+  assert.equal(b.groups.find((g) => g.name === "Sides")?.qty ?? 0, 0)
+  const food = b.groups.find((g) => g.name === "Cafe Food")!
+  assert.equal(food.sales, 26.9); assert.equal(food.qty, 1); assert.equal(food.countedUnderSides, undefined)
+  assert.equal(b.paidIncGst, 26.9)
+})
+
+test("computeDayBreakdown: a side on an open (unpaid) table is not counted anywhere yet", () => {
+  const orders: Array<SquareOrder & Record<string, unknown>> = [
+    { id: "t1", state: "OPEN", created_at: "2026-10-18T02:05:00Z", total_money: money(32), tenders: [], ticket_name: "T1",
+      line_items: [{ name: "Eggs", quantity: "1", total_money: money(32), catalog_object_id: "v-eggs",
+        modifiers: [{ catalog_object_id: "m-bacon", name: "Bacon", quantity: "1", base_price_money: money(6) }] }] },
+  ]
+  const b = computeDayBreakdown("2026-10-18", orders, [], () => ({ reportingCategory: "Cafe Food" }), () => undefined, null, () => "Food Sides")
+  assert.deepEqual(b.groups, [])
+  assert.equal(b.openTablesIncGst, 32); assert.equal(b.paidIncGst, 0)
+})
+
+test("reportingGroup: blank and whitespace-only categories are Uncategorised; a modifier list name that is not Food Sides is not Sides", () => {
+  assert.equal(reportingGroup(""), "Uncategorised")
+  assert.equal(reportingGroup("   "), "Uncategorised")
+  assert.equal(reportingGroup("Sides"), "Sides")
 })

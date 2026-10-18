@@ -233,3 +233,31 @@ test("compareHourly: a Square day with its exact figure at this minute is not es
   const closed = compareHourly(rows, ["2026-10-11"], null, new Map([["2026-10-11", 2403]]))
   assert.equal(closed.avgToNow, 4000); assert.equal(closed.estimated, false)
 })
+
+test("compareHourly: an exact figure of $0 is still exact (nothing sold yet that day), and an ESTIMATE-source day stays estimated even with an exact value", () => {
+  const rows: HourlyRow[] = [
+    { date: "2026-10-11", hour: 9, revenueIncGst: 500, orders: 5, source: "SQUARE" },
+    { date: "2026-10-04", hour: 6, revenueIncGst: 300, orders: 0, source: "ESTIMATE" },
+    { date: "2026-10-04", hour: 9, revenueIncGst: 700, orders: 0, source: "ESTIMATE" },
+  ]
+  const at630 = 6 * 60 + 30
+  // 11 Oct: exactly $0 by 6:30 (opened 7am); the hourly shape would also give 0 but must not flip to estimated
+  const zero = compareHourly(rows, ["2026-10-11"], at630, new Map([["2026-10-11", 0]]))
+  assert.equal(zero.avgToNow, 0); assert.equal(zero.estimated, false); assert.equal(zero.daysUsed, 1)
+  // 4 Oct is a Lightspeed estimate: pro rata half of the 6am hour, flagged estimated
+  const ls = compareHourly(rows, ["2026-10-04"], at630)
+  assert.equal(ls.avgToNow, 150); assert.equal(ls.estimated, true)
+  // Even if someone passes an exact value for an ESTIMATE day it is used, but the estimate flag stays on (its hourly shape is borrowed)
+  const odd = compareHourly(rows, ["2026-10-04"], at630, new Map([["2026-10-04", 120]]))
+  assert.equal(odd.avgToNow, 120); assert.equal(odd.estimated, true)
+  // A date with an exact value but no hourly rows at all is not used
+  const none = compareHourly(rows, ["2026-09-27"], at630, new Map([["2026-09-27", 999]]))
+  assert.equal(none.avgToNow, null); assert.equal(none.daysUsed, 0); assert.equal(none.estimated, false)
+})
+
+test("compareHourly: at midnight AEST (nowMinutes 0) a Square day with its orders reads exact zero and a Square day without them is estimated", () => {
+  const rows: HourlyRow[] = [{ date: "2026-10-11", hour: 7, revenueIncGst: 1000, orders: 10, source: "SQUARE" }]
+  assert.deepEqual([compareHourly(rows, ["2026-10-11"], 0, new Map([["2026-10-11", 0]])).avgToNow, compareHourly(rows, ["2026-10-11"], 0, new Map([["2026-10-11", 0]])).estimated], [0, false])
+  const noRows = compareHourly(rows, ["2026-10-11"], 0)
+  assert.equal(noRows.avgToNow, 0); assert.equal(noRows.estimated, true)
+})

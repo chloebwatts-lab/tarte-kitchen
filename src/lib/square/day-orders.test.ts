@@ -75,3 +75,76 @@ test("dayOrderRows: an open table still unpaid at sync time has no paid minute a
   assert.deepEqual(exactAtMinute(rows, 11 * 60), { paid: 0, open: 80, total: 80 })
   assert.deepEqual(exactAtMinute(rows, 10 * 60), { paid: 0, open: 0, total: 0 })
 })
+
+// ── Boundary conditions ──
+
+test("exactAtMinute: paid at exactly that minute counts as paid; a table opened at exactly that minute counts as open", () => {
+  const rows = [
+    { orderId: "a", createdMin: 470, paidMin: 479, paidIncGst: 26.9, table: false, channel: "CAFE" as const },
+    { orderId: "t", createdMin: 479, paidMin: 540, paidIncGst: 150, table: true, channel: "RESTAURANT" as const },
+    // Cafe sale rung up before 7:59 but paid after: not counted either way (not a table)
+    { orderId: "c", createdMin: 478, paidMin: 485, paidIncGst: 12.5, table: false, channel: "CAFE" as const },
+    // A table paid at 7:59 on the dot is paid, not open
+    { orderId: "t2", createdMin: 420, paidMin: 479, paidIncGst: 88, table: true, channel: "RESTAURANT" as const },
+  ]
+  assert.deepEqual(exactAtMinute(rows, 479), { paid: 114.9, open: 150, total: 264.9 })
+  // One minute earlier: nothing paid yet, only the earlier table is open
+  assert.deepEqual(exactAtMinute(rows, 478), { paid: 0, open: 88, total: 88 })
+  // Once the table pays it moves from open to paid, total unchanged
+  assert.deepEqual(exactAtMinute(rows, 540), { paid: 277.4, open: 0, total: 277.4 })
+})
+
+test("exactAtMinute: a table never paid stays open from when it opened; a non-table never paid is never counted", () => {
+  const rows = [
+    { orderId: "t", createdMin: 720, paidMin: null, paidIncGst: 64, table: true, channel: "RESTAURANT" as const },
+    { orderId: "c", createdMin: 600, paidMin: null, paidIncGst: 9, table: false, channel: "OTHER" as const },
+  ]
+  assert.deepEqual(exactAtMinute(rows, 719), { paid: 0, open: 0, total: 0 })
+  assert.deepEqual(exactAtMinute(rows, 720), { paid: 0, open: 64, total: 64 })
+  assert.deepEqual(exactAtMinute(rows, 1439), { paid: 0, open: 64, total: 64 })
+})
+
+test("exactAtMinute: minutes outside 0..1439 and an empty day", () => {
+  const rows = [
+    // Rung up 11:50pm the night before, paid 11:52pm (AEST): minutes are negative
+    { orderId: "late", createdMin: -10, paidMin: -8, paidIncGst: 20, table: false, channel: "CAFE" as const },
+    // Paid ten past midnight after close: 1450
+    { orderId: "after", createdMin: 1300, paidMin: 1450, paidIncGst: 95, table: true, channel: "RESTAURANT" as const },
+  ]
+  assert.deepEqual(exactAtMinute(rows, 0), { paid: 20, open: 0, total: 20 })
+  assert.deepEqual(exactAtMinute(rows, -9), { paid: 0, open: 0, total: 0 })
+  assert.deepEqual(exactAtMinute(rows, 1439), { paid: 20, open: 95, total: 115 })
+  assert.deepEqual(exactAtMinute(rows, 1450), { paid: 115, open: 0, total: 115 })
+  assert.deepEqual(exactAtMinute([], 600), { paid: 0, open: 0, total: 0 })
+})
+
+test("exactAtMinute: cents add up without float drift", () => {
+  const rows = Array.from({ length: 10 }, (_, i) => ({ orderId: `o${i}`, createdMin: 400 + i, paidMin: 400 + i, paidIncGst: 0.1, table: false, channel: "CAFE" as const }))
+  assert.deepEqual(exactAtMinute(rows, 500), { paid: 1, open: 0, total: 1 })
+})
+
+test("dayOrderRows: duplicates, non-completed payments and orders without a created time", () => {
+  const orders: Array<SquareOrder & Record<string, unknown>> = [
+    { id: "d1", state: "COMPLETED", created_at: "2026-10-18T00:00:00Z", closed_at: "2026-10-18T00:01:00Z", total_money: money(26.9), total_tip_money: money(0), line_items: [{ name: "Eggs" }] },
+    { id: "d1", state: "COMPLETED", created_at: "2026-10-18T00:00:00Z", closed_at: "2026-10-18T00:01:00Z", total_money: money(26.9), total_tip_money: money(0), line_items: [{ name: "Eggs" }] },
+    { id: "nocreated", state: "COMPLETED", closed_at: "2026-10-18T00:01:00Z", total_money: money(10), line_items: [{ name: "x" }] },
+    // Open ticket, paid in full by tenders but not closed: a pending (not completed) payment must not set its paid minute
+    { id: "t1", state: "OPEN", created_at: "2026-10-18T01:00:00Z", total_money: money(80), tenders: [{ type: "CARD", amount_money: money(80) }], net_amount_due_money: money(0), ticket_name: "T1", line_items: [{ name: "x" }] },
+  ]
+  const payments: Array<SquarePayment & Record<string, unknown>> = [
+    { id: "pend", status: "PENDING", order_id: "t1", amount_money: money(80), created_at: "2026-10-18T01:30:00Z", device_details: { device_name: "HH 2 - RESTAURANT" } },
+  ]
+  const rows = dayOrderRows("2026-10-18", orders, payments)
+  assert.deepEqual(rows.map((r) => r.orderId), ["d1", "t1"])
+  assert.equal(rows[0].createdMin, 600); assert.equal(rows[0].paidMin, 601); assert.equal(rows[0].paidIncGst, 26.9)
+  // No completed payment and no closed_at: falls back to the created minute; no device means not RESTAURANT, but the ticket name makes it a table
+  assert.equal(rows[1].paidMin, 660); assert.equal(rows[1].table, true); assert.equal(rows[1].channel, "OTHER")
+})
+
+test("dayOrderRows: a Bopple order placed 11:58pm AEST the night before has a negative created minute and is paid then", () => {
+  const orders: Array<SquareOrder & Record<string, unknown>> = [
+    { id: "b", state: "COMPLETED", created_at: "2026-10-17T13:58:00Z", closed_at: "2026-10-17T14:20:00Z", total_money: money(36.3), total_tip_money: money(0), source: { name: "Bopple" }, line_items: [{ name: "x" }] },
+  ]
+  const [row] = dayOrderRows("2026-10-18", orders, [])
+  assert.equal(row.createdMin, -2); assert.equal(row.paidMin, -2); assert.equal(row.channel, "ONLINE")
+})
