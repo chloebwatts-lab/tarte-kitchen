@@ -6,6 +6,7 @@ import {
   matchCatalogue,
   orderRequestRecipients,
   parseQty,
+  splitLeadingQty,
   productDetail,
   qtyLabel,
   renderOrderRequestEmail,
@@ -536,5 +537,126 @@ describe("catalogue preference by department", () => {
   test("a small limit keeps the preferred department's product, not the alphabetical one", () => {
     assert.deepEqual(ids("flour plain", "PASTRY", 1), ["p-flour"])
     assert.deepEqual(ids("flour plain", "KITCHEN", 1), ["k-flour"])
+  })
+})
+
+describe("typing the quantity in front (Chloe, 19 Oct 2026: just type what you need)", () => {
+  test("a number then words is a quantity", () => {
+    assert.deepEqual(splitLeadingQty("4 cream"), { qty: 4, text: "cream" })
+    assert.deepEqual(splitLeadingQty("2x lemons"), { qty: 2, text: "lemons" })
+    assert.deepEqual(splitLeadingQty("2 x lemons"), { qty: 2, text: "lemons" })
+    assert.deepEqual(splitLeadingQty("3 × Anchor butter 5kg"), { qty: 3, text: "Anchor butter 5kg" })
+    assert.deepEqual(splitLeadingQty("  1.5   cream  "), { qty: 1.5, text: "cream" })
+  })
+
+  test("a measure after the number is the product, not a count", () => {
+    assert.deepEqual(splitLeadingQty("10 kg flour"), { qty: null, text: "10 kg flour" })
+    assert.deepEqual(splitLeadingQty("500g flour"), { qty: null, text: "500g flour" })
+    assert.deepEqual(splitLeadingQty("2 L milk"), { qty: null, text: "2 L milk" })
+  })
+
+  test("x inside a word is not a times sign", () => {
+    assert.deepEqual(splitLeadingQty("2 xanthan gum"), { qty: 2, text: "xanthan gum" })
+    assert.deepEqual(splitLeadingQty("2xlemons"), { qty: null, text: "2xlemons" })
+  })
+
+  test("nothing to split stays whole, including a bare number or zero", () => {
+    assert.deepEqual(splitLeadingQty("blue roll"), { qty: null, text: "blue roll" })
+    assert.deepEqual(splitLeadingQty("4"), { qty: null, text: "4" })
+    assert.deepEqual(splitLeadingQty("0 cream"), { qty: null, text: "0 cream" })
+    assert.deepEqual(splitLeadingQty(""), { qty: null, text: "" })
+  })
+})
+
+// ─── Added by test-guard, 19 Oct 2026: leading-quantity edges ───────────────
+
+describe("leading quantity edges (test-guard, 19 Oct 2026)", () => {
+  test("the times sign is case-free and spacing-free, and the quantity keeps its decimals", () => {
+    assert.deepEqual(splitLeadingQty("2 X lemons"), { qty: 2, text: "lemons" })
+    assert.deepEqual(splitLeadingQty("2X lemons"), { qty: 2, text: "lemons" })
+    assert.deepEqual(splitLeadingQty("2,5 cream"), { qty: 2.5, text: "cream" })
+    assert.deepEqual(splitLeadingQty("1.25 x Anchor butter"), { qty: 1.25, text: "Anchor butter" })
+    // rounding is parseQty's, two decimals
+    assert.deepEqual(splitLeadingQty("0.333 cream"), { qty: 0.33, text: "cream" })
+    assert.deepEqual(splitLeadingQty("2.0 cream"), { qty: 2, text: "cream" })
+  })
+
+  test("a product's own size after the count stays with the product", () => {
+    assert.deepEqual(splitLeadingQty("2 x 5kg butter"), { qty: 2, text: "5kg butter" })
+    assert.deepEqual(splitLeadingQty("3 Bridor croissants carton of 60"), { qty: 3, text: "Bridor croissants carton of 60" })
+    assert.deepEqual(splitLeadingQty("4 cream for tomorrow"), { qty: 4, text: "cream for tomorrow" })
+    assert.deepEqual(splitLeadingQty("60 croissants"), { qty: 60, text: "croissants" })
+  })
+
+  test("every measure word, in any case, keeps the number with the product", () => {
+    for (const unit of ["kg", "KG", "Kg", "kgs", "g", "gm", "gms", "gram", "grams", "l", "L", "lt", "ltr", "litre", "litres", "liter", "liters", "ml", "mls", "cm", "mm", "m"]) {
+      const raw = `2 ${unit} flour`
+      assert.deepEqual(splitLeadingQty(raw), { qty: null, text: raw }, raw)
+    }
+    // glued to the number is a size, not a count
+    assert.deepEqual(splitLeadingQty("2kg flour"), { qty: null, text: "2kg flour" })
+    assert.deepEqual(splitLeadingQty("1.5l cream"), { qty: null, text: "1.5l cream" })
+    assert.deepEqual(splitLeadingQty("2L milk"), { qty: null, text: "2L milk" })
+    // a word that merely starts like a unit is a product
+    assert.deepEqual(splitLeadingQty("2 mango"), { qty: 2, text: "mango" })
+    assert.deepEqual(splitLeadingQty("2 lemons"), { qty: 2, text: "lemons" })
+    assert.deepEqual(splitLeadingQty("3 garlic"), { qty: 3, text: "garlic" })
+  })
+
+  test("a number that is not a plain count leaves the words whole", () => {
+    assert.deepEqual(splitLeadingQty("-2 cream"), { qty: null, text: "-2 cream" })
+    assert.deepEqual(splitLeadingQty("+2 cream"), { qty: null, text: "+2 cream" })
+    assert.deepEqual(splitLeadingQty("1e3 cream"), { qty: null, text: "1e3 cream" })
+    assert.deepEqual(splitLeadingQty("1.5.2 cream"), { qty: null, text: "1.5.2 cream" })
+    assert.deepEqual(splitLeadingQty("4, cream"), { qty: null, text: "4, cream" })
+    assert.deepEqual(splitLeadingQty("4. cream"), { qty: null, text: "4. cream" })
+    assert.deepEqual(splitLeadingQty("½ cream"), { qty: null, text: "½ cream" })
+    assert.deepEqual(splitLeadingQty("0.00 cream"), { qty: null, text: "0.00 cream" })
+    assert.deepEqual(splitLeadingQty("cream 4"), { qty: null, text: "cream 4" })
+    assert.deepEqual(splitLeadingQty("x4 cream"), { qty: null, text: "x4 cream" })
+  })
+
+  test("tabs, newlines and the length cap are applied before the split", () => {
+    assert.deepEqual(splitLeadingQty("4\ncream"), { qty: 4, text: "cream" })
+    assert.deepEqual(splitLeadingQty("\t2 x\tlemons  "), { qty: 2, text: "lemons" })
+    const long = "4 " + "a".repeat(MAX_ORDER_REQUEST_LENGTH + 100)
+    const out = splitLeadingQty(long)
+    assert.equal(out.qty, 4)
+    assert.equal(out.text, "a".repeat(MAX_ORDER_REQUEST_LENGTH - 2))
+    assert.deepEqual(splitLeadingQty("   "), { qty: null, text: "" })
+    assert.deepEqual(splitLeadingQty("  12  "), { qty: null, text: "12" })
+  })
+
+  test("a catalogue name put back in the box does not re-split (the pick path)", () => {
+    // pick() reads the leading quantity off what was typed, then replaces the box with the product name
+    for (const name of ["Cream Pure 35% 10L", "Vinegar White Wine 5L", "Butter Unsalted USA 25kg (Fermex)", "Croissant Butter 90g (Bridor)"]) {
+      assert.deepEqual(splitLeadingQty(name), { qty: null, text: name }, name)
+    }
+  })
+
+  test("suggestions search the words after the count, so 4 cream still finds the creams", () => {
+    const items: CatalogueChoice[] = [
+      { id: "cream", name: "Cream Pure 35% 10L", supplier: "Bidfood", packSize: "10L", category: "Dairy", dept: "KITCHEN" },
+      { id: "sour", name: "Sour Cream 2kg", supplier: "Bidfood", packSize: "2kg", category: "Dairy", dept: "KITCHEN" },
+      { id: "four", name: "Four Bean Mix 2.5kg", supplier: "Bidfood", packSize: "2.5kg", category: "Pantry", dept: "KITCHEN" },
+    ]
+    const { qty, text } = splitLeadingQty("4 cream")
+    assert.equal(qty, 4)
+    assert.deepEqual(matchCatalogue(items, text, 5).map((i) => i.id), ["cream", "sour"])
+    // the raw "4 cream" would have matched nothing, which is why the split feeds the search
+    assert.deepEqual(matchCatalogue(items, "4 cream", 5), [])
+    // a bare number is under the two-character floor once split, so no list pops up for "4" alone
+    assert.deepEqual(matchCatalogue(items, splitLeadingQty("4").text, 5), [])
+  })
+})
+
+describe("a barcode or a dangling x in front is not a quantity", () => {
+  test("a number too big for the quantity column leaves the text whole", () => {
+    assert.deepEqual(splitLeadingQty("9300601234567 lemons"), { qty: null, text: "9300601234567 lemons" })
+    assert.deepEqual(splitLeadingQty("99999999 lemons"), { qty: 99999999, text: "lemons" })
+  })
+  test("4 x with nothing after it is not a request for x", () => {
+    assert.deepEqual(splitLeadingQty("4 x"), { qty: null, text: "4 x" })
+    assert.deepEqual(splitLeadingQty("4 ×"), { qty: null, text: "4 ×" })
   })
 })

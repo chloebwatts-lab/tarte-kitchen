@@ -47,6 +47,9 @@ export interface CatalogueChoice {
   dept: OrderDept
 }
 
+/** The quantity column holds Decimal(10,2); a barcode typed in front is not a count. */
+export const MAX_QTY = 100_000_000
+
 /** A quantity as typed: whole or decimal packs, nothing else. */
 export function parseQty(raw: string | null | undefined): number | null {
   const t = (raw ?? "").trim().replace(",", ".")
@@ -64,6 +67,27 @@ export function qtyLabel(qty: number | null): string {
 
 export function cleanRequestText(raw: string): string {
   return raw.replace(/\s+/g, " ").trim().slice(0, MAX_ORDER_REQUEST_LENGTH).trim()
+}
+
+/** Measures that follow a number: "10 kg flour" is ten kilos of flour, not ten of "kg flour". */
+const MEASURE_WORDS = /^(?:kg|kgs|g|gm|gms|gram|grams|l|lt|ltr|litre|litres|liter|liters|ml|mls|cm|mm|m)$/i
+
+/**
+ * A quantity typed in front of the words (Chloe, 19 Oct 2026: chefs and KPs
+ * just type what they need): "4 cream", "2x lemons", "3 × butter" become
+ * 4 × cream and so on, the same as filling the How many box. Anything else
+ * stays whole: "500g flour" is a product, "10 kg flour" is ten kilos of it,
+ * and "2 xanthan gum" is two of xanthan gum, not "anthan gum".
+ */
+export function splitLeadingQty(raw: string): { qty: number | null; text: string } {
+  const text = cleanRequestText(raw)
+  const m = text.match(/^(\d+(?:[.,]\d+)?)(?:\s*[x×]\s+|\s+)(.+)$/i)
+  if (!m) return { qty: null, text }
+  const qty = parseQty(m[1])
+  const rest = m[2].trim()
+  if (qty == null || qty >= MAX_QTY || !rest || /^[x×]$/i.test(rest) || MEASURE_WORDS.test(rest.split(" ")[0]))
+    return { qty: null, text }
+  return { qty, text: rest }
 }
 
 /**

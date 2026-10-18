@@ -65,11 +65,10 @@ export default async function OrderRequestsPage({
           {dept === "PASTRY" ? "Pastry order requests" : "Order requests"}
         </div>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
-          Notice something running out, or missing from a delivery? Find it
-          on the order list and add it, with how many and your name, so{" "}
+          Notice something running out, or missing from a delivery? Type it
+          in, with how many and your name, so{" "}
           {dept === "PASTRY" ? "whoever places the pastry order" : "the head chef"} sees
-          everything in one place. Not on the list? Type it. Tick each one once
-          it is ordered.
+          everything in one place. Tick each one once it is ordered.
         </p>
         <div className="mt-3"><VenueSwitch current={venue} /></div>
       </div>

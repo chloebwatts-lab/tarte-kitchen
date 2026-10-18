@@ -5,7 +5,7 @@ import type { OrderDept, Venue } from "@/generated/prisma/client"
 import { db } from "@/lib/db"
 import { deptForItem } from "@/lib/departments"
 import { getPerson } from "@/lib/person-session"
-import { DONE_KEEP_DAYS, cleanRequestText, type CatalogueChoice, type OrderRequestRow } from "@/lib/order-requests/shared"
+import { DONE_KEEP_DAYS, MAX_QTY, cleanRequestText, splitLeadingQty, type CatalogueChoice, type OrderRequestRow } from "@/lib/order-requests/shared"
 
 function refresh() {
   revalidatePath("/kitchen/restock")
@@ -115,6 +115,8 @@ export async function addOrderRequest(params: {
 
   let text: string
   let approvedItemId: string | null = null
+  // "4 cream" typed in one go: the 4 is the quantity unless the box says otherwise.
+  let typedQty: number | null = null
   if (params.approvedItemId) {
     const item = await db.approvedSupplierItem.findUnique({
       where: { id: params.approvedItemId },
@@ -124,11 +126,26 @@ export async function addOrderRequest(params: {
     text = item.name
     approvedItemId = item.id
   } else {
-    text = cleanRequestText(params.text ?? "")
+    const split = splitLeadingQty(params.text ?? "")
+    text = split.text
+    typedQty = split.qty
     if (!text) return { ok: false, error: "Say what needs ordering" }
+    // Typed the exact name of one product on the order list? Link it, so the
+    // head chef still sees the supplier and pack without anyone searching.
+    const exact = await db.approvedSupplierItem.findMany({
+      where: { active: true, name: { equals: text, mode: "insensitive" } },
+      select: { id: true, name: true },
+      take: 2,
+    })
+    if (exact.length === 1) {
+      approvedItemId = exact[0].id
+      text = exact[0].name
+    }
   }
 
-  const qty = params.qty != null && Number.isFinite(params.qty) && params.qty > 0 ? Math.round(params.qty * 100) / 100 : null
+  const boxQty = params.qty != null && Number.isFinite(params.qty) && params.qty > 0 ? Math.round(params.qty * 100) / 100 : null
+  if (boxQty != null && boxQty >= MAX_QTY) return { ok: false, error: "That number is too big to be a quantity" }
+  const qty = boxQty ?? typedQty
   const row = await db.prepOrderRequest.create({
     data: { venue: params.venue, dept: params.dept ?? "KITCHEN", text, approvedItemId, qty, note, createdBy },
     include: withItem,
