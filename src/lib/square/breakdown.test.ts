@@ -194,3 +194,148 @@ test("computeDayBreakdown staffChannels: empty day and a paid order with no staf
   assert.deepEqual(b.staffChannels, [])
   assert.deepEqual(b.staff, [])
 })
+
+test("computeDayBreakdown: a paid order's own payment records are never added again as strays", () => {
+  const orders: Array<SquareOrder & Record<string, unknown>> = [
+    // Split bill, COMPLETED at 1pm, two card payments taken at noon and 12:40: one order, $150, once
+    { id: "s1", state: "COMPLETED", closed_at: "2026-10-04T03:00:00Z", total_money: money(150), total_tip_money: money(0), source: { name: "Point of Sale" },
+      line_items: [{ name: "Fish & Chips", quantity: "2", total_money: money(90), catalog_object_id: "v-fish" }, { name: "Wine", quantity: "1", total_money: money(60), catalog_object_id: "v-wine" }] },
+    // Bopple order, OPEN but paid in full by an external tender, with a matching payment record at 10am
+    { id: "b1", state: "OPEN", created_at: "2026-10-04T00:10:00Z", total_money: money(41.5), tenders: [{ type: "OTHER", amount_money: money(41.5) }], net_amount_due_money: money(0), source: { name: "Bopple" },
+      line_items: [{ name: "Chicken Sandwich", quantity: "1", total_money: money(41.5), catalog_object_id: "v-sando" }] },
+    // Open table, tenders mirror the one $40 card payment so far, $60 still owing
+    { id: "t1", state: "OPEN", created_at: "2026-10-04T02:00:00Z", total_money: money(100), tenders: [{ type: "CARD", amount_money: money(40) }], net_amount_due_money: money(60), source: { name: "Point of Sale" },
+      line_items: [{ name: "Wine", quantity: "2", total_money: money(100), catalog_object_id: "v-wine" }] },
+  ]
+  const payments: Array<SquarePayment & Record<string, unknown>> = [
+    { id: "p1", status: "COMPLETED", order_id: "s1", source_type: "CARD", amount_money: money(75), created_at: "2026-10-04T02:00:00Z", device_details: { device_name: "HH 4 - RESTAURANT" }, team_member_id: "tm-pauline" },
+    { id: "p2", status: "COMPLETED", order_id: "s1", source_type: "CARD", amount_money: money(75), created_at: "2026-10-04T02:40:00Z", device_details: { device_name: "HH 4 - RESTAURANT" }, team_member_id: "tm-pauline" },
+    { id: "p3", status: "COMPLETED", order_id: "b1", source_type: "EXTERNAL", amount_money: money(41.5), created_at: "2026-10-04T00:10:00Z" },
+    { id: "p4", status: "COMPLETED", order_id: "t1", source_type: "CARD", amount_money: money(40), created_at: "2026-10-04T02:30:00Z", device_details: { device_name: "HH 4 - RESTAURANT" }, team_member_id: "tm-pauline" },
+  ]
+  const team = (id?: string) => ({ "tm-pauline": "Pauline Stefani" } as Record<string, string>)[id ?? ""]
+  const b = computeDayBreakdown("2026-10-04", orders, payments, () => undefined, team)
+
+  assert.equal(b.paidIncGst, 150 + 41.5 + 40)
+  assert.equal(b.partPaidIncGst, 40)
+  assert.equal(b.paidOrders, 2) // s1 and b1; the part payment is not a transaction yet
+  assert.equal(b.openTables, 1)
+  assert.equal(b.openTablesIncGst, 60)
+  assert.equal(b.unmatchedPayments, 0)
+  // Paid orders land in the hour they closed, not the hour each payment was tapped
+  assert.equal(b.hourly[13], 150)
+  assert.equal(b.hourly[10], 41.5)
+  assert.equal(b.hourly[12], 40) // only the part payment on t1 sits at noon
+  assert.equal(Math.round(b.hourly.reduce((s, n) => s + n, 0) * 100) / 100, b.paidIncGst)
+  assert.equal(b.hourlyOrders.reduce((s, n) => s + n, 0), 2)
+  // Staff and channel boards see the split bill once
+  assert.deepEqual(b.channels.RESTAURANT, { sales: 150, orders: 1 })
+  assert.deepEqual(b.staffChannels.filter((s) => s.id === "tm-pauline"), [{ id: "tm-pauline", name: "Pauline Stefani", channel: "RESTAURANT", sales: 150, orders: 1 }])
+})
+
+test("computeDayBreakdown: an order listed twice (closed and open search) counts once and its payment is not a stray", () => {
+  const order = { id: "d1", state: "COMPLETED", closed_at: "2026-10-04T01:00:00Z", created_at: "2026-10-04T00:50:00Z", total_money: money(26.9), total_tip_money: money(0), source: { name: "Point of Sale" },
+    line_items: [{ name: "Smashed Avo", quantity: "1", total_money: money(26.9), catalog_object_id: "v-avo" }] }
+  const payments: Array<SquarePayment & Record<string, unknown>> = [
+    { id: "p1", status: "COMPLETED", order_id: "d1", source_type: "CARD", amount_money: money(26.9), created_at: "2026-10-04T01:00:00Z" },
+  ]
+  const b = computeDayBreakdown("2026-10-04", [order, { ...order }], payments, () => undefined, () => undefined)
+  assert.equal(b.paidIncGst, 26.9)
+  assert.equal(b.paidOrders, 1)
+  assert.equal(b.unmatchedPayments, 0)
+  assert.equal(b.hourly[11], 26.9)
+})
+
+test("computeDayBreakdown: payments on an open table that exceed the bill are clamped, nothing owing, table not open", () => {
+  const orders: Array<SquareOrder & Record<string, unknown>> = [
+    // Bill was $80 when $100 was tapped, then an item was removed: $50 ex a $10 tip
+    { id: "t1", state: "OPEN", created_at: "2026-10-04T02:00:00Z", total_money: money(60), total_tip_money: money(10), tenders: [], source: { name: "Point of Sale" },
+      line_items: [{ name: "Wine", quantity: "1", total_money: money(50), catalog_object_id: "v-wine" }] },
+  ]
+  const payments: Array<SquarePayment & Record<string, unknown>> = [
+    { id: "p1", status: "COMPLETED", order_id: "t1", source_type: "CARD", amount_money: money(100), created_at: "2026-10-04T02:10:00Z" },
+  ]
+  const b = computeDayBreakdown("2026-10-04", orders, payments, () => undefined, () => undefined)
+  assert.equal(b.paidIncGst, 50)
+  assert.equal(b.partPaidIncGst, 50)
+  assert.equal(b.openTables, 0)
+  assert.equal(b.openTablesIncGst, 0)
+  assert.equal(b.paidOrders, 0)
+  assert.equal(b.avgTransaction, 0)
+  assert.equal(b.unmatchedPayments, 0)
+})
+
+test("computeDayBreakdown: open table whose payment was refunded back in full is still owing in full", () => {
+  const orders: Array<SquareOrder & Record<string, unknown>> = [
+    { id: "t1", state: "OPEN", created_at: "2026-10-04T02:00:00Z", total_money: money(95), tenders: [], source: { name: "Point of Sale" },
+      line_items: [{ name: "Lobster Roll", quantity: "1", total_money: money(95), catalog_object_id: "v-lobster" }] },
+  ]
+  const payments: Array<SquarePayment & Record<string, unknown>> = [
+    { id: "p1", status: "COMPLETED", order_id: "t1", source_type: "CARD", amount_money: money(50), refunded_money: money(50), created_at: "2026-10-04T02:10:00Z" },
+    // Refund larger than the payment (bad data): must not go negative
+    { id: "p2", status: "COMPLETED", order_id: "t1", source_type: "CARD", amount_money: money(10), refunded_money: money(15), created_at: "2026-10-04T02:20:00Z" },
+  ]
+  const b = computeDayBreakdown("2026-10-04", orders, payments, () => undefined, () => undefined)
+  assert.equal(b.paidIncGst, 0)
+  assert.equal(b.partPaidIncGst, 0)
+  assert.equal(b.openTables, 1)
+  assert.equal(b.openTablesIncGst, 95)
+  assert.equal(b.hourly[12], 0)
+})
+
+test("computeDayBreakdown: only COMPLETED strays count; pending, approved, failed and canceled payments add nothing", () => {
+  const payments: Array<SquarePayment & Record<string, unknown>> = [
+    { id: "p1", status: "APPROVED", source_type: "CARD", amount_money: money(26.9), created_at: "2026-10-04T02:00:00Z" },
+    { id: "p2", status: "PENDING", order_id: "ghost-1", source_type: "CARD", amount_money: money(13.1), created_at: "2026-10-04T02:00:00Z" },
+    { id: "p3", status: "FAILED", order_id: "ghost-2", source_type: "CARD", amount_money: money(100), created_at: "2026-10-04T02:00:00Z" },
+    { id: "p4", status: "CANCELED", source_type: "CARD", amount_money: money(100), created_at: "2026-10-04T02:00:00Z" },
+    // The one real sale, a $5.50 long black whose order the search has not returned yet
+    { id: "p5", status: "COMPLETED", order_id: "ghost-3", source_type: "CASH", amount_money: money(5.5), created_at: "2026-10-04T02:00:00Z" },
+  ]
+  const b = computeDayBreakdown("2026-10-04", [], payments, () => undefined, () => undefined)
+  assert.equal(b.paidIncGst, 5.5)
+  assert.equal(b.paidOrders, 1)
+  assert.equal(b.avgTransaction, 5.5)
+  assert.equal(b.unmatchedPayments, 1)
+  assert.equal(b.hourly[12], 5.5)
+  assert.equal(b.hourlyOrders[12], 1)
+  assert.equal(b.partPaidIncGst, 0)
+  assert.equal(b.openTables, 0)
+})
+
+test("computeDayBreakdown: strays with no amount, a negative net or no timestamp do not break the totals", () => {
+  const payments: Array<SquarePayment & Record<string, unknown>> = [
+    // No amount at all: counted as unmatched, adds nothing
+    { id: "p1", status: "COMPLETED", created_at: "2026-10-04T02:00:00Z" },
+    // Refund bigger than the payment: unmatched, adds nothing, not a transaction
+    { id: "p2", status: "COMPLETED", order_id: "ghost", source_type: "CARD", amount_money: money(20), refunded_money: money(25), created_at: "2026-10-04T02:00:00Z" },
+    // Real money but Square gave no created_at: still in the day total, just not in any hour
+    { id: "p3", status: "COMPLETED", source_type: "CARD", amount_money: money(26.9) },
+    // Midnight UTC is 10am Brisbane
+    { id: "p4", status: "COMPLETED", source_type: "CARD", amount_money: money(4.5), created_at: "2026-10-04T00:00:00Z" },
+  ]
+  const b = computeDayBreakdown("2026-10-04", [], payments, () => undefined, () => undefined)
+  assert.equal(b.paidIncGst, 31.4)
+  assert.equal(b.paidOrders, 2)
+  assert.equal(b.unmatchedPayments, 4)
+  assert.equal(b.hourly[10], 4.5)
+  assert.equal(b.hourly.reduce((s, n) => s + n, 0), 4.5)
+  assert.equal(b.hourlyOrders.reduce((s, n) => s + n, 0), 1)
+  assert.equal(b.avgTransaction, 15.7)
+})
+
+test("computeDayBreakdown: paid orders use the order total, a partial refund on their payment record does not change it", () => {
+  // Square records refunds on completed orders as return orders; the original
+  // payment's refunded_money must not be subtracted a second time here.
+  const orders: Array<SquareOrder & Record<string, unknown>> = [
+    { id: "o1", state: "COMPLETED", closed_at: "2026-10-04T01:00:00Z", total_money: money(53.8), total_tip_money: money(0), source: { name: "Point of Sale" },
+      line_items: [{ name: "Smashed Avo", quantity: "2", total_money: money(53.8), catalog_object_id: "v-avo" }] },
+  ]
+  const payments: Array<SquarePayment & Record<string, unknown>> = [
+    { id: "p1", status: "COMPLETED", order_id: "o1", source_type: "CARD", amount_money: money(53.8), refunded_money: money(26.9), created_at: "2026-10-04T01:00:00Z" },
+  ]
+  const b = computeDayBreakdown("2026-10-04", orders, payments, () => undefined, () => undefined)
+  assert.equal(b.paidIncGst, 53.8)
+  assert.equal(b.paidOrders, 1)
+  assert.equal(b.unmatchedPayments, 0)
+})

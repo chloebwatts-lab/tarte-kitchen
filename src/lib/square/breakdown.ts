@@ -166,13 +166,14 @@ export function computeDayBreakdown(
       // (Square counts it the moment the payment completes); the rest is owing.
       let tendered = new Decimal(0)
       for (const p of paymentsByOrder.get(o.id) ?? []) {
-        const amt = taken(p)
+        let amt = taken(p)
+        // Never more than the bill (an item taken off after a tap).
+        if (amt.gt(total.minus(tendered))) amt = total.minus(tendered)
         if (amt.lte(0)) continue
         tendered = tendered.plus(amt)
         const ph = aestHour(p.created_at)
         if (ph !== null) hourly[ph] += amt.toNumber()
       }
-      if (tendered.gt(total)) tendered = total
       paid = paid.plus(tendered)
       partPaid = partPaid.plus(tendered)
       const owing = total.minus(tendered)
