@@ -67,13 +67,13 @@ export function SalesInsights({ initial, view = "sales" }: { initial: Data; view
     start(async () => { setData(await getSalesInsights(initial.venue, d, r, c, { force })) })
   }
   useEffect(() => { load(date, range, compare) }, [date, range, compare]) // eslint-disable-line react-hooks/exhaustive-deps
-  // Today refreshes every minute while the page is in front, and straight
+  // Today refreshes every 30 s while the page is in front, and straight
   // away when the phone comes back to it (a backgrounded tab pauses timers,
   // so without this the first thing seen after a break is stale).
   useEffect(() => {
     if (!data.isToday) return
     const refresh = () => { if (document.visibilityState === "visible") load(date, range, compare, true) }
-    const t = setInterval(refresh, 60 * 1000)
+    const t = setInterval(refresh, 30 * 1000)
     document.addEventListener("visibilitychange", refresh)
     return () => { clearInterval(t); document.removeEventListener("visibilitychange", refresh) }
   }, [data.isToday, date, range, compare]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -130,7 +130,7 @@ export function SalesInsights({ initial, view = "sales" }: { initial: Data; view
             <div className="mt-6 text-[12px] font-semibold uppercase tracking-[0.14em] text-white/70">Revenue inc GST</div>
             <div className="mt-1 font-serif text-[52px] font-semibold leading-none tabular-nums">{money0(total)}</div>
             <div className="mt-2 text-[15px] text-white/85">
-              <strong>{money0(paid)}</strong> paid{open > 0 && <> + <strong>{money0(open)}</strong> on {day?.openTables} open table{day?.openTables === 1 ? "" : "s"}</>}
+              <strong>{money0(paid)}</strong> paid{open > 0 && <> + <strong>{money0(open)}</strong> still owing on {day?.openTables} open table{day?.openTables === 1 ? "" : "s"}</>}
               {day && day.surchargeIncGst > 0 && <> · incl. <strong>{money0(day.surchargeIncGst)}</strong> {day.surchargeName ?? "surcharge"}</>}
             </div>
             <UberLine uber={data.uber} isToday={data.isToday} />
@@ -181,7 +181,7 @@ export function SalesInsights({ initial, view = "sales" }: { initial: Data; view
             )}
 
             <div className="mt-5 divide-y divide-white/10 text-[15px]">
-              <div className="flex justify-between py-2"><span>Open tables</span><span className="tabular-nums">{data.source === "LIVE" ? `${day?.openTables ?? 0} · ${money0(open)}` : "n/a"}</span></div>
+              <div className="flex justify-between py-2"><span>Open tables, still owing</span><span className="tabular-nums">{data.source === "LIVE" ? `${day?.openTables ?? 0} · ${money0(open)}` : "n/a"}</span></div>
               <div className="flex justify-between py-2"><span>Paid orders</span><span className="tabular-nums">{day?.paidOrders ? day.paidOrders.toLocaleString() : "n/a"}</span></div>
               <div className="flex justify-between py-2"><span>Avg transaction</span><span className="tabular-nums">{day?.avgTransaction ? money2(day.avgTransaction) : "n/a"}</span></div>
             </div>

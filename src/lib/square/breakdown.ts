@@ -49,9 +49,16 @@ export interface GroupRow {
 
 export interface DayBreakdown {
   date: string
-  /** Paid sales inc GST, tips excluded (completed + paid open orders). */
+  /**
+   * Money taken inc GST, tips excluded, counted the way Square's own
+   * dashboard counts it: completed and paid-open orders, plus part payments
+   * already taken on tables still open, plus completed payments whose order
+   * the orders search has not returned (or that have no order at all).
+   */
   paidIncGst: number
-  /** Bills open and not yet settled. */
+  /** Part payments on open tables, inside paidIncGst. */
+  partPaidIncGst: number
+  /** Bills open and not yet settled: what is still owing after part payments. */
   openTablesIncGst: number
   openTables: number
   paidOrders: number
@@ -116,16 +123,22 @@ export function computeDayBreakdown(
   team: TeamLookup,
   nowAestHour: number | null = null
 ): DayBreakdown {
-  // Payment facts per order: device + team member from the first completed payment.
+  // Payment facts per order: device + team member from the first completed
+  // payment, and every completed payment by order for part payments.
+  type PaymentLike = SquarePayment & { order_id?: string; device_details?: { device_name?: string }; team_member_id?: string }
   const payByOrder = new Map<string, { device?: string; teamMemberId?: string }>()
-  let unmatchedPayments = 0
-  for (const p of payments as Array<SquarePayment & { order_id?: string; device_details?: { device_name?: string }; team_member_id?: string }>) {
+  const paymentsByOrder = new Map<string, PaymentLike[]>()
+  const orderless: PaymentLike[] = []
+  for (const p of payments as PaymentLike[]) {
     if (p.status && p.status !== "COMPLETED") continue
-    if (!p.order_id) { unmatchedPayments++; continue }
+    if (!p.order_id) { orderless.push(p); continue }
     if (!payByOrder.has(p.order_id)) {
       payByOrder.set(p.order_id, { device: p.device_details?.device_name, teamMemberId: p.team_member_id })
     }
+    ;(paymentsByOrder.get(p.order_id) ?? paymentsByOrder.set(p.order_id, []).get(p.order_id)!).push(p)
   }
+  /** What a payment took, ex tip (amount_money never includes the tip), less anything refunded back. */
+  const taken = (p: PaymentLike): Decimal => cents(p.amount_money).minus(cents(p.refunded_money))
 
   const hourly = new Array(24).fill(0) as number[]
   const hourlyOrders = new Array(24).fill(0) as number[]
@@ -136,8 +149,8 @@ export function computeDayBreakdown(
   const staff = new Map<string, StaffRow>()
   const staffChannels = new Map<string, StaffChannelRow>()
   const groups = new Map<string, { sales: Decimal; qty: number; items: Map<string, { qty: number; sales: Decimal }> }>()
-  let paid = new Decimal(0), openTotal = new Decimal(0), surcharge = new Decimal(0), tips = new Decimal(0)
-  let openCount = 0, paidOrders = 0
+  let paid = new Decimal(0), partPaid = new Decimal(0), openTotal = new Decimal(0), surcharge = new Decimal(0), tips = new Decimal(0)
+  let openCount = 0, paidOrders = 0, unmatchedPayments = 0
   let surchargeName: string | null = null
   const seen = new Set<string>()
 
@@ -149,7 +162,21 @@ export function computeDayBreakdown(
     const total = cents(o.total_money).minus(tip)
     const isPaid = o.state === "COMPLETED" || isPaidOrder(o)
     if (!isPaid) {
-      if (total.gt(0)) { openTotal = openTotal.plus(total); openCount++ }
+      // A table still open: whatever has been tapped so far is a sale now
+      // (Square counts it the moment the payment completes); the rest is owing.
+      let tendered = new Decimal(0)
+      for (const p of paymentsByOrder.get(o.id) ?? []) {
+        const amt = taken(p)
+        if (amt.lte(0)) continue
+        tendered = tendered.plus(amt)
+        const ph = aestHour(p.created_at)
+        if (ph !== null) hourly[ph] += amt.toNumber()
+      }
+      if (tendered.gt(total)) tendered = total
+      paid = paid.plus(tendered)
+      partPaid = partPaid.plus(tendered)
+      const owing = total.minus(tendered)
+      if (owing.gt(0)) { openTotal = openTotal.plus(owing); openCount++ }
       continue
     }
     if (total.lte(0) && (o.line_items?.length ?? 0) === 0) continue // return-only shells
@@ -200,7 +227,21 @@ export function computeDayBreakdown(
     }
   }
 
-  // Open tables sit in the current hour until they pay (display only).
+  // Completed payments whose order is not in the set we fetched: no order id
+  // at all, or an order the orders search has not caught up with yet. Square
+  // already counts them, so the live total does too; they sit in the hour
+  // the payment was taken.
+  const stray = [...orderless, ...[...paymentsByOrder.entries()].filter(([id]) => !seen.has(id)).flatMap(([, ps]) => ps)]
+  for (const p of stray) {
+    unmatchedPayments++
+    const amt = taken(p)
+    if (amt.lte(0)) continue
+    paid = paid.plus(amt)
+    paidOrders++
+    const ph = aestHour(p.created_at)
+    if (ph !== null) { hourly[ph] += amt.toNumber(); hourlyOrders[ph]++ }
+  }
+
   const paidNum = paid.toNumber()
   const regRows = [...registers.values()].map((r) => ({ ...r, sales: r2(r.sales), avgSale: r.orders ? r2(r.sales / r.orders) : 0 })).sort((a, b) => b.sales - a.sales)
   const staffRows = [...staff.values()].map((s) => ({ ...s, sales: r2(s.sales), avgSale: s.orders ? r2(s.sales / s.orders) : 0 })).sort((a, b) => b.sales - a.sales)
@@ -215,6 +256,7 @@ export function computeDayBreakdown(
   return {
     date,
     paidIncGst: r2(paidNum),
+    partPaidIncGst: r2(partPaid.toNumber()),
     openTablesIncGst: r2(openTotal.toNumber()),
     openTables: openCount,
     paidOrders,

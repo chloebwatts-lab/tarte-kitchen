@@ -41,24 +41,36 @@ test("computeDayBreakdown: paid vs open, surcharge, tips excluded, channels, reg
     { id: "p1", status: "COMPLETED", order_id: "o1", source_type: "CARD", amount_money: money(35.18), device_details: { device_name: "Register 3 - Cafe" }, team_member_id: "tm-baily" },
     { id: "p2", status: "COMPLETED", order_id: "o2", source_type: "CARD", amount_money: money(110), device_details: { device_name: "HH 4 - RESTAURANT" }, team_member_id: "tm-pauline" },
     { id: "p3", status: "FAILED", order_id: "o2", source_type: "CARD", amount_money: money(110), device_details: { device_name: "Register 2 - Cafe" }, team_member_id: "tm-x" },
-    { id: "p4", status: "COMPLETED", source_type: "CARD", amount_money: money(5) },
+    // No order id at all: Square counts it, so do we (1pm)
+    { id: "p4", status: "COMPLETED", source_type: "CARD", amount_money: money(5), created_at: "2026-10-04T03:00:00Z" },
+    // Part payment on the open table T12 (noon): a sale now, the rest owing
+    { id: "p5", status: "COMPLETED", order_id: "t1", source_type: "CARD", amount_money: money(60), created_at: "2026-10-04T02:10:00Z", device_details: { device_name: "HH 4 - RESTAURANT" }, team_member_id: "tm-pauline" },
+    // Order the orders search has not returned yet (2pm), $4 of it refunded
+    { id: "p6", status: "COMPLETED", order_id: "o-not-fetched", source_type: "CARD", amount_money: money(24), refunded_money: money(4), created_at: "2026-10-04T04:00:00Z" },
+    // Refunded in full: nothing to count
+    { id: "p7", status: "COMPLETED", source_type: "CARD", amount_money: money(10), refunded_money: money(10), created_at: "2026-10-04T04:30:00Z" },
   ]
   const catalog = (id?: string) => ({ "v-smoothie": { reportingCategory: "Juice Bar" }, "v-croissant": { reportingCategory: "Pastries" }, "v-fish": { reportingCategory: "Restaurant Food" }, "v-sando": { reportingCategory: "Cafe Food" }, "v-wine": { reportingCategory: "Restaurant Wine & Beer" } } as Record<string, { reportingCategory: string }>)[id ?? ""]
   const team = (id?: string) => ({ "tm-baily": "Baily Roberts", "tm-pauline": "Pauline Stefani" } as Record<string, string>)[id ?? ""]
 
   const b = computeDayBreakdown("2026-10-04", orders, payments, catalog, team)
-  // o1 35.18 + o2 (110 incl tip? total_money 100, tip 10 -> 90) + Bopple 41.5
-  assert.equal(b.paidIncGst, 35.18 + 90 + 41.5)
+  // o1 35.18 + o2 (total_money 100, tip 10 -> 90) + Bopple 41.5
+  // + part payment 60 on T12 + orderless 5 + unfetched order 24 - 4 refunded (+ nothing from the fully refunded p7)
+  const paidOrdersTotal = 35.18 + 90 + 41.5
+  assert.equal(b.paidIncGst, Math.round((paidOrdersTotal + 60 + 5 + 20) * 100) / 100)
+  assert.equal(b.partPaidIncGst, 60)
   assert.equal(b.tipsIncGst, 10)
-  assert.equal(b.paidOrders, 3)
+  assert.equal(b.paidOrders, 3 + 2) // the two stray payments with money count as transactions, the part payment does not
   assert.equal(b.openTables, 1)
-  assert.equal(b.openTablesIncGst, 180)
+  assert.equal(b.openTablesIncGst, 120) // 180 on the table, 60 of it already tapped
   assert.equal(b.surchargeIncGst, 1.68)
   assert.equal(b.surchargeName, "Sunday Surcharge")
-  assert.equal(b.avgTransaction, Math.round(((35.18 + 90 + 41.5) / 3) * 100) / 100)
-  // Hours: o1 23:05Z -> 9am, o2 01:30Z -> 11am, b1 created 00:10Z -> 10am
+  assert.equal(b.avgTransaction, Math.round(((paidOrdersTotal + 60 + 5 + 20) / 5) * 100) / 100)
+  // Hours: o1 23:05Z -> 9am, o2 01:30Z -> 11am, b1 created 00:10Z -> 10am,
+  // part payment 02:10Z -> noon, orderless 03:00Z -> 1pm, unfetched 04:00Z -> 2pm
   assert.equal(b.hourly[9], 35.18); assert.equal(b.hourly[11], 90); assert.equal(b.hourly[10], 41.5)
-  assert.equal(b.hourlyOrders.reduce((s, n) => s + n, 0), 3)
+  assert.equal(b.hourly[12], 60); assert.equal(b.hourly[13], 5); assert.equal(b.hourly[14], 20)
+  assert.equal(b.hourlyOrders.reduce((s, n) => s + n, 0), 5)
   assert.deepEqual(b.channels.CAFE, { sales: 35.18, orders: 1 })
   assert.deepEqual(b.channels.RESTAURANT, { sales: 90, orders: 1 })
   assert.deepEqual(b.channels.ONLINE, { sales: 41.5, orders: 1 })
@@ -70,7 +82,29 @@ test("computeDayBreakdown: paid vs open, surcharge, tips excluded, channels, reg
   const pastries = b.groups.find((g) => g.name === "Pastries")!
   assert.equal(pastries.qty, 2); assert.equal(pastries.sales, 20.5); assert.equal(pastries.topItems[0].name, "Croissant")
   assert.equal(b.groups.find((g) => g.name === "Restaurant Wine & Beer"), undefined) // open table not counted
-  assert.equal(b.unmatchedPayments, 1)
+  assert.equal(b.unmatchedPayments, 3) // p4, p6, p7
+})
+
+test("computeDayBreakdown: a fully paid open table (part payments covering the bill) is a paid order, not owing", () => {
+  const orders: Array<SquareOrder & Record<string, unknown>> = [
+    { id: "t9", state: "OPEN", created_at: "2026-10-04T02:00:00Z", total_money: money(100), tenders: [{ type: "CARD", amount_money: money(50) }, { type: "CARD", amount_money: money(50) }], net_amount_due_money: money(0), source: { name: "Point of Sale" },
+      line_items: [{ name: "Wine", quantity: "2", total_money: money(100), catalog_object_id: "v-wine" }] },
+    { id: "t10", state: "OPEN", created_at: "2026-10-04T02:05:00Z", total_money: money(80), tenders: [{ type: "CARD", amount_money: money(30) }], source: { name: "Point of Sale" },
+      line_items: [{ name: "Beer", quantity: "4", total_money: money(80), catalog_object_id: "v-beer" }] },
+  ]
+  const payments: Array<SquarePayment & Record<string, unknown>> = [
+    { id: "q1", status: "COMPLETED", order_id: "t9", source_type: "CARD", amount_money: money(50), created_at: "2026-10-04T02:20:00Z" },
+    { id: "q2", status: "COMPLETED", order_id: "t9", source_type: "CARD", amount_money: money(50), created_at: "2026-10-04T02:25:00Z" },
+    { id: "q3", status: "COMPLETED", order_id: "t10", source_type: "CARD", amount_money: money(30), created_at: "2026-10-04T02:30:00Z" },
+  ]
+  const b = computeDayBreakdown("2026-10-04", orders, payments, () => undefined, () => undefined)
+  assert.equal(b.paidIncGst, 130) // t9 in full as a paid order, 30 tapped on t10
+  assert.equal(b.partPaidIncGst, 30)
+  assert.equal(b.paidOrders, 1)
+  assert.equal(b.openTables, 1)
+  assert.equal(b.openTablesIncGst, 50)
+  assert.equal(b.unmatchedPayments, 0)
+  assert.equal(b.hourly[12], 130)
 })
 
 test("computeDayBreakdown: empty day", () => {
