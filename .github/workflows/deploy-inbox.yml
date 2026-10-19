@@ -1,0 +1,87 @@
+# Deploy Tarte Inbox on demand. Inbox lives on the same droplet as Kitchen
+# (/root/tarte-inbox) and its own repo has no deploy workflow or deploy key,
+# so this reuses Kitchen's DROPLET_SSH_KEY to run Inbox's scripts/deploy.sh,
+# which fetches origin/main of tarte-inbox, rebuilds, restarts and waits for
+# /health (rolling back is documented in tarte-inbox/DEPLOY.md).
+#
+# Run it from the Actions tab (workflow_dispatch) or the API after pushing to
+# tarte-inbox main. It never runs on a Kitchen push.
+
+name: Deploy Inbox
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-inbox
+  cancel-in-progress: false
+
+env:
+  DROPLET_HOST: 134.199.157.138
+  DROPLET_USER: root
+  APP_DIR: /root/tarte-inbox
+
+jobs:
+  deploy:
+    name: Deploy Inbox to droplet
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Install the deploy key
+        env:
+          KEY: ${{ secrets.DROPLET_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DROPLET_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::error::DROPLET_SSH_KEY secret is not set (see README, Deploy on merge)."
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          flat=$(printf '%s' "$KEY" | tr -d '\r' | tr '\n' ' ')
+          body=$(printf '%s' "$flat" \
+            | sed -n 's/.*-----BEGIN OPENSSH PRIVATE KEY-----\(.*\)-----END OPENSSH PRIVATE KEY-----.*/\1/p' \
+            | tr -d ' \t')
+          if [ -z "$body" ]; then
+            candidate=$(printf '%s' "$flat" | tr -d ' \t' | sed 's/^.*\(b3BlbnNzaC1rZXktdjE\)/\1/')
+            case "$candidate" in
+              b3BlbnNzaC1rZXktdjE*) body="$candidate" ;;
+            esac
+          fi
+          if [ -z "$body" ]; then
+            echo "::error::DROPLET_SSH_KEY is not an OpenSSH private key."
+            exit 1
+          fi
+          {
+            echo "-----BEGIN OPENSSH PRIVATE KEY-----"
+            printf '%s' "$body" | fold -w 70
+            echo
+            echo "-----END OPENSSH PRIVATE KEY-----"
+          } > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null
+          if [ -n "$KNOWN_HOSTS" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -H "$DROPLET_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Run tarte-inbox scripts/deploy.sh on the droplet
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o IdentitiesOnly=yes \
+              -o ConnectTimeout=20 \
+              -o ServerAliveInterval=30 \
+              "$DROPLET_USER@$DROPLET_HOST" \
+              "cd $APP_DIR && ./scripts/deploy.sh"
+
+      - name: Confirm Inbox answers
+        run: |
+          sleep 5
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 https://inbox.tarte.com.au/health)
+          echo "inbox.tarte.com.au/health -> $code"
+          case "$code" in
+            200|401) exit 0 ;;
+            *) echo "::error::Inbox returned $code after deploy"; exit 1 ;;
+          esac
