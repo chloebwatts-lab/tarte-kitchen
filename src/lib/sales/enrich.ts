@@ -10,6 +10,11 @@ import { db } from "@/lib/db"
 import { Venue } from "@/generated/prisma/client"
 import Decimal from "decimal.js"
 import Fuse from "fuse.js"
+import {
+  expandDishUsage,
+  type UsageAccumulator,
+  type UsagePreparation,
+} from "./theoretical-usage"
 
 /**
  * For any DailySales rows on (date, venue) without a dishId, fuzzy-match them
@@ -106,90 +111,52 @@ export async function calculateTheoreticalCogs(
 
 /**
  * Expand dish-matched sales into theoretical ingredient-level usage,
- * upserting into TheoreticalUsage. Follows preparations recursively (one
- * level, matches prior behaviour).
+ * upserting into TheoreticalUsage.
+ *
+ * Each dish sold takes its SHARE of a preparation batch (300 g of an
+ * 11,250 g batch is 300/11250 of the batch's cream), quantities land in
+ * the ingredient's base unit (g / ml / ea) and sub-preparations are
+ * followed. The old version charged a whole batch per dish, which put
+ * Beach House thickened cream at 25x what was bought. Pure logic lives in
+ * ./theoretical-usage.ts.
  */
 export async function calculateTheoreticalUsage(date: Date, venue: Venue) {
+  const ingredientSelect = {
+    id: true,
+    baseUnitType: true,
+    gramsPerUnit: true,
+  } as const
+
   const matchedSales = await db.dailySales.findMany({
     where: { date, venue, dishId: { not: null } },
     include: {
       dish: {
         include: {
-          components: {
-            include: {
-              ingredient: {
-                select: {
-                  id: true,
-                  purchasePrice: true,
-                  baseUnitsPerPurchase: true,
-                  wastePercentage: true,
-                },
-              },
-              preparation: {
-                include: {
-                  items: {
-                    include: {
-                      ingredient: {
-                        select: {
-                          id: true,
-                          purchasePrice: true,
-                          baseUnitsPerPurchase: true,
-                          wastePercentage: true,
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
+          components: { include: { ingredient: { select: ingredientSelect } } },
         },
       },
     },
   })
 
-  const usageMap = new Map<
-    string,
-    { qty: Decimal; cost: Decimal; unit: string }
-  >()
+  if (matchedSales.length === 0) return
 
+  // Every preparation with its items, once, so sub-prep chains of any depth
+  // resolve in memory instead of a nested include per dish.
+  const prepRows = await db.preparation.findMany({
+    select: {
+      id: true,
+      yieldQuantity: true,
+      yieldUnit: true,
+      yieldWeightGrams: true,
+      items: { include: { ingredient: { select: ingredientSelect } } },
+    },
+  })
+  const preps = new Map<string, UsagePreparation>(prepRows.map((p) => [p.id, p]))
+
+  const usageMap: UsageAccumulator = new Map()
   for (const sale of matchedSales) {
     if (!sale.dish) continue
-    const multiplier = sale.quantitySold
-
-    for (const comp of sale.dish.components) {
-      if (comp.ingredientId && comp.ingredient) {
-        const key = comp.ingredientId
-        const existing = usageMap.get(key) ?? {
-          qty: new Decimal(0),
-          cost: new Decimal(0),
-          unit: comp.unit,
-        }
-        existing.qty = existing.qty.plus(new Decimal(comp.quantity).mul(multiplier))
-        existing.cost = existing.cost.plus(new Decimal(comp.lineCost).mul(multiplier))
-        usageMap.set(key, existing)
-      }
-
-      if (comp.preparationId && comp.preparation) {
-        for (const prepItem of comp.preparation.items) {
-          if (prepItem.ingredientId && prepItem.ingredient) {
-            const key = prepItem.ingredientId
-            const existing = usageMap.get(key) ?? {
-              qty: new Decimal(0),
-              cost: new Decimal(0),
-              unit: prepItem.unit,
-            }
-            existing.qty = existing.qty.plus(
-              new Decimal(prepItem.quantity).mul(multiplier)
-            )
-            existing.cost = existing.cost.plus(
-              new Decimal(prepItem.lineCost).mul(multiplier)
-            )
-            usageMap.set(key, existing)
-          }
-        }
-      }
-    }
+    expandDishUsage(sale.dish.components, sale.quantitySold, preps, usageMap)
   }
 
   for (const [ingredientId, data] of usageMap) {
@@ -212,4 +179,10 @@ export async function calculateTheoreticalUsage(date: Date, venue: Venue) {
       },
     })
   }
+
+  // Ingredients that no longer appear (recipe changed, or a stale row from
+  // the old over-counting) must not linger at their old value.
+  await db.theoreticalUsage.deleteMany({
+    where: { date, venue, ingredientId: { notIn: [...usageMap.keys()] } },
+  })
 }

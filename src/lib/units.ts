@@ -141,22 +141,23 @@ export function ingredientLineCost(
 }
 
 /**
- * Calculate the cost of using a preparation in a dish.
+ * Fraction of a preparation batch that a recipe line uses.
  *
  * Handles both gram-based and serve-based references:
- * - "100g of crumpets" → 100/3800 × batchCost
- * - "2 serves of crumpets" → 2/76 × batchCost
+ * - "100g of crumpets" from a 3800 g batch → 100/3800
+ * - "2 serves of crumpets" from a 76 serve batch → 2/76
+ *
+ * Shared by preparationLineCost (dish costing) and the theoretical usage
+ * expansion so cost and usage always agree on how much batch a dish takes.
  */
-export function preparationLineCost(
-  quantity: Decimal | number,
+export function preparationBatchFraction(
+  quantity: Decimal | number | string,
   unit: string,
-  batchCost: Decimal | number,
-  yieldQuantity: Decimal | number,
+  yieldQuantity: Decimal | number | string,
   yieldUnit: string,
-  yieldWeightGrams: Decimal | number
+  yieldWeightGrams: Decimal | number | string
 ): Decimal {
   const q = new Decimal(quantity)
-  const batch = new Decimal(batchCost)
   const yieldQty = new Decimal(yieldQuantity)
   const yieldGrams = new Decimal(yieldWeightGrams)
 
@@ -172,13 +173,32 @@ export function preparationLineCost(
     const baseQ = toBaseUnits(q, unitLower)           // ea→1, dozen→12, serve→1
     const baseYield = toBaseUnits(yieldQty, yieldUnitLower)
     if (baseYield.isZero()) return new Decimal(0)
-    return baseQ.div(baseYield).mul(batch)
+    return baseQ.div(baseYield)
   }
 
-  // For weight/volume units, convert to grams/ml and calculate fraction of total yield weight
+  // For weight/volume units, convert to grams/ml and take the fraction of total yield weight
   const baseQty = toBaseUnits(q, unitLower)
   if (yieldGrams.isZero()) return new Decimal(0)
-  return baseQty.div(yieldGrams).mul(batch)
+  return baseQty.div(yieldGrams)
+}
+
+/**
+ * Calculate the cost of using a preparation in a dish.
+ *
+ * - "100g of crumpets" → 100/3800 × batchCost
+ * - "2 serves of crumpets" → 2/76 × batchCost
+ */
+export function preparationLineCost(
+  quantity: Decimal | number,
+  unit: string,
+  batchCost: Decimal | number,
+  yieldQuantity: Decimal | number,
+  yieldUnit: string,
+  yieldWeightGrams: Decimal | number
+): Decimal {
+  return preparationBatchFraction(quantity, unit, yieldQuantity, yieldUnit, yieldWeightGrams).mul(
+    new Decimal(batchCost)
+  )
 }
 
 /**
