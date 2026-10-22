@@ -7,7 +7,7 @@
 import { db } from "@/lib/db"
 import type { Venue } from "@/generated/prisma/client"
 import { fetchDayOrders, listPayments, type SquareOrder, type SquarePayment } from "./client"
-import { getSquareConnection, getSquareAccessToken, squareLocations } from "./token"
+import { squareAccessFor } from "./token"
 import { computeDayBreakdown, type DayBreakdown } from "./breakdown"
 import { computeUpsell, type UpsellRow, type UnassignedModifier } from "@/lib/sales/upsell"
 import { loadGroups } from "./upsell-store"
@@ -17,12 +17,6 @@ const SQUARE_VERSION = "2025-07-16"
 
 function headers(token: string) {
   return { Authorization: `Bearer ${token}`, "Square-Version": SQUARE_VERSION, "Content-Type": "application/json" }
-}
-
-export async function squareLocationFor(venue: Venue): Promise<string | null> {
-  const conn = await getSquareConnection()
-  const loc = squareLocations(conn).find((l) => l.venue === venue)
-  return loc?.id ?? null
 }
 
 // ─── Catalogue cache ────────────────────────────────────────────────────────
@@ -189,9 +183,9 @@ export async function fetchLiveDay(venue: Venue, dateStr: string, opts: { force?
   const key = `${venue}|${dateStr}`
   const hit = cache.get(key)
   if (!opts.force && hit && Date.now() - hit.at < TTL_MS) return hit.value
-  const locationId = await squareLocationFor(venue)
-  if (!locationId) return null
-  const token = await getSquareAccessToken()
+  const access = await squareAccessFor(venue)
+  if (!access) return null
+  const { locationId, token } = access
   const [{ sales, openUnpaid }, payments] = await Promise.all([
     fetchDayOrders(token, locationId, dateStr),
     listPayments(token, locationId, dateStr),

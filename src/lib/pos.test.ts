@@ -2,11 +2,13 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 import { isSquareVenueOn, squareCutoverMap } from "./pos"
 
-test("defaults: Currumbin on Square from 1 Oct 2026, Burleigh still Lightspeed", () => {
+test("defaults: Currumbin on Square from 1 Oct 2026, Burleigh from 22 Oct 2026", () => {
   assert.equal(isSquareVenueOn("BEACH_HOUSE", "2026-09-30", ""), false)
   assert.equal(isSquareVenueOn("BEACH_HOUSE", "2026-10-01", ""), true)
   assert.equal(isSquareVenueOn("TEA_GARDEN", new Date("2026-10-15"), ""), true)
   assert.equal(isSquareVenueOn("BURLEIGH", "2026-10-15", ""), false)
+  assert.equal(isSquareVenueOn("BURLEIGH", "2026-10-21", ""), false)
+  assert.equal(isSquareVenueOn("BURLEIGH", "2026-10-22", ""), true)
 })
 
 test("SQUARE_CUTOVER env adds Burleigh and can clear a venue", () => {
@@ -18,6 +20,6 @@ test("SQUARE_CUTOVER env adds Burleigh and can clear a venue", () => {
 })
 
 test("malformed env keeps the defaults", () => {
-  assert.deepEqual(squareCutoverMap("not json"), { BEACH_HOUSE: "2026-10-01", TEA_GARDEN: "2026-10-01" })
-  assert.deepEqual(squareCutoverMap('{"BURLEIGH":"13/10/2026"}'), { BEACH_HOUSE: "2026-10-01", TEA_GARDEN: "2026-10-01" })
+  assert.deepEqual(squareCutoverMap("not json"), { BEACH_HOUSE: "2026-10-01", TEA_GARDEN: "2026-10-01", BURLEIGH: "2026-10-22" })
+  assert.deepEqual(squareCutoverMap('{"BURLEIGH":"13/10/2026"}'), { BEACH_HOUSE: "2026-10-01", TEA_GARDEN: "2026-10-01", BURLEIGH: "2026-10-22" })
 })

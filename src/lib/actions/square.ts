@@ -3,21 +3,24 @@
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import type { Prisma } from "@/generated/prisma/client"
-import { listLocations } from "@/lib/square/client"
-import { saveSquareConnection, getSquareStatus, getSquareConnection, type SquareLocationMapping } from "@/lib/square/token"
+import { listLocations, getMerchant } from "@/lib/square/client"
+import { saveSquareConnection, getSquareStatus, type SquareLocationMapping } from "@/lib/square/token"
 import { normalizeVenueSlug } from "@/lib/venues"
 import { syncSquareSales, aestDates } from "@/lib/square/sync"
 
-export type { SquareStatus } from "@/lib/square/token"
+export type { SquareStatus, SquareAccount } from "@/lib/square/token"
 
 export async function getSquareConnectionStatus() {
   return getSquareStatus()
 }
 
 /**
- * Chloe pastes a production access token from developer.squareup.com. We
- * prove it works (list locations), store it encrypted and pre-map each
- * location to a venue by name. The token itself never reaches the client.
+ * Chloe pastes a production access token from developer.squareup.com for
+ * ONE Square account (Currumbin or Burleigh; they are separate accounts).
+ * We prove it works (list locations), store it encrypted on that account's
+ * row and pre-map each location to a venue by name. Pasting a token for an
+ * account that is already connected replaces that account's token only.
+ * The token itself never reaches the client.
  */
 export async function connectSquare(formData: FormData): Promise<{ ok: boolean; error?: string }> {
   const token = String(formData.get("token") ?? "").trim()
@@ -25,12 +28,14 @@ export async function connectSquare(formData: FormData): Promise<{ ok: boolean; 
   try {
     const locations = await listLocations(token)
     if (!locations.length) return { ok: false, error: "Token works but has no active locations." }
+    const merchant = await getMerchant(token).catch(() => ({ id: locations[0].merchant_id ?? "", businessName: null }))
+    const merchantId = merchant.id || locations[0].merchant_id || null
     const mapped: SquareLocationMapping[] = locations.map((l) => ({
       id: l.id,
       name: l.name,
-      venue: normalizeVenueSlug(l.name) ?? "BEACH_HOUSE",
+      venue: normalizeVenueSlug(l.name) ?? normalizeVenueSlug(merchant.businessName ?? "") ?? "BURLEIGH",
     }))
-    await saveSquareConnection(token, locations[0].merchant_id ?? null, mapped)
+    await saveSquareConnection(token, merchantId, merchant.businessName, mapped)
     revalidatePath("/settings/integrations")
     return { ok: true }
   } catch (err) {
@@ -38,19 +43,18 @@ export async function connectSquare(formData: FormData): Promise<{ ok: boolean; 
   }
 }
 
-export async function disconnectSquare() {
-  await db.squareConnection.deleteMany()
+/** Remove one Square account; the others keep working. */
+export async function disconnectSquare(connectionId: string) {
+  await db.squareConnection.delete({ where: { id: connectionId } }).catch(() => {})
   revalidatePath("/settings/integrations")
 }
 
-export async function updateSquareLocationMapping(locations: SquareLocationMapping[]) {
-  const c = await getSquareConnection()
-  if (!c) throw new Error("Square not connected")
-  await db.squareConnection.update({ where: { id: c.id }, data: { locations: locations as unknown as Prisma.InputJsonValue } })
+export async function updateSquareLocationMapping(connectionId: string, locations: SquareLocationMapping[]) {
+  await db.squareConnection.update({ where: { id: connectionId }, data: { locations: locations as unknown as Prisma.InputJsonValue } })
   revalidatePath("/settings/integrations")
 }
 
-/** Manual "sync now": last `days` AEST days ending today. */
+/** Manual "sync now": last `days` AEST days ending today, every account. */
 export async function syncSquareNow(days = 2) {
   const safe = Math.max(1, Math.min(14, Math.floor(days)))
   try {
@@ -59,8 +63,6 @@ export async function syncSquareNow(days = 2) {
     return { ok: true as const, results }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    const c = await getSquareConnection()
-    if (c) await db.squareConnection.update({ where: { id: c.id }, data: { lastError: msg } })
     revalidatePath("/settings/integrations")
     return { ok: false as const, error: msg }
   }

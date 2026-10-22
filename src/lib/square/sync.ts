@@ -8,7 +8,8 @@ import {
   calculateTheoreticalUsage,
 } from "@/lib/sales/enrich"
 import { fetchDayOrders, listPayments, aggregateOrders, aggregatePayments, cents } from "./client"
-import { getSquareConnection, getSquareAccessToken, squareLocations } from "./token"
+import { getSquareConnections, accessTokenOf, squareLocations } from "./token"
+import { isSquareVenueOn } from "@/lib/pos"
 import { computeDayBreakdown } from "./breakdown"
 import { resolveCatalog, resolveTeam, persistDayBreakdown, resolveModifiers, modifierIdsOf } from "./live"
 import { dayOrderRows, persistDayOrders } from "./day-orders"
@@ -42,8 +43,10 @@ export function aestDates(days: number, now = new Date()): string[] {
 }
 
 /**
- * Pull closed orders + payments from Square for each mapped location and
- * write item-level DailySales (source API) plus the day's summary. Rules:
+ * Pull closed orders + payments from Square for each mapped location of
+ * each connected account and write item-level DailySales (source API) plus
+ * the day's summary. One account failing (expired token) does not stop the
+ * others; its error lands on its own row. Rules:
  *  - Item rows always refresh (the Square daily email has no items, so the
  *    API is the only item source for Square venues).
  *  - The summary is written only while no EMAIL row exists for that day:
@@ -52,18 +55,43 @@ export function aestDates(days: number, now = new Date()): string[] {
  *    card takings are still filled in on an EMAIL row when they are empty.
  */
 export async function syncSquareSales(dates: string[]): Promise<SquareSyncResult[]> {
-  const conn = await getSquareConnection()
-  if (!conn) throw new Error("Square not connected")
-  const token = await getSquareAccessToken()
-  const locations = squareLocations(conn)
+  const conns = await getSquareConnections()
+  if (!conns.length) throw new Error("Square not connected")
   const results: SquareSyncResult[] = []
+  const failures: string[] = []
+  for (const conn of conns) {
+    try {
+      const token = accessTokenOf(conn)
+      await syncAccount(token, squareLocations(conn), dates, results)
+      await db.squareConnection.update({ where: { id: conn.id }, data: { lastSyncAt: new Date(), lastError: null } })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      failures.push(`${conn.merchantName ?? conn.merchantId ?? conn.id}: ${msg}`)
+      await db.squareConnection.update({ where: { id: conn.id }, data: { lastError: msg } }).catch(() => {})
+    }
+  }
+  if (failures.length === conns.length) throw new Error(failures.join("; "))
+  return results
+}
 
+async function syncAccount(
+  token: string,
+  locations: ReturnType<typeof squareLocations>,
+  dates: string[],
+  results: SquareSyncResult[]
+): Promise<void> {
   for (const dateStr of dates) {
     const dateObj = new Date(dateStr)
     for (const loc of locations) {
       const venue = normalizeVenueSlug(loc.venue) as Venue | null
       if (!venue || venue === "BOTH") {
         results.push({ venue: loc.venue, date: dateStr, items: 0, orders: 0, totalIncGst: 0, openTablesIncGst: 0, fees: 0, cardTakings: 0, summaryWritten: false, skipped: "unmapped location" })
+        continue
+      }
+      // Before the venue's cutover the Lightspeed figures are the truth
+      // (Burleigh's split day, test sales before go-live).
+      if (!isSquareVenueOn(venue, dateStr)) {
+        results.push({ venue, date: dateStr, items: 0, orders: 0, totalIncGst: 0, openTablesIncGst: 0, fees: 0, cardTakings: 0, summaryWritten: false, skipped: "before Square cutover" })
         continue
       }
       const [{ sales: orders, openUnpaid }, payments] = await Promise.all([
@@ -106,7 +134,10 @@ export async function syncSquareSales(dates: string[]): Promise<SquareSyncResult
         select: { source: true, fees: true, cardTakings: true },
       })
       let summaryWritten = false
-      if (existingSummary?.source === "EMAIL") {
+      if (!existingSummary && agg.orderCount === 0 && payments.length === 0 && agg.returnsIncGst.eq(0)) {
+        // Nothing rung up and nothing taken: a closed day (Tea Garden on a
+        // Monday). No row, so the comparisons treat it as absent, not $0.
+      } else if (existingSummary?.source === "EMAIL") {
         await db.dailySalesSummary.update({
           where: { date_venue: { date: dateObj, venue } },
           data: {
@@ -181,10 +212,4 @@ export async function syncSquareSales(dates: string[]): Promise<SquareSyncResult
       })
     }
   }
-
-  await db.squareConnection.update({
-    where: { id: conn.id },
-    data: { lastSyncAt: new Date(), lastError: null },
-  })
-  return results
 }

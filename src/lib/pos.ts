@@ -3,8 +3,11 @@ import type { Venue } from "@/generated/prisma/client"
 /**
  * Which POS is the source of truth for a venue on a given trading day.
  *
- * Square went live at Currumbin (Beach House + Tea Garden) on Thu 1 Oct 2026;
- * Burleigh follows (~13 Oct 2026). Until a venue's cutover, Lightspeed EOD
+ * Square went live at Currumbin (Beach House + Tea Garden) on Thu 1 Oct 2026
+ * and at Burleigh on Wed 21 Oct 2026 from about 3pm (the morning was still
+ * on Lightspeed, so 22 Oct is Burleigh's first full Square day and its
+ * cutover here; 21 Oct is a split day fixed by hand). Until a venue's
+ * cutover, Lightspeed EOD
  * emails / API fill DailySalesSummary; from the cutover the Square daily
  * summary email does, and the Lightspeed importers must not overwrite it
  * (Lightspeed keeps emailing $0 reports for a venue after its tills go dark).
@@ -16,6 +19,7 @@ import type { Venue } from "@/generated/prisma/client"
 const DEFAULT_SQUARE_CUTOVER: Partial<Record<Venue, string>> = {
   BEACH_HOUSE: "2026-10-01",
   TEA_GARDEN: "2026-10-01",
+  BURLEIGH: "2026-10-22",
 }
 
 export function squareCutoverMap(

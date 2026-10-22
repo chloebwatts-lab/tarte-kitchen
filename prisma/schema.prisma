@@ -447,11 +447,16 @@ model DishComponent {
 // Square (POS from 1 Oct 2026). A production access token pasted in by
 // Chloe from the Square developer dashboard; encrypted at rest. No refresh:
 // Square personal access tokens do not expire.
+/// One row per Square ACCOUNT. Currumbin (Beach House + Tea Garden) and
+/// Burleigh are separate Square accounts, one per legal entity, each with
+/// its own access token; a venue's token is the one on the row whose
+/// locations map to it.
 model SquareConnection {
-  id          String    @id @default(cuid())
-  accessToken String    // Encrypted at rest via TOKEN_ENCRYPTION_KEY
-  merchantId  String?
-  locations   Json?     // Array of {id, name, venue}
+  id           String    @id @default(cuid())
+  accessToken  String    // Encrypted at rest via TOKEN_ENCRYPTION_KEY
+  merchantId   String?
+  merchantName String?   // Square business name ("Tarte Bakery")
+  locations    Json?     // Array of {id, name, venue}
   connectedAt DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   lastSyncAt  DateTime?

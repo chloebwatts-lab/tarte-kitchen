@@ -1,8 +1,7 @@
 export const dynamic = "force-dynamic"
 
-import { db } from "@/lib/db"
 import { syncSquareSales, aestDates } from "@/lib/square/sync"
-import { getSquareConnection } from "@/lib/square/token"
+import { getSquareConnections } from "@/lib/square/token"
 
 /**
  * Square Orders + Payments API poll. ?days=N (1-14, default 1 = yesterday
@@ -13,8 +12,8 @@ export async function GET(request: Request) {
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 })
   }
-  const conn = await getSquareConnection()
-  if (!conn) return Response.json({ error: "Square not connected" }, { status: 400 })
+  const conns = await getSquareConnections()
+  if (!conns.length) return Response.json({ error: "Square not connected" }, { status: 400 })
 
   const url = new URL(request.url)
   const daysParam = parseInt(url.searchParams.get("days") ?? "", 10)
@@ -27,7 +26,6 @@ export async function GET(request: Request) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error("[sync-square-sales]", err)
-    await db.squareConnection.update({ where: { id: conn.id }, data: { lastError: msg } }).catch(() => {})
     return Response.json({ error: msg }, { status: 500 })
   }
 }
