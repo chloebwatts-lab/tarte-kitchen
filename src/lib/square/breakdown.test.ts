@@ -36,7 +36,8 @@ test("computeDayBreakdown: paid vs open, surcharge, tips excluded, channels, reg
       line_items: [{ name: "Chicken Sandwich", quantity: "1", total_money: money(41.5), catalog_object_id: "v-sando" }] },
     { id: "t1", state: "OPEN", created_at: "2026-10-04T02:00:00Z", total_money: money(180), tenders: [], source: { name: "Point of Sale" }, ticket_name: "T12",
       line_items: [{ name: "Wine", quantity: "2", total_money: money(180), catalog_object_id: "v-wine" }] },
-    { id: "r1", state: "COMPLETED", closed_at: "2026-10-04T02:30:00Z", total_money: money(0), returns: [{}], return_amounts: { total_money: money(30) }, line_items: [] },
+    // Refund of $30 given at 12:30pm against o2 (a restaurant sale): off the day, off noon, off RESTAURANT
+    { id: "r1", state: "COMPLETED", closed_at: "2026-10-04T02:30:00Z", total_money: money(0), returns: [{ source_order_id: "o2" }], return_amounts: { total_money: money(30) }, line_items: [] },
   ]
   const payments: Array<SquarePayment & Record<string, unknown>> = [
     { id: "p1", status: "COMPLETED", order_id: "o1", source_type: "CARD", amount_money: money(35.18), device_details: { device_name: "Register 3 - Cafe" }, team_member_id: "tm-baily" },
@@ -57,23 +58,26 @@ test("computeDayBreakdown: paid vs open, surcharge, tips excluded, channels, reg
   const b = computeDayBreakdown("2026-10-04", orders, payments, catalog, team)
   // o1 35.18 + o2 (total_money 100, tip 10 -> 90) + Bopple 41.5
   // + part payment 60 on T12 + orderless 5 + unfetched order 24 - 4 refunded (+ nothing from the fully refunded p7)
+  // - the $30 refund on r1
   const paidOrdersTotal = 35.18 + 90 + 41.5
-  assert.equal(b.paidIncGst, Math.round((paidOrdersTotal + 60 + 5 + 20) * 100) / 100)
+  const dayTotal = Math.round((paidOrdersTotal + 60 + 5 + 20 - 30) * 100) / 100
+  assert.equal(b.paidIncGst, dayTotal)
+  assert.equal(b.returnsIncGst, 30)
   assert.equal(b.partPaidIncGst, 60)
   assert.equal(b.tipsIncGst, 10)
-  assert.equal(b.paidOrders, 3 + 2) // the two stray payments with money count as transactions, the part payment does not
+  assert.equal(b.paidOrders, 3 + 2) // the two stray payments with money count as transactions, the part payment and the refund do not
   assert.equal(b.openTables, 1)
   assert.equal(b.openTablesIncGst, 120) // 180 on the table, 60 of it already tapped
   assert.equal(b.surchargeIncGst, 1.68)
   assert.equal(b.surchargeName, "Sunday Surcharge")
-  assert.equal(b.avgTransaction, Math.round(((paidOrdersTotal + 60 + 5 + 20) / 5) * 100) / 100)
+  assert.equal(b.avgTransaction, Math.round((dayTotal / 5) * 100) / 100)
   // Hours: o1 23:05Z -> 9am, o2 01:30Z -> 11am, b1 created 00:10Z -> 10am,
-  // part payment 02:10Z -> noon, orderless 03:00Z -> 1pm, unfetched 04:00Z -> 2pm
+  // part payment 02:10Z -> noon less the 02:30Z refund, orderless 03:00Z -> 1pm, unfetched 04:00Z -> 2pm
   assert.equal(b.hourly[9], 35.18); assert.equal(b.hourly[11], 90); assert.equal(b.hourly[10], 41.5)
-  assert.equal(b.hourly[12], 60); assert.equal(b.hourly[13], 5); assert.equal(b.hourly[14], 20)
+  assert.equal(b.hourly[12], 30); assert.equal(b.hourly[13], 5); assert.equal(b.hourly[14], 20)
   assert.equal(b.hourlyOrders.reduce((s, n) => s + n, 0), 5)
   assert.deepEqual(b.channels.CAFE, { sales: 35.18, orders: 1 })
-  assert.deepEqual(b.channels.RESTAURANT, { sales: 90, orders: 1 })
+  assert.deepEqual(b.channels.RESTAURANT, { sales: 60, orders: 1 }) // 90 less the 30 refunded on o2
   assert.deepEqual(b.channels.ONLINE, { sales: 41.5, orders: 1 })
   assert.equal(b.registers.find((r) => r.name === "Bopple")?.channel, "ONLINE")
   assert.equal(b.registers.find((r) => r.name === "Register 3 - Cafe")?.avgSale, 35.18)
@@ -516,4 +520,91 @@ test("reportingGroup: blank and whitespace-only categories are Uncategorised; a 
   assert.equal(reportingGroup(""), "Uncategorised")
   assert.equal(reportingGroup("   "), "Uncategorised")
   assert.equal(reportingGroup("Sides"), "Sides")
+})
+
+test("computeDayBreakdown: a refund given today comes off gross sales even when the sale it refunds is not in today's orders", () => {
+  // Beach House 21 Oct 2026 in miniature: $9,696.45 of orders, an $8.60 tip
+  // inside one of them, and a $19 return order with zero totals of its own.
+  const orders: Array<SquareOrder & Record<string, unknown>> = [
+    { id: "a", state: "COMPLETED", closed_at: "2026-10-21T00:00:00Z", total_money: money(9000), total_tip_money: money(8.6), source: { name: "Point of Sale" },
+      line_items: [{ name: "Day", quantity: "1", total_money: money(8991.4), catalog_object_id: "v-day" }] },
+    { id: "b", state: "COMPLETED", closed_at: "2026-10-21T03:00:00Z", total_money: money(705.05), total_tip_money: money(0), source: { name: "Point of Sale" },
+      line_items: [{ name: "Night", quantity: "1", total_money: money(705.05), catalog_object_id: "v-night" }] },
+    // Refund of yesterday's sale at 2pm: Square counts it against today
+    { id: "r", state: "COMPLETED", closed_at: "2026-10-21T04:00:00Z", total_money: money(0), total_tip_money: money(0), line_items: [], returns: [{ source_order_id: "yesterday" }], return_amounts: { total_money: money(19), tax_money: money(1.73) } },
+  ]
+  const payments: Array<SquarePayment & Record<string, unknown>> = [
+    { id: "p1", status: "COMPLETED", order_id: "a", source_type: "CARD", amount_money: money(9008.6), device_details: { device_name: "Register 1 - Cafe" } },
+    { id: "p2", status: "COMPLETED", order_id: "b", source_type: "CARD", amount_money: money(705.05), device_details: { device_name: "HH 4 - RESTAURANT" } },
+  ]
+  const b = computeDayBreakdown("2026-10-21", orders, payments, () => undefined, () => undefined)
+  assert.equal(b.paidIncGst, 9677.45)
+  assert.equal(b.returnsIncGst, 19)
+  assert.equal(b.tipsIncGst, 8.6)
+  assert.equal(b.paidOrders, 2)
+  assert.equal(b.hourly[14], -19)
+  assert.equal(Math.round(b.hourly.reduce((s, v) => s + v, 0) * 100) / 100, 9677.45)
+  // The refunded sale is not in today's payments, so no channel is adjusted
+  assert.deepEqual(b.channels.CAFE, { sales: 8991.4, orders: 1 })
+  assert.deepEqual(b.channels.RESTAURANT, { sales: 705.05, orders: 1 })
+  assert.equal(b.unmatchedPayments, 0)
+})
+
+test("computeDayBreakdown: a return order whose own total is negative is not taken off twice", () => {
+  const orders: Array<SquareOrder & Record<string, unknown>> = [
+    { id: "a", state: "COMPLETED", closed_at: "2026-10-21T00:00:00Z", total_money: money(100), total_tip_money: money(0), source: { name: "Point of Sale" },
+      line_items: [{ name: "Day", quantity: "1", total_money: money(100), catalog_object_id: "v-day" }] },
+    { id: "r", state: "COMPLETED", closed_at: "2026-10-21T01:00:00Z", total_money: money(-19), line_items: [], returns: [{ source_order_id: "a" }], return_amounts: { total_money: money(19) } },
+    // A return order with nothing in it changes nothing
+    { id: "r0", state: "COMPLETED", closed_at: "2026-10-21T01:00:00Z", total_money: money(0), line_items: [], returns: [{}], return_amounts: { total_money: money(0) } },
+  ]
+  const b = computeDayBreakdown("2026-10-21", orders, [], () => undefined, () => undefined)
+  assert.equal(b.paidIncGst, 81)
+  assert.equal(b.returnsIncGst, 19)
+  assert.equal(b.paidOrders, 1)
+})
+
+test("computeDayBreakdown: the surcharge is what it added to the bill inc GST (applied_money), total_money only as a fallback", () => {
+  const orders: Array<SquareOrder & Record<string, unknown>> = [
+    { id: "s1", state: "COMPLETED", closed_at: "2026-10-18T01:00:00Z", total_money: money(178.15), total_tip_money: money(0), source: { name: "Point of Sale" },
+      service_charges: [{ name: "Sunday Surcharge", applied_money: money(16.2), total_money: money(14.73) }],
+      line_items: [{ name: "Lunch", quantity: "1", total_money: money(161.95), catalog_object_id: "v-lunch" }] },
+    { id: "s2", state: "COMPLETED", closed_at: "2026-10-18T02:00:00Z", total_money: money(55), total_tip_money: money(0), source: { name: "Point of Sale" },
+      service_charges: [{ name: "Sunday Surcharge", total_money: money(5) }],
+      line_items: [{ name: "Brunch", quantity: "1", total_money: money(50), catalog_object_id: "v-brunch" }] },
+  ]
+  const b = computeDayBreakdown("2026-10-18", orders, [], () => undefined, () => undefined)
+  assert.equal(b.surchargeIncGst, 21.2)
+  assert.equal(b.paidIncGst, 233.15)
+})
+
+test("computeDayBreakdown: a refund bigger than the day's sales goes negative rather than clamping, and empty or null return shells change nothing", () => {
+  // Thursday morning at Burleigh: one $26.90 brekkie, then a $60 refund of a
+  // table from the night before, rung against the same register's sale.
+  const orders: Array<SquareOrder & Record<string, unknown>> = [
+    { id: "s1", state: "COMPLETED", closed_at: "2026-10-22T00:00:00Z", total_money: money(26.9), total_tip_money: money(0), source: { name: "Point of Sale" },
+      line_items: [{ name: "Chilli Benny (Bacon)", quantity: "1", total_money: money(26.9), catalog_object_id: "v-benny" }] },
+    { id: "r1", state: "COMPLETED", closed_at: "2026-10-22T04:00:00Z", total_money: money(0), line_items: [], returns: [{ source_order_id: "s1" }], return_amounts: { total_money: money(60), tax_money: money(5.45) } },
+    // Return shell with no amounts at all (null return_amounts, no totals): ignored
+    { id: "r2", state: "COMPLETED", closed_at: "2026-10-22T04:10:00Z", returns: [{ source_order_id: "s1" }] },
+    // Return shell with a zero amount: ignored
+    { id: "r3", state: "COMPLETED", closed_at: "2026-10-22T04:20:00Z", total_money: money(0), line_items: [], returns: [{}], return_amounts: { total_money: money(0) } },
+  ]
+  const payments: Array<SquarePayment & Record<string, unknown>> = [
+    { id: "p1", status: "COMPLETED", order_id: "s1", source_type: "CARD", amount_money: money(26.9), created_at: "2026-10-22T00:00:00Z", device_details: { device_name: "Register 1 - Cafe" } },
+  ]
+  const b = computeDayBreakdown("2026-10-22", orders, payments, () => undefined, () => undefined)
+  assert.equal(b.paidIncGst, -33.1)
+  assert.equal(b.returnsIncGst, 60)
+  assert.equal(b.paidOrders, 1)
+  assert.equal(b.avgTransaction, -33.1)
+  assert.equal(b.hourly[10], 26.9)
+  assert.equal(b.hourly[14], -60)
+  assert.equal(Math.round(b.hourly.reduce((s, v) => s + v, 0) * 100) / 100, -33.1)
+  assert.equal(b.hourlyOrders.reduce((s, n) => s + n, 0), 1)
+  // The refunded sale was paid on the cafe register today, so the cafe channel wears it
+  assert.deepEqual(b.channels.CAFE, { sales: -33.1, orders: 1 })
+  assert.deepEqual(b.channels.RESTAURANT, { sales: 0, orders: 0 })
+  assert.equal(b.registers.find((r) => r.name === "Register 1 - Cafe")?.sales, 26.9)
+  assert.equal(b.unmatchedPayments, 0)
 })

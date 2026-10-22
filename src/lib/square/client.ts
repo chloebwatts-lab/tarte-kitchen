@@ -62,8 +62,11 @@ export interface SquareOrder {
   total_money?: Money
   total_tax_money?: Money
   total_discount_money?: Money
-  return_amounts?: { total_money?: Money }
-  returns?: unknown[]
+  total_tip_money?: Money
+  /** Money handed back on a return order (inc tax), with the tax inside it. */
+  return_amounts?: { total_money?: Money; tax_money?: Money }
+  /** Items returned; a refund of a completed sale lands as its own order with no line items. */
+  returns?: Array<{ source_order_id?: string }>
   tenders?: SquareTender[]
   net_amount_due_money?: Money
   /** Open ticket / table name on Square for Restaurants orders. */
@@ -101,6 +104,12 @@ async function squareFetch<T>(
     throw new Error(`Square ${path} failed: ${res.status} ${body.slice(0, 300)}`)
   }
   return (await res.json()) as T
+}
+
+/** The account's business name ("Tarte Bakery") and merchant id. */
+export async function getMerchant(accessToken: string): Promise<{ id: string; businessName: string | null }> {
+  const data = await squareFetch<{ merchant?: { id?: string; business_name?: string } }>(accessToken, "/merchants/me")
+  return { id: data.merchant?.id ?? "", businessName: data.merchant?.business_name ?? null }
 }
 
 export async function listLocations(accessToken: string): Promise<SquareLocation[]> {
@@ -278,11 +287,35 @@ export interface ItemAggregate {
 export interface OrderAggregate {
   items: ItemAggregate[]
   orderCount: number
-  /** Sum of order totals inc GST (what the customer paid, after discounts). */
+  /**
+   * Sales inc GST the way Square's dashboard and daily email count them
+   * ("Gross sales"): order totals less tips, less what return orders handed
+   * back. Beach House 21 Oct 2026: orders summed to $9,705.05, of which
+   * $8.60 was tips and $19.00 a refund; Square reported $9,677.45.
+   */
   totalIncGst: Decimal
+  /** GST inside totalIncGst (tax on the sales less tax handed back on returns). */
   totalTax: Decimal
   totalDiscount: Decimal
   returnsIncGst: Decimal
+  tipsIncGst: Decimal
+}
+
+/**
+ * What a return order (an itemised refund of a completed sale, which Square
+ * writes as a new COMPLETED order with no line items) hands back, inc GST,
+ * and the tax inside it. Null for any order that is not a return-only shell.
+ * Square sets the shell's own totals to zero and puts the money in
+ * return_amounts; a negative total is honoured too, in case it ever does.
+ */
+export function returnOnlyAmount(o: SquareOrder): { incGst: Decimal; tax: Decimal } | null {
+  if ((o.line_items?.length ?? 0) > 0 || (o.returns?.length ?? 0) === 0) return null
+  const total = cents(o.total_money).minus(cents(o.total_tip_money))
+  const tax = cents(o.total_tax_money)
+  return {
+    incGst: total.lt(0) ? total.neg() : cents(o.return_amounts?.total_money),
+    tax: tax.lt(0) ? tax.neg() : cents(o.return_amounts?.tax_money),
+  }
 }
 
 /**
@@ -297,16 +330,26 @@ export function aggregateOrders(orders: SquareOrder[]): OrderAggregate {
   let totalTax = new Decimal(0)
   let totalDiscount = new Decimal(0)
   let returnsIncGst = new Decimal(0)
+  let tipsIncGst = new Decimal(0)
   let orderCount = 0
 
   for (const order of orders) {
     const lineItems = order.line_items ?? []
-    const isReturnOnly = lineItems.length === 0 && (order.returns?.length ?? 0) > 0
-    if (!isReturnOnly) orderCount++
-    totalIncGst = totalIncGst.plus(cents(order.total_money))
+    const back = returnOnlyAmount(order)
+    if (back) {
+      // A refund: not an order, and it comes off the day's sales (Square's
+      // "Returns" line) on the day it was given.
+      returnsIncGst = returnsIncGst.plus(back.incGst)
+      totalIncGst = totalIncGst.minus(back.incGst)
+      totalTax = totalTax.minus(back.tax)
+      continue
+    }
+    const tip = cents(order.total_tip_money)
+    orderCount++
+    tipsIncGst = tipsIncGst.plus(tip)
+    totalIncGst = totalIncGst.plus(cents(order.total_money).minus(tip))
     totalTax = totalTax.plus(cents(order.total_tax_money))
     totalDiscount = totalDiscount.plus(cents(order.total_discount_money))
-    returnsIncGst = returnsIncGst.plus(cents(order.return_amounts?.total_money))
 
     for (const li of lineItems) {
       if (li.item_type && li.item_type !== "ITEM") continue // custom amounts, gift cards
@@ -327,7 +370,7 @@ export function aggregateOrders(orders: SquareOrder[]): OrderAggregate {
   }
 
   const items = Array.from(byName.values()).sort((a, b) => b.revenue.comparedTo(a.revenue))
-  return { items, orderCount, totalIncGst, totalTax, totalDiscount, returnsIncGst }
+  return { items, orderCount, totalIncGst, totalTax, totalDiscount, returnsIncGst, tipsIncGst }
 }
 
 /** Square item names often end in a stray full stop ("Corona."). */

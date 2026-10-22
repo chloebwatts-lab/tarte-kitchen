@@ -148,3 +148,34 @@ test("dayOrderRows: a Bopple order placed 11:58pm AEST the night before has a ne
   const [row] = dayOrderRows("2026-10-18", orders, [])
   assert.equal(row.createdMin, -2); assert.equal(row.paidMin, -2); assert.equal(row.channel, "ONLINE")
 })
+
+test("dayOrderRows + exactAtMinute: a refund given in the day is a negative paid row at that minute, so the day ends on gross sales", () => {
+  const orders: Array<SquareOrder & Record<string, unknown>> = [
+    { id: "c1", state: "COMPLETED", created_at: "2026-10-20T22:00:00Z", closed_at: "2026-10-20T22:01:00Z", total_money: money(100), total_tip_money: money(0), line_items: [{ name: "x" }] },
+    // $19 refunded at 2pm against a sale from yesterday
+    { id: "r1", state: "COMPLETED", created_at: "2026-10-21T04:00:00Z", closed_at: "2026-10-21T04:00:00Z", total_money: money(0), line_items: [], returns: [{ source_order_id: "old" }], return_amounts: { total_money: money(19) } },
+    // A return order with no money in it is still ignored
+    { id: "r0", state: "COMPLETED", created_at: "2026-10-21T04:30:00Z", closed_at: "2026-10-21T04:30:00Z", total_money: money(0), line_items: [], returns: [{}] },
+  ]
+  const rows = dayOrderRows("2026-10-21", orders, [])
+  assert.deepEqual(rows.map((r) => r.orderId), ["c1", "r1"])
+  const r1 = rows.find((r) => r.orderId === "r1")!
+  assert.deepEqual(r1, { orderId: "r1", createdMin: 14 * 60, paidMin: 14 * 60, paidIncGst: -19, table: false, channel: "OTHER" })
+  assert.deepEqual(exactAtMinute(rows, 13 * 60), { paid: 100, open: 0, total: 100 })
+  assert.deepEqual(exactAtMinute(rows, 14 * 60), { paid: 81, open: 0, total: 81 })
+})
+
+test("dayOrderRows + exactAtMinute: a refund bigger than the sale takes the day negative; no closed_at falls back to the created minute; a negative-total shell is honoured", () => {
+  const orders: Array<SquareOrder & Record<string, unknown>> = [
+    { id: "c1", state: "COMPLETED", created_at: "2026-10-22T00:00:00Z", closed_at: "2026-10-22T00:01:00Z", total_money: money(26.9), total_tip_money: money(0), line_items: [{ name: "x" }] },
+    // $60 refund of last night's table at 2pm, Square gave it no closed_at
+    { id: "r1", state: "COMPLETED", created_at: "2026-10-22T04:00:00Z", total_money: money(0), line_items: [], returns: [{ source_order_id: "old" }], return_amounts: { total_money: money(60) } },
+    // A shell that carries its refund as a negative total instead of return_amounts
+    { id: "r2", state: "COMPLETED", created_at: "2026-10-22T05:00:00Z", closed_at: "2026-10-22T05:00:00Z", total_money: money(-5), line_items: [], returns: [{}] },
+  ]
+  const rows = dayOrderRows("2026-10-22", orders, [])
+  assert.deepEqual(rows.map((r) => [r.orderId, r.paidMin, r.paidIncGst]), [["c1", 601, 26.9], ["r1", 840, -60], ["r2", 900, -5]])
+  assert.deepEqual(exactAtMinute(rows, 839), { paid: 26.9, open: 0, total: 26.9 })
+  assert.deepEqual(exactAtMinute(rows, 840), { paid: -33.1, open: 0, total: -33.1 })
+  assert.deepEqual(exactAtMinute(rows, 1439), { paid: -38.1, open: 0, total: -38.1 })
+})

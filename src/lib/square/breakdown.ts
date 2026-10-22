@@ -5,7 +5,7 @@
  * No I/O here; fetch + caching live in live.ts and the sync.
  */
 import Decimal from "decimal.js"
-import { cents, mergeItemName, isPaidOrder, type SquareOrder, type SquarePayment } from "./client"
+import { cents, mergeItemName, isPaidOrder, returnOnlyAmount, type SquareOrder, type SquarePayment } from "./client"
 
 export type Channel = "CAFE" | "RESTAURANT" | "ONLINE" | "OTHER"
 
@@ -82,9 +82,12 @@ export interface DayBreakdown {
    * Money taken inc GST, tips excluded, counted the way Square's own
    * dashboard counts it: completed and paid-open orders, plus part payments
    * already taken on tables still open, plus completed payments whose order
-   * the orders search has not returned (or that have no order at all).
+   * the orders search has not returned (or that have no order at all), less
+   * refunds given today (Square's "Returns" line comes off its gross sales).
    */
   paidIncGst: number
+  /** Refunds given today, inc GST, already taken off paidIncGst. */
+  returnsIncGst: number
   /** Part payments on open tables, inside paidIncGst. */
   partPaidIncGst: number
   /** Bills open and not yet settled: what is still owing after part payments. */
@@ -137,8 +140,13 @@ export function isSurchargeName(name: string | undefined): boolean {
 }
 
 interface OrderLike extends SquareOrder {
-  service_charges?: Array<{ name?: string; total_money?: { amount?: number } }>
-  total_tip_money?: { amount?: number }
+  /**
+   * applied_money is what the surcharge added to the bill, GST included;
+   * with Australia's inclusive GST Square's total_money on a service charge
+   * is the pre-tax figure (Beach House Sun 18 Oct 2026: total_money gave
+   * $1,179.36, the same number Square's email lists under net sales ex GST).
+   */
+  service_charges?: Array<{ name?: string; applied_money?: { amount?: number }; total_money?: { amount?: number } }>
   total_service_charge_money?: { amount?: number }
   source?: { name?: string }
   created_by_team_member_id?: string
@@ -179,7 +187,7 @@ export function computeDayBreakdown(
   const staff = new Map<string, StaffRow>()
   const staffChannels = new Map<string, StaffChannelRow>()
   const groups = new Map<string, { sales: Decimal; qty: number; items: Map<string, { qty: number; sales: Decimal }>; fromDishes: Decimal }>()
-  let paid = new Decimal(0), partPaid = new Decimal(0), openTotal = new Decimal(0), surcharge = new Decimal(0), tips = new Decimal(0)
+  let paid = new Decimal(0), partPaid = new Decimal(0), openTotal = new Decimal(0), surcharge = new Decimal(0), tips = new Decimal(0), returns = new Decimal(0)
   let openCount = 0, paidOrders = 0, unmatchedPayments = 0
   let surchargeName: string | null = null
   const seen = new Set<string>()
@@ -188,6 +196,19 @@ export function computeDayBreakdown(
     if (seen.has(raw.id)) continue
     seen.add(raw.id)
     const o = raw as OrderLike
+    const back = returnOnlyAmount(o)
+    if (back) {
+      // A refund given today: off the day's sales in the hour it was given,
+      // and off the register's channel when the refunded sale is known.
+      if (back.incGst.lte(0)) continue
+      returns = returns.plus(back.incGst)
+      paid = paid.minus(back.incGst)
+      const rh = aestHour(o.closed_at ?? o.created_at)
+      if (rh !== null) hourly[rh] -= back.incGst.toNumber()
+      const src = (o.returns ?? []).map((r) => r.source_order_id).find((id) => id && payByOrder.has(id))
+      if (src) channels[channelForDevice(payByOrder.get(src)?.device, undefined)].sales -= back.incGst.toNumber()
+      continue
+    }
     const tip = cents(o.total_tip_money)
     const total = cents(o.total_money).minus(tip)
     const isPaid = o.state === "COMPLETED" || isPaidOrder(o)
@@ -210,13 +231,13 @@ export function computeDayBreakdown(
       if (owing.gt(0)) { openTotal = openTotal.plus(owing); openCount++ }
       continue
     }
-    if (total.lte(0) && (o.line_items?.length ?? 0) === 0) continue // return-only shells
+    if (total.lte(0) && (o.line_items?.length ?? 0) === 0) continue // empty shells
     paid = paid.plus(total)
     tips = tips.plus(tip)
     paidOrders++
     for (const sc of o.service_charges ?? []) {
       if (isSurchargeName(sc.name)) {
-        surcharge = surcharge.plus(cents(sc.total_money))
+        surcharge = surcharge.plus(cents(sc.applied_money ?? sc.total_money))
         surchargeName = surchargeName ?? sc.name ?? "Surcharge"
       }
     }
@@ -314,6 +335,7 @@ export function computeDayBreakdown(
   return {
     date,
     paidIncGst: r2(paidNum),
+    returnsIncGst: r2(returns.toNumber()),
     partPaidIncGst: r2(partPaid.toNumber()),
     openTablesIncGst: r2(openTotal.toNumber()),
     openTables: openCount,

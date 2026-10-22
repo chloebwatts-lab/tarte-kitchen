@@ -7,10 +7,9 @@
  */
 import { db } from "@/lib/db"
 import type { Venue } from "@/generated/prisma/client"
-import { fetchDayOrders, listPayments, isPaidOrder, cents, type SquareOrder, type SquarePayment } from "./client"
+import { fetchDayOrders, listPayments, isPaidOrder, cents, returnOnlyAmount, type SquareOrder, type SquarePayment } from "./client"
 import { channelForDevice, type Channel } from "./breakdown"
-import { getSquareAccessToken } from "./token"
-import { squareLocationFor } from "./live"
+import { squareAccessFor } from "./token"
 import { isSquareVenueOn } from "@/lib/pos"
 import { brisbaneNow } from "@/lib/sales/insights"
 
@@ -32,13 +31,15 @@ export function minutesOnDay(dateStr: string, iso: string | undefined): number |
   return Math.floor((t - midnight) / 60000)
 }
 
-type OrderLike = SquareOrder & { source?: { name?: string }; total_tip_money?: { amount?: number } }
+type OrderLike = SquareOrder & { source?: { name?: string } }
 type PaymentLike = SquarePayment & { order_id?: string; device_details?: { device_name?: string } }
 
 /**
  * Pure. Bopple orders are paid when they are placed, so their paid minute is
  * their created minute; a table is paid when it closed (or, still OPEN with
- * tenders covering it, at its last completed payment).
+ * tenders covering it, at its last completed payment). A refund given in the
+ * day is a negative paid row at the minute it was given, so "paid by then"
+ * ends the day on Square's gross sales.
  */
 export function dayOrderRows(dateStr: string, orders: SquareOrder[], payments: SquarePayment[]): DayOrderRow[] {
   const device = new Map<string, string | undefined>()
@@ -56,13 +57,20 @@ export function dayOrderRows(dateStr: string, orders: SquareOrder[], payments: S
     if (seen.has(raw.id)) continue
     seen.add(raw.id)
     const o = raw as OrderLike
-    const value = cents(o.total_money).minus(cents(o.total_tip_money)).toNumber()
     const createdMin = minutesOnDay(dateStr, o.created_at)
     if (createdMin === null) continue
+    const back = returnOnlyAmount(o)
+    if (back) {
+      if (back.incGst.lte(0)) continue
+      const refundMin = minutesOnDay(dateStr, o.closed_at) ?? createdMin
+      out.push({ orderId: o.id, createdMin, paidMin: refundMin, paidIncGst: -back.incGst.toNumber(), table: false, channel: "OTHER" })
+      continue
+    }
+    const value = cents(o.total_money).minus(cents(o.total_tip_money)).toNumber()
     const channel = channelForDevice(device.get(o.id), o.source?.name)
     const isPaid = o.state === "COMPLETED" || isPaidOrder(o)
     if (!isPaid && value <= 0) continue
-    if (isPaid && value <= 0 && (o.line_items?.length ?? 0) === 0) continue // return-only shells
+    if (isPaid && value <= 0 && (o.line_items?.length ?? 0) === 0) continue // empty shells
     let paidMin: number | null = null
     if (isPaid) {
       paidMin = channel === "ONLINE" ? createdMin : (minutesOnDay(dateStr, o.closed_at) ?? lastPay.get(o.id) ?? createdMin)
@@ -120,9 +128,9 @@ export async function loadDayOrders(venue: Venue, dateStr: string): Promise<DayO
   const empty = emptyDays.get(key)
   if (empty && Date.now() - empty < EMPTY_TTL_MS) return []
   try {
-    const locationId = await squareLocationFor(venue)
-    if (!locationId) return null
-    const token = await getSquareAccessToken()
+    const access = await squareAccessFor(venue)
+    if (!access) return null
+    const { locationId, token } = access
     const [{ sales, openUnpaid }, payments] = await Promise.all([fetchDayOrders(token, locationId, dateStr), listPayments(token, locationId, dateStr)])
     const rows = dayOrderRows(dateStr, [...sales, ...openUnpaid], payments)
     if (rows.length) await persistDayOrders(venue, dateStr, rows)
