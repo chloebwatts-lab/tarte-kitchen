@@ -56,6 +56,27 @@ export function uberSalesExGst(salesIncGst: number): number {
   return Math.round((salesIncGst / 1.1) * 100) / 100
 }
 
+export interface DailySalesFeedRow { date: string; venue: string; exGst: number; incGst: number; uberExGst: number; uberIncGst: number }
+
+/**
+ * Tarte Shifts' daily sales feed (/api/internal/daily-sales): each POS day
+ * with that venue's Uber Eats beside it, so Shifts can put the wage % on
+ * Louise's revenue (POS + Uber ex GST, 22 Oct 2026). exGst / incGst stay the
+ * POS alone. An Uber day with no POS row is left out: a day the POS has not
+ * reported yet should stay missing, not read as a day of Uber alone.
+ */
+export function dailySalesFeed(
+  pos: Array<{ date: string; venue: string; exGst: number; incGst: number }>,
+  uber: Array<{ date: string; venue: string; salesIncGst: number }>,
+): DailySalesFeedRow[] {
+  const uberInc = new Map<string, number>()
+  for (const u of uber) uberInc.set(`${u.date}|${u.venue}`, (uberInc.get(`${u.date}|${u.venue}`) ?? 0) + u.salesIncGst)
+  return pos.map((p) => {
+    const inc = Math.round((uberInc.get(`${p.date}|${p.venue}`) ?? 0) * 100) / 100
+    return { ...p, uberExGst: uberSalesExGst(inc), uberIncGst: inc }
+  })
+}
+
 interface HomepageResponse {
   status?: string
   data?: {

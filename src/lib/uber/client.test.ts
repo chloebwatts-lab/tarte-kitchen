@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { parseCookieInput, hasSessionCookie, parseHomepageDaily, parseTodayMetrics, uberSalesExGst } from "./client"
+import { parseCookieInput, hasSessionCookie, parseHomepageDaily, parseTodayMetrics, uberSalesExGst, dailySalesFeed } from "./client"
 
 test("parseCookieInput: bare header value, cookie: line, and a Copy-as-cURL paste", () => {
   assert.equal(parseCookieInput("sid=abc; csid=def"), "sid=abc; csid=def")
@@ -212,4 +212,25 @@ test("uberSalesExGst strips GST the way Louise's weekly revenue does (w/e 13 Oct
   // Square $99,581.16 + Uber ex GST lands on her $104,106.61 within 6 cents.
   assert.ok(Math.abs(99581.16 + uberSalesExGst(4977.93) - 104106.61) < 0.1)
   assert.equal(uberSalesExGst(0), 0)
+})
+
+test("dailySalesFeed puts each venue's Uber beside its POS day; Uber with no POS day is left out", () => {
+  const rows = dailySalesFeed(
+    [
+      { date: "2026-10-14", venue: "BEACH_HOUSE", exGst: 11000, incGst: 12100 },
+      { date: "2026-10-14", venue: "BURLEIGH", exGst: 14104, incGst: 15514.4 },
+      { date: "2026-10-15", venue: "BEACH_HOUSE", exGst: 9000, incGst: 9900 },
+    ],
+    [
+      { date: "2026-10-14", venue: "BEACH_HOUSE", salesIncGst: 1100 },
+      { date: "2026-10-14", venue: "BURLEIGH", salesIncGst: 0 },
+      // Today's Uber before the tills have reported: not a day on its own.
+      { date: "2026-10-16", venue: "BEACH_HOUSE", salesIncGst: 300 },
+    ],
+  )
+  assert.deepEqual(rows, [
+    { date: "2026-10-14", venue: "BEACH_HOUSE", exGst: 11000, incGst: 12100, uberExGst: 1000, uberIncGst: 1100 },
+    { date: "2026-10-14", venue: "BURLEIGH", exGst: 14104, incGst: 15514.4, uberExGst: 0, uberIncGst: 0 },
+    { date: "2026-10-15", venue: "BEACH_HOUSE", exGst: 9000, incGst: 9900, uberExGst: 0, uberIncGst: 0 },
+  ])
 })
