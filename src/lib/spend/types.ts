@@ -117,12 +117,16 @@ export interface BucketSpendData {
   leftToSpend: number | null
   /// Full-week spend projection + estimatedMissingSpend, from
   /// estimatedSpentToDate (the same grossed-up basis as leftToSpend).
-  /// "weighted" divides it by the elapsed weekdays' historical share of
-  /// a week's deliveries (8-wk profile); "flat" is spent ÷ days × 7.
+  /// "usual" adds a usual rest of week: the days to come's share of the
+  /// 8-wk delivery profile × the 8-wk spend-to-takings ratio × the week's
+  /// projected takings. Fallbacks: "weighted" divides by the days through
+  /// today's share of a week's deliveries; "flat" is spent ÷ days × 7.
   projectedEndOfWeek: number
-  spendProjectionMethod: "weighted" | "flat"
-  /// How projectedRevenueExGst was derived (null = no revenue yet)
-  revenueProjectionMethod: "weighted" | "flat" | null
+  spendProjectionMethod: "usual" | "weighted" | "flat"
+  /// How projectedRevenueExGst was derived (null = no revenue yet):
+  /// "forecast" / "usual" = takings so far + that week's share for the
+  /// days to come; "weighted" / "flat" scale takings so far up
+  revenueProjectionMethod: "forecast" | "usual" | "weighted" | "flat" | null
   /// projectedEndOfWeek vs budget
   paceStatus: "on-track" | "watch" | "over" | "no-forecast"
   invoiceCount: number
@@ -138,7 +142,7 @@ export interface BucketSpendData {
   revenueDaysReported: number
   /// AEST date of the most recent counted day this week
   lastRevenueDate: string | null
-  /// Full-week revenue pace (weekday-weighted when history allows)
+  /// Full-week takings: so far plus the forecast for the days to come
   projectedRevenueExGst: number | null
   revenueDaily: DailyRevenueCell[]
   /// Today's intraday takings ex GST (Square), shown as "so far" and kept

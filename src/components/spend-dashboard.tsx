@@ -152,7 +152,9 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
             value={fmt(bucket.projectedEndOfWeek)}
             sub={
               projectedPct == null
-                ? bucket.spendProjectionMethod === "weighted"
+                ? bucket.spendProjectionMethod === "usual"
+                  ? "so far plus a usual rest of week"
+                  : bucket.spendProjectionMethod === "weighted"
                   ? "weighted for remaining trading days"
                   : "@ current daily rate"
                 : projectedCogsPct == null
@@ -182,8 +184,8 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
                 : "border-green-text/20 bg-green-light text-green-text"
             )}
           >
-            <strong>Where COGS lands:</strong> at this spend pace the week
-            finishes at ≈{projectedCogsPct.toFixed(1)}% of{" "}
+            <strong>Where COGS lands:</strong> with a usual rest of week the
+            week finishes at ≈{projectedCogsPct.toFixed(1)}% of{" "}
             <em>forecast</em> revenue (target{" "}
             {Number(bucket.targetPct).toFixed(0)}%).
             {liveCogsPct != null && revenuePaceOfForecast != null && (
@@ -258,7 +260,11 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
                     (revenuePaceOfForecast == null
                       ? "no forecast to compare"
                       : `${Math.round(revenuePaceOfForecast)}% of ${fmt(bucket.forecastRevenue)} forecast`) +
-                    (bucket.revenueProjectionMethod === "weighted"
+                    (bucket.revenueProjectionMethod === "forecast"
+                      ? " · rest of week at forecast"
+                      : bucket.revenueProjectionMethod === "usual"
+                      ? " · rest of week at the 8-week average"
+                      : bucket.revenueProjectionMethod === "weighted"
                       ? " · weekday-weighted"
                       : "")
                   }
@@ -762,9 +768,10 @@ export function SpendDashboard({ data }: { data: CurrentWeekSpendSnapshot }) {
       <div className="rounded-md border border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
         Trading week <strong>{data.weekStartWed}</strong> → <strong>{data.weekEndTue}</strong>.{" "}
         Today is day {data.dayOfWeek} of 7 ({data.daysElapsedFull} full days
-        elapsed). Projections weight the remaining days by each weekday's
-        typical share of the week (last 8 weeks), so a quiet Monday isn't
-        assumed to spend or take like a Saturday.
+        elapsed). Projections are what is in so far plus a usual rest of
+        week: takings at the forecast, deliveries at the last 8 weeks&apos;
+        spend per dollar of takings, each spread by the weekday&apos;s typical
+        share of the week, so one day is never multiplied up to seven.
       </div>
 
       <UnassignedPanel rows={data.unassigned} onAssigned={reload} />

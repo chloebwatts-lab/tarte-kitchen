@@ -645,7 +645,7 @@ import { projectEndOfWeekSpend } from "./projection"
 test("projection is taken from the grossed-up spend, not invoices in hand", () => {
   // Wed..Sat are 65% of a normal week's deliveries
   const share = [0.2, 0.15, 0.15, 0.15, 0.2, 0.1, 0.05]
-  const r = projectEndOfWeekSpend({ estimatedSpentToDate: 21290, spendShare: share, daysElapsedFull: 4, estimatedMissing: 0 })
+  const r = projectEndOfWeekSpend({ estimatedSpentToDate: 21290, spendShare: share, daysThroughToday: 4, usualWeekSpend: null, estimatedMissing: 0 })
   assert.equal(r.method, "weighted")
   assert.equal(r.projectedEndOfWeek, Math.round((21290 / 0.65) * 100) / 100)
   // The old basis (invoices in hand, 15389) would have read on track against a 26740 budget
@@ -654,24 +654,24 @@ test("projection is taken from the grossed-up spend, not invoices in hand", () =
 
 test("projection: missing-supplier weekly average is added in full, never scaled", () => {
   const share = [0.25, 0.25, 0.25, 0.25, 0, 0, 0]
-  const r = projectEndOfWeekSpend({ estimatedSpentToDate: 1000, spendShare: share, daysElapsedFull: 2, estimatedMissing: 300 })
+  const r = projectEndOfWeekSpend({ estimatedSpentToDate: 1000, spendShare: share, daysThroughToday: 2, usualWeekSpend: null, estimatedMissing: 300 })
   assert.equal(r.projectedEndOfWeek, 2000 + 300)
 })
 
 test("projection falls back to flat ÷days×7 without history or with a thin elapsed share", () => {
   assert.deepEqual(
-    projectEndOfWeekSpend({ estimatedSpentToDate: 700, spendShare: null, daysElapsedFull: 2, estimatedMissing: 0 }),
+    projectEndOfWeekSpend({ estimatedSpentToDate: 700, spendShare: null, daysThroughToday: 2, usualWeekSpend: null, estimatedMissing: 0 }),
     { projectedEndOfWeek: 2450, method: "flat" }
   )
   // Only 5% of a week lands on Wednesday: too thin to divide by
   const share = [0.05, 0.15, 0.2, 0.2, 0.2, 0.15, 0.05]
-  assert.equal(projectEndOfWeekSpend({ estimatedSpentToDate: 100, spendShare: share, daysElapsedFull: 1, estimatedMissing: 0 }).method, "flat")
+  assert.equal(projectEndOfWeekSpend({ estimatedSpentToDate: 100, spendShare: share, daysThroughToday: 1, usualWeekSpend: null, estimatedMissing: 0 }).method, "flat")
 })
 
 test("projection never falls below the spend already counted", () => {
   const share = [0.2, 0.15, 0.15, 0.15, 0.2, 0.1, 0.05]
   for (const spent of [0, 1, 999.99, 50000]) {
-    const r = projectEndOfWeekSpend({ estimatedSpentToDate: spent, spendShare: share, daysElapsedFull: 7, estimatedMissing: 0 })
+    const r = projectEndOfWeekSpend({ estimatedSpentToDate: spent, spendShare: share, daysThroughToday: 7, usualWeekSpend: null, estimatedMissing: 0 })
     assert.ok(r.projectedEndOfWeek + 0.01 >= spent)
   }
 })

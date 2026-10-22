@@ -33,7 +33,14 @@ import {
 import { sharedSplit } from "./shared-split"
 import { arrivalCompleteness, type ArrivalLagRow } from "./arrival-lag"
 import { isCompletedSalesDay } from "./sales-day"
-import { projectEndOfWeekSpend } from "./projection"
+import {
+  historyWeekIndex,
+  projectEndOfWeekSpend,
+  projectWeekRevenue,
+  usualHistory,
+  usualWeekSpend,
+  type HistoryWeek,
+} from "./projection"
 import { suspectRevenueDay } from "./guards"
 import {
   EXPECTED_SUPPLIERS,
@@ -111,11 +118,12 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
   const daysSinceStart =
     Math.floor((aestNowMs - aestStartMs) / msInDay)
   const dayOfWeek = Math.min(7, Math.max(1, daysSinceStart + 1))
-  // For pacing we only count fully-elapsed days; the current day is
-  // partial. So if we're 2 days in (Thu), we treat 2 days as the
-  // pacing window, pacing reads as low until that day completes,
-  // which is intentional (don't extrapolate from half a day).
+  // Fully elapsed days (shown on /spend). The spend projection does NOT use
+  // this: spend to date is grossed up through today, so it projects from
+  // the days through today (daysThroughToday). Mixing the two made a
+  // Thursday divide two days of deliveries by Wednesday's share alone.
   const daysElapsedFull = Math.max(1, Math.min(7, daysSinceStart))
+  const daysThroughToday = Math.min(7, daysSinceStart + 1)
 
   // ------- Pull invoices for the current week, in parallel with
   //         forecasts, targets, and COGS history.
@@ -369,6 +377,21 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
     BURLEIGH: new Array(7).fill(null),
     CURRUMBIN: new Array(7).fill(null),
   }
+  // The 8 weeks before this one, ex GST, idx 0 = the week just gone. Over
+  // the weeks with all their takings on file, spend ÷ takings is the usual
+  // spend per $ of takings and takings ÷ weeks a usual week (usualHistory).
+  const historyWeeks: Record<SpendBucket, HistoryWeek[]> = {
+    BURLEIGH: Array.from({ length: 8 }, () => ({ spend: 0, revenue: 0, revenueDays: 0 })),
+    CURRUMBIN: Array.from({ length: 8 }, () => ({ spend: 0, revenue: 0, revenueDays: 0 })),
+  }
+  const historyRevenueDates: Record<SpendBucket, Set<number>> = {
+    BURLEIGH: new Set(),
+    CURRUMBIN: new Set(),
+  }
+  const addHistorySpend = (bucket: SpendBucket, date: Date, amount: number) => {
+    const k = historyWeekIndex(start.getTime(), date.getTime())
+    if (k != null) historyWeeks[bucket][k].spend += amount
+  }
   // Rows for the invoice arrival-lag estimate (see arrival-lag.ts).
   const lagRows: Record<SpendBucket, ArrivalLagRow[]> = {
     BURLEIGH: [],
@@ -386,6 +409,14 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
         idx: tradingDayIndex(row.date, false),
         amount: Number(row.totalRevenueExGst),
       })
+      const k = historyWeekIndex(start.getTime(), row.date.getTime())
+      if (k != null) {
+        historyWeeks[bucket][k].revenue += Number(row.totalRevenueExGst)
+        if (!historyRevenueDates[bucket].has(row.date.getTime())) {
+          historyRevenueDates[bucket].add(row.date.getTime())
+          historyWeeks[bucket][k].revenueDays += 1
+        }
+      }
     }
     const spendRows: Record<
       SpendBucket,
@@ -407,6 +438,8 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
         const split = sharedSplit(row.supplierName)
         spendRows.BURLEIGH.push({ idx, amount: exGst * split.BURLEIGH })
         spendRows.CURRUMBIN.push({ idx, amount: exGst * split.CURRUMBIN })
+        addHistorySpend("BURLEIGH", row.invoiceDate, exGst * split.BURLEIGH)
+        addHistorySpend("CURRUMBIN", row.invoiceDate, exGst * split.CURRUMBIN)
         lagRows.BURLEIGH.push({ ...lagBase, amount: exGst * split.BURLEIGH })
         lagRows.CURRUMBIN.push({ ...lagBase, amount: exGst * split.CURRUMBIN })
         continue
@@ -414,6 +447,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       const bucket = venueToBucket(row.venue)
       if (!bucket) continue
       spendRows[bucket].push({ idx, amount: exGst })
+      addHistorySpend(bucket, row.invoiceDate, exGst)
       lagRows[bucket].push({ ...lagBase, amount: exGst })
     }
     for (const bucket of SPEND_BUCKETS) {
@@ -593,21 +627,6 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       budget == null
         ? null
         : Math.round((budget - estimatedSpentToDate) * 100) / 100
-    // Pace: project end-of-week spend from the same grossed-up basis as
-    // leftToSpend, so "left", "pace" and the COGS % agree (projection.ts).
-    const { projectedEndOfWeek, method: spendProjectionMethod } =
-      projectEndOfWeekSpend({
-        estimatedSpentToDate,
-        spendShare: spendShares[bucket],
-        daysElapsedFull,
-        estimatedMissing,
-      })
-    let paceStatus: BucketSpendData["paceStatus"]
-    if (budget == null) paceStatus = "no-forecast"
-    else if (projectedEndOfWeek > budget * 1.05) paceStatus = "over"
-    else if (projectedEndOfWeek > budget * 0.95) paceStatus = "watch"
-    else paceStatus = "on-track"
-
     // ---- Live revenue (POS end-of-day, ex GST) ----
     // A completed day far below its weekday average is almost always a
     // partial figure: show it, flag it, keep it out of the pace.
@@ -651,24 +670,51 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       revenueDaysReported > 0 ? Math.round(revenueRunning * 100) / 100 : null
     const lastRevenueDate =
       revenueDaysReported > 0 ? Array.from(reportedDates).sort().pop()! : null
-    // Full-week revenue pace: divide takings-so-far by the share of a
-    // typical week those reported weekdays represent (8-wk history);
-    // flat ÷days×7 as fallback.
+    // Full-week takings: what is in plus the forecast's share for the days
+    // to come (8-wk weekday profile), see projection.ts.
     const revShare = revenueShares[bucket]
-    const reportedRevShare = revShare
-      ? revenueDaily.reduce(
-          (sum, cell, i) => (cell.reported ? sum + revShare[i] : sum),
-          0
-        )
-      : 0
-    const revenueWeighted = revShare != null && reportedRevShare >= 0.1
-    const projectedRevenueExGst =
-      revenueToDateExGst == null
-        ? null
-        : revenueWeighted
-        ? Math.round((revenueToDateExGst / reportedRevShare) * 100) / 100
-        : Math.round(((revenueToDateExGst / revenueDaysReported) * 7) * 100) /
-          100
+    const usual = usualHistory(historyWeeks[bucket])
+    const usualWeekRevenue = usual ? usual.revenue / usual.weeks : null
+    const { projectedRevenueExGst, method: revenueProjectionMethod } =
+      projectWeekRevenue({
+        revenueToDate: revenueToDateExGst,
+        daysReported: revenueDaysReported,
+        reportedShare: revShare
+          ? revenueDaily.reduce(
+              (sum, cell, i) => (cell.reported ? sum + revShare[i] : sum),
+              0
+            )
+          : null,
+        forecast,
+        usualWeekRevenue,
+      })
+
+    // Pace: spend to date on the same grossed-up basis as leftToSpend, plus
+    // a usual rest of week at the takings the week is expected to do, so
+    // "left", "pace" and the COGS % agree (projection.ts).
+    const { projectedEndOfWeek, method: spendProjectionMethod } =
+      projectEndOfWeekSpend({
+        estimatedSpentToDate,
+        spendShare: spendShares[bucket],
+        daysThroughToday,
+        usualWeekSpend:
+          spendShares[bucket] && usual
+            ? usualWeekSpend({
+                historySpend: usual.spend,
+                historyRevenue: usual.revenue,
+                // No takings in yet (Wednesday): the forecast, else a usual week
+                expectedWeekRevenue:
+                  projectedRevenueExGst ??
+                  (forecast != null && forecast > 0 ? forecast : usualWeekRevenue),
+              })
+            : null,
+        estimatedMissing,
+      })
+    let paceStatus: BucketSpendData["paceStatus"]
+    if (budget == null) paceStatus = "no-forecast"
+    else if (projectedEndOfWeek > budget * 1.05) paceStatus = "over"
+    else if (projectedEndOfWeek > budget * 0.95) paceStatus = "watch"
+    else paceStatus = "on-track"
 
     const suppliers: SupplierSpendCell[] = Array.from(
       agg.supplierMap.entries()
@@ -711,12 +757,7 @@ export async function getCurrentWeekSpend(): Promise<CurrentWeekSpendSnapshot> {
       leftToSpend,
       projectedEndOfWeek,
       spendProjectionMethod,
-      revenueProjectionMethod:
-        revenueToDateExGst == null
-          ? null
-          : revenueWeighted
-          ? ("weighted" as const)
-          : ("flat" as const),
+      revenueProjectionMethod,
       paceStatus,
       invoiceCount: agg.invoiceCount,
       daily: agg.daily,
