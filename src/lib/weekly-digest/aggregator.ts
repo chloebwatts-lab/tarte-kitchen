@@ -114,8 +114,13 @@ interface SpendPacingSection {
     /// spentToDate grossed up for deliveries not yet invoiced (same basis as /spend)
     estimatedSpentToDate: number
     estimatedUninvoiced: number
+    /// Usual deliveries still to come before Tuesday close (same basis as /spend)
+    usualStillToCome: number
     projectedEndOfWeek: number
+    /// The /spend headline: budget minus spend so far minus usualStillToCome
     remaining: number | null
+    /// Budget minus spend so far, before the usual deliveries still to come
+    remainingBeforeStillToCome: number | null
     paceStatus: "on-track" | "watch" | "over" | "no-forecast"
   }>
   coverageProblems: Array<{
@@ -1331,10 +1336,12 @@ async function buildSpendPacing(): Promise<SpendPacingSection> {
       estimatedMissingSpend: b.estimatedMissingSpend,
       estimatedSpentToDate: b.estimatedSpentToDate,
       estimatedUninvoiced: b.estimatedUninvoiced,
+      usualStillToCome: b.usualStillToCome,
       projectedEndOfWeek: b.projectedEndOfWeek,
-      // Same basis as the /spend headline and the Sunday email: invoices in
-      // hand grossed up for deliveries not yet invoiced.
+      // Same basis as the /spend headline and the Sunday email: what is
+      // left once the usual deliveries still to come have landed.
       remaining: b.leftToSpend,
+      remainingBeforeStillToCome: b.leftBeforeStillToCome,
       paceStatus: b.paceStatus,
     })),
     coverageProblems: snap.coverage

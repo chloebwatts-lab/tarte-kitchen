@@ -8,6 +8,9 @@ export const dynamic = "force-dynamic"
  * owner note (Chloe + Shawna, 16 Oct 2026). Same numbers as /spend and the
  * Sunday email: estimated spend to date (invoices grossed up for deliveries
  * not yet invoiced) against POS revenue to date, plus the week's pace.
+ * leftToSpend is the /spend headline since 23 Oct 2026: budget minus spend
+ * so far minus the usual deliveries still to come (usualStillToCome);
+ * leftBeforeStillToCome is the old figure, budget minus spend so far.
  * Bearer = CRON_SECRET like the other internal routes.
  */
 export async function GET(req: NextRequest) {
@@ -29,6 +32,9 @@ export async function GET(req: NextRequest) {
       targetPct: b.targetPct,
       budget: b.budget == null ? null : Math.round(b.budget),
       leftToSpend: b.leftToSpend == null ? null : Math.round(b.leftToSpend),
+      usualStillToCome: Math.round(b.usualStillToCome),
+      leftBeforeStillToCome: b.leftBeforeStillToCome == null ? null : Math.round(b.leftBeforeStillToCome),
+      stillToCome: b.stillToCome.slice(0, 5).map((r) => ({ supplier: r.supplier, amount: Math.round(r.amount), days: r.days })),
       projectedEndOfWeek: Math.round(b.projectedEndOfWeek),
       projectedRevenueExGst: b.projectedRevenueExGst == null ? null : Math.round(b.projectedRevenueExGst),
       projectedPct: b.projectedRevenueExGst && b.projectedRevenueExGst > 0 ? Math.round((b.projectedEndOfWeek / b.projectedRevenueExGst) * 1000) / 10 : null,

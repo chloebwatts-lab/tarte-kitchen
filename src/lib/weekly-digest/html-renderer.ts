@@ -60,8 +60,11 @@ const C = {
 
 function fmtMoney(n: number | null | undefined, opts?: { signed?: boolean }) {
   if (n == null || Number.isNaN(n)) return "—"
-  const sign = opts?.signed && n > 0 ? "+" : ""
-  return `${sign}$${Math.round(n).toLocaleString("en-AU")}`
+  // half away from zero like the Sunday email, so -$4,319.50 reads -$4,320 in both
+  const r = Math.sign(n) * Math.round(Math.abs(n)) || 0
+  // "-$300", never "$-300" (the live-spend headline is often negative)
+  const sign = r < 0 ? "-" : opts?.signed && r > 0 ? "+" : ""
+  return `${sign}$${Math.abs(r).toLocaleString("en-AU")}`
 }
 
 function fmtMoneyFine(n: number | null | undefined) {
@@ -378,7 +381,7 @@ function spendPacingSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
           <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.inkSoft};text-align:right;font-variant-numeric:tabular-nums;">${fmtMoney(b.forecastRevenue)}</td>
           <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.inkSoft};text-align:right;font-variant-numeric:tabular-nums;">${fmtMoney(b.budget)}<div style="font-size:11px;color:${C.inkMute};">@ ${b.targetPct.toFixed(0)}%</div></td>
           <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:14px;color:${C.ink};text-align:right;font-variant-numeric:tabular-nums;font-weight:600;">${fmtMoney(b.estimatedSpentToDate)}${b.estimatedUninvoiced > 0 ? `<div style="font-size:11px;color:${C.inkMute};">${fmtMoney(b.spentToDate)} invoiced + ${fmtMoney(b.estimatedUninvoiced)} not yet invoiced</div>` : ""}${b.estimatedMissingSpend > 0 ? `<div style="font-size:11px;color:${C.amber};">+${fmtMoney(b.estimatedMissingSpend)} est missing</div>` : ""}</td>
-          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:14px;color:${C.ink};text-align:right;font-variant-numeric:tabular-nums;">${fmtMoney(b.remaining)}${remainingPctOfBudget != null ? `<div style="font-size:11px;color:${C.inkMute};">${remainingPctOfBudget.toFixed(0)}% of cap</div>` : ""}</td>
+          <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};font-size:14px;color:${C.ink};text-align:right;font-variant-numeric:tabular-nums;">${fmtMoney(b.remaining)}${b.remaining != null && b.usualStillToCome >= 1 ? `<div style="font-size:11px;color:${C.inkMute};">after about ${fmtMoney(b.usualStillToCome)} of usual deliveries still to come${b.remainingBeforeStillToCome != null ? `, ${fmtMoney(b.remainingBeforeStillToCome)} before them` : ""}</div>` : remainingPctOfBudget != null ? `<div style="font-size:11px;color:${C.inkMute};">${remainingPctOfBudget.toFixed(0)}% of cap</div>` : ""}</td>
           <td style="padding:10px 14px;border-bottom:1px solid ${C.borderSoft};text-align:right;">
             <div style="font-size:14px;color:${C.ink};font-variant-numeric:tabular-nums;font-weight:600;">${fmtMoney(b.projectedEndOfWeek)}</div>
             <div style="display:inline-block;margin-top:2px;padding:2px 8px;background:${p.bg};color:${p.fg};border-radius:999px;font-size:11px;font-weight:600;">${p.label}</div>

@@ -89,8 +89,10 @@ test("expected supplier list is internally consistent", () => {
 /**
  * Fixture builder. Fields not given are DERIVED so the fixture satisfies
  * checkSpendSnapshot (render() refuses inconsistent snapshots): budget from
- * forecast × target, leftToSpend from budget − used, revenueDaily cells
- * from the takings. Pass a field explicitly to override.
+ * forecast × target, usualStillToCome from the projection (or the rows),
+ * leftToSpend from budget − used − still to come, leftBeforeStillToCome
+ * from budget − used, revenueDaily cells from the takings. Pass a field
+ * explicitly to override.
  */
 function bucket(over: Partial<BucketSpendData> & { bucket: BucketSpendData["bucket"] }): BucketSpendData {
   const label = over.bucket === "BURLEIGH" ? "Burleigh" : "Currumbin (Beach House + Tea Garden)"
@@ -102,9 +104,21 @@ function bucket(over: Partial<BucketSpendData> & { bucket: BucketSpendData["buck
   let forecastRevenue = over.forecastRevenue
   if (budget === undefined) budget = forecastRevenue == null ? null : (forecastRevenue * targetPct) / 100
   if (forecastRevenue === undefined) forecastRevenue = budget == null ? null : (budget * 100) / targetPct
-  const leftToSpend = over.leftToSpend !== undefined ? over.leftToSpend : budget == null ? null : Math.round((budget - estimatedSpentToDate) * 100) / 100
+  const c = (n: number) => Math.round(n * 100) / 100
+  const missing = over.estimatedMissingSpend ?? 0
+  const stillToCome = over.stillToCome ?? []
+  const usualStillToCome =
+    over.usualStillToCome ??
+    (over.stillToCome
+      ? c(stillToCome.reduce((s, r) => s + r.amount, 0))
+      : over.projectedEndOfWeek != null
+        ? c(Math.max(0, over.projectedEndOfWeek - missing - estimatedSpentToDate))
+        : 0)
+  const projectedEndOfWeek = over.projectedEndOfWeek ?? c(estimatedSpentToDate + usualStillToCome + missing)
+  const leftToSpend = over.leftToSpend !== undefined ? over.leftToSpend : budget == null ? null : c(budget - estimatedSpentToDate - usualStillToCome)
+  const leftBeforeStillToCome =
+    over.leftBeforeStillToCome !== undefined ? over.leftBeforeStillToCome : budget == null ? null : c(budget - estimatedSpentToDate)
   const paceStatus = over.paceStatus ?? (budget == null ? "no-forecast" : "on-track")
-  const projectedEndOfWeek = over.projectedEndOfWeek ?? estimatedSpentToDate
   const revenueToDateExGst = over.revenueToDateExGst ?? null
   const revenueDaysReported = over.revenueDaysReported ?? (revenueToDateExGst == null ? 0 : 1)
   const dates = ["2026-09-23", "2026-09-24", "2026-09-25", "2026-09-26", "2026-09-27", "2026-09-28", "2026-09-29"]
@@ -137,9 +151,12 @@ function bucket(over: Partial<BucketSpendData> & { bucket: BucketSpendData["buck
     spentToDate,
     estimatedSpentToDate,
     estimatedUninvoiced,
+    usualStillToCome,
+    stillToCome,
     budget,
     forecastRevenue,
     leftToSpend,
+    leftBeforeStillToCome,
     paceStatus,
     projectedEndOfWeek,
     revenueToDateExGst,
@@ -163,7 +180,7 @@ function snapshot(over: Partial<CurrentWeekSpendSnapshot> = {}): CurrentWeekSpen
   }
 }
 
-test("Sunday send: 3 days to go, remaining spread per day", () => {
+test("Sunday send: 3 days to go, left after the usual deliveries spread per day, the old figure second", () => {
   const snap = snapshot({
     buckets: [
       bucket({
@@ -171,17 +188,25 @@ test("Sunday send: 3 days to go, remaining spread per day", () => {
         spentToDate: 7000,
         estimatedSpentToDate: 7000,
         budget: 10000,
-        leftToSpend: 3000,
         forecastRevenue: 37037,
-        projectedEndOfWeek: 9800,
+        stillToCome: [
+          { supplier: "Bidfood", amount: 1500, days: ["Mon", "Tue"] },
+          { supplier: "Gold Coast Eggs", amount: 600, days: ["Mon"] },
+          { supplier: "Pixel Bread", amount: 300, days: ["Mon", "Tue"] },
+        ],
         paceStatus: "on-track",
       }),
     ],
   })
-  const { subject, text } = render(snap)
+  const { subject, text, html } = render(snap)
   assert.match(subject, /^COGS TRACKING \(.+\): 3 days to go$/)
-  assert.match(text, /Burleigh: \$3,000 left to spend \(\$7,000 of \$10,000 used\)\. That's about \$1,000\/day for the 3 days left\./)
-  assert.match(text, /pace: On track, projected full-week spend \$9,800 vs \$10,000 budget\./)
+  assert.match(
+    text,
+    /Burleigh: \$600 left to spend after the usual deliveries still to come\. \$7,000 spent so far of the \$10,000 budget, and about \$2,400 of usual deliveries still to come \(Bidfood \$1,500, Gold Coast Eggs \$600, Pixel Bread \$300\)\. Before those deliveries: \$3,000 left\. That's about \$200\/day for the 3 days left\./
+  )
+  assert.match(text, /pace: On track, projected full-week spend \$9,400 vs \$10,000 budget\./)
+  assert.match(html, /Usual still to come/)
+  assert.match(html, /Left after them/)
   // no takings line when no EOD report has landed
   assert.doesNotMatch(text, /Takings so far/)
 })
@@ -194,17 +219,19 @@ test("over budget: OVER amount is shown positive and orders are held", () => {
         spentToDate: 8500,
         estimatedSpentToDate: 8500,
         budget: 8000,
-        leftToSpend: -500,
         projectedEndOfWeek: 11200,
         paceStatus: "over",
       }),
     ],
   })
   const { text, html } = render(snap)
-  assert.match(text, /\$8,500 spent of a \$8,000 budget, \$500 OVER\. Hold all non-essential orders/)
+  assert.match(
+    text,
+    /\$3,200 OVER once the usual deliveries land\. \$8,500 spent so far of the \$8,000 budget, and about \$2,700 of usual deliveries still to come\. Before those deliveries: \$500 over\. Hold all non-essential orders/
+  )
   assert.match(text, /pace: Over pace/)
-  // the table cell prints the signed remaining
-  assert.match(html, /-\$500/)
+  // the table cell prints the signed headline
+  assert.match(html, /-\$3,200/)
 })
 
 test("last day of the week: singular wording and the whole budget for today", () => {
@@ -215,7 +242,9 @@ test("last day of the week: singular wording and the whole budget for today", ()
   const { subject, text } = render(snap)
   assert.match(subject, /: 1 day to go$/)
   assert.match(text, /1 day left\./)
-  assert.match(text, /\$1,000 left to spend .* That's the whole budget for today, the last day of the week\./)
+  assert.match(text, /\$1,000 left to spend\. \$9,000 spent so far of the \$10,000 budget\. That's the whole budget for today, the last day of the week\./)
+  // nothing usual still to come: no "after the usual deliveries", no second figure
+  assert.doesNotMatch(text, /usual deliveries|Before those/)
 })
 
 test("no forecast loaded: no budget comparison and no division", () => {
@@ -236,7 +265,6 @@ test("takings line: revenue pace vs forecast and projected COGS % against live r
         spentToDate: 7000,
         estimatedSpentToDate: 7000,
         budget: 10800,
-        leftToSpend: 3800,
         forecastRevenue: 40000,
         projectedEndOfWeek: 9800,
         paceStatus: "on-track",
@@ -263,7 +291,6 @@ test("takings line falls back to forecast revenue when no revenue projection exi
         forecastRevenue: 40000,
         projectedEndOfWeek: 10000,
         budget: 10800,
-        leftToSpend: 10800,
         revenueToDateExGst: 0,
         revenueDaysReported: 1,
         projectedRevenueExGst: null,
@@ -322,14 +349,14 @@ test("rounding is to whole dollars; an impossible day-of-week is refused, not re
     snapshot({ dayOfWeek: 7, buckets: [bucket({ bucket: "BURLEIGH", spentToDate: 1234.567, budget: 2000.4 })] })
   )
   assert.match(subject, /: 1 day to go$/)
-  assert.match(text, /\$766 left to spend \(\$1,235 of \$2,000 used\)\./)
+  assert.match(text, /\$766 left to spend\. \$1,235 spent so far of the \$2,000 budget\./)
   assert.throws(
     () => render(snapshot({ dayOfWeek: 9, buckets: [bucket({ bucket: "BURLEIGH", spentToDate: 1234.567, budget: 2000.4 })] })),
     (e: unknown) => e instanceof SpendSnapshotInconsistent && /dayOfWeek 9/.test(e.problems.join())
   )
 })
 
-test("left to spend is the grossed-up basis the /spend headline uses, with the uninvoiced share spelt out", () => {
+test("left to spend is the /spend headline: grossed-up spend and the usual still to come both off, uninvoiced share spelt out", () => {
   const snap = snapshot({
     buckets: [
       bucket({
@@ -338,7 +365,6 @@ test("left to spend is the grossed-up basis the /spend headline uses, with the u
         estimatedSpentToDate: 23819,
         estimatedUninvoiced: 4237,
         budget: 26880,
-        leftToSpend: 3061,
         projectedEndOfWeek: 26000,
         paceStatus: "watch",
       }),
@@ -347,11 +373,13 @@ test("left to spend is the grossed-up basis the /spend headline uses, with the u
   const { text, html } = render(snap)
   assert.match(
     text,
-    /Currumbin \(Beach House \+ Tea Garden\): \$3,061 left to spend \(\$23,819 of \$26,880 used: \$19,582 invoiced plus about \$4,237 delivered but not invoiced yet\)\. That's about \$1,020\/day for the 3 days left\./
+    /Currumbin \(Beach House \+ Tea Garden\): \$880 left to spend after the usual deliveries still to come\. \$23,819 spent so far of the \$26,880 budget \(\$19,582 invoiced plus about \$4,237 delivered but not invoiced yet\), and about \$2,181 of usual deliveries still to come\. Before those deliveries: \$3,061 left\. That's about \$293\/day for the 3 days left\./
   )
-  assert.doesNotMatch(text, /\$6,826/)
-  assert.match(html, /\$3,061/)
-  assert.doesNotMatch(html, /\$6,826/)
+  // neither invoices-in-hand basis (7,298) nor the old headline leads
+  assert.doesNotMatch(text, /\$7,298/)
+  assert.doesNotMatch(text, /\$3,061 left to spend/)
+  assert.match(html, /\$880/)
+  assert.match(html, /\$2,181/)
 })
 
 test("over budget with uninvoiced deliveries: parenthetical reads cleanly, no stray colon", () => {
@@ -363,7 +391,6 @@ test("over budget with uninvoiced deliveries: parenthetical reads cleanly, no st
         estimatedSpentToDate: 28380,
         estimatedUninvoiced: 3880,
         budget: 26880,
-        leftToSpend: -1500,
         projectedEndOfWeek: 31000,
         paceStatus: "over",
       }),
@@ -372,14 +399,14 @@ test("over budget with uninvoiced deliveries: parenthetical reads cleanly, no st
   const { text, html } = render(snap)
   assert.match(
     text,
-    /Currumbin \(Beach House \+ Tea Garden\): \$28,380 spent of a \$26,880 budget \(\$24,500 invoiced plus about \$3,880 delivered but not invoiced yet\), \$1,500 OVER\. Hold all non-essential orders for the rest of the week\./
+    /Currumbin \(Beach House \+ Tea Garden\): \$4,120 OVER once the usual deliveries land\. \$28,380 spent so far of the \$26,880 budget \(\$24,500 invoiced plus about \$3,880 delivered but not invoiced yet\), and about \$2,620 of usual deliveries still to come\. Before those deliveries: \$1,500 over\. Hold all non-essential orders for the rest of the week\./
   )
   assert.doesNotMatch(text, /\(: /)
   assert.doesNotMatch(text, /used:/)
   assert.doesNotMatch(text, /left to spend/)
-  // table: grossed-up spent, signed left, old-basis figure nowhere
+  // table: grossed-up spent, signed headline, old-basis figure nowhere
   assert.match(html, /\$28,380/)
-  assert.match(html, /-\$1,500/)
+  assert.match(html, /-\$4,120/)
   assert.doesNotMatch(html, /\$2,380/)
 })
 
@@ -398,11 +425,11 @@ test("zero uninvoiced: no 'plus about' clause and the parenthetical closes strai
     ],
   })
   const { text, html } = render(snap)
-  assert.match(text, /Burleigh: \$3,500 left to spend \(\$6,500 of \$10,000 used\)\. That's about \$1,167\/day for the 3 days left\./)
+  assert.match(text, /Burleigh: \$3,500 left to spend\. \$6,500 spent so far of the \$10,000 budget\. That's about \$1,167\/day for the 3 days left\./)
   assert.doesNotMatch(text, /plus about/)
   assert.doesNotMatch(text, /not invoiced/)
   assert.doesNotMatch(html, /plus about/)
-  assert.match(html, /Spent \(incl\. uninvoiced\)/)
+  assert.match(html, /Spent so far/)
 })
 
 test("over budget with zero uninvoiced: no empty parenthetical", () => {
@@ -410,7 +437,7 @@ test("over budget with zero uninvoiced: no empty parenthetical", () => {
     buckets: [bucket({ bucket: "BURLEIGH", spentToDate: 10400, estimatedSpentToDate: 10400, budget: 10000, leftToSpend: -400, paceStatus: "over" })],
   })
   const { text } = render(snap)
-  assert.match(text, /Burleigh: \$10,400 spent of a \$10,000 budget, \$400 OVER\./)
+  assert.match(text, /Burleigh: \$400 OVER\. \$10,400 spent so far of the \$10,000 budget\. Hold all non-essential orders/)
   assert.doesNotMatch(text, /\(\)/)
   assert.doesNotMatch(text, /budget \(/)
 })
@@ -425,7 +452,6 @@ test("last day with uninvoiced deliveries: detail inside the parens, then the wh
         estimatedSpentToDate: 9100,
         estimatedUninvoiced: 300,
         budget: 10000,
-        leftToSpend: 900,
         projectedEndOfWeek: 9800,
         paceStatus: "watch",
       }),
@@ -434,17 +460,18 @@ test("last day with uninvoiced deliveries: detail inside the parens, then the wh
   const { text } = render(snap)
   assert.match(
     text,
-    /Burleigh: \$900 left to spend \(\$9,100 of \$10,000 used: \$8,800 invoiced plus about \$300 delivered but not invoiced yet\)\. That's the whole budget for today, the last day of the week\./
+    /Burleigh: \$200 left to spend after the usual deliveries still to come\. \$9,100 spent so far of the \$10,000 budget \(\$8,800 invoiced plus about \$300 delivered but not invoiced yet\), and about \$700 of usual deliveries still to come\. Before those deliveries: \$900 left\. That's the whole budget for today, the last day of the week\./
   )
   assert.doesNotMatch(text, /\/day/)
 })
 
 test("HTML Spent column: grossed-up figure when there is a budget, raw invoiced figure when there is none", () => {
   const withBudget = render(
-    snapshot({ buckets: [bucket({ bucket: "BURLEIGH", spentToDate: 7000, estimatedSpentToDate: 7900, estimatedUninvoiced: 900, budget: 10000, leftToSpend: 2100, projectedEndOfWeek: 8500 })] })
+    snapshot({ buckets: [bucket({ bucket: "BURLEIGH", spentToDate: 7000, estimatedSpentToDate: 7900, estimatedUninvoiced: 900, budget: 10000, projectedEndOfWeek: 8500 })] })
   )
   assert.match(withBudget.html, /\$7,900/)
-  assert.match(withBudget.html, /\$2,100/)
+  assert.match(withBudget.html, /\$600/) // usual still to come
+  assert.match(withBudget.html, /\$1,500/) // left after them
   assert.doesNotMatch(withBudget.html, /\$3,000/)
 
   // No forecast loaded: estimatedSpentToDate is still computed upstream but
@@ -476,7 +503,7 @@ test("the old 'remaining' basis can no longer leak: left + used must equal budge
   assert.throws(() => render(snap), SpendSnapshotInconsistent)
   const { subject, text, html } = renderWithheld(snap, checkSpendSnapshot(snap))
   assert.match(subject, /numbers withheld, check needed$/)
-  assert.match(text, /leftToSpend 9522 \+ used 17193 ≠ budget 26880/)
+  assert.match(text, /leftToSpend 9522 \+ used 17193 \+ still to come 0 ≠ budget 26880/)
   assert.doesNotMatch(text, /left to spend \(/)
   assert.match(html, /Spend email withheld/)
 })
@@ -525,7 +552,6 @@ test("today's intraday Square figure is shown as so-far and kept out of the pace
         estimatedSpentToDate: 19000,
         estimatedUninvoiced: 1807,
         budget: 26880,
-        leftToSpend: 7880,
         targetPct: 28,
         forecastRevenue: 96000,
         projectedEndOfWeek: 25945,
@@ -679,4 +705,96 @@ test("projection never falls below the spend already counted", () => {
 test("guard: a projection below the grossed-up spend to date is refused", () => {
   const b = bucket({ bucket: "CURRUMBIN", spentToDate: 8000, estimatedSpentToDate: 9000, estimatedUninvoiced: 1000, budget: 12000, forecastRevenue: 40000, leftToSpend: 3000, projectedEndOfWeek: 8500, paceStatus: "on-track" })
   assert.throws(() => render(snapshot({ buckets: [b] })), (e: unknown) => e instanceof SpendSnapshotInconsistent && /below spend to date/.test(e.problems.join()))
+})
+
+// ------------------------------- left after the usual deliveries (23 Oct 2026)
+// Sun 18 Oct 2026 5pm, Burleigh: the page led with $3,708 left of $28,013
+// while the usual Monday and Tuesday (about $8.7k) were still to come. $8k
+// landed and the week finished $3.7k over. The headline now takes them off.
+
+const SUN_18_OCT = {
+  bucket: "BURLEIGH" as const,
+  spentToDate: 22545,
+  estimatedSpentToDate: 23636,
+  estimatedUninvoiced: 1091,
+  budget: 28012.5,
+  forecastRevenue: 103750,
+  stillToCome: [
+    { supplier: "Bidfood", amount: 1989, days: ["Mon", "Tue"] },
+    { supplier: "Eustralis", amount: 1282, days: ["Mon", "Tue"] },
+    { supplier: "Jensens", amount: 859, days: ["Sun", "Mon", "Tue"] },
+    { supplier: "The Provedores", amount: 850, days: ["Mon", "Tue"] },
+    { supplier: "Gold Coast Eggs", amount: 772, days: ["Mon", "Tue"] },
+    { supplier: "Pacific Wholesale", amount: 677, days: ["Mon", "Tue"] },
+    { supplier: "Son of a Bunn", amount: 598, days: ["Mon", "Tue"] },
+    { supplier: "Pixel Bread", amount: 515, days: ["Mon", "Tue"] },
+    { supplier: "Others", amount: 1154, days: ["Mon", "Tue"] },
+  ],
+  paceStatus: "over" as const,
+}
+
+test("18 Oct: the headline is over budget once the usual Monday and Tuesday land, the old $4k-odd is only the second line", () => {
+  const b = bucket(SUN_18_OCT)
+  assert.equal(b.usualStillToCome, 8696)
+  assert.equal(b.leftToSpend, -4319.5)
+  assert.equal(b.leftBeforeStillToCome, 4376.5)
+  assert.deepEqual(checkSpendSnapshot(snapshot({ buckets: [b] })), [])
+  const { text, html } = render(snapshot({ buckets: [b] }))
+  assert.match(text, /Burleigh: \$4,320 OVER once the usual deliveries land\. \$23,636 spent so far of the \$28,013 budget/)
+  assert.match(text, /about \$8,696 of usual deliveries still to come \(Bidfood \$1,989, Eustralis \$1,282, Jensens \$859 and others\)/)
+  assert.match(text, /Before those deliveries: \$4,377 left\. Hold all non-essential orders/)
+  assert.doesNotMatch(text, /\$4,377 left to spend/)
+  assert.match(html, /-\$4,320/)
+})
+
+test("guard: a headline that ignores the deliveries still to come is withheld (the 18 Oct fault)", () => {
+  const b = bucket({ ...SUN_18_OCT, leftToSpend: 4376.5 })
+  const problems = checkSpendSnapshot(snapshot({ buckets: [b] }))
+  assert.equal(problems.length, 1)
+  assert.match(problems[0], /leftToSpend 4376.5 \+ used 23636 \+ still to come 8696 ≠ budget 28012.5/)
+  assert.throws(() => render(snapshot({ buckets: [b] })), SpendSnapshotInconsistent)
+})
+
+test("guard: the still-to-come list must add up to its total, with no zero or negative rows", () => {
+  const short = bucket({ ...SUN_18_OCT, usualStillToCome: 8696 })
+  short.stillToCome = short.stillToCome.slice(1) // Bidfood dropped from the list only
+  assert.match(checkSpendSnapshot(snapshot({ buckets: [short] })).join(), /still-to-come rows add to 6707, not usualStillToCome 8696/)
+  const neg = bucket({ ...SUN_18_OCT, stillToCome: [{ supplier: "Pacific Wholesale", amount: -62, days: ["Sun"] }], usualStillToCome: 0 })
+  neg.stillToCome = [{ supplier: "Pacific Wholesale", amount: -62, days: ["Sun"] }, { supplier: "Bidfood", amount: 62, days: ["Mon"] }]
+  assert.match(checkSpendSnapshot(snapshot({ buckets: [neg] })).join(), /still-to-come row Pacific Wholesale is -62/)
+})
+
+test("guard: still to come is never negative, and the pace adds the same deliveries the headline takes off", () => {
+  const negative = bucket({ ...SUN_18_OCT, stillToCome: [], usualStillToCome: -500 })
+  assert.match(checkSpendSnapshot(snapshot({ buckets: [negative] })).join(), /usualStillToCome is negative/)
+  // pace from one rest-of-week, headline from another: refused
+  const split = bucket({ ...SUN_18_OCT, projectedEndOfWeek: 23636 + 4000 })
+  assert.match(checkSpendSnapshot(snapshot({ buckets: [split] })).join(), /projectedEndOfWeek 27636 ≠ used 23636 \+ still to come 8696 \+ missing 0/)
+})
+
+test("guard: the second line is budget minus spend so far, and both lines go with the budget", () => {
+  const wrong = bucket({ ...SUN_18_OCT, leftBeforeStillToCome: 3708 })
+  assert.match(checkSpendSnapshot(snapshot({ buckets: [wrong] })).join(), /leftBeforeStillToCome 3708 \+ used 23636 ≠ budget 28012.5/)
+  const noBudget = bucket({ bucket: "CURRUMBIN", spentToDate: 1000, leftBeforeStillToCome: 500 })
+  assert.match(checkSpendSnapshot(snapshot({ buckets: [noBudget] })).join(), /leftBeforeStillToCome set with no budget/)
+  const missing = bucket({ ...SUN_18_OCT, leftBeforeStillToCome: null })
+  assert.match(checkSpendSnapshot(snapshot({ buckets: [missing] })).join(), /leftBeforeStillToCome missing although budget is set/)
+})
+
+test("second line on a half-cent boundary: -$0.50 before the deliveries reads '$1 over', never '-$1 left'", () => {
+  const b = bucket({
+    bucket: "BURLEIGH",
+    spentToDate: 10000.5,
+    estimatedSpentToDate: 10000.5,
+    budget: 10000,
+    stillToCome: [{ supplier: "Bidfood", amount: 1800, days: ["Mon"] }],
+    paceStatus: "over",
+  })
+  assert.equal(b.leftBeforeStillToCome, -0.5)
+  assert.equal(b.leftToSpend, -1800.5)
+  const { text, html } = render(snapshot({ buckets: [b] }))
+  assert.match(text, /Burleigh: \$1,801 OVER once the usual deliveries land\./)
+  assert.match(text, /Before those deliveries: \$1 over\./)
+  assert.doesNotMatch(text, /-\$1 left/)
+  assert.match(html, /-\$1,801/)
 })

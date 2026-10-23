@@ -246,8 +246,10 @@ function snapshot(over: Partial<WeeklyDigestSnapshot> = {}): WeeklyDigestSnapsho
           estimatedMissingSpend: 400,
           estimatedSpentToDate: 5600,
           estimatedUninvoiced: 600,
+          usualStillToCome: 11500,
           projectedEndOfWeek: 17500,
-          remaining: 11200,
+          remaining: -300,
+          remainingBeforeStillToCome: 11200,
           paceStatus: "watch",
         },
         {
@@ -260,8 +262,10 @@ function snapshot(over: Partial<WeeklyDigestSnapshot> = {}): WeeklyDigestSnapsho
           estimatedMissingSpend: 0,
           estimatedSpentToDate: 3000,
           estimatedUninvoiced: 0,
+          usualStillToCome: 7500,
           projectedEndOfWeek: 10500,
           remaining: null,
+          remainingBeforeStillToCome: null,
           paceStatus: "no-forecast",
         },
       ],
@@ -796,4 +800,32 @@ test("Louise's headline is not repeated when it matches ours to within half a ba
     },
   })
   assert.match(renderDigestHtml(over, narrative), /Louise(&#39;|')s report 45\.01%/)
+})
+
+test("live spend: Remaining is the /spend headline after the usual deliveries, negatives read -$, old figure second", () => {
+  const html = renderDigestHtml(snapshot(), narrative)
+  assert.match(html, /-\$300<div[^>]*>after about \$11,500 of usual deliveries still to come, \$11,200 before them<\/div>/)
+  assert.doesNotMatch(html, /\$-300/)
+  // no budget: no headline, no still-to-come line under the dash
+  assert.doesNotMatch(html, /\$7,500 of usual deliveries/)
+})
+
+test("live spend: half dollars round away from zero like the Sunday email, so the 18 Oct -$4,319.50 reads -$4,320", () => {
+  const base = snapshot()
+  const b0 = base.spendPacing!.buckets[0]
+  const html = renderDigestHtml(
+    snapshot({ spendPacing: { ...base.spendPacing!, buckets: [{ ...b0, remaining: -4319.5, remainingBeforeStillToCome: 4376.5, usualStillToCome: 8696 }] } }),
+    narrative
+  )
+  assert.match(html, /-\$4,320<div[^>]*>after about \$8,696 of usual deliveries still to come, \$4,377 before them<\/div>/)
+  assert.doesNotMatch(html, /\$4,319/)
+})
+
+test("live spend: a digest stored before 23 Oct (no still-to-come fields) still renders its % of cap, no undefined or NaN", () => {
+  const base = snapshot()
+  const { usualStillToCome: _u, remainingBeforeStillToCome: _r, ...old } = base.spendPacing!.buckets[0]
+  const stored = { ...old, remaining: 11200 } as unknown as (typeof base.spendPacing)["buckets"][number]
+  const html = renderDigestHtml(snapshot({ spendPacing: { ...base.spendPacing!, buckets: [stored] } }), narrative)
+  assert.match(html, /\$11,200<div[^>]*>67% of cap<\/div>/)
+  assert.doesNotMatch(html, /undefined|NaN/)
 })

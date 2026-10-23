@@ -5,6 +5,9 @@
  */
 
 import { Venue } from "@/generated/prisma/client"
+import type { StillToComeRow } from "./still-to-come"
+
+export type { StillToComeRow }
 
 // Two reporting buckets: Burleigh (its own venue) and Currumbin
 // (BEACH_HOUSE + TEA_GARDEN combined for COGS).
@@ -105,22 +108,34 @@ export interface BucketSpendData {
   missingSpendBreakdown: MissingSpendRow[]
   targetPct: number
   budget: number | null
-  /// spentToDate grossed up for deliveries made but not yet invoiced
-  /// (8-wk arrival-lag profile for this point in the week).
+  /// Spent so far: spentToDate plus the deliveries of the days before today
+  /// that are normally not invoiced yet at this point in the week (8-wk
+  /// arrival-lag profile). Today's invoices count as they are.
   estimatedSpentToDate: number
-  /// estimatedSpentToDate minus spentToDate
+  /// estimatedSpentToDate minus spentToDate: delivered, not invoiced yet
   estimatedUninvoiced: number
-  /// budget minus estimatedSpentToDate: what is really left for the rest
-  /// of the Wed to Tue week. THE "left to spend" figure, everywhere: the
-  /// /spend page, the Sunday email and the Friday digest all print this
-  /// and nothing else (checkSpendSnapshot in guards.ts enforces the sum).
+  /// The deliveries that usually still land before Tuesday close (ex GST):
+  /// each supplier's 8-wk usual for the rest of today (if it has not
+  /// invoiced for today yet) and the days after, at this week's trade.
+  /// Sum of stillToCome when there is supplier history.
+  usualStillToCome: number
+  /// Who usually still delivers, biggest first (still-to-come.ts). Empty
+  /// when the history is too thin for a supplier pattern.
+  stillToCome: StillToComeRow[]
+  /// budget minus estimatedSpentToDate minus usualStillToCome: what can
+  /// still be ordered once the usual deliveries land. THE "left to spend"
+  /// figure, everywhere: the /spend page, the Sunday email, the Friday
+  /// digest and Shifts' owner note all lead with this (checkSpendSnapshot
+  /// in guards.ts enforces the sum).
   leftToSpend: number | null
-  /// Full-week spend projection + estimatedMissingSpend, from
-  /// estimatedSpentToDate (the same grossed-up basis as leftToSpend).
-  /// "usual" adds a usual rest of week: the days to come's share of the
-  /// 8-wk delivery profile × the 8-wk spend-to-takings ratio × the week's
-  /// projected takings. Fallbacks: "weighted" divides by the days through
-  /// today's share of a week's deliveries; "flat" is spent ÷ days × 7.
+  /// budget minus estimatedSpentToDate: left before the usual deliveries
+  /// still to come. Printed only as the secondary line under leftToSpend.
+  leftBeforeStillToCome: number | null
+  /// Full-week spend projection: estimatedSpentToDate + usualStillToCome +
+  /// estimatedMissingSpend, so it always agrees with leftToSpend. Method
+  /// "usual" when the supplier pattern is there. Fallbacks for thin
+  /// history: "weighted" divides by the days through today's share of a
+  /// week's deliveries; "flat" is spent ÷ days × 7.
   projectedEndOfWeek: number
   spendProjectionMethod: "usual" | "weighted" | "flat"
   /// How projectedRevenueExGst was derived (null = no revenue yet):

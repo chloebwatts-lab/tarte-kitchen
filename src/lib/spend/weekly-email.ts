@@ -22,7 +22,8 @@ import { button, callout, list, section, shell, table, type Tone } from "@/lib/e
 
 const money0 = (n: number | null): string => {
   if (n == null) return "—"
-  const r = Math.round(n) || 0 // normalise -0
+  // half away from zero, so -$4,319.50 and "$4,320 OVER" agree; normalise -0
+  const r = Math.sign(n) * Math.round(Math.abs(n)) || 0
   return r < 0
     ? `-$${Math.abs(r).toLocaleString("en-AU")}`
     : `$${r.toLocaleString("en-AU")}`
@@ -54,23 +55,48 @@ function shortDate(iso: string): string {
   return d.toLocaleDateString("en-AU", { day: "numeric", month: "short" })
 }
 
+/** "$3,708 left" / "$500 over" for the secondary line. */
+function leftOrOver(n: number | null): string {
+  if (n == null) return "n/a"
+  // same rounding as money0, so -$0.50 reads "$1 over", not "-$1 left"
+  return Math.sign(n) * Math.round(Math.abs(n)) < 0 ? `${money0(-n)} over` : `${money0(n)} left`
+}
+
+/** "Bidfood $2,104, Eustralis $1,381, Gold Coast Eggs $828 and others" */
+function stillToComeNames(b: BucketSpendData, max = 3): string {
+  const top = b.stillToCome.slice(0, max).map((r) => `${r.supplier} ${money0(r.amount)}`)
+  if (top.length === 0) return ""
+  return top.join(", ") + (b.stillToCome.length > max ? " and others" : "")
+}
+
+/** True when the usual deliveries still to come round to at least $1. */
+function hasStillToCome(b: BucketSpendData): boolean {
+  return Math.round(b.usualStillToCome) >= 1
+}
+
 /**
  * Per-venue one-liner staff can act on, derived purely from the numbers.
+ * Leads with the /spend headline: what can still be ordered once the usual
+ * deliveries still to come have landed. "Left before those deliveries" is
+ * the secondary line, so nobody reads it as room to order.
  */
 function bucketLine(b: BucketSpendData, daysLeft: number): string {
   if (b.budget == null) {
     return `${b.label}: ${money0(b.spentToDate)} spent so far. No sales forecast loaded, so no budget to compare against.`
   }
-  // Same basis as the /spend headline: invoices in hand grossed up for
-  // deliveries made but not yet invoiced (arrival-lag profile).
   const left = b.leftToSpend ?? 0
-  const used = money0(b.estimatedSpentToDate)
+  const toCome = hasStillToCome(b)
   const usedDetail =
     b.estimatedUninvoiced > 0
-      ? `: ${money0(b.spentToDate)} invoiced plus about ${money0(b.estimatedUninvoiced)} delivered but not invoiced yet`
+      ? ` (${money0(b.spentToDate)} invoiced plus about ${money0(b.estimatedUninvoiced)} delivered but not invoiced yet)`
       : ""
+  const who = stillToComeNames(b)
+  const basis =
+    `${money0(b.estimatedSpentToDate)} spent so far of the ${money0(b.budget)} budget${usedDetail}` +
+    (toCome ? `, and about ${money0(b.usualStillToCome)} of usual deliveries still to come${who ? ` (${who})` : ""}` : "")
+  const before = toCome ? ` Before those deliveries: ${leftOrOver(b.leftBeforeStillToCome)}.` : ""
   if (left <= 0) {
-    return `${b.label}: ${used} spent of a ${money0(b.budget)} budget${usedDetail ? ` (${usedDetail.slice(2)})` : ""}, ${money0(-left)} OVER. Hold all non-essential orders for the rest of the week.`
+    return `${b.label}: ${money0(-left)} OVER${toCome ? " once the usual deliveries land" : ""}. ${basis}.${before} Hold all non-essential orders for the rest of the week.`
   }
   const tail =
     daysLeft > 1
@@ -78,7 +104,7 @@ function bucketLine(b: BucketSpendData, daysLeft: number): string {
       : daysLeft === 1
         ? ` That's the whole budget for today, the last day of the week.`
         : ""
-  return `${b.label}: ${money0(left)} left to spend (${used} of ${money0(b.budget)} used${usedDetail}).${tail}`
+  return `${b.label}: ${money0(left)} left to spend${toCome ? " after the usual deliveries still to come" : ""}. ${basis}.${before}${tail}`
 }
 
 /** Projected full-week COGS % against live revenue pace, else forecast. */
@@ -233,6 +259,7 @@ export function render(snapshot: CurrentWeekSpendSnapshot): {
     return [
       { text: b.label, strong: true },
       money0(b.budget == null ? b.spentToDate : b.estimatedSpentToDate),
+      money0(b.usualStillToCome),
       money0(b.budget),
       { text: money0(left), tone: remainTone, strong: true },
       { text: PACE_LABEL[b.paceStatus], tone: PACE_TONE[b.paceStatus], strong: true },
@@ -243,9 +270,10 @@ export function render(snapshot: CurrentWeekSpendSnapshot): {
   const spendTable = table(
     [
       { header: "Venue" },
-      { header: "Spent (incl. uninvoiced)", align: "right" },
+      { header: "Spent so far", align: "right" },
+      { header: "Usual still to come", align: "right" },
       { header: "Budget", align: "right" },
-      { header: "Left", align: "right" },
+      { header: "Left after them", align: "right" },
       { header: "Pace", align: "right" },
       { header: "COGS proj.", align: "right" },
     ],

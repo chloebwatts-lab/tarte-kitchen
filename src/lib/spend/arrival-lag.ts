@@ -9,6 +9,16 @@
 const BRISBANE_OFFSET_MS = 10 * 60 * 60 * 1000
 const DAY_MS = 24 * 60 * 60 * 1000
 
+/**
+ * An invoice that reached the system more than this long after its date was
+ * imported, not slow: on 16 Oct 2026 eight weeks of Currumbin's Parallel
+ * Roasters invoices ($15k) were backfilled, and counted as lag they told the
+ * profile 7% of Currumbin's spend turns up two weeks late, so every day's
+ * spend was grossed up about $2k too far. Real lag is days: 0.1% of
+ * Burleigh's spend took longer than this.
+ */
+export const BACKFILL_AFTER_DAYS = 14
+
 export interface ArrivalLagRow {
   /// Wed 00:00 of the row's trading week (UTC midnight of the AEST date)
   weekStartMs: number
@@ -35,6 +45,7 @@ export function arrivalCompleteness(
   for (const r of rows) {
     const dayIdx = Math.floor((r.invoiceDateMs - r.weekStartMs) / DAY_MS)
     if (dayIdx < 0 || dayIdx >= daysThroughToday) continue
+    if (r.createdAtMs - r.invoiceDateMs > BACKFILL_AFTER_DAYS * DAY_MS) continue
     counted++
     eventual += r.amount
     if (r.createdAtMs + BRISBANE_OFFSET_MS - r.weekStartMs <= elapsedMs) arrived += r.amount

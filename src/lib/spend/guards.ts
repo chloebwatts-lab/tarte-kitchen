@@ -10,7 +10,10 @@
  *
  * 2. `checkSpendSnapshot`: invariants every consumer relies on. The Sunday
  *    email refuses to send when any fail and alerts instead, so a wrong
- *    figure never reaches staff as if it were right.
+ *    figure never reaches staff as if it were right. Since 23 Oct 2026 that
+ *    includes the headline: left = budget − spent so far − the usual
+ *    deliveries still to come, the still-to-come list adds up to its total,
+ *    and the pace projection adds exactly the same deliveries.
  */
 
 import type { BucketSpendData, CurrentWeekSpendSnapshot } from "./types"
@@ -44,7 +47,9 @@ export function checkBucket(b: BucketSpendData, todayAest: string): string[] {
     ["estimatedSpentToDate", b.estimatedSpentToDate],
     ["estimatedUninvoiced", b.estimatedUninvoiced],
     ["budget", b.budget],
+    ["usualStillToCome", b.usualStillToCome],
     ["leftToSpend", b.leftToSpend],
+    ["leftBeforeStillToCome", b.leftBeforeStillToCome],
     ["projectedEndOfWeek", b.projectedEndOfWeek],
     ["revenueToDateExGst", b.revenueToDateExGst],
     ["projectedRevenueExGst", b.projectedRevenueExGst],
@@ -59,20 +64,45 @@ export function checkBucket(b: BucketSpendData, todayAest: string): string[] {
     p.push(tag(`estimatedSpentToDate ${b.estimatedSpentToDate} is below invoices in hand ${b.spentToDate}`))
   if (!near(b.estimatedUninvoiced, b.estimatedSpentToDate - b.spentToDate))
     p.push(tag(`estimatedUninvoiced ${b.estimatedUninvoiced} ≠ estimatedSpentToDate − spentToDate`))
+
+  // ---- still to come: never negative, the list adds up to the total
+  if (b.usualStillToCome < 0) p.push(tag(`usualStillToCome is negative (${b.usualStillToCome})`))
+  if (b.stillToCome.length > 0) {
+    const sum = b.stillToCome.reduce((s, r) => s + r.amount, 0)
+    if (!near(sum, b.usualStillToCome, 0.5))
+      p.push(tag(`still-to-come rows add to ${Math.round(sum)}, not usualStillToCome ${Math.round(b.usualStillToCome)}`))
+    for (const r of b.stillToCome)
+      if (!Number.isFinite(r.amount) || r.amount <= 0) p.push(tag(`still-to-come row ${r.supplier} is ${r.amount}`))
+  }
+
+  // ---- the headline and its secondary line
   if (b.budget == null) {
     if (b.leftToSpend != null) p.push(tag(`leftToSpend set with no budget`))
+    if (b.leftBeforeStillToCome != null) p.push(tag(`leftBeforeStillToCome set with no budget`))
     if (b.paceStatus !== "no-forecast") p.push(tag(`paceStatus ${b.paceStatus} with no budget`))
   } else {
     if (b.forecastRevenue == null) p.push(tag(`budget set with no forecast`))
     else if (!near(b.budget, (b.forecastRevenue * Number(b.targetPct)) / 100))
       p.push(tag(`budget ${b.budget} ≠ forecast ${b.forecastRevenue} × ${b.targetPct}%`))
     if (b.leftToSpend == null) p.push(tag(`leftToSpend missing although budget is set`))
-    else if (!near(b.leftToSpend + b.estimatedSpentToDate, b.budget))
-      p.push(tag(`leftToSpend ${b.leftToSpend} + used ${b.estimatedSpentToDate} ≠ budget ${b.budget}`))
+    else if (!near(b.leftToSpend + b.estimatedSpentToDate + b.usualStillToCome, b.budget))
+      p.push(
+        tag(`leftToSpend ${b.leftToSpend} + used ${b.estimatedSpentToDate} + still to come ${b.usualStillToCome} ≠ budget ${b.budget}`)
+      )
+    if (b.leftBeforeStillToCome == null) p.push(tag(`leftBeforeStillToCome missing although budget is set`))
+    else if (!near(b.leftBeforeStillToCome + b.estimatedSpentToDate, b.budget))
+      p.push(tag(`leftBeforeStillToCome ${b.leftBeforeStillToCome} + used ${b.estimatedSpentToDate} ≠ budget ${b.budget}`))
     if (b.paceStatus === "no-forecast") p.push(tag(`paceStatus no-forecast although budget is set`))
   }
   if (b.projectedEndOfWeek + 0.01 < b.estimatedSpentToDate)
     p.push(tag(`projectedEndOfWeek ${b.projectedEndOfWeek} is below spend to date ${b.estimatedSpentToDate}`))
+  // The pace adds the same deliveries the headline takes off
+  if (!near(b.projectedEndOfWeek, b.estimatedSpentToDate + b.usualStillToCome + b.estimatedMissingSpend))
+    p.push(
+      tag(
+        `projectedEndOfWeek ${b.projectedEndOfWeek} ≠ used ${b.estimatedSpentToDate} + still to come ${b.usualStillToCome} + missing ${b.estimatedMissingSpend}`
+      )
+    )
 
   // ---- revenue side
   const reported = b.revenueDaily.filter((d) => d.reported)

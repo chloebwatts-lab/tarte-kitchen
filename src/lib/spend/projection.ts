@@ -16,21 +16,31 @@
  * 68%. Backtest over the 12 weeks to 20 Oct 2026, projected COGS % at 5pm
  * against where the week finished: Thursday miss 37 points (worst 138)
  * the old way, 3 points (worst 10) now; Sunday 5 points, now 2.5.
+ *
+ * Since 23 Oct 2026 the live tracker passes the rest of the week in as
+ * usualStillToCome, supplier by supplier (still-to-come.ts), so the pace and
+ * the "left to spend" headline add exactly the same deliveries. It is the
+ * same usual week (it sums to usualWeekSpend over seven days), split by who
+ * delivers on which day, with suppliers already in for today left out.
  */
 
 export interface SpendProjectionInput {
-  /// Invoices in hand grossed up for deliveries not yet invoiced (ex GST)
+  /// Spent so far: invoices in hand, plus the days before today's
+  /// deliveries not invoiced yet (ex GST)
   estimatedSpentToDate: number
   /// 8-week share of a week's deliveries per trading weekday, idx 0 = Wed;
   /// null when there is not enough history
   spendShare: number[] | null
-  /// Trading days whose deliveries are in estimatedSpentToDate, today
-  /// included (1-7). The arrival gross-up runs through today, so the share
-  /// must too.
+  /// Trading days through today (1-7), for the fallbacks only: with no
+  /// supplier pattern they divide spend so far by these days' share
   daysThroughToday: number
   /// A usual full week of deliveries at this week's expected takings
   /// (usualWeekSpend()); null falls back to scaling spend to date up
   usualWeekSpend: number | null
+  /// The usual deliveries still to come this week, supplier by supplier
+  /// (still-to-come.ts). When given it IS the rest of the week, so the
+  /// projection and "left to spend" add the same deliveries.
+  usualStillToCome?: number | null
   /// Weekly average of expected suppliers that are overdue or missing
   estimatedMissing: number
 }
@@ -50,7 +60,10 @@ export function projectEndOfWeekSpend(input: SpendProjectionInput): SpendProject
   const elapsedShare = spendShare ? spendShare.slice(0, days).reduce((a, b) => a + b, 0) : 0
   let fromInvoices: number
   let method: SpendProjection["method"]
-  if (spendShare != null && usualWeekSpend != null && usualWeekSpend > 0) {
+  if (input.usualStillToCome != null && Number.isFinite(input.usualStillToCome)) {
+    fromInvoices = cents(estimatedSpentToDate + Math.max(0, input.usualStillToCome))
+    method = "usual"
+  } else if (spendShare != null && usualWeekSpend != null && usualWeekSpend > 0) {
     // The days to come spend what they usually do. Their share of a week
     // comes from the 8-week delivery profile, so a Thursday adds the
     // Friday to Tuesday deliveries, not five more Wednesdays.
@@ -135,6 +148,11 @@ export const FULL_WEEK_MIN_DAYS = 6
 /// Fewer full weeks than this and there is no usual week
 export const MIN_FULL_WEEKS = 3
 
+/** Indices of the history weeks with all their takings on file. */
+export function fullHistoryWeeks(weeks: HistoryWeek[]): number[] {
+  return weeks.flatMap((w, i) => (w.revenueDays >= FULL_WEEK_MIN_DAYS && w.revenue > 0 ? [i] : []))
+}
+
 /**
  * Spend and takings over the history weeks whose takings are all on file.
  * A week with missing sales days would set its whole spend against part of
@@ -142,7 +160,7 @@ export const MIN_FULL_WEEKS = 3
  * 35%), so those weeks are left out on both sides.
  */
 export function usualHistory(weeks: HistoryWeek[]): { spend: number; revenue: number; weeks: number } | null {
-  const full = weeks.filter((w) => w.revenueDays >= FULL_WEEK_MIN_DAYS && w.revenue > 0)
+  const full = fullHistoryWeeks(weeks).map((i) => weeks[i])
   if (full.length < MIN_FULL_WEEKS) return null
   return {
     spend: full.reduce((a, w) => a + w.spend, 0),

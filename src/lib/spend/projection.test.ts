@@ -112,7 +112,22 @@ test("inputs are not mutated and the share array is read, not consumed", () => {
 
 // ------------------------------------------------ guard boundary
 
+/** Dependent fields (still to come, both "left" figures) derive from the rest unless given. */
 function guardBucket(over: Partial<BucketSpendData>): BucketSpendData {
+  const b = guardBase(over)
+  const usualStillToCome =
+    over.usualStillToCome ?? cents(Math.max(0, b.projectedEndOfWeek - b.estimatedMissingSpend - b.estimatedSpentToDate))
+  return {
+    ...b,
+    usualStillToCome,
+    leftToSpend:
+      over.leftToSpend !== undefined ? over.leftToSpend : b.budget == null ? null : cents(b.budget - b.estimatedSpentToDate - usualStillToCome),
+    leftBeforeStillToCome:
+      over.leftBeforeStillToCome !== undefined ? over.leftBeforeStillToCome : b.budget == null ? null : cents(b.budget - b.estimatedSpentToDate),
+  }
+}
+
+function guardBase(over: Partial<BucketSpendData>): BucketSpendData {
   const spentToDate = 7000
   const estimatedSpentToDate = 7900
   return {
@@ -126,7 +141,10 @@ function guardBucket(over: Partial<BucketSpendData>): BucketSpendData {
     budget: 10000,
     estimatedSpentToDate,
     estimatedUninvoiced: 900,
+    usualStillToCome: 0,
+    stillToCome: [],
     leftToSpend: 2100,
+    leftBeforeStillToCome: 2100,
     projectedEndOfWeek: estimatedSpentToDate,
     spendProjectionMethod: "weighted",
     revenueProjectionMethod: null,
@@ -155,10 +173,12 @@ test("guard: projection equal to, or a cent under, the grossed-up spend passes; 
 })
 
 test("guard: a projection that only clears invoices in hand (the pre-fix behaviour) is refused", () => {
-  // 7000 in hand, 7900 grossed up, projection 7500: above spentToDate, below the basis
+  // 7000 in hand, 7900 grossed up, projection 7500: above spentToDate, below
+  // the basis, and short of used + still to come as well
   const p = checkBucket(guardBucket({ projectedEndOfWeek: 7500 }), "2026-10-18")
-  assert.equal(p.length, 1)
+  assert.equal(p.length, 2)
   assert.match(p[0], /below spend to date 7900/)
+  assert.match(p[1], /projectedEndOfWeek 7500 ≠ used 7900 \+ still to come 0 \+ missing 0/)
 })
 
 test("guard: the live projection output always satisfies the live guard", () => {
@@ -442,7 +462,6 @@ function liveBucket(o: {
     budget,
     estimatedSpentToDate,
     estimatedUninvoiced: cents(estimatedSpentToDate - o.spentToDate),
-    leftToSpend: budget == null ? null : cents(budget - estimatedSpentToDate),
     projectedEndOfWeek: spend.projectedEndOfWeek,
     spendProjectionMethod: spend.method,
     revenueProjectionMethod: rev.method,

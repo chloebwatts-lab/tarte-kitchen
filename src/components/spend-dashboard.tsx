@@ -64,7 +64,45 @@ function PaceBadge({ status }: { status: BucketSpendData["paceStatus"] }) {
   )
 }
 
+/** Who usually still delivers before Tuesday close, biggest first. */
+function StillToComeList({ bucket }: { bucket: BucketSpendData }) {
+  const SHOW = 8
+  const shown = bucket.stillToCome.slice(0, SHOW)
+  const rest = bucket.stillToCome.slice(SHOW)
+  const restTotal = rest.reduce((s, r) => s + r.amount, 0)
+  return (
+    <div className="rounded-md border border-border px-3 py-2 text-xs">
+      <div className="mb-1 font-medium">
+        Usually still to come: about {fmt(bucket.usualStillToCome)}
+      </div>
+      <p className="mb-1.5 text-muted-foreground">
+        Standing orders and usual delivery days not in yet, at the 8-week
+        average for this week&apos;s trade. Already counted against the
+        budget, so only order on top of these if there is room left.
+      </p>
+      <ul className="space-y-0.5">
+        {shown.map((r) => (
+          <li key={r.supplier} className="flex justify-between gap-2">
+            <span>
+              {r.supplier}{" "}
+              <span className="text-muted-foreground">{r.days.join(", ")}</span>
+            </span>
+            <span className="tabular-nums">~{fmt(r.amount)}</span>
+          </li>
+        ))}
+        {rest.length > 0 && (
+          <li className="flex justify-between gap-2 text-muted-foreground">
+            <span>{rest.length} more</span>
+            <span className="tabular-nums">~{fmt(restTotal)}</span>
+          </li>
+        )}
+      </ul>
+    </div>
+  )
+}
+
 function BucketCard({ bucket }: { bucket: BucketSpendData }) {
+  const hasStillToCome = Math.round(bucket.usualStillToCome) >= 1
   const remainPct =
     bucket.budget && bucket.budget > 0
       ? (bucket.leftToSpend ?? 0) / bucket.budget
@@ -116,26 +154,22 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <Tile
-            label="Spent to date"
-            value={fmt(bucket.spentToDate)}
-            sub={`${bucket.invoiceCount} invoices`}
-          />
-          <Tile
-            label="Budget"
-            value={fmt(bucket.budget)}
-            sub={`@ ${Number(bucket.targetPct).toFixed(0)}% of forecast`}
-          />
-          <Tile
-            label="Left to spend"
+            className="col-span-2"
+            label={hasStillToCome ? "Left to spend after the usual deliveries" : "Left to spend"}
             value={fmt(bucket.leftToSpend)}
             sub={
-              remainPct == null
-                ? "—"
-                : `${Math.round(remainPct * 100)}% of cap, to Tuesday close. ${fmt(
-                    bucket.spentToDate
-                  )} invoiced plus about ${fmt(
-                    bucket.estimatedUninvoiced
-                  )} delivered but not invoiced yet`
+              bucket.leftToSpend == null
+                ? "No forecast, so no budget"
+                : (bucket.leftToSpend < 0
+                    ? `${fmt(-bucket.leftToSpend)} over budget by Tuesday close`
+                    : `${Math.round((remainPct ?? 0) * 100)}% of the budget still free to order, to Tuesday close`) +
+                  (hasStillToCome
+                    ? `, once about ${fmt(bucket.usualStillToCome)} of usual deliveries still to come have landed. Before them: ${
+                        (bucket.leftBeforeStillToCome ?? 0) < 0
+                          ? `${fmt(-(bucket.leftBeforeStillToCome ?? 0))} over`
+                          : `${fmt(bucket.leftBeforeStillToCome)} left`
+                      }.`
+                    : ".")
             }
             valueTone={
               bucket.leftToSpend == null
@@ -148,12 +182,37 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
             }
           />
           <Tile
+            label="Spent so far"
+            value={fmt(bucket.estimatedSpentToDate)}
+            sub={
+              bucket.estimatedUninvoiced > 0
+                ? `${fmt(bucket.spentToDate)} invoiced (${bucket.invoiceCount}) plus about ${fmt(bucket.estimatedUninvoiced)} delivered but not invoiced yet`
+                : `${bucket.invoiceCount} invoices`
+            }
+          />
+          <Tile
+            label="Usual still to come"
+            value={fmt(bucket.usualStillToCome)}
+            sub={
+              bucket.stillToCome.length > 0
+                ? "what normally still lands by Tuesday close, see below"
+                : bucket.usualStillToCome > 0
+                ? "rest of the week at this week's pace"
+                : "nothing usually still to come"
+            }
+          />
+          <Tile
+            label="Budget"
+            value={fmt(bucket.budget)}
+            sub={`@ ${Number(bucket.targetPct).toFixed(0)}% of forecast`}
+          />
+          <Tile
             label="Pace projection"
             value={fmt(bucket.projectedEndOfWeek)}
             sub={
               projectedPct == null
                 ? bucket.spendProjectionMethod === "usual"
-                  ? "so far plus a usual rest of week"
+                  ? "spent so far plus the usual still to come"
                   : bucket.spendProjectionMethod === "weighted"
                   ? "weighted for remaining trading days"
                   : "@ current daily rate"
@@ -172,6 +231,10 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
             }
           />
         </div>
+
+        {bucket.stillToCome.length > 0 && (
+          <StillToComeList bucket={bucket} />
+        )}
 
         {projectedCogsPct != null && (
           <div
@@ -470,11 +533,13 @@ function Tile({
   value,
   sub,
   valueTone,
+  className,
 }: {
   label: string
   value: string
   sub?: string
   valueTone?: "green" | "amber" | "red"
+  className?: string
 }) {
   const toneCls =
     valueTone === "red"
@@ -485,7 +550,7 @@ function Tile({
       ? "text-green-text"
       : "text-foreground"
   return (
-    <div className="rounded-xl border-[1.5px] border-border bg-card p-4">
+    <div className={cn("rounded-xl border-[1.5px] border-border bg-card p-4", className)}>
       <div className="font-serif text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         {label}
       </div>
