@@ -10,7 +10,10 @@ export const dynamic = "force-dynamic"
  * not yet invoiced) against POS revenue to date, plus the week's pace.
  * leftToSpend is the /spend headline since 23 Oct 2026: budget minus spend
  * so far minus the usual deliveries still to come (usualStillToCome);
- * leftBeforeStillToCome is the old figure, budget minus spend so far.
+ * leftBeforeStillToCome is budget minus spend so far. Since 25 Oct 2026 both
+ * also take off overdueGap (delivered, not invoiced because the supplier's
+ * invoices stopped, overdueGapRows say who), which projectedEndOfWeek and
+ * projectedPct count once.
  * Bearer = CRON_SECRET like the other internal routes.
  */
 export async function GET(req: NextRequest) {
@@ -33,6 +36,8 @@ export async function GET(req: NextRequest) {
       budget: b.budget == null ? null : Math.round(b.budget),
       leftToSpend: b.leftToSpend == null ? null : Math.round(b.leftToSpend),
       usualStillToCome: Math.round(b.usualStillToCome),
+      overdueGap: Math.round(b.overdueGap),
+      overdueGapRows: b.overdueGapRows.slice(0, 5).map((r) => ({ supplier: r.supplier, amount: Math.round(r.amount), days: r.days })),
       leftBeforeStillToCome: b.leftBeforeStillToCome == null ? null : Math.round(b.leftBeforeStillToCome),
       stillToCome: b.stillToCome.slice(0, 5).map((r) => ({ supplier: r.supplier, amount: Math.round(r.amount), days: r.days })),
       projectedEndOfWeek: Math.round(b.projectedEndOfWeek),

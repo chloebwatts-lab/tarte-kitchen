@@ -16,6 +16,7 @@
 
 import { getCurrentWeekSpend } from "./current-week"
 import { checkSpendSnapshot } from "./guards"
+import { gapDaysLabel } from "./overdue-gap"
 import type { BucketSpendData, CurrentWeekSpendSnapshot } from "./types"
 import { sendHtmlEmail } from "@/lib/gmail/send"
 import { button, callout, list, section, shell, table, type Tone } from "@/lib/email/brand"
@@ -74,6 +75,16 @@ function hasStillToCome(b: BucketSpendData): boolean {
   return Math.round(b.usualStillToCome) >= 1
 }
 
+/** True when overdue invoices round to at least $1. */
+function hasOverdue(b: BucketSpendData): boolean {
+  return Math.round(b.overdueGap) >= 1
+}
+
+/** "Pixel Bread Thu to Sat $1,040, Bidfood Fri $260" */
+function overdueNames(b: BucketSpendData): string {
+  return b.overdueGapRows.map((r) => `${r.supplier} ${gapDaysLabel(r.days)} ${money0(r.amount)}`).join(", ")
+}
+
 /**
  * Per-venue one-liner staff can act on, derived purely from the numbers.
  * Leads with the /spend headline: what can still be ordered once the usual
@@ -91,8 +102,12 @@ function bucketLine(b: BucketSpendData, daysLeft: number): string {
       ? ` (${money0(b.spentToDate)} invoiced plus about ${money0(b.estimatedUninvoiced)} delivered but not invoiced yet)`
       : ""
   const who = stillToComeNames(b)
+  const overdue = hasOverdue(b)
+    ? `about ${money0(b.overdueGap)} of overdue invoices (${overdueNames(b)}, delivered but their invoices stopped coming in)`
+    : ""
   const basis =
     `${money0(b.estimatedSpentToDate)} spent so far of the ${money0(b.budget)} budget${usedDetail}` +
+    (overdue ? `, ${toCome ? "" : "and "}${overdue}` : "") +
     (toCome ? `, and about ${money0(b.usualStillToCome)} of usual deliveries still to come${who ? ` (${who})` : ""}` : "")
   const before = toCome ? ` Before those deliveries: ${leftOrOver(b.leftBeforeStillToCome)}.` : ""
   if (left <= 0) {
@@ -258,7 +273,8 @@ export function render(snapshot: CurrentWeekSpendSnapshot): {
             : "red"
     return [
       { text: b.label, strong: true },
-      money0(b.budget == null ? b.spentToDate : b.estimatedSpentToDate),
+      money0(b.budget == null ? b.spentToDate : b.estimatedSpentToDate) +
+        (b.budget != null && hasOverdue(b) ? `\n+ ${money0(b.overdueGap)} overdue invoices` : ""),
       money0(b.usualStillToCome),
       money0(b.budget),
       { text: money0(left), tone: remainTone, strong: true },

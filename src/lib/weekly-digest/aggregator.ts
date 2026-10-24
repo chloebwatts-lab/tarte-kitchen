@@ -26,6 +26,7 @@ import {
 } from "@/lib/labour/payruns"
 import { uberSalesExGst } from "@/lib/uber/client"
 import { sharedSplit } from "@/lib/spend/shared-split"
+import { gapDaysLabel } from "@/lib/spend/overdue-gap"
 import {
   buildCommitmentsSection,
   type CommitmentsSection,
@@ -110,7 +111,11 @@ interface SpendPacingSection {
     targetPct: number
     budget: number | null
     spentToDate: number
-    estimatedMissingSpend: number
+    /// Delivered, not invoiced because the supplier's invoices have stopped
+    /// (same basis as /spend), already off `remaining`
+    overdueGap: number
+    /// Who, for the line under the spend figure ("Pixel Bread Thu to Sat")
+    overdueGapLabel: string
     /// spentToDate grossed up for deliveries not yet invoiced (same basis as /spend)
     estimatedSpentToDate: number
     estimatedUninvoiced: number
@@ -1333,7 +1338,8 @@ async function buildSpendPacing(): Promise<SpendPacingSection> {
       targetPct: Number(b.targetPct),
       budget: b.budget,
       spentToDate: b.spentToDate,
-      estimatedMissingSpend: b.estimatedMissingSpend,
+      overdueGap: b.overdueGap,
+      overdueGapLabel: b.overdueGapRows.map((r) => `${r.supplier} ${gapDaysLabel(r.days)}`).join(", "),
       estimatedSpentToDate: b.estimatedSpentToDate,
       estimatedUninvoiced: b.estimatedUninvoiced,
       usualStillToCome: b.usualStillToCome,

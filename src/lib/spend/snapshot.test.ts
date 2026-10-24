@@ -375,3 +375,120 @@ test("spendSupplierKey: aliases, case and spacing all land on one supplier", asy
   assert.equal(spendSupplierKey("GOLD COAST  premium foods"), spendSupplierKey("Gold Coast Premium Foods"))
   assert.equal(spendSupplierKey("gold coast premium foods "), "Gold Coast Premium Foods")
 })
+
+// ------------------------------------------------ overdue invoices (25 Oct 2026)
+// Sun 25 Oct 2026: Pixel Bread had invoiced nothing since Wednesday. The
+// headline ignored the Thursday to Saturday bread, while the pace added
+// Pixel's whole 4-week xlsx average on top of the bread already in and the
+// bread already in still to come: Burleigh read $237 left and 30.6% COGS,
+// about 29.4% really. Each day of Pixel's bread must now be counted once:
+// in hand, overdue, or still to come.
+
+/** This week to pattern, except Pixel sends nothing after Wednesday (until `resumeOn`). */
+function pixelStops(resumeOn?: number): Inv[] {
+  return patternWeek(0).filter((i) => {
+    if (i.supplierName !== "Pixel Bread") return true
+    const day = Math.round((i.invoiceDate!.getTime() - WEEK_START) / DAY)
+    return day === WED || (resumeOn != null && day >= resumeOn)
+  })
+}
+
+/** Louise's xlsx lines and the latest invoice per supplier, the way current-week.ts reads them. */
+function withCoverage(r: SpendSnapshotRows, xlsx: SpendSnapshotRows["cogsSupplierHistory"] = []): SpendSnapshotRows {
+  const latest = new Map<string, Date>()
+  for (const i of [...r.invoiceHistory, ...r.invoices])
+    if (i.invoiceDate && (!latest.has(i.supplierName) || latest.get(i.supplierName)! < i.invoiceDate)) latest.set(i.supplierName, i.invoiceDate)
+  return {
+    ...r,
+    cogsSupplierHistory: xlsx,
+    latestInvoiceByAlias: [...latest].map(([supplierName, d]) => ({ supplierName, _max: { invoiceDate: d } })),
+  }
+}
+
+// Pixel at Burleigh in Louise's xlsx: $2,100 a week, the figure the pace used to add in full
+const PIXEL_XLSX = [1, 2, 3, 4].map((w) => ({ venue: "BURLEIGH" as const, supplier: "Pixel Bread", amount: 2100, weekStartWed: dateOf(w, WED) }))
+
+function pixelSnap(now: Date, thisWeek: Inv[] = pixelStops(), history?: Inv[]) {
+  const snap = buildSpendSnapshot(withCoverage(edgeRows(now, { thisWeek, history }), PIXEL_XLSX), now)
+  assert.deepEqual(checkSpendSnapshot(snap), [], `guards at ${now.toISOString()}`)
+  const by = Object.fromEntries(snap.buckets.map((b) => [b.bucket, b]))
+  return { snap, burleigh: by.BURLEIGH, currumbin: by.CURRUMBIN }
+}
+
+test("25 Oct: Pixel quiet since Wednesday, Sunday 08:30 counts Thursday to Saturday once, on its own line, and the pace agrees", () => {
+  const { snap, burleigh: b, currumbin: c } = pixelSnap(at(0, SUN, 8.5))
+  assert.equal(snap.coverage.find((r) => r.canonicalName === "Pixel Bread")!.status, "overdue")
+  assert.deepEqual(b.overdueGapRows, [{ supplier: "Pixel Bread", amount: 900, days: ["Thu", "Fri", "Sat"], lastInvoiceDate: "2026-10-14" }])
+  assert.equal(b.overdueGap, 900)
+  // Sunday to Tuesday's bread is still to come, and only there
+  assert.deepEqual(b.stillToCome.find((r) => r.supplier === "Pixel Bread"), { supplier: "Pixel Bread", amount: 900, days: ["Sun", "Mon", "Tue"] })
+  // in hand + overdue + still to come = the usual week: nothing ignored, nothing doubled
+  assert.ok(Math.abs(b.estimatedSpentToDate + b.overdueGap + b.usualStillToCome - 9500) < 0.05, `${b.estimatedSpentToDate} + ${b.overdueGap} + ${b.usualStillToCome}`)
+  assert.ok(Math.abs(b.projectedEndOfWeek - 9500) < 0.05, `pace ${b.projectedEndOfWeek}, not 9,500 + the $2,100 xlsx week`)
+  assert.ok(Math.abs(b.leftToSpend! - (9450 - 9500)) < 0.05)
+  assert.ok(Math.abs(b.leftBeforeStillToCome! - b.leftToSpend! - b.usualStillToCome) < 0.015)
+  // Currumbin gets no Pixel in this fixture, so no gap there
+  assert.equal(c.overdueGap, 0)
+  assert.deepEqual(c.overdueGapRows, [])
+
+  const { text, html } = render(snap)
+  assert.match(text, /about \$900 of overdue invoices \(Pixel Bread Thu to Sat \$900, delivered but their invoices stopped coming in\), and about \$[\d,]+ of usual deliveries still to come/)
+  assert.match(html, /\+ \$900 overdue invoices/)
+})
+
+test("Pixel quiet since Wednesday: every hour of the week, each day of bread is counted exactly once", () => {
+  for (let h = 24; h < 7 * 24; h++) {
+    const now = at(0, WED, h + 0.5)
+    const { burleigh: b } = pixelSnap(now)
+    const day = Math.floor((h + 0.5) / 24)
+    const label = `${now.toISOString()} (day ${day})`
+    // Friday: Thursday's bread is a day late, not overdue yet (the coverage rule), so it is not counted
+    const expected = day === FRI ? 9500 - 300 : 9500
+    assert.ok(Math.abs(b.estimatedSpentToDate + b.overdueGap + b.usualStillToCome - expected) < 0.05, `${label}: ${b.estimatedSpentToDate} + ${b.overdueGap} + ${b.usualStillToCome}`)
+    assert.ok(Math.abs(b.projectedEndOfWeek - expected) < 0.05, label)
+    assert.equal(b.overdueGap, day >= SAT ? (day - THU) * 300 : 0, label)
+  }
+})
+
+test("Pixel starts invoicing again on Sunday without the missing days: Monday still counts them; once sent the headline does not move", () => {
+  const now = at(0, MON, 7)
+  const { burleigh: b } = pixelSnap(now, pixelStops(SUN))
+  assert.deepEqual(b.overdueGapRows.map((r) => [r.supplier, r.amount, r.days.join("/")]), [["Pixel Bread", 900, "Thu/Fri/Sat"]])
+  assert.ok(Math.abs(b.estimatedSpentToDate + b.overdueGap + b.usualStillToCome - 9500) < 0.05)
+  // Pixel backfills Thursday to Saturday at 6am Monday
+  const backfill = [THU, FRI, SAT].map((d) => inv("Pixel Bread", 0, d, 300, at(0, MON, 6)))
+  const sent = pixelSnap(now, [...pixelStops(SUN), ...backfill]).burleigh
+  assert.equal(sent.overdueGap, 0)
+  assert.equal(cents(sent.spentToDate - b.spentToDate), 900)
+  assert.ok(Math.abs(sent.leftToSpend! - b.leftToSpend!) < 0.05, `${sent.leftToSpend} vs ${b.leftToSpend}`)
+  assert.ok(Math.abs(sent.projectedEndOfWeek - b.projectedEndOfWeek) < 0.05)
+})
+
+test("a supplier that stopped weeks ago gets no gap, and its xlsx 4-week average no longer reaches the pace", () => {
+  // Tasman to the Beach House every Friday, $500, until five weeks ago; nothing since
+  const tasman = [5, 6, 7, 8].map((w) => venueInv("Tasman Distribution", "BEACH_HOUSE", w, FRI, 500, at(w, FRI, 12)))
+  const xlsx = [5, 6, 7, 8].map((w) => ({ venue: "BEACH_HOUSE" as const, supplier: "Tasman Distribution", amount: 500, weekStartWed: dateOf(w, WED) }))
+  const now = at(0, SUN, 8.5)
+  const snap = buildSpendSnapshot(withCoverage(edgeRows(now, { history: [...HISTORY_WEEKS.flatMap(patternWeek), ...tasman] }), xlsx), now)
+  assert.deepEqual(checkSpendSnapshot(snap), [])
+  assert.equal(snap.coverage.find((r) => r.canonicalName === "Tasman Distribution")!.status, "overdue")
+  const c = snap.buckets.find((b) => b.bucket === "CURRUMBIN")!
+  assert.equal(c.overdueGap, 0)
+  assert.ok(Math.abs(c.projectedEndOfWeek - (c.estimatedSpentToDate + c.usualStillToCome)) < 0.01)
+})
+
+test("guard: an overdue gap left out of the headline, doubled in the pace, or also still to come is withheld", () => {
+  const { snap, burleigh: b } = pixelSnap(at(0, SUN, 8.5))
+  const swap = (over: Partial<typeof b>) => checkSpendSnapshot({ ...snap, buckets: [{ ...b, ...over }] }).join(" | ")
+  // the 25 Oct headline: gap ignored
+  assert.match(swap({ leftToSpend: cents(b.leftToSpend! + b.overdueGap) }), /leftToSpend .* \+ overdue 900 ≠ budget 9450/)
+  // the 25 Oct pace: a whole week added on top
+  assert.match(swap({ projectedEndOfWeek: cents(b.projectedEndOfWeek + 2100) }), /projectedEndOfWeek .* ≠ used .* \+ overdue 900/)
+  // the list must add up, and a day cannot be both overdue and still to come
+  assert.match(swap({ overdueGapRows: [] }), /overdue rows add to 0, not overdueGap 900/)
+  assert.match(
+    swap({ overdueGapRows: [{ ...b.overdueGapRows[0], days: ["Sat", "Sun"] }] }),
+    /Pixel Bread Sun is both overdue and still to come/
+  )
+  assert.match(swap({ overdueGap: -5, overdueGapRows: [] }), /overdueGap is negative/)
+})

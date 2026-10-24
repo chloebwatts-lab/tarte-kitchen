@@ -6,8 +6,9 @@
 
 import { Venue } from "@/generated/prisma/client"
 import type { StillToComeRow } from "./still-to-come"
+import type { OverdueGapRow } from "./overdue-gap"
 
-export type { StillToComeRow }
+export type { StillToComeRow, OverdueGapRow }
 
 // Two reporting buckets: Burleigh (its own venue) and Currumbin
 // (BEACH_HOUSE + TEA_GARDEN combined for COGS).
@@ -52,15 +53,6 @@ export interface DailyRevenueCell {
   suspect?: boolean
 }
 
-/// One supplier's contribution to estimatedMissingSpend, so the amber
-/// box can show WHO is missing instead of just a lump sum.
-export interface MissingSpendRow {
-  supplier: string
-  estWeekly: number
-  lastSeen: string | null
-  daysSinceLast: number | null
-}
-
 export interface SupplierSpendCell {
   supplier: string
   amount: number
@@ -101,11 +93,15 @@ export interface BucketSpendData {
   label: string
   spentToDate: number
   forecastRevenue: number | null
-  /// Estimated $ to add for known suppliers whose invoices haven't
-  /// arrived (Joval/Paramount/etc). Sum of their estimatedWeeklySpend.
-  estimatedMissingSpend: number
-  /// Per-supplier composition of estimatedMissingSpend
-  missingSpendBreakdown: MissingSpendRow[]
+  /// Delivered this week, not invoiced because the supplier's invoices have
+  /// stopped (ex GST): its usual for each day before today with no invoice,
+  /// in a run longer than the overdue rule allows (overdue-gap.ts). Off the
+  /// headline and in the pace once, never in estimatedSpentToDate or
+  /// usualStillToCome. 0 when nobody is overdue. Since 25 Oct 2026; it
+  /// replaced the COGS xlsx 4-week averages the pace used to add in full.
+  overdueGap: number
+  /// Who is overdue and for which days, biggest first; sums to overdueGap
+  overdueGapRows: OverdueGapRow[]
   targetPct: number
   budget: number | null
   /// Spent so far: spentToDate plus the deliveries of the days before today
@@ -122,17 +118,19 @@ export interface BucketSpendData {
   /// Who usually still delivers, biggest first (still-to-come.ts). Empty
   /// when the history is too thin for a supplier pattern.
   stillToCome: StillToComeRow[]
-  /// budget minus estimatedSpentToDate minus usualStillToCome: what can
-  /// still be ordered once the usual deliveries land. THE "left to spend"
-  /// figure, everywhere: the /spend page, the Sunday email, the Friday
-  /// digest and Shifts' owner note all lead with this (checkSpendSnapshot
-  /// in guards.ts enforces the sum).
+  /// budget minus estimatedSpentToDate minus overdueGap minus
+  /// usualStillToCome: what can still be ordered once the overdue invoices
+  /// are in and the usual deliveries land. THE "left to spend" figure,
+  /// everywhere: the /spend page, the Sunday email, the Friday digest and
+  /// Shifts' owner note all lead with this (checkSpendSnapshot in guards.ts
+  /// enforces the sum).
   leftToSpend: number | null
-  /// budget minus estimatedSpentToDate: left before the usual deliveries
-  /// still to come. Printed only as the secondary line under leftToSpend.
+  /// budget minus estimatedSpentToDate minus overdueGap: left before the
+  /// usual deliveries still to come. Printed only as the secondary line
+  /// under leftToSpend.
   leftBeforeStillToCome: number | null
-  /// Full-week spend projection: estimatedSpentToDate + usualStillToCome +
-  /// estimatedMissingSpend, so it always agrees with leftToSpend. Method
+  /// Full-week spend projection: estimatedSpentToDate + overdueGap +
+  /// usualStillToCome, so it always agrees with leftToSpend. Method
   /// "usual" when the supplier pattern is there. Fallbacks for thin
   /// history: "weighted" divides by the days through today's share of a
   /// week's deliveries; "flat" is spent ÷ days × 7.

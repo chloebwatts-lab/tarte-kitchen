@@ -22,6 +22,12 @@
  * the "left to spend" headline add exactly the same deliveries. It is the
  * same usual week (it sums to usualWeekSpend over seven days), split by who
  * delivers on which day, with suppliers already in for today left out.
+ *
+ * Since 25 Oct 2026 the overdue gap (overdue-gap.ts) is the days before
+ * today an overdue supplier has not invoiced, at the same usual, added once.
+ * It replaced a full 4-week average per overdue supplier, which on 25 Oct
+ * added Pixel Bread's whole week on top of the bread already in and the
+ * bread already in still to come (Burleigh 30.6% shown, about 29.4% real).
  */
 
 export interface SpendProjectionInput {
@@ -41,8 +47,9 @@ export interface SpendProjectionInput {
   /// (still-to-come.ts). When given it IS the rest of the week, so the
   /// projection and "left to spend" add the same deliveries.
   usualStillToCome?: number | null
-  /// Weekly average of expected suppliers that are overdue or missing
-  estimatedMissing: number
+  /// Delivered on days before today but not invoiced because the
+  /// supplier's invoices have stopped (overdue-gap.ts), added once
+  overdueGap: number
 }
 
 export interface SpendProjection {
@@ -55,7 +62,7 @@ export interface SpendProjection {
 const cents = (n: number) => Math.round(n * 100) / 100
 
 export function projectEndOfWeekSpend(input: SpendProjectionInput): SpendProjection {
-  const { estimatedSpentToDate, spendShare, estimatedMissing, usualWeekSpend } = input
+  const { estimatedSpentToDate, spendShare, overdueGap, usualWeekSpend } = input
   const days = Math.min(7, Math.max(1, Math.floor(input.daysThroughToday)))
   const elapsedShare = spendShare ? spendShare.slice(0, days).reduce((a, b) => a + b, 0) : 0
   let fromInvoices: number
@@ -76,9 +83,9 @@ export function projectEndOfWeekSpend(input: SpendProjectionInput): SpendProject
     fromInvoices = cents((estimatedSpentToDate / days) * 7)
     method = "flat"
   }
-  // Overdue or missing suppliers: add their full weekly average, as they
-  // land in full by week end and are not in the invoice history either.
-  return { projectedEndOfWeek: cents(fromInvoices + estimatedMissing), method }
+  // Overdue suppliers: the days before today they have not invoiced. The
+  // days to come are in usualStillToCome already, so this is not a week.
+  return { projectedEndOfWeek: cents(fromInvoices + overdueGap), method }
 }
 
 export interface RevenueProjectionInput {

@@ -90,9 +90,9 @@ test("expected supplier list is internally consistent", () => {
  * Fixture builder. Fields not given are DERIVED so the fixture satisfies
  * checkSpendSnapshot (render() refuses inconsistent snapshots): budget from
  * forecast × target, usualStillToCome from the projection (or the rows),
- * leftToSpend from budget − used − still to come, leftBeforeStillToCome
- * from budget − used, revenueDaily cells from the takings. Pass a field
- * explicitly to override.
+ * overdueGap from its rows, leftToSpend from budget − used − overdue − still
+ * to come, leftBeforeStillToCome from budget − used − overdue, revenueDaily
+ * cells from the takings. Pass a field explicitly to override.
  */
 function bucket(over: Partial<BucketSpendData> & { bucket: BucketSpendData["bucket"] }): BucketSpendData {
   const label = over.bucket === "BURLEIGH" ? "Burleigh" : "Currumbin (Beach House + Tea Garden)"
@@ -105,7 +105,8 @@ function bucket(over: Partial<BucketSpendData> & { bucket: BucketSpendData["buck
   if (budget === undefined) budget = forecastRevenue == null ? null : (forecastRevenue * targetPct) / 100
   if (forecastRevenue === undefined) forecastRevenue = budget == null ? null : (budget * 100) / targetPct
   const c = (n: number) => Math.round(n * 100) / 100
-  const missing = over.estimatedMissingSpend ?? 0
+  const overdueGapRows = over.overdueGapRows ?? []
+  const missing = over.overdueGap ?? c(overdueGapRows.reduce((s, r) => s + r.amount, 0))
   const stillToCome = over.stillToCome ?? []
   const usualStillToCome =
     over.usualStillToCome ??
@@ -115,9 +116,10 @@ function bucket(over: Partial<BucketSpendData> & { bucket: BucketSpendData["buck
         ? c(Math.max(0, over.projectedEndOfWeek - missing - estimatedSpentToDate))
         : 0)
   const projectedEndOfWeek = over.projectedEndOfWeek ?? c(estimatedSpentToDate + usualStillToCome + missing)
-  const leftToSpend = over.leftToSpend !== undefined ? over.leftToSpend : budget == null ? null : c(budget - estimatedSpentToDate - usualStillToCome)
+  const leftToSpend =
+    over.leftToSpend !== undefined ? over.leftToSpend : budget == null ? null : c(budget - estimatedSpentToDate - missing - usualStillToCome)
   const leftBeforeStillToCome =
-    over.leftBeforeStillToCome !== undefined ? over.leftBeforeStillToCome : budget == null ? null : c(budget - estimatedSpentToDate)
+    over.leftBeforeStillToCome !== undefined ? over.leftBeforeStillToCome : budget == null ? null : c(budget - estimatedSpentToDate - missing)
   const paceStatus = over.paceStatus ?? (budget == null ? "no-forecast" : "on-track")
   const revenueToDateExGst = over.revenueToDateExGst ?? null
   const revenueDaysReported = over.revenueDaysReported ?? (revenueToDateExGst == null ? 0 : 1)
@@ -136,8 +138,6 @@ function bucket(over: Partial<BucketSpendData> & { bucket: BucketSpendData["buck
     over.lastRevenueDate !== undefined ? over.lastRevenueDate : revenueToDateExGst == null ? null : dates[Math.max(0, revenueDaysReported - 1)]
   return {
     label,
-    estimatedMissingSpend: 0,
-    missingSpendBreakdown: [],
     spendProjectionMethod: "flat",
     revenueProjectionMethod: null,
     invoiceCount: 0,
@@ -153,6 +153,8 @@ function bucket(over: Partial<BucketSpendData> & { bucket: BucketSpendData["buck
     estimatedUninvoiced,
     usualStillToCome,
     stillToCome,
+    overdueGap: missing,
+    overdueGapRows,
     budget,
     forecastRevenue,
     leftToSpend,
@@ -503,7 +505,7 @@ test("the old 'remaining' basis can no longer leak: left + used must equal budge
   assert.throws(() => render(snap), SpendSnapshotInconsistent)
   const { subject, text, html } = renderWithheld(snap, checkSpendSnapshot(snap))
   assert.match(subject, /numbers withheld, check needed$/)
-  assert.match(text, /leftToSpend 9522 \+ used 17193 \+ still to come 0 ≠ budget 26880/)
+  assert.match(text, /leftToSpend 9522 \+ used 17193 \+ still to come 0 \+ overdue 0 ≠ budget 26880/)
   assert.doesNotMatch(text, /left to spend \(/)
   assert.match(html, /Spend email withheld/)
 })
@@ -671,33 +673,33 @@ import { projectEndOfWeekSpend } from "./projection"
 test("projection is taken from the grossed-up spend, not invoices in hand", () => {
   // Wed..Sat are 65% of a normal week's deliveries
   const share = [0.2, 0.15, 0.15, 0.15, 0.2, 0.1, 0.05]
-  const r = projectEndOfWeekSpend({ estimatedSpentToDate: 21290, spendShare: share, daysThroughToday: 4, usualWeekSpend: null, estimatedMissing: 0 })
+  const r = projectEndOfWeekSpend({ estimatedSpentToDate: 21290, spendShare: share, daysThroughToday: 4, usualWeekSpend: null, overdueGap: 0 })
   assert.equal(r.method, "weighted")
   assert.equal(r.projectedEndOfWeek, Math.round((21290 / 0.65) * 100) / 100)
   // The old basis (invoices in hand, 15389) would have read on track against a 26740 budget
   assert.ok(r.projectedEndOfWeek > 26740 * 1.05)
 })
 
-test("projection: missing-supplier weekly average is added in full, never scaled", () => {
+test("projection: the overdue gap is added once, never scaled", () => {
   const share = [0.25, 0.25, 0.25, 0.25, 0, 0, 0]
-  const r = projectEndOfWeekSpend({ estimatedSpentToDate: 1000, spendShare: share, daysThroughToday: 2, usualWeekSpend: null, estimatedMissing: 300 })
+  const r = projectEndOfWeekSpend({ estimatedSpentToDate: 1000, spendShare: share, daysThroughToday: 2, usualWeekSpend: null, overdueGap: 300 })
   assert.equal(r.projectedEndOfWeek, 2000 + 300)
 })
 
 test("projection falls back to flat ÷days×7 without history or with a thin elapsed share", () => {
   assert.deepEqual(
-    projectEndOfWeekSpend({ estimatedSpentToDate: 700, spendShare: null, daysThroughToday: 2, usualWeekSpend: null, estimatedMissing: 0 }),
+    projectEndOfWeekSpend({ estimatedSpentToDate: 700, spendShare: null, daysThroughToday: 2, usualWeekSpend: null, overdueGap: 0 }),
     { projectedEndOfWeek: 2450, method: "flat" }
   )
   // Only 5% of a week lands on Wednesday: too thin to divide by
   const share = [0.05, 0.15, 0.2, 0.2, 0.2, 0.15, 0.05]
-  assert.equal(projectEndOfWeekSpend({ estimatedSpentToDate: 100, spendShare: share, daysThroughToday: 1, usualWeekSpend: null, estimatedMissing: 0 }).method, "flat")
+  assert.equal(projectEndOfWeekSpend({ estimatedSpentToDate: 100, spendShare: share, daysThroughToday: 1, usualWeekSpend: null, overdueGap: 0 }).method, "flat")
 })
 
 test("projection never falls below the spend already counted", () => {
   const share = [0.2, 0.15, 0.15, 0.15, 0.2, 0.1, 0.05]
   for (const spent of [0, 1, 999.99, 50000]) {
-    const r = projectEndOfWeekSpend({ estimatedSpentToDate: spent, spendShare: share, daysThroughToday: 7, usualWeekSpend: null, estimatedMissing: 0 })
+    const r = projectEndOfWeekSpend({ estimatedSpentToDate: spent, spendShare: share, daysThroughToday: 7, usualWeekSpend: null, overdueGap: 0 })
     assert.ok(r.projectedEndOfWeek + 0.01 >= spent)
   }
 })
@@ -751,7 +753,7 @@ test("guard: a headline that ignores the deliveries still to come is withheld (t
   const b = bucket({ ...SUN_18_OCT, leftToSpend: 4376.5 })
   const problems = checkSpendSnapshot(snapshot({ buckets: [b] }))
   assert.equal(problems.length, 1)
-  assert.match(problems[0], /leftToSpend 4376.5 \+ used 23636 \+ still to come 8696 ≠ budget 28012.5/)
+  assert.match(problems[0], /leftToSpend 4376.5 \+ used 23636 \+ still to come 8696 \+ overdue 0 ≠ budget 28012.5/)
   assert.throws(() => render(snapshot({ buckets: [b] })), SpendSnapshotInconsistent)
 })
 
@@ -769,12 +771,12 @@ test("guard: still to come is never negative, and the pace adds the same deliver
   assert.match(checkSpendSnapshot(snapshot({ buckets: [negative] })).join(), /usualStillToCome is negative/)
   // pace from one rest-of-week, headline from another: refused
   const split = bucket({ ...SUN_18_OCT, projectedEndOfWeek: 23636 + 4000 })
-  assert.match(checkSpendSnapshot(snapshot({ buckets: [split] })).join(), /projectedEndOfWeek 27636 ≠ used 23636 \+ still to come 8696 \+ missing 0/)
+  assert.match(checkSpendSnapshot(snapshot({ buckets: [split] })).join(), /projectedEndOfWeek 27636 ≠ used 23636 \+ still to come 8696 \+ overdue 0/)
 })
 
 test("guard: the second line is budget minus spend so far, and both lines go with the budget", () => {
   const wrong = bucket({ ...SUN_18_OCT, leftBeforeStillToCome: 3708 })
-  assert.match(checkSpendSnapshot(snapshot({ buckets: [wrong] })).join(), /leftBeforeStillToCome 3708 \+ used 23636 ≠ budget 28012.5/)
+  assert.match(checkSpendSnapshot(snapshot({ buckets: [wrong] })).join(), /leftBeforeStillToCome 3708 \+ used 23636 \+ overdue 0 ≠ budget 28012.5/)
   const noBudget = bucket({ bucket: "CURRUMBIN", spentToDate: 1000, leftBeforeStillToCome: 500 })
   assert.match(checkSpendSnapshot(snapshot({ buckets: [noBudget] })).join(), /leftBeforeStillToCome set with no budget/)
   const missing = bucket({ ...SUN_18_OCT, leftBeforeStillToCome: null })

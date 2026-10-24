@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { assignInvoiceVenue } from "@/lib/spend/current-week"
 import { sharedSplitLabel } from "@/lib/spend/shared-split"
+import { gapDaysLabel } from "@/lib/spend/overdue-gap"
 import type {
   CurrentWeekSpendSnapshot,
   BucketSpendData,
@@ -101,8 +102,47 @@ function StillToComeList({ bucket }: { bucket: BucketSpendData }) {
   )
 }
 
+/** "Wed 21 Oct" from an AEST yyyy-mm-dd. */
+function dayDate(iso: string): string {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })
+}
+
+/**
+ * Suppliers whose invoices have stopped coming in this week: the days
+ * delivered but not invoiced, at the usual for those days (overdue-gap.ts).
+ */
+function OverdueGapList({ bucket }: { bucket: BucketSpendData }) {
+  return (
+    <div className="rounded-md border border-amber-text/20 bg-amber-light px-3 py-2 text-xs text-amber-text">
+      <div className="mb-1 font-medium">
+        Overdue invoices: about {fmt(bucket.overdueGap)}
+      </div>
+      <p className="mb-1.5 text-amber-text/80">
+        Delivered but not invoiced, because these suppliers&apos; invoices have
+        stopped coming in. Counted at their usual for those days, so it is
+        already off left to spend and in the pace. Chase the invoices (see
+        Coverage).
+      </p>
+      <ul className="space-y-0.5">
+        {bucket.overdueGapRows.map((r) => (
+          <li key={r.supplier} className="flex justify-between gap-2">
+            <span>
+              {r.supplier} {gapDaysLabel(r.days)}{" "}
+              {r.lastInvoiceDate && (
+                <span className="text-amber-text/80">(last invoice {dayDate(r.lastInvoiceDate)})</span>
+              )}
+            </span>
+            <span className="tabular-nums">~{fmt(r.amount)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 function BucketCard({ bucket }: { bucket: BucketSpendData }) {
   const hasStillToCome = Math.round(bucket.usualStillToCome) >= 1
+  const hasOverdue = Math.round(bucket.overdueGap) >= 1
   const remainPct =
     bucket.budget && bucket.budget > 0
       ? (bucket.leftToSpend ?? 0) / bucket.budget
@@ -163,6 +203,11 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
                 : (bucket.leftToSpend < 0
                     ? `${fmt(-bucket.leftToSpend)} over budget by Tuesday close`
                     : `${Math.round((remainPct ?? 0) * 100)}% of the budget still free to order, to Tuesday close`) +
+                  (hasOverdue
+                    ? `, counting about ${fmt(bucket.overdueGap)} of overdue invoices (${bucket.overdueGapRows
+                        .map((r) => `${r.supplier} ${gapDaysLabel(r.days)}`)
+                        .join(", ")})`
+                    : "") +
                   (hasStillToCome
                     ? `, once about ${fmt(bucket.usualStillToCome)} of usual deliveries still to come have landed. Before them: ${
                         (bucket.leftBeforeStillToCome ?? 0) < 0
@@ -212,7 +257,9 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
             sub={
               projectedPct == null
                 ? bucket.spendProjectionMethod === "usual"
-                  ? "spent so far plus the usual still to come"
+                  ? hasOverdue
+                    ? "spent so far, overdue invoices and the usual still to come"
+                    : "spent so far plus the usual still to come"
                   : bucket.spendProjectionMethod === "weighted"
                   ? "weighted for remaining trading days"
                   : "@ current daily rate"
@@ -231,6 +278,8 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
             }
           />
         </div>
+
+        {hasOverdue && <OverdueGapList bucket={bucket} />}
 
         {bucket.stillToCome.length > 0 && (
           <StillToComeList bucket={bucket} />
@@ -259,36 +308,6 @@ function BucketCard({ bucket }: { bucket: BucketSpendData }) {
                 <em>real</em> takings COGS lands at ≈
                 <strong>{liveCogsPct.toFixed(1)}%</strong>.
               </>
-            )}
-          </div>
-        )}
-
-        {bucket.estimatedMissingSpend > 0 && (
-          <div className="rounded-md border border-amber-text/20 bg-amber-light px-3 py-2 text-xs text-amber-text">
-            <strong>+{fmt(bucket.estimatedMissingSpend)} estimated</strong>{" "}
-            from suppliers we'd expect this week whose invoices aren't in
-            (see Coverage). Folded into the pace projection but NOT into
-            "spent to date".
-            {bucket.missingSpendBreakdown.length > 0 && (
-              <ul className="mt-1.5 space-y-0.5">
-                {bucket.missingSpendBreakdown.map((r) => (
-                  <li key={r.supplier} className="flex justify-between gap-2">
-                    <span>
-                      {r.supplier}{" "}
-                      <span className="text-amber-text/80">
-                        (last invoice{" "}
-                        {r.daysSinceLast == null
-                          ? "never"
-                          : `${r.daysSinceLast}d ago`}
-                        )
-                      </span>
-                    </span>
-                    <span className="tabular-nums">
-                      ~{fmt(r.estWeekly)}/wk
-                    </span>
-                  </li>
-                ))}
-              </ul>
             )}
           </div>
         )}

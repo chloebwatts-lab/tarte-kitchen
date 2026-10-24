@@ -19,7 +19,7 @@ test("weighted projection is rounded to the cent, with missing added after", () 
     estimatedSpentToDate: 21290.4,
     spendShare: CURRUMBIN_SHARE,
     daysThroughToday: 4,
-    usualWeekSpend: null, estimatedMissing: 412.5,
+    usualWeekSpend: null, overdueGap: 412.5,
   })
   assert.equal(r.method, "weighted")
   const elapsed = 0.21 + 0.17 + 0.14 + 0.12
@@ -30,8 +30,8 @@ test("weighted projection is rounded to the cent, with missing added after", () 
 
 test("the grossed-up basis moves the pace, invoices in hand alone do not", () => {
   // Same week, same history. Invoices in hand 15389, grossed up to 21290.
-  const inHand = projectEndOfWeekSpend({ estimatedSpentToDate: 15389, spendShare: CURRUMBIN_SHARE, daysThroughToday: 4, usualWeekSpend: null, estimatedMissing: 0 })
-  const grossed = projectEndOfWeekSpend({ estimatedSpentToDate: 21290, spendShare: CURRUMBIN_SHARE, daysThroughToday: 4, usualWeekSpend: null, estimatedMissing: 0 })
+  const inHand = projectEndOfWeekSpend({ estimatedSpentToDate: 15389, spendShare: CURRUMBIN_SHARE, daysThroughToday: 4, usualWeekSpend: null, overdueGap: 0 })
+  const grossed = projectEndOfWeekSpend({ estimatedSpentToDate: 21290, spendShare: CURRUMBIN_SHARE, daysThroughToday: 4, usualWeekSpend: null, overdueGap: 0 })
   const budget = 26740
   assert.ok(inHand.projectedEndOfWeek < budget * 0.95, "old basis would have read on track")
   assert.ok(grossed.projectedEndOfWeek > budget * 1.05, "grossed-up basis reads over")
@@ -53,7 +53,7 @@ test("Tuesday (all 7 days elapsed): projection equals spend to date plus missing
   assert.notEqual(sum, 1, "fixture should exercise the float case")
   assert.ok(Math.abs(sum - 1) < 1e-9)
   for (const spent of [0, 0.01, 18456.78, 50000]) {
-    const r = projectEndOfWeekSpend({ estimatedSpentToDate: spent, spendShare: share, daysThroughToday: 7, usualWeekSpend: null, estimatedMissing: 1200 })
+    const r = projectEndOfWeekSpend({ estimatedSpentToDate: spent, spendShare: share, daysThroughToday: 7, usualWeekSpend: null, overdueGap: 1200 })
     assert.equal(r.method, "weighted")
     assert.equal(r.projectedEndOfWeek, cents(spent + 1200))
   }
@@ -61,33 +61,33 @@ test("Tuesday (all 7 days elapsed): projection equals spend to date plus missing
 
 test("Wednesday morning, nothing invoiced, no usual week to add: projection is just the missing suppliers", () => {
   assert.deepEqual(
-    projectEndOfWeekSpend({ estimatedSpentToDate: 0, spendShare: CURRUMBIN_SHARE, daysThroughToday: 1, usualWeekSpend: null, estimatedMissing: 850 }),
+    projectEndOfWeekSpend({ estimatedSpentToDate: 0, spendShare: CURRUMBIN_SHARE, daysThroughToday: 1, usualWeekSpend: null, overdueGap: 850 }),
     { projectedEndOfWeek: 850, method: "weighted" }
   )
   assert.deepEqual(
-    projectEndOfWeekSpend({ estimatedSpentToDate: 0, spendShare: null, daysThroughToday: 1, usualWeekSpend: null, estimatedMissing: 0 }),
+    projectEndOfWeekSpend({ estimatedSpentToDate: 0, spendShare: null, daysThroughToday: 1, usualWeekSpend: null, overdueGap: 0 }),
     { projectedEndOfWeek: 0, method: "flat" }
   )
 })
 
 test("elapsed share of exactly 10% is still weighted; just under falls back to flat", () => {
   const atFloor = [0.1, 0.2, 0.2, 0.2, 0.1, 0.1, 0.1]
-  const r = projectEndOfWeekSpend({ estimatedSpentToDate: 1234.56, spendShare: atFloor, daysThroughToday: 1, usualWeekSpend: null, estimatedMissing: 0 })
+  const r = projectEndOfWeekSpend({ estimatedSpentToDate: 1234.56, spendShare: atFloor, daysThroughToday: 1, usualWeekSpend: null, overdueGap: 0 })
   assert.equal(r.method, "weighted")
   assert.equal(r.projectedEndOfWeek, 12345.6)
   const under = [0.0999, 0.2001, 0.2, 0.2, 0.1, 0.1, 0.1]
-  const f = projectEndOfWeekSpend({ estimatedSpentToDate: 1234.56, spendShare: under, daysThroughToday: 1, usualWeekSpend: null, estimatedMissing: 0 })
+  const f = projectEndOfWeekSpend({ estimatedSpentToDate: 1234.56, spendShare: under, daysThroughToday: 1, usualWeekSpend: null, overdueGap: 0 })
   assert.equal(f.method, "flat")
   assert.equal(f.projectedEndOfWeek, cents(1234.56 * 7))
 })
 
 test("flat fallback: ÷ days × 7 from the grossed-up figure, missing added in full", () => {
   // Burleigh with under 2 weeks of history: Wed+Thu grossed to 6100 from 5200 in hand
-  const r = projectEndOfWeekSpend({ estimatedSpentToDate: 6100, spendShare: null, daysThroughToday: 2, usualWeekSpend: null, estimatedMissing: 640 })
+  const r = projectEndOfWeekSpend({ estimatedSpentToDate: 6100, spendShare: null, daysThroughToday: 2, usualWeekSpend: null, overdueGap: 640 })
   assert.deepEqual(r, { projectedEndOfWeek: 6100 / 2 * 7 + 640, method: "flat" })
   // Flat never projects below what is already counted either
   for (const days of [1, 2, 3, 4, 5, 6, 7]) {
-    const p = projectEndOfWeekSpend({ estimatedSpentToDate: 9876.54, spendShare: null, daysThroughToday: days, usualWeekSpend: null, estimatedMissing: 0 })
+    const p = projectEndOfWeekSpend({ estimatedSpentToDate: 9876.54, spendShare: null, daysThroughToday: days, usualWeekSpend: null, overdueGap: 0 })
     assert.ok(p.projectedEndOfWeek + 0.01 >= 9876.54, `day ${days}`)
   }
 })
@@ -96,18 +96,18 @@ test("flat fallback: ÷ days × 7 from the grossed-up figure, missing added in f
 
 test("every weekday of the week, weighted never projects below the grossed-up spend", () => {
   for (const days of [1, 2, 3, 4, 5, 6, 7]) {
-    const r = projectEndOfWeekSpend({ estimatedSpentToDate: 7900, spendShare: CURRUMBIN_SHARE, daysThroughToday: days, usualWeekSpend: null, estimatedMissing: 0 })
+    const r = projectEndOfWeekSpend({ estimatedSpentToDate: 7900, spendShare: CURRUMBIN_SHARE, daysThroughToday: days, usualWeekSpend: null, overdueGap: 0 })
     assert.ok(r.projectedEndOfWeek + 0.01 >= 7900, `day ${days}: ${r.projectedEndOfWeek}`)
   }
 })
 
 test("inputs are not mutated and the share array is read, not consumed", () => {
   const share = [...CURRUMBIN_SHARE]
-  const input = { estimatedSpentToDate: 1000, spendShare: share, daysThroughToday: 3, usualWeekSpend: null, estimatedMissing: 0 }
+  const input = { estimatedSpentToDate: 1000, spendShare: share, daysThroughToday: 3, usualWeekSpend: null, overdueGap: 0 }
   projectEndOfWeekSpend(input)
   projectEndOfWeekSpend(input)
   assert.deepEqual(share, CURRUMBIN_SHARE)
-  assert.deepEqual(input, { estimatedSpentToDate: 1000, spendShare: CURRUMBIN_SHARE, daysThroughToday: 3, usualWeekSpend: null, estimatedMissing: 0 })
+  assert.deepEqual(input, { estimatedSpentToDate: 1000, spendShare: CURRUMBIN_SHARE, daysThroughToday: 3, usualWeekSpend: null, overdueGap: 0 })
 })
 
 // ------------------------------------------------ guard boundary
@@ -116,14 +116,22 @@ test("inputs are not mutated and the share array is read, not consumed", () => {
 function guardBucket(over: Partial<BucketSpendData>): BucketSpendData {
   const b = guardBase(over)
   const usualStillToCome =
-    over.usualStillToCome ?? cents(Math.max(0, b.projectedEndOfWeek - b.estimatedMissingSpend - b.estimatedSpentToDate))
+    over.usualStillToCome ?? cents(Math.max(0, b.projectedEndOfWeek - b.overdueGap - b.estimatedSpentToDate))
   return {
     ...b,
     usualStillToCome,
     leftToSpend:
-      over.leftToSpend !== undefined ? over.leftToSpend : b.budget == null ? null : cents(b.budget - b.estimatedSpentToDate - usualStillToCome),
+      over.leftToSpend !== undefined
+        ? over.leftToSpend
+        : b.budget == null
+          ? null
+          : cents(b.budget - b.estimatedSpentToDate - b.overdueGap - usualStillToCome),
     leftBeforeStillToCome:
-      over.leftBeforeStillToCome !== undefined ? over.leftBeforeStillToCome : b.budget == null ? null : cents(b.budget - b.estimatedSpentToDate),
+      over.leftBeforeStillToCome !== undefined
+        ? over.leftBeforeStillToCome
+        : b.budget == null
+          ? null
+          : cents(b.budget - b.estimatedSpentToDate - b.overdueGap),
   }
 }
 
@@ -135,8 +143,8 @@ function guardBase(over: Partial<BucketSpendData>): BucketSpendData {
     label: "Burleigh",
     spentToDate,
     forecastRevenue: 37037.04,
-    estimatedMissingSpend: 0,
-    missingSpendBreakdown: [],
+    overdueGap: 0,
+    overdueGapRows: [],
     targetPct: 27,
     budget: 10000,
     estimatedSpentToDate,
@@ -178,13 +186,13 @@ test("guard: a projection that only clears invoices in hand (the pre-fix behavio
   const p = checkBucket(guardBucket({ projectedEndOfWeek: 7500 }), "2026-10-18")
   assert.equal(p.length, 2)
   assert.match(p[0], /below spend to date 7900/)
-  assert.match(p[1], /projectedEndOfWeek 7500 ≠ used 7900 \+ still to come 0 \+ missing 0/)
+  assert.match(p[1], /projectedEndOfWeek 7500 ≠ used 7900 \+ still to come 0 \+ overdue 0/)
 })
 
 test("guard: the live projection output always satisfies the live guard", () => {
   for (const days of [1, 4, 7]) {
     for (const share of [CURRUMBIN_SHARE, null]) {
-      const { projectedEndOfWeek, method } = projectEndOfWeekSpend({ estimatedSpentToDate: 7900, spendShare: share, daysThroughToday: days, usualWeekSpend: null, estimatedMissing: 0 })
+      const { projectedEndOfWeek, method } = projectEndOfWeekSpend({ estimatedSpentToDate: 7900, spendShare: share, daysThroughToday: days, usualWeekSpend: null, overdueGap: 0 })
       assert.deepEqual(checkBucket(guardBucket({ projectedEndOfWeek, spendProjectionMethod: method }), "2026-10-18"), [], `day ${days} ${method}`)
     }
   }
@@ -218,7 +226,7 @@ const CURRUMBIN_22OCT = {
 function heading(v: typeof BURLEIGH_22OCT) {
   const rev = projectWeekRevenue({ revenueToDate: v.wedTakings, daysReported: 1, reportedShare: v.revenueShare[0], forecast: v.forecast, usualWeekRevenue: null })
   const usual = usualWeekSpend({ historySpend: v.historySpend, historyRevenue: v.historyRevenue, expectedWeekRevenue: rev.projectedRevenueExGst })
-  const spend = projectEndOfWeekSpend({ estimatedSpentToDate: v.estimatedSpentToDate, spendShare: v.spendShare, daysThroughToday: 2, usualWeekSpend: usual, estimatedMissing: 0 })
+  const spend = projectEndOfWeekSpend({ estimatedSpentToDate: v.estimatedSpentToDate, spendShare: v.spendShare, daysThroughToday: 2, usualWeekSpend: usual, overdueGap: 0 })
   return { rev, spend, pct: (spend.projectedEndOfWeek / rev.projectedRevenueExGst!) * 100 }
 }
 
@@ -257,26 +265,26 @@ test("a week that goes exactly as usual reads the usual COGS % on every day", ()
     const rev = projectWeekRevenue({ revenueToDate: day > 1 ? reported * forecast : null, daysReported: day - 1, reportedShare: day > 1 ? reported : null, forecast, usualWeekRevenue: null })
     const expected = rev.projectedRevenueExGst ?? forecast
     const usual = usualWeekSpend({ historySpend: ratio * 800000, historyRevenue: 800000, expectedWeekRevenue: expected })
-    const s = projectEndOfWeekSpend({ estimatedSpentToDate: spent, spendShare, daysThroughToday: day, usualWeekSpend: usual, estimatedMissing: 0 })
+    const s = projectEndOfWeekSpend({ estimatedSpentToDate: spent, spendShare, daysThroughToday: day, usualWeekSpend: usual, overdueGap: 0 })
     assert.equal(s.method, "usual")
     assert.ok(Math.abs((s.projectedEndOfWeek / expected) * 100 - 30) < 0.01, `day ${day}: ${s.projectedEndOfWeek}`)
   }
 })
 
 test("usual rest of week: Wednesday adds Thursday to Tuesday, Tuesday adds nothing", () => {
-  const wed = projectEndOfWeekSpend({ estimatedSpentToDate: 5000, spendShare: CURRUMBIN_SHARE, daysThroughToday: 1, usualWeekSpend: 30000, estimatedMissing: 0 })
+  const wed = projectEndOfWeekSpend({ estimatedSpentToDate: 5000, spendShare: CURRUMBIN_SHARE, daysThroughToday: 1, usualWeekSpend: 30000, overdueGap: 0 })
   assert.deepEqual(wed, { projectedEndOfWeek: cents(5000 + (1 - 0.21) * 30000), method: "usual" })
-  const tue = projectEndOfWeekSpend({ estimatedSpentToDate: 31234.56, spendShare: CURRUMBIN_SHARE, daysThroughToday: 7, usualWeekSpend: 30000, estimatedMissing: 250 })
+  const tue = projectEndOfWeekSpend({ estimatedSpentToDate: 31234.56, spendShare: CURRUMBIN_SHARE, daysThroughToday: 7, usualWeekSpend: 30000, overdueGap: 250 })
   assert.deepEqual(tue, { projectedEndOfWeek: cents(31234.56 + 250), method: "usual" })
   // A heavy Wednesday is counted once, not multiplied up to a week
-  const heavy = projectEndOfWeekSpend({ estimatedSpentToDate: 12000, spendShare: CURRUMBIN_SHARE, daysThroughToday: 1, usualWeekSpend: 30000, estimatedMissing: 0 })
+  const heavy = projectEndOfWeekSpend({ estimatedSpentToDate: 12000, spendShare: CURRUMBIN_SHARE, daysThroughToday: 1, usualWeekSpend: 30000, overdueGap: 0 })
   assert.equal(heavy.projectedEndOfWeek, cents(12000 + 0.79 * 30000))
 })
 
 test("usual rest of week never projects below spend to date, and days are clamped to 1-7", () => {
   for (const days of [0, 1, 3, 7, 9]) {
     for (const spent of [0, 0.01, 7900, 60000]) {
-      const r = projectEndOfWeekSpend({ estimatedSpentToDate: spent, spendShare: CURRUMBIN_SHARE, daysThroughToday: days, usualWeekSpend: 28000, estimatedMissing: 0 })
+      const r = projectEndOfWeekSpend({ estimatedSpentToDate: spent, spendShare: CURRUMBIN_SHARE, daysThroughToday: days, usualWeekSpend: 28000, overdueGap: 0 })
       assert.ok(r.projectedEndOfWeek + 0.01 >= spent, `days ${days} spent ${spent}`)
       assert.ok(Number.isFinite(r.projectedEndOfWeek))
     }
@@ -284,17 +292,17 @@ test("usual rest of week never projects below spend to date, and days are clampe
 })
 
 test("no usual week (thin history) falls back to dividing by the share through today", () => {
-  const r = projectEndOfWeekSpend({ estimatedSpentToDate: 11748.01, spendShare: BURLEIGH_22OCT.spendShare, daysThroughToday: 2, usualWeekSpend: null, estimatedMissing: 0 })
+  const r = projectEndOfWeekSpend({ estimatedSpentToDate: 11748.01, spendShare: BURLEIGH_22OCT.spendShare, daysThroughToday: 2, usualWeekSpend: null, overdueGap: 0 })
   assert.equal(r.method, "weighted")
   // Wed + Thu share, not Wednesday alone
   assert.equal(r.projectedEndOfWeek, cents(11748.01 / (0.1994 + 0.1783)))
   // A zero or negative usual week is ignored, not added
-  assert.equal(projectEndOfWeekSpend({ estimatedSpentToDate: 100, spendShare: CURRUMBIN_SHARE, daysThroughToday: 2, usualWeekSpend: 0, estimatedMissing: 0 }).method, "weighted")
+  assert.equal(projectEndOfWeekSpend({ estimatedSpentToDate: 100, spendShare: CURRUMBIN_SHARE, daysThroughToday: 2, usualWeekSpend: 0, overdueGap: 0 }).method, "weighted")
 })
 
 test("guard: the usual-rest-of-week output always satisfies the live guard", () => {
   for (const days of [1, 2, 4, 7]) {
-    const { projectedEndOfWeek, method } = projectEndOfWeekSpend({ estimatedSpentToDate: 7900, spendShare: CURRUMBIN_SHARE, daysThroughToday: days, usualWeekSpend: 9000, estimatedMissing: 0 })
+    const { projectedEndOfWeek, method } = projectEndOfWeekSpend({ estimatedSpentToDate: 7900, spendShare: CURRUMBIN_SHARE, daysThroughToday: days, usualWeekSpend: 9000, overdueGap: 0 })
     assert.deepEqual(checkBucket(guardBucket({ projectedEndOfWeek, spendProjectionMethod: method }), "2026-10-22"), [], `day ${days}`)
   }
 })
@@ -367,7 +375,7 @@ test("usual rest of week on a Tuesday adds nothing when the shares sum a hair ov
   assert.ok(sumOf(SHARE_UNDER) < 1, "fixture should sum just under 1")
   for (const share of [SHARE_OVER, SHARE_UNDER]) {
     for (const spent of [0, 0.01, 18456.78, 50000]) {
-      const r = projectEndOfWeekSpend({ estimatedSpentToDate: spent, spendShare: share, daysThroughToday: 7, usualWeekSpend: 31000, estimatedMissing: 1200 })
+      const r = projectEndOfWeekSpend({ estimatedSpentToDate: spent, spendShare: share, daysThroughToday: 7, usualWeekSpend: 31000, overdueGap: 1200 })
       assert.deepEqual(r, { projectedEndOfWeek: cents(spent + 1200), method: "usual" }, `spent ${spent}`)
     }
   }
@@ -381,7 +389,7 @@ test("credit-note-heavy week: zero or negative spend to date never projects belo
   for (const share of [SHARE_OVER, SHARE_UNDER, creditDay]) {
     for (const spent of [-5377.12, -0.01, 0, 0.01]) {
       for (let days = 1; days <= 7; days++) {
-        const r = projectEndOfWeekSpend({ estimatedSpentToDate: spent, spendShare: share, daysThroughToday: days, usualWeekSpend: 28000, estimatedMissing: 0 })
+        const r = projectEndOfWeekSpend({ estimatedSpentToDate: spent, spendShare: share, daysThroughToday: days, usualWeekSpend: 28000, overdueGap: 0 })
         assert.equal(r.method, "usual")
         assert.ok(Number.isFinite(r.projectedEndOfWeek))
         assert.ok(r.projectedEndOfWeek + 0.01 >= spent, `days ${days} spent ${spent}: ${r.projectedEndOfWeek}`)
@@ -391,7 +399,7 @@ test("credit-note-heavy week: zero or negative spend to date never projects belo
   }
   // Thursday on the net-credit profile: Wed+Thu are 110% of a week, nothing added
   assert.equal(
-    projectEndOfWeekSpend({ estimatedSpentToDate: 9000, spendShare: creditDay, daysThroughToday: 2, usualWeekSpend: 28000, estimatedMissing: 0 }).projectedEndOfWeek,
+    projectEndOfWeekSpend({ estimatedSpentToDate: 9000, spendShare: creditDay, daysThroughToday: 2, usualWeekSpend: 28000, overdueGap: 0 }).projectedEndOfWeek,
     9000
   )
 })
@@ -423,7 +431,7 @@ function liveBucket(o: {
   completeness: number
   spendShare: number[] | null
   revShare: number[] | null
-  estimatedMissing: number
+  overdueGap: number
 }): BucketSpendData {
   const weekTakings = 112345.67
   let running = 0
@@ -452,13 +460,14 @@ function liveBucket(o: {
       o.spendShare && o.revShare
         ? usualWeekSpend({ historySpend: 253751, historyRevenue: 959194, expectedWeekRevenue: rev.projectedRevenueExGst ?? (o.forecast != null && o.forecast > 0 ? o.forecast : o.usualWeekRevenue) })
         : null,
-    estimatedMissing: o.estimatedMissing,
+    overdueGap: o.overdueGap,
   })
   const budget = o.forecast == null ? null : cents((o.forecast * 27) / 100)
   return guardBucket({
     spentToDate: o.spentToDate,
     forecastRevenue: o.forecast,
-    estimatedMissingSpend: o.estimatedMissing,
+    overdueGap: o.overdueGap,
+    overdueGapRows: o.overdueGap > 0 ? [{ supplier: "Pixel Bread", amount: o.overdueGap, days: ["Thu"], lastInvoiceDate: WEEK_DATES[0] }] : [],
     budget,
     estimatedSpentToDate,
     estimatedUninvoiced: cents(estimatedSpentToDate - o.spentToDate),
@@ -482,7 +491,7 @@ test("guard: every day of the week, with or without a forecast or history, the l
       for (const usualWeekRevenue of [null, 119899.25]) {
         for (const shares of [{ s: SHARE_OVER, r: revShare }, { s: SHARE_UNDER, r: sharesFrom([11e3, 11.2e3, 14.4e3, 18.9e3, 21.8e3, 12.7e3, 10.4e3]) }, { s: null, r: null }]) {
           for (const spentToDate of [0, 0.01, 11748.01]) {
-            const b = liveBucket({ day, forecast, usualWeekRevenue, spentToDate, completeness: 0.83, spendShare: shares.s, revShare: shares.r, estimatedMissing: 412.5 })
+            const b = liveBucket({ day, forecast, usualWeekRevenue, spentToDate, completeness: 0.83, spendShare: shares.s, revShare: shares.r, overdueGap: 412.5 })
             const label = `day ${day} forecast ${forecast} usual ${usualWeekRevenue} shares ${shares.s ? "yes" : "none"} spent ${spentToDate}`
             assert.deepEqual(checkBucket(b, WEEK_DATES[day - 1]), [], label)
             for (const v of [b.projectedEndOfWeek, b.projectedRevenueExGst ?? 0]) assert.ok(Number.isFinite(v), label)
@@ -494,7 +503,7 @@ test("guard: every day of the week, with or without a forecast or history, the l
 })
 
 test("Wednesday, no takings yet: the usual week of spend comes from the forecast, else the 8-week average week", () => {
-  const base = { day: 1, spentToDate: 4200, completeness: 0.7, spendShare: SHARE_OVER, revShare: BURLEIGH_22OCT.revenueShare, estimatedMissing: 0 }
+  const base = { day: 1, spentToDate: 4200, completeness: 0.7, spendShare: SHARE_OVER, revShare: BURLEIGH_22OCT.revenueShare, overdueGap: 0 }
   const withForecast = liveBucket({ ...base, forecast: 106000, usualWeekRevenue: 119899.25 })
   assert.equal(withForecast.revenueProjectionMethod, null)
   assert.equal(withForecast.projectedRevenueExGst, null)

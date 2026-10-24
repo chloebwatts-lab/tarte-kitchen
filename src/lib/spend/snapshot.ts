@@ -12,6 +12,9 @@
  *  - still to come = each supplier's usual for the rest of today (when it
  *    has not invoiced for today yet) and the days after, at this week's
  *    trade. The pace projection adds the same deliveries.
+ *  - overdue = the days before today a supplier has not invoiced because
+ *    its invoices have stopped (overdue-gap.ts), at the same usual. Its own
+ *    line, off the headline and in the pace exactly once.
  * Until 23 Oct 2026 the gross-up ran through today and nothing was added
  * for the days after, so on Sunday 18 Oct Burleigh read $3,708 left with
  * the usual $8k Monday and Tuesday still to come; the week finished $3.7k
@@ -33,7 +36,8 @@ import {
   usualWeekSpend,
   type HistoryWeek,
 } from "./projection"
-import { usualStillToCome, type SupplierDayRow } from "./still-to-come"
+import { supplierWeekdayUsual, usualStillToCome, type SupplierDayRow } from "./still-to-come"
+import { overdueGap } from "./overdue-gap"
 import { suspectRevenueDay } from "./guards"
 import {
   EXPECTED_SUPPLIERS,
@@ -47,7 +51,6 @@ import {
   type SpendBucket,
   type DailySpendCell,
   type DailyRevenueCell,
-  type MissingSpendRow,
   type SupplierSpendCell,
   type CoverageRow,
   type UnassignedInvoice,
@@ -205,6 +208,8 @@ export function buildSpendSnapshot(rows: SpendSnapshotRows, now: Date): CurrentW
       supplierMap: Map<string, { amount: number; invoiceCount: number }>
       /// Supplier (spendSupplierKey) -> trading days it has invoiced for
       invoicedDays: Map<string, Set<number>>
+      /// Supplier -> its part of spentBeforeToday
+      beforeTodayBySupplier: Map<string, number>
     }
   > = {
     BURLEIGH: {
@@ -214,6 +219,7 @@ export function buildSpendSnapshot(rows: SpendSnapshotRows, now: Date): CurrentW
       daily: buildDailySkeleton(start),
       supplierMap: new Map(),
       invoicedDays: new Map(),
+      beforeTodayBySupplier: new Map(),
     },
     CURRUMBIN: {
       spent: 0,
@@ -222,7 +228,19 @@ export function buildSpendSnapshot(rows: SpendSnapshotRows, now: Date): CurrentW
       daily: buildDailySkeleton(start),
       supplierMap: new Map(),
       invoicedDays: new Map(),
+      beforeTodayBySupplier: new Map(),
     },
+  }
+
+  // Days each supplier has invoiced, any venue, as offsets from this week's
+  // Wednesday (history negative): whether its invoices have stopped is the
+  // supplier's, as on the coverage table, not one venue's (overdue-gap.ts).
+  const invoicedOn = new Map<string, Set<number>>()
+  const dayOffset = (d: Date) => Math.round((Date.parse(aestDateKey(d)) - start.getTime()) / msInDay)
+  const markInvoiced = (canonical: string, d: Date) => {
+    const set = invoicedOn.get(canonical) ?? new Set<number>()
+    set.add(dayOffset(d))
+    invoicedOn.set(canonical, set)
   }
 
   for (const inv of invoices) {
@@ -231,6 +249,7 @@ export function buildSpendSnapshot(rows: SpendSnapshotRows, now: Date): CurrentW
     if (!inv.invoiceDate || (inv.subtotal == null && inv.total == null)) continue
     // ex-GST to match the budget basis
     const amt = exGstInvoiceAmount(inv)
+    if (amt > 0) markInvoiced(spendSupplierKey(inv.supplierName), inv.invoiceDate)
     // Venue BOTH = genuinely shared spend (per Chris 2026-07-14 Breadtop
     // is a 50/50 split). The ratio comes from shared-split.ts so a supplier
     // can carry its own (Parallel Roasters 55/45).
@@ -255,7 +274,10 @@ export function buildSpendSnapshot(rows: SpendSnapshotRows, now: Date): CurrentW
       if (dayIdx >= 0) {
         agg.daily[dayIdx].amount += t.amount
         agg.daily[dayIdx].invoiceCount += 1
-        if (dayIdx < todayIdx) agg.spentBeforeToday += t.amount
+        if (dayIdx < todayIdx) {
+          agg.spentBeforeToday += t.amount
+          agg.beforeTodayBySupplier.set(canonical, (agg.beforeTodayBySupplier.get(canonical) ?? 0) + t.amount)
+        }
         // A supplier that has invoiced for a day has made that delivery: its
         // usual for the day is not still to come (credit notes do not count)
         if (t.amount > 0) {
@@ -378,8 +400,9 @@ export function buildSpendSnapshot(rows: SpendSnapshotRows, now: Date): CurrentW
     historyWeeks[bucket][k].spend += amount
     supplierDayRows[bucket].push({ supplier, week: k, day, amount })
   }
-  // Rows for the invoice arrival-lag estimate (see arrival-lag.ts).
-  const lagRows: Record<SpendBucket, ArrivalLagRow[]> = {
+  // Rows for the invoice arrival-lag estimate (see arrival-lag.ts), by
+  // supplier so an overdue supplier can be left out of it.
+  const lagRows: Record<SpendBucket, Array<ArrivalLagRow & { supplier: string }>> = {
     BURLEIGH: [],
     CURRUMBIN: [],
   }
@@ -420,7 +443,9 @@ export function buildSpendSnapshot(rows: SpendSnapshotRows, now: Date): CurrentW
           Math.ceil((start.getTime() - invoiceDateMs) / WEEK_MS) * WEEK_MS,
         invoiceDateMs,
         createdAtMs: row.createdAt.getTime(),
+        supplier: canonical,
       }
+      if (exGst > 0) markInvoiced(canonical, row.invoiceDate)
       if (row.venue === "BOTH") {
         const split = sharedSplit(row.supplierName)
         spendRows.BURLEIGH.push({ idx, amount: exGst * split.BURLEIGH })
@@ -550,41 +575,12 @@ export function buildSpendSnapshot(rows: SpendSnapshotRows, now: Date): CurrentW
     return a.canonicalName.localeCompare(b.canonicalName)
   })
 
-  // ------- Estimated missing spend per bucket
-  // Only count suppliers that are overdue/missing AND have a 4-wk avg,
-  // we don't fabricate numbers for suppliers we have no signal on.
-  const estimatedMissingPerBucket: Record<SpendBucket, number> = {
-    BURLEIGH: 0,
-    CURRUMBIN: 0,
+  // The supplier's latest invoice ever (any venue), as the coverage table
+  // reads it, also ends a run of days with no invoice.
+  for (const r of latestInvoiceByAlias) {
+    if (r._max.invoiceDate) markInvoiced(spendSupplierKey(r.supplierName), r._max.invoiceDate)
   }
-  const missingBreakdownPerBucket: Record<SpendBucket, MissingSpendRow[]> = {
-    BURLEIGH: [],
-    CURRUMBIN: [],
-  }
-  for (const sup of EXPECTED_SUPPLIERS) {
-    const cov = coverage.find((c) => c.canonicalName === sup.canonicalName)
-    if (!cov) continue
-    if (cov.status !== "overdue" && cov.status !== "missing") continue
-    for (const bucket of SPEND_BUCKETS) {
-      let bucketEst = 0
-      for (const alias of sup.nameAliases) {
-        const avg = cogsAvgPerBucket.get(bucket)!.get(alias)
-        if (avg) bucketEst += avg
-      }
-      if (bucketEst > 0) {
-        estimatedMissingPerBucket[bucket] += bucketEst
-        missingBreakdownPerBucket[bucket].push({
-          supplier: sup.canonicalName,
-          estWeekly: Math.round(bucketEst * 100) / 100,
-          lastSeen: cov.lastInvoiceDate,
-          daysSinceLast: cov.daysSinceLast,
-        })
-      }
-    }
-  }
-  for (const bucket of SPEND_BUCKETS) {
-    missingBreakdownPerBucket[bucket].sort((a, b) => b.estWeekly - a.estWeekly)
-  }
+  const expectedIntervals = new Map(EXPECTED_SUPPLIERS.map((s) => [s.canonicalName, s.expectedIntervalDays]))
 
   // ------- Assemble per-bucket output
   const buckets: BucketSpendData[] = SPEND_BUCKETS.map((bucket) => {
@@ -594,22 +590,7 @@ export function buildSpendSnapshot(rows: SpendSnapshotRows, now: Date): CurrentW
     const targetPct =
       bucket === "BURLEIGH" ? burleighTargetPct : currumbinTargetPct
     const budget = forecast == null ? null : (forecast * targetPct) / 100
-    const estimatedMissing =
-      Math.round(estimatedMissingPerBucket[bucket] * 100) / 100
     const spentToDate = Math.round(agg.spent * 100) / 100
-    // Spent so far: invoices in hand, plus the deliveries of the days before
-    // today that are normally not invoiced yet at this point in the week.
-    // Today's invoices count as they are; today's deliveries still to land
-    // are in usualStillToCome below, supplier by supplier.
-    const beforeToday = agg.spentBeforeToday
-    const completeness =
-      todayIdx > 0
-        ? arrivalCompleteness(lagRows[bucket], aestNowMs - aestStartMs, todayIdx) ?? 1
-        : 1
-    const estimatedSpentToDate = cents(
-      Math.max(beforeToday, beforeToday / completeness) + (agg.spent - beforeToday)
-    )
-    const estimatedUninvoiced = cents(estimatedSpentToDate - spentToDate)
     // ---- Live revenue (POS end-of-day, ex GST) ----
     // A completed day far below its weekday average is almost always a
     // partial figure: show it, flag it, keep it out of the pace.
@@ -673,9 +654,11 @@ export function buildSpendSnapshot(rows: SpendSnapshotRows, now: Date): CurrentW
       })
 
     // A usual week of deliveries at the takings this week is expected to do
-    // (projection.ts), then supplier by supplier what of it is still to come
-    // (still-to-come.ts): the rest of today for suppliers not in yet, and
-    // the days after. Scaled so all seven days add up to the usual week.
+    // (projection.ts), then supplier by supplier what of it is overdue
+    // (overdue-gap.ts: days before today with no invoice because the
+    // supplier's invoices have stopped) and what is still to come
+    // (still-to-come.ts: the rest of today for suppliers not in yet, and the
+    // days after). Scaled so all seven days add up to the usual week.
     const usualWeek =
       spendShares[bucket] && usual
         ? usualWeekSpend({
@@ -687,19 +670,67 @@ export function buildSpendSnapshot(rows: SpendSnapshotRows, now: Date): CurrentW
               (forecast != null && forecast > 0 ? forecast : usualWeekRevenue),
           })
         : null
-    const stillToCome =
+    const usualInput =
       usualWeek != null && usual != null && usual.spend > 0
-        ? usualStillToCome({
+        ? {
             history: supplierDayRows[bucket],
             weeks: fullHistoryWeeks(historyWeeks[bucket]),
             scale: usualWeek / (usual.spend / usual.weeks),
-            todayIdx,
-            invoiced: agg.invoicedDays,
-          })
+          }
         : null
+    const supplierUsual = usualInput ? supplierWeekdayUsual(usualInput) : null
+    // Steady = invoiced this venue in each of the last two weeks (overdue-gap.ts)
+    const weeksInvoiced = new Map<string, Set<number>>()
+    for (const r of supplierDayRows[bucket]) {
+      if (r.amount <= 0 || r.week > 1) continue
+      const set = weeksInvoiced.get(r.supplier) ?? new Set<number>()
+      set.add(r.week)
+      weeksInvoiced.set(r.supplier, set)
+    }
+    const steady = new Set([...weeksInvoiced].flatMap(([sup, w]) => (w.size === 2 ? [sup] : [])))
+    const gap = supplierUsual
+      ? overdueGap({
+          usual: supplierUsual,
+          todayIdx,
+          intervals: expectedIntervals,
+          steady,
+          invoicedOn,
+          dateOf: (offset) => aestDateKey(new Date(start.getTime() + offset * msInDay)),
+        })
+      : { total: 0, rows: [] }
+    const gapSuppliers = new Set(gap.rows.map((r) => r.supplier))
 
-    // Pace: spent so far plus the same deliveries still to come, so "left",
-    // "pace" and the COGS % agree (projection.ts).
+    // Spent so far: invoices in hand, plus the deliveries of the days before
+    // today that are normally not invoiced yet at this point in the week.
+    // Today's invoices count as they are; today's deliveries still to land
+    // are in usualStillToCome below, supplier by supplier. An overdue
+    // supplier is left out of the gross-up on both sides (its history and
+    // its invoices in hand): its days before today are what it has invoiced
+    // plus the overdue gap, so the gross-up adding a share for them as well
+    // would count them twice.
+    let gapSupplierBeforeToday = 0
+    for (const sup of gapSuppliers) gapSupplierBeforeToday += agg.beforeTodayBySupplier.get(sup) ?? 0
+    const beforeToday = agg.spentBeforeToday - gapSupplierBeforeToday
+    const completeness =
+      todayIdx > 0
+        ? arrivalCompleteness(
+            gapSuppliers.size ? lagRows[bucket].filter((r) => !gapSuppliers.has(r.supplier)) : lagRows[bucket],
+            aestNowMs - aestStartMs,
+            todayIdx
+          ) ?? 1
+        : 1
+    const estimatedSpentToDate = cents(
+      Math.max(beforeToday, beforeToday / completeness) + (agg.spent - beforeToday)
+    )
+    const estimatedUninvoiced = cents(estimatedSpentToDate - spentToDate)
+    const overdue = gap.total
+
+    const stillToCome = usualInput
+      ? usualStillToCome({ ...usualInput, todayIdx, invoiced: agg.invoicedDays })
+      : null
+
+    // Pace: spent so far plus the overdue gap plus the same deliveries still
+    // to come, so "left", "pace" and the COGS % agree (projection.ts).
     const { projectedEndOfWeek, method: spendProjectionMethod } =
       projectEndOfWeekSpend({
         estimatedSpentToDate,
@@ -707,17 +738,18 @@ export function buildSpendSnapshot(rows: SpendSnapshotRows, now: Date): CurrentW
         daysThroughToday,
         usualWeekSpend: usualWeek,
         usualStillToCome: stillToCome?.total ?? null,
-        estimatedMissing,
+        overdueGap: overdue,
       })
     // Thin history: no supplier pattern, so still to come is whatever the
     // fallback projection adds for the rest of the week.
     const usualStillToComeTotal =
       stillToCome?.total ??
-      cents(Math.max(0, projectedEndOfWeek - estimatedMissing - estimatedSpentToDate))
-    // THE headline: what can still be ordered once the usual deliveries land
+      cents(Math.max(0, projectedEndOfWeek - overdue - estimatedSpentToDate))
+    // THE headline: what can still be ordered once the overdue invoices are
+    // in and the usual deliveries have landed
     const leftToSpend =
-      budget == null ? null : cents(budget - estimatedSpentToDate - usualStillToComeTotal)
-    const leftBeforeStillToCome = budget == null ? null : cents(budget - estimatedSpentToDate)
+      budget == null ? null : cents(budget - estimatedSpentToDate - overdue - usualStillToComeTotal)
+    const leftBeforeStillToCome = budget == null ? null : cents(budget - estimatedSpentToDate - overdue)
     let paceStatus: BucketSpendData["paceStatus"]
     if (budget == null) paceStatus = "no-forecast"
     else if (projectedEndOfWeek > budget * 1.05) paceStatus = "over"
@@ -756,8 +788,8 @@ export function buildSpendSnapshot(rows: SpendSnapshotRows, now: Date): CurrentW
       spentToDate,
       forecastRevenue:
         forecast == null ? null : Math.round(forecast * 100) / 100,
-      estimatedMissingSpend: estimatedMissing,
-      missingSpendBreakdown: missingBreakdownPerBucket[bucket],
+      overdueGap: overdue,
+      overdueGapRows: gap.rows,
       targetPct,
       budget: budget == null ? null : Math.round(budget * 100) / 100,
       estimatedSpentToDate,

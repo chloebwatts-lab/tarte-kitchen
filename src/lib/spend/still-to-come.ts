@@ -47,6 +47,32 @@ export const STILL_TO_COME_MIN_ROW = 1
 
 const cents = (n: number) => Math.round(n * 100) / 100
 
+/**
+ * Each supplier's usual per trading day (idx 0 = Wed), ex GST at this week's
+ * trade: its 8-week weekday average over `weeks`, times `scale`. The one
+ * basis for both what is still to come and what is overdue (overdue-gap.ts).
+ * Null when there is nothing to average over.
+ */
+export function supplierWeekdayUsual(input: {
+  history: SupplierDayRow[]
+  weeks: number[]
+  scale: number
+}): Map<string, number[]> | null {
+  const { history, weeks, scale } = input
+  if (weeks.length === 0 || !(scale > 0) || !Number.isFinite(scale)) return null
+  const use = new Set(weeks)
+  const bySupplier = new Map<string, number[]>()
+  for (const r of history) {
+    if (!use.has(r.week) || r.day < 0 || r.day > 6) continue
+    const days = bySupplier.get(r.supplier) ?? new Array<number>(7).fill(0)
+    days[r.day] += r.amount
+    bySupplier.set(r.supplier, days)
+  }
+  const usual = new Map<string, number[]>()
+  for (const [supplier, days] of bySupplier) usual.set(supplier, days.map((v) => (v / weeks.length) * scale))
+  return usual
+}
+
 export function usualStillToCome(input: {
   history: SupplierDayRow[]
   /// History weeks to average over (fullHistoryWeeks in projection.ts)
@@ -58,21 +84,13 @@ export function usualStillToCome(input: {
   /// Supplier -> trading days of this week it has already invoiced for
   invoiced: ReadonlyMap<string, ReadonlySet<number>>
 }): StillToCome | null {
-  const { history, weeks, scale, invoiced } = input
-  if (weeks.length === 0 || !(scale > 0) || !Number.isFinite(scale)) return null
+  const usual = supplierWeekdayUsual(input)
+  if (!usual) return null
   const todayIdx = Math.min(6, Math.max(0, Math.floor(input.todayIdx)))
-  const use = new Set(weeks)
-  const bySupplier = new Map<string, number[]>()
-  for (const r of history) {
-    if (!use.has(r.week) || r.day < todayIdx || r.day > 6) continue
-    if (invoiced.get(r.supplier)?.has(r.day)) continue
-    const days = bySupplier.get(r.supplier) ?? new Array<number>(7).fill(0)
-    days[r.day] += r.amount
-    bySupplier.set(r.supplier, days)
-  }
   const rows: StillToComeRow[] = []
-  for (const [supplier, days] of bySupplier) {
-    const perDay = days.map((v) => (v / weeks.length) * scale)
+  for (const [supplier, days] of usual) {
+    const done = input.invoiced.get(supplier)
+    const perDay = days.map((v, i) => (i < todayIdx || done?.has(i) ? 0 : v))
     const amount = cents(perDay.reduce((a, b) => a + b, 0))
     if (!(amount >= STILL_TO_COME_MIN_ROW)) continue
     rows.push({
