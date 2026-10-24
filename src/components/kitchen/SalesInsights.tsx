@@ -133,6 +133,12 @@ export function SalesInsights({ initial, view = "sales" }: { initial: Data; view
               <strong>{money0(paid)}</strong> paid{open > 0 && <> + <strong>{money0(open)}</strong> still owing on {day?.openTables} open table{day?.openTables === 1 ? "" : "s"}</>}
               {day && day.surchargeIncGst > 0 && <> · incl. <strong>{money0(day.surchargeIncGst)}</strong> {day.surchargeName ?? "surcharge"}</>}
             </div>
+            {data.currumbin && (
+              <div className="mt-2 text-[14px] text-white/85">
+                Beach House + Tea Garden <strong>{money0(data.currumbin.total)}</strong>
+                <span className="text-[12px] text-white/55"> · the figure Square shows on All locations</span>
+              </div>
+            )}
             <UberLine uber={data.uber} isToday={data.isToday} />
             <div className="mt-4 space-y-3">
               <div>

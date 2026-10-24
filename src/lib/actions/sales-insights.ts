@@ -10,7 +10,7 @@ import { uberDay, uberDailyRows, type UberDay } from "@/lib/uber/live"
 import type { DayBreakdown, Channel } from "@/lib/square/breakdown"
 import { shiftDate, tarteWeekStart } from "@/lib/sales/compare"
 import {
-  brisbaneNow, comparisonDates, compareHourly, fillMissingHourly, headline, typicalChannels, dailySeries,
+  brisbaneNow, comparisonDates, compareHourly, fillMissingHourly, headline, typicalChannels, dailySeries, currumbinTogether,
   type CompareMode, type HourlyComparison, type HeadlineComparison, type ChannelTypical,
 } from "@/lib/sales/insights"
 
@@ -36,6 +36,14 @@ export interface SalesInsights {
   nowMinutes: number | null
   /** Uber Eats for the day (menu value inc GST, before commission). Not part of `day`. */
   uber: UberDay
+  /**
+   * Beach House and Tea Garden together, paid + open tables, on the 1D view
+   * of either: the figure Square's dashboard shows on All locations, since
+   * both sit in the one Square account (24 Oct 2026: Square $13.2k vs this
+   * card's Beach House $12.1k was Tea Garden's $1k). Null for Burleigh, or
+   * when the other venue took nothing that day.
+   */
+  currumbin: { total: number; paid: number; open: number } | null
 }
 
 const ymd = (d: Date) => d.toISOString().slice(0, 10)
@@ -123,6 +131,22 @@ export async function getSalesInsights(venue: Venue, date: string, range: Range 
   // Paid + open tables: the same figure as the card's headline.
   const todayRevenue = day ? day.paidIncGst + day.openTablesIncGst : 0
   const head = headline(todayRevenue, day?.surchargeIncGst ?? 0, hourlyCompare, lastWeek)
+
+  // ---- Currumbin as one, the way Square's dashboard adds it up ----
+  let currumbin: SalesInsights["currumbin"] = null
+  if (range === "1D" && day && venue !== "BURLEIGH") {
+    const other: Venue = venue === "BEACH_HOUSE" ? "TEA_GARDEN" : "BEACH_HOUSE"
+    let od: DayBreakdown | null = null
+    if (isSquareVenueOn(other, date) && date <= now.date) {
+      try {
+        od = (await fetchLiveDay(other, date, { force: opts.force }))?.breakdown ?? null
+      } catch (err) {
+        console.error("[sales-insights] other Currumbin venue fetch failed", err)
+      }
+    }
+    if (!od) od = (await historicalDay(other, date))?.day ?? null
+    currumbin = currumbinTogether(day, od)
+  }
   const typical = typicalChannels(cr, cmpDates)
 
   // ---- 1W / 1M daily series ----
@@ -154,5 +178,5 @@ export async function getSalesInsights(venue: Venue, date: string, range: Range 
     seriesTotals = { actual: Math.round(actual * 100) / 100, compare: cmpVals.length ? Math.round(cmpSum * 100) / 100 : null, pct, uber: series.some((x) => x.uber !== null) ? Math.round(uberSum * 100) / 100 : null }
   }
 
-  return { venue, date, isToday, range, compare, source, fetchedAt, day, hourlyCompare, lastWeek, head, typical, series, seriesTotals, nowMinutes, uber }
+  return { venue, date, isToday, range, compare, source, fetchedAt, day, hourlyCompare, lastWeek, head, typical, series, seriesTotals, nowMinutes, uber, currumbin }
 }

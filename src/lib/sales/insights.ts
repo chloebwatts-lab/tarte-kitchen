@@ -178,3 +178,22 @@ export function brisbaneNow(now = new Date()): { date: string; minutes: number }
   const t = new Date(now.getTime() + 10 * 3600e3)
   return { date: t.toISOString().slice(0, 10), minutes: t.getUTCHours() * 60 + t.getUTCMinutes() }
 }
+
+/**
+ * Beach House and Tea Garden as one, the way Square's dashboard adds them up
+ * on All locations (both sit in the one Square account): each venue's paid
+ * plus what is still owing on its open tables. A refund-only day at the
+ * other venue (paid below zero) still counts, as it does on Square. Null
+ * when the other venue has nothing at all that day (Tea Garden is shut Mon
+ * and Tue), so the card does not repeat its own total.
+ */
+export function currumbinTogether(
+  self: { paidIncGst: number; openTablesIncGst: number },
+  other: { paidIncGst: number; openTablesIncGst: number } | null
+): { total: number; paid: number; open: number } | null {
+  const otherPaid = other?.paidIncGst ?? 0, otherOpen = other?.openTablesIncGst ?? 0
+  if (otherPaid === 0 && otherOpen === 0) return null
+  const r2 = (n: number) => Math.round(n * 100) / 100
+  const paid = r2(self.paidIncGst + otherPaid), open = r2(self.openTablesIncGst + otherOpen)
+  return { total: r2(paid + open), paid, open }
+}

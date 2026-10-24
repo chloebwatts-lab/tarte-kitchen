@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { comparisonDates, compareHourly, fillMissingHourly, headline, typicalChannels, dailySeries, brisbaneNow, type HourlyRow } from "./insights"
+import { comparisonDates, compareHourly, fillMissingHourly, headline, typicalChannels, dailySeries, brisbaneNow, currumbinTogether, type HourlyRow } from "./insights"
 
 test("comparisonDates: same weekday back 1 / 4 / 8 weeks", () => {
   assert.deepEqual(comparisonDates("2026-10-04", "LAST_WEEK"), ["2026-09-27"])
@@ -260,4 +260,33 @@ test("compareHourly: at midnight AEST (nowMinutes 0) a Square day with its order
   assert.deepEqual([compareHourly(rows, ["2026-10-11"], 0, new Map([["2026-10-11", 0]])).avgToNow, compareHourly(rows, ["2026-10-11"], 0, new Map([["2026-10-11", 0]])).estimated], [0, false])
   const noRows = compareHourly(rows, ["2026-10-11"], 0)
   assert.equal(noRows.avgToNow, 0); assert.equal(noRows.estimated, true)
+})
+
+test("currumbinTogether: Beach House + Tea Garden paid and open, the Square All locations figure", () => {
+  // Sat 24 Oct 2026 noon: card $12,229 Beach House, Square $13.2k on All locations.
+  const bh = { paidIncGst: 10680.72, openTablesIncGst: 1548.4 }
+  const tg = { paidIncGst: 412.9, openTablesIncGst: 576.3 }
+  assert.deepEqual(currumbinTogether(bh, tg), { total: 13218.32, paid: 11093.62, open: 2124.7 })
+  // Same answer from either venue's card.
+  assert.deepEqual(currumbinTogether(tg, bh), currumbinTogether(bh, tg))
+})
+
+test("currumbinTogether: nothing at the other venue (Tea Garden shut Mon/Tue, or no data) gives null", () => {
+  const bh = { paidIncGst: 9677.45, openTablesIncGst: 0 }
+  assert.equal(currumbinTogether(bh, null), null)
+  assert.equal(currumbinTogether(bh, { paidIncGst: 0, openTablesIncGst: 0 }), null)
+  // Only open tables at the other venue still counts.
+  assert.deepEqual(currumbinTogether(bh, { paidIncGst: 0, openTablesIncGst: 120 }), { total: 9797.45, paid: 9677.45, open: 120 })
+})
+
+test("currumbinTogether: a Tea Garden refund nets off, and sums land on whole cents", () => {
+  // paidIncGst is already net of refunds, so it can dip below zero on a quiet morning.
+  const bh = { paidIncGst: 3104.1, openTablesIncGst: 0.2 }
+  const tg = { paidIncGst: -26.9, openTablesIncGst: 53.8 }
+  assert.deepEqual(currumbinTogether(bh, tg), { total: 3131.2, paid: 3077.2, open: 54 })
+  // Float noise (0.1 + 0.2) never leaks past the cent.
+  const r = currumbinTogether({ paidIncGst: 0.1, openTablesIncGst: 0 }, { paidIncGst: 0.2, openTablesIncGst: 0 })
+  assert.deepEqual(r, { total: 0.3, paid: 0.3, open: 0 })
+  // A refund-only day at the other venue still comes off, as on Square.
+  assert.deepEqual(currumbinTogether({ paidIncGst: 500, openTablesIncGst: 0 }, { paidIncGst: -19, openTablesIncGst: 0 }), { total: 481, paid: 481, open: 0 })
 })
