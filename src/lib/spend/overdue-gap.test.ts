@@ -78,6 +78,35 @@ test("rows add up to the total and run biggest first", () => {
   assert.equal(g.rows[1].amount, 350.67)
 })
 
+// ------------------------------------------------ edges (test guard, 25 Oct 2026)
+
+test("a run that ends with a future-dated invoice is judged to today, not to that invoice", () => {
+  // Pixel quiet since Wednesday; its newest document is dated next Wednesday (raised early)
+  const nextWed = 7
+  const g = overdueGap({ usual, todayIdx: SUN, intervals, steady, invoicedOn: seen(WED, nextWed) })
+  assert.deepEqual(g.rows.map((r) => [r.amount, r.days.join("/")]), [[900, "Thu/Fri/Sat"]])
+  // dated Monday this week, sent Sunday: still only Thu to Sat, Monday is not before today
+  const mon = overdueGap({ usual, todayIdx: SUN, intervals, steady, invoicedOn: seen(WED, MON) })
+  assert.equal(mon.total, 900)
+  // and on Saturday the same future invoice does not make Thursday and Friday overdue early
+  assert.equal(overdueGap({ usual, todayIdx: FRI, intervals, steady, invoicedOn: seen(WED, nextWed) }).total, 0)
+})
+
+test("Wednesday has no days before it; Tuesday counts Wednesday to Monday, the run reaching back into last week", () => {
+  // Pixel's last invoice was last Saturday (-4)
+  const quiet = new Map([["Pixel Bread", new Set([-14, -13, -8, -7, -5, -4])]])
+  const dateOf = (o: number) => `offset ${o}`
+  assert.deepEqual(overdueGap({ usual, todayIdx: WED, intervals, steady, invoicedOn: quiet }), { total: 0, rows: [] })
+  const thu = overdueGap({ usual, todayIdx: THU, intervals, steady, invoicedOn: quiet, dateOf })
+  assert.deepEqual(thu.rows, [{ supplier: "Pixel Bread", amount: 300, days: ["Wed"], lastInvoiceDate: "offset -4" }])
+  const tue = overdueGap({ usual, todayIdx: TUE, intervals, steady, invoicedOn: quiet })
+  assert.deepEqual(tue.rows[0].days, ["Wed", "Thu", "Fri", "Sat", "Sun", "Mon"])
+  assert.equal(tue.total, 1800)
+  // out of range is clamped, never throws or prices Tuesday itself
+  assert.equal(overdueGap({ usual, todayIdx: 9, intervals, steady, invoicedOn: quiet }).total, 1800)
+  assert.equal(overdueGap({ usual, todayIdx: -2, intervals, steady, invoicedOn: quiet }).total, 0)
+})
+
 test("gapDaysLabel: a run reads 'Thu to Sat', two days 'Thu and Fri', scattered days listed", () => {
   assert.equal(gapDaysLabel(["Thu", "Fri", "Sat"]), "Thu to Sat")
   assert.equal(gapDaysLabel(["Thu", "Fri"]), "Thu and Fri")

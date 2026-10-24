@@ -232,9 +232,9 @@ export function buildSpendSnapshot(rows: SpendSnapshotRows, now: Date): CurrentW
     },
   }
 
-  // Days each supplier has invoiced, any venue, as offsets from this week's
-  // Wednesday (history negative): whether its invoices have stopped is the
-  // supplier's, as on the coverage table, not one venue's (overdue-gap.ts).
+  // Days each supplier has invoiced (positive invoices, any venue) as
+  // offsets from this week's Wednesday, history negative: whether its
+  // invoices have stopped is the supplier's, not one venue's (overdue-gap.ts).
   const invoicedOn = new Map<string, Set<number>>()
   const dayOffset = (d: Date) => Math.round((Date.parse(aestDateKey(d)) - start.getTime()) / msInDay)
   const markInvoiced = (canonical: string, d: Date) => {
@@ -575,11 +575,10 @@ export function buildSpendSnapshot(rows: SpendSnapshotRows, now: Date): CurrentW
     return a.canonicalName.localeCompare(b.canonicalName)
   })
 
-  // The supplier's latest invoice ever (any venue), as the coverage table
-  // reads it, also ends a run of days with no invoice.
-  for (const r of latestInvoiceByAlias) {
-    if (r._max.invoiceDate) markInvoiced(spendSupplierKey(r.supplierName), r._max.invoiceDate)
-  }
+  // Only positive invoices end a run of days with no invoice: the coverage
+  // table's latestInvoiceByAlias counts credit notes too, so a $40 credit
+  // dated Saturday would read as Pixel invoicing again and drop the days
+  // before it. A steady supplier's last invoice is inside the 8 weeks.
   const expectedIntervals = new Map(EXPECTED_SUPPLIERS.map((s) => [s.canonicalName, s.expectedIntervalDays]))
 
   // ------- Assemble per-bucket output

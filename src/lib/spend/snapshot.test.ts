@@ -477,6 +477,67 @@ test("a supplier that stopped weeks ago gets no gap, and its xlsx 4-week average
   assert.ok(Math.abs(c.projectedEndOfWeek - (c.estimatedSpentToDate + c.usualStillToCome)) < 0.01)
 })
 
+// ------------------------------------------------ overdue edges (test guard, 25 Oct 2026)
+
+test("a credit note is not an invoice: Pixel's stale-loaf credit dated Saturday does not end its silence", () => {
+  // Pixel quiet since Wednesday, but sends a $40 credit dated Saturday. It is
+  // Pixel's newest document, so it also comes back as latestInvoiceByAlias.
+  const credit = inv("Pixel Bread", 0, SAT, -40, at(0, SAT, 15))
+  const sun = pixelSnap(at(0, SUN, 8.5), [...pixelStops(), credit]).burleigh
+  assert.deepEqual(sun.overdueGapRows.map((r) => [r.supplier, r.amount, r.days.join("/")]), [["Pixel Bread", 900, "Thu/Fri/Sat"]])
+  // every day of bread once; the credit is a real $40 off
+  assert.ok(Math.abs(sun.estimatedSpentToDate + sun.overdueGap + sun.usualStillToCome - (9500 - 40)) < 0.05, `${sun.estimatedSpentToDate} + ${sun.overdueGap} + ${sun.usualStillToCome}`)
+  const mon = pixelSnap(at(0, MON, 7), [...pixelStops(), credit]).burleigh
+  assert.equal(mon.overdueGap, 1200, "Thu to Sun overdue on Monday, the credit does not restart the clock")
+})
+
+test("BOTH-venue Fish Factory, invoiced two days late, stops after Wednesday: each venue's half is overdue once, out of its gross-up", () => {
+  // $400 a day of fish split 50/50, each invoice raised two days after delivery
+  const fish = (w: number) => ALL_DAYS.map((d) => venueInv("The Fish Factory", "BOTH", w, d, 400, at(w, d + 2, 7)))
+  const history = HISTORY_WEEKS.flatMap((w) => [...patternWeek(w), ...fish(w)])
+  const thisWeek = [...patternWeek(0), ...fish(0).filter((i) => i.invoiceDate!.getTime() === dateOf(0, WED).getTime())]
+  const usualWeek = { BURLEIGH: 9500 + 1400, CURRUMBIN: 3200 + 1400 }
+  for (let h = 0; h < 7 * 24; h++) {
+    const now = at(0, WED, h + 0.5)
+    const snap = buildSpendSnapshot(withCoverage(edgeRows(now, { thisWeek, history })), now)
+    const label = `${now.toISOString()} (hour ${h})`
+    assert.deepEqual(checkSpendSnapshot(snap), [], label)
+    const day = Math.floor((h + 0.5) / 24)
+    for (const b of snap.buckets) {
+      const sum = b.estimatedSpentToDate + b.overdueGap + b.usualStillToCome
+      // never counted twice, at any hour
+      assert.ok(sum <= usualWeek[b.bucket] + 0.05, `${b.label} ${label}: ${sum}`)
+      if (day >= MON) {
+        // overdue from Monday (run of 5 days > 2 x 2): Thu to the day before today, $200 a day each side
+        assert.deepEqual(b.overdueGapRows.map((r) => r.supplier), ["The Fish Factory"], `${b.label} ${label}`)
+        assert.equal(b.overdueGap, (day - THU) * 200, `${b.label} ${label}`)
+        assert.ok(Math.abs(sum - usualWeek[b.bucket]) < 0.05, `${b.label} ${label}: ${b.estimatedSpentToDate} + ${b.overdueGap} + ${b.usualStillToCome}`)
+      } else {
+        assert.equal(b.overdueGap, 0, `${b.label} ${label}`)
+      }
+    }
+  }
+})
+
+test("Pixel silent since last Saturday: Wednesday 11:30pm AEST has no gap, Thursday 00:30 AEST (still Wednesday in UTC) has Wednesday's", () => {
+  const history = HISTORY_WEEKS.flatMap(patternWeek).filter(
+    (i) => !(i.supplierName === "Pixel Bread" && i.invoiceDate!.getTime() > dateOf(1, SAT).getTime())
+  )
+  const thisWeek = patternWeek(0).filter((i) => i.supplierName !== "Pixel Bread")
+  const wed = pixelSnap(at(0, WED, 23.5), thisWeek, history).burleigh
+  assert.equal(wed.overdueGap, 0)
+  const thuNow = at(0, THU, 0.5)
+  assert.match(thuNow.toISOString(), /^2026-10-14T14:30/)
+  const thu = pixelSnap(thuNow, thisWeek, history)
+  assert.equal(thu.snap.dayOfWeek, 2)
+  assert.deepEqual(thu.burleigh.overdueGapRows.map((r) => [r.supplier, r.days.join("/"), r.lastInvoiceDate]), [["Pixel Bread", "Wed", "2026-10-10"]])
+  // Wednesday's bread moved from still to come to overdue, the headline did not move
+  assert.ok(Math.abs(thu.burleigh.leftToSpend! - wed.leftToSpend!) < 0.05, `${thu.burleigh.leftToSpend} vs ${wed.leftToSpend}`)
+  const tue = pixelSnap(at(0, TUE, 23.75), thisWeek, history).burleigh
+  assert.deepEqual(tue.overdueGapRows[0].days, ["Wed", "Thu", "Fri", "Sat", "Sun", "Mon"])
+  assert.deepEqual(tue.stillToCome.find((r) => r.supplier === "Pixel Bread")!.days, ["Tue"])
+})
+
 test("guard: an overdue gap left out of the headline, doubled in the pace, or also still to come is withheld", () => {
   const { snap, burleigh: b } = pixelSnap(at(0, SUN, 8.5))
   const swap = (over: Partial<typeof b>) => checkSpendSnapshot({ ...snap, buckets: [{ ...b, ...over }] }).join(" | ")
