@@ -161,8 +161,8 @@ BEGIN
     ARRAY['MILK']::"Allergen"[], 'Chobani 2kg tub. Price carried from the June 2026 book, confirm on the next Bidfood invoice.');
   i_masc := pg_temp.wyp_ingredient(
     ARRAY[]::text[], ARRAY['mascarpone%', '%mascarpone%'],
-    'Mascarpone', 'DAIRY', 'WEIGHT', sup_bidfood, 1, 'kg', 15.00, 1000,
-    ARRAY['MILK']::"Allergen"[], 'ASSUMED $15.00/kg (no mascarpone in the book when Whipped Yoghurt & Poached Pear was costed, 29 Oct 2026). Correct from the next invoice.');
+    'Cheese Mascarpone Tatua 1kg', 'DAIRY', 'WEIGHT', sup_bidfood, 1, 'kg', 16.06, 1000,
+    ARRAY['MILK']::"Allergen"[], 'Bidfood CHEESE MASCARPONE TATUA 1KG, last invoiced 11 Jun 2026 at $16.06/kg (created for Whipped Yoghurt & Poached Pear, 29 Oct 2026). Confirm on the next Bidfood invoice.');
   i_vanilla_ext := pg_temp.wyp_ingredient(
     ARRAY[]::text[], ARRAY['vanilla extract%', 'vanilla essence%', '%vanilla extract%'],
     NULL, 'OTHER', 'VOLUME', NULL, 0, '', 0, 0, ARRAY[]::"Allergen"[], NULL);
@@ -285,7 +285,7 @@ BEGIN
     (dish_id, 'Whipped Yoghurt & Poached Pear', 'BREAKFAST', 'BOTH', price, ex_gst,
      'Added 29 Oct 2026 from the kitchen prep and portion guide. Per serve: granola 70 g, whipped yoghurt 155 g, macerated strawberries 20 g, half a poached pear with 30 g star anise syrup. '
      || 'Priced at $21.90 to sit between the Acai Bowl and the Summer Yoghurt. '
-     || 'Mascarpone and star anise prices are assumed where the book had none; check their ingredient notes.',
+     || 'Mascarpone falls back to the June 2026 Bidfood invoice price and star anise to an assumed one if the book has neither; check their ingredient notes.',
      now());
 
   total := total + pg_temp.wyp_dish_prep(dish_id, 0, p_granola, 70, 'g');
