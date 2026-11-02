@@ -21,7 +21,7 @@ import {
 } from "@/lib/actions/gm"
 import type { BoardItem } from "@/lib/gm/board"
 import { MISSION, THEME_BLURB, THEME_LABEL, type GmDays, type GmTheme } from "@/lib/gm/plan"
-import { NOTE_MAX_WORDS, NOTE_MIN_WORDS, QUEUE_SHOWN, noteProblem, wordCount } from "@/lib/gm/one-on-one"
+import { NOTE_TARGET_WORDS, QUEUE_SHOWN, noteCounter } from "@/lib/gm/one-on-one"
 import type { NumberTile } from "@/lib/gm/readings"
 
 type Tab = "today" | "week" | "tasks"
@@ -336,8 +336,7 @@ function OneOnOnes({ board, run, busy }: { board: GmBoard; run: Run; busy: boole
   const queue = board.queue.filter((q) => !seen.has(q.name))
   const shown = all ? queue : queue.slice(0, QUEUE_SHOWN)
   const person = picked ? queue.find((q) => q.name === picked) ?? null : null
-  const words = wordCount(note)
-  const problem = noteProblem(note)
+  const counter = noteCounter(note)
 
   function pick(name: string) {
     if (picked === name) return setPicked(null)
@@ -345,7 +344,7 @@ function OneOnOnes({ board, run, busy }: { board: GmBoard; run: Run; busy: boole
     setNote("")
   }
   function save() {
-    if (!picked || problem) return
+    if (!picked) return
     const name = picked
     run(() => logOneOnOne(name, note))
     setPicked(null)
@@ -366,7 +365,7 @@ function OneOnOnes({ board, run, busy }: { board: GmBoard; run: Run; busy: boole
           ))}
         </div>
       ) : null}
-      <p className="text-[15px] text-[var(--tk-ink-soft)]">Most overdue first. Tap a name once you have sat down with them, then write {NOTE_MIN_WORDS} to {NOTE_MAX_WORDS} words on how it went.</p>
+      <p className="text-[15px] text-[var(--tk-ink-soft)]">Most overdue first. Tap a name once you have sat down with them, then write about {NOTE_TARGET_WORDS} words on how it went. More is fine.</p>
       <div className="flex flex-wrap gap-2">
         {shown.map((q) => (
           <button
@@ -399,12 +398,12 @@ function OneOnOnes({ board, run, busy }: { board: GmBoard; run: Run; busy: boole
             rows={4}
           />
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-            <span className={cn("text-[15px] font-semibold tabular-nums", problem ? "text-[var(--tk-ink-mute)]" : "text-[var(--tk-done)]")}>
-              {words} {words === 1 ? "word" : "words"}. {words < NOTE_MIN_WORDS ? `${NOTE_MIN_WORDS - words} more to go.` : words > NOTE_MAX_WORDS ? `${words - NOTE_MAX_WORDS} too many.` : "Good to save."}
+            <span className={cn("text-[15px] font-semibold tabular-nums", counter.reached ? "text-[var(--tk-done)]" : "text-[var(--tk-ink-mute)]")}>
+              {counter.line}
             </span>
             <div className="flex items-center gap-2">
               <KitchenButton variant="ghost" size="sm" onClick={() => { setPicked(null); setNote("") }}>Cancel</KitchenButton>
-              <KitchenButton variant="primary" size="lg" disabled={busy || Boolean(problem)} onClick={save}>
+              <KitchenButton variant="primary" size="lg" disabled={busy} onClick={save}>
                 {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />} Save
               </KitchenButton>
             </div>

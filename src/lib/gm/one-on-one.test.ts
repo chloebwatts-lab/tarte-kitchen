@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { NOTE_MAX_WORDS, NOTE_MIN_WORDS, noteProblem, talkNotesOf, wordCount } from "./one-on-one"
+import { NOTE_TARGET_WORDS, noteCounter, talkNotesOf, wordCount } from "./one-on-one"
 
 const words = (n: number) => Array.from({ length: n }, (_, i) => `w${i}`).join(" ")
 
@@ -10,17 +10,17 @@ test("word count ignores extra spaces, tabs and new lines", () => {
   assert.equal(wordCount("Jess  is\tgoing well.\n\nWants more  pastry shifts."), 8)
 })
 
-test("a note between 30 and 60 words passes, both ends included", () => {
-  assert.equal(noteProblem(words(NOTE_MIN_WORDS)), null)
-  assert.equal(noteProblem(words(45)), null)
-  assert.equal(noteProblem(words(NOTE_MAX_WORDS)), null)
+test("under 30 words counts down to the target", () => {
+  assert.deepEqual(noteCounter(""), { line: "0 words. 30 to go to 30.", reached: false })
+  assert.deepEqual(noteCounter("Going well"), { line: "2 words. 28 to go to 30.", reached: false })
+  assert.deepEqual(noteCounter(words(29)), { line: "29 words. 1 to go to 30.", reached: false })
+  assert.equal(noteCounter("one").line, "1 word. 29 to go to 30.")
 })
 
-test("too short or too long says how many words to add or take out", () => {
-  assert.equal(noteProblem(""), "Write 30 more words (30 to 60).")
-  assert.equal(noteProblem(words(29)), "Write 1 more word (30 to 60).")
-  assert.equal(noteProblem(words(61)), "Take out 1 word (30 to 60).")
-  assert.equal(noteProblem(words(70)), "Take out 10 words (30 to 60).")
+test("30 words or more reaches the target, with no upper limit", () => {
+  assert.deepEqual(noteCounter(words(NOTE_TARGET_WORDS)), { line: "30 words. Target reached.", reached: true })
+  assert.deepEqual(noteCounter(words(61)), { line: "61 words. Target reached.", reached: true })
+  assert.equal(noteCounter(words(200)).reached, true)
 })
 
 test("talk notes keep only the talks with something written", () => {

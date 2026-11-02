@@ -31,7 +31,7 @@ import {
   type WeekNumbers,
 } from "@/lib/gm/readings"
 import { buildItems, composeReport, fmt, getGmDays, getGmMissStreaks, short, type BoardItem } from "@/lib/gm/board"
-import { noteProblem, talkNotesOf } from "@/lib/gm/one-on-one"
+import { talkNotesOf } from "@/lib/gm/one-on-one"
 
 const DAYS_KEY = "gmDays"
 const EMAIL_KEY = "gmEmail"
@@ -257,13 +257,11 @@ export async function setGmTaskDone(slug: string, done: boolean, note?: string) 
 
 // ─── One-on-ones ─────────────────────────────────────────────────────
 
-export async function logOneOnOne(staffName: string, note: string) {
+export async function logOneOnOne(staffName: string, note?: string) {
   await guard()
   const name = staffName.trim()
   if (!name) throw new Error("Pick a name")
-  const problem = noteProblem(note)
-  if (problem) return { ok: false as const, error: problem }
-  await db.gmOneOnOne.create({ data: { staffName: name, heldOn: todayAest(), note: note.trim() } })
+  await db.gmOneOnOne.create({ data: { staffName: name, heldOn: todayAest(), note: note?.trim() || null } })
   bust()
   return { ok: true as const }
 }

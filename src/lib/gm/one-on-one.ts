@@ -1,10 +1,9 @@
 /**
- * One-on-one notes. Pure, so the desk can count words as Oliver types and
- * the server action can refuse the same thing.
+ * One-on-one notes. Pure, so the desk can count words as Oliver types.
  */
 
-export const NOTE_MIN_WORDS = 30
-export const NOTE_MAX_WORDS = 60
+/** Words to aim for. A target, not a limit: shorter or longer still saves. */
+export const NOTE_TARGET_WORDS = 30
 /** Names shown before "Everyone". */
 export const QUEUE_SHOWN = 12
 
@@ -12,12 +11,12 @@ export function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length
 }
 
-/** Null when the note is long enough and short enough, else what to fix. */
-export function noteProblem(text: string): string | null {
+/** The line under the note box, e.g. "12 words. 18 to go to 30." */
+export function noteCounter(text: string): { line: string; reached: boolean } {
   const n = wordCount(text)
-  if (n < NOTE_MIN_WORDS) return `Write ${NOTE_MIN_WORDS - n} more word${NOTE_MIN_WORDS - n === 1 ? "" : "s"} (${NOTE_MIN_WORDS} to ${NOTE_MAX_WORDS}).`
-  if (n > NOTE_MAX_WORDS) return `Take out ${n - NOTE_MAX_WORDS} word${n - NOTE_MAX_WORDS === 1 ? "" : "s"} (${NOTE_MIN_WORDS} to ${NOTE_MAX_WORDS}).`
-  return null
+  const words = `${n} ${n === 1 ? "word" : "words"}.`
+  if (n >= NOTE_TARGET_WORDS) return { line: `${words} Target reached.`, reached: true }
+  return { line: `${words} ${NOTE_TARGET_WORDS - n} to go to ${NOTE_TARGET_WORDS}.`, reached: false }
 }
 
 export interface TalkNote {
