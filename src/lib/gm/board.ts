@@ -11,6 +11,7 @@ import { DEFAULT_GM_DAYS, GM_ITEMS, type GmDays, type GmItem } from "./plan"
 import { dayLabel, getAutoReadings, getWeekNumbers, type AutoReading, type WeekNumbers } from "./readings"
 import { renderGmReportHtml } from "./report-email"
 import { auditGmWeek, missStreakFromHistory, type MissStreaks } from "./audit"
+import { talkNotesOf, type TalkNote } from "./one-on-one"
 
 const DAYS_KEY = "gmDays"
 const EMAIL_KEY = "gmEmail"
@@ -91,6 +92,8 @@ export function composeReport(p: {
   items: BoardItem[]
   numbers: { wages: WeekNumbers; cogs: WeekNumbers }
   talks: string[]
+  /** What Oliver wrote after each talk. */
+  talkNotes?: TalkNote[]
   /** Names of this week's sick calls, with dates. */
   sick?: string[]
   fixed: string
@@ -143,6 +146,7 @@ export function composeReport(p: {
   const lw = get("label-walk")
   if (lw?.manual && lw.state === "done") lines.push(`Label walk: ${lw.num1 ?? 0} out of date, ${lw.num2 ?? 0} unlabelled.`)
   lines.push(`One-on-ones: ${p.talks.length}${p.talks.length ? ` (${p.talks.join(", ")})` : ""}.`)
+  for (const t of p.talkNotes ?? []) lines.push(`- ${t.name}: ${t.note}`)
   if (p.sick && p.sick.length) lines.push(`Sick calls this week: ${p.sick.join(", ")}.`)
   const q = get("quality-fix")
   if (q?.note) lines.push(`Quality fix: ${q.note}`)
@@ -179,7 +183,7 @@ export async function gmDigestForCron() {
     reportSent: Boolean(report),
     email,
     openTasks: tasks.map((t) => ({ title: t.title, dueLabel: short(t.dueOn), daysLeft: Math.round((t.dueOn.getTime() - todayAest().getTime()) / 86400000) })),
-    compose: (fixed: string, need: string) => composeReport({ weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), sick: sick.map((c) => `${c.staffName} (${short(c.calledOn)})`), fixed, need, sent: false, priorMisses }),
-    composeHtml: (fixed: string, need: string) => renderGmReportHtml({ weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), sick: sick.map((c) => `${c.staffName} (${short(c.calledOn)})`), fixed, need, sent: false, priorMisses }),
+    compose: (fixed: string, need: string) => composeReport({ weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), talkNotes: talkNotesOf(talks), sick: sick.map((c) => `${c.staffName} (${short(c.calledOn)})`), fixed, need, sent: false, priorMisses }),
+    composeHtml: (fixed: string, need: string) => renderGmReportHtml({ weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), talkNotes: talkNotesOf(talks), sick: sick.map((c) => `${c.staffName} (${short(c.calledOn)})`), fixed, need, sent: false, priorMisses }),
   }
 }

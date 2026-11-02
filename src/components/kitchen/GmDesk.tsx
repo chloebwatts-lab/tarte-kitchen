@@ -21,6 +21,7 @@ import {
 } from "@/lib/actions/gm"
 import type { BoardItem } from "@/lib/gm/board"
 import { MISSION, THEME_BLURB, THEME_LABEL, type GmDays, type GmTheme } from "@/lib/gm/plan"
+import { NOTE_MAX_WORDS, NOTE_MIN_WORDS, QUEUE_SHOWN, noteProblem, wordCount } from "@/lib/gm/one-on-one"
 import type { NumberTile } from "@/lib/gm/readings"
 
 type Tab = "today" | "week" | "tasks"
@@ -298,14 +299,14 @@ function ItemCard({ item, run, busy, board, compact }: { item: BoardItem; run: R
   )
 }
 
-function NoteBox({ id, value, set, placeholder }: { id: string; value: string; set: (v: string) => void; placeholder: string }) {
+function NoteBox({ id, value, set, placeholder, rows = 2 }: { id: string; value: string; set: (v: string) => void; placeholder: string; rows?: number }) {
   return (
     <textarea
       id={id}
       value={value}
       onChange={(e) => set(e.target.value)}
       placeholder={placeholder}
-      rows={2}
+      rows={rows}
       autoFocus
       className="mt-4 w-full rounded-[12px] border-[1.5px] border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 py-3 text-[17px] leading-snug"
     />
@@ -329,30 +330,88 @@ function Stepper({ label, value, set }: { label: string; value: number; set: (n:
 
 function OneOnOnes({ board, run, busy }: { board: GmBoard; run: Run; busy: boolean }) {
   const [all, setAll] = useState(false)
+  const [picked, setPicked] = useState<string | null>(null)
+  const [note, setNote] = useState("")
   const seen = new Set(board.talksThisWeek.map((t) => t.name))
   const queue = board.queue.filter((q) => !seen.has(q.name))
-  const shown = all ? queue : queue.slice(0, 6)
+  const shown = all ? queue : queue.slice(0, QUEUE_SHOWN)
+  const person = picked ? queue.find((q) => q.name === picked) ?? null : null
+  const words = wordCount(note)
+  const problem = noteProblem(note)
+
+  function pick(name: string) {
+    if (picked === name) return setPicked(null)
+    setPicked(name)
+    setNote("")
+  }
+  function save() {
+    if (!picked || problem) return
+    const name = picked
+    run(() => logOneOnOne(name, note))
+    setPicked(null)
+    setNote("")
+  }
+
   return (
     <div className="mt-4 space-y-3">
       {board.talksThisWeek.length ? (
-        <div className="flex flex-wrap gap-2">
+        <div className="space-y-2">
           {board.talksThisWeek.map((t) => (
-            <button key={t.id} disabled={busy} onClick={() => run(() => undoOneOnOne(t.id))} className="inline-flex items-center gap-1.5 rounded-full bg-[var(--tk-done-soft)] px-3.5 py-2 text-[15px] font-semibold text-[var(--tk-done)]" title="Tap to take back">
-              <Check className="h-4 w-4" /> {t.name}
-            </button>
+            <div key={t.id} className="rounded-[12px] bg-[var(--tk-done-soft)] px-3.5 py-2.5">
+              <button disabled={busy} onClick={() => run(() => undoOneOnOne(t.id))} className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-[var(--tk-done)]" title="Tap to take back">
+                <Check className="h-4 w-4" /> {t.name}
+              </button>
+              {t.note ? <p className="mt-1 text-[15px] leading-snug text-[var(--tk-ink-soft)]">{t.note}</p> : null}
+            </div>
           ))}
         </div>
       ) : null}
-      <p className="text-[15px] text-[var(--tk-ink-soft)]">Most overdue first. Tap a name once you have sat down with them.</p>
+      <p className="text-[15px] text-[var(--tk-ink-soft)]">Most overdue first. Tap a name once you have sat down with them, then write {NOTE_MIN_WORDS} to {NOTE_MAX_WORDS} words on how it went.</p>
       <div className="flex flex-wrap gap-2">
         {shown.map((q) => (
-          <button key={q.name} disabled={busy} onClick={() => run(() => logOneOnOne(q.name))} className="rounded-full border border-[var(--tk-line)] bg-[var(--tk-bg)] px-4 py-2.5 text-left text-[16px] font-semibold text-[var(--tk-ink)] active:scale-[0.98]">
+          <button
+            key={q.name}
+            disabled={busy}
+            onClick={() => pick(q.name)}
+            className={cn(
+              "rounded-full border px-4 py-2.5 text-left text-[16px] font-semibold text-[var(--tk-ink)] active:scale-[0.98]",
+              picked === q.name ? "border-[var(--tk-ink)] bg-[var(--tk-gold-soft)]" : "border-[var(--tk-line)] bg-[var(--tk-bg)]"
+            )}
+          >
             {q.name}
             <span className="ml-2 text-[13px] font-normal text-[var(--tk-ink-mute)]">{q.daysSince == null ? "never" : `${q.daysSince}d ago`}</span>
           </button>
         ))}
       </div>
-      {queue.length > 6 ? (
+      {person ? (
+        <div className="rounded-[14px] border-[1.5px] border-[var(--tk-ink)] bg-[var(--tk-bg)] p-4">
+          <div className="text-[17px] font-semibold text-[var(--tk-ink)]">How did it go with {person.name}?</div>
+          {person.lastNote ? (
+            <p className="mt-1 text-[15px] leading-snug text-[var(--tk-ink-soft)]">
+              Last time{person.lastSeen ? `, ${person.lastSeen}` : ""}: <span className="italic">&ldquo;{person.lastNote}&rdquo;</span>
+            </p>
+          ) : null}
+          <NoteBox
+            id="gm-talk-note"
+            value={note}
+            set={setNote}
+            placeholder="How they are going, anything they raised, anything you agreed to do and by when."
+            rows={4}
+          />
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            <span className={cn("text-[15px] font-semibold tabular-nums", problem ? "text-[var(--tk-ink-mute)]" : "text-[var(--tk-done)]")}>
+              {words} {words === 1 ? "word" : "words"}. {words < NOTE_MIN_WORDS ? `${NOTE_MIN_WORDS - words} more to go.` : words > NOTE_MAX_WORDS ? `${words - NOTE_MAX_WORDS} too many.` : "Good to save."}
+            </span>
+            <div className="flex items-center gap-2">
+              <KitchenButton variant="ghost" size="sm" onClick={() => { setPicked(null); setNote("") }}>Cancel</KitchenButton>
+              <KitchenButton variant="primary" size="lg" disabled={busy || Boolean(problem)} onClick={save}>
+                {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />} Save
+              </KitchenButton>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {queue.length > QUEUE_SHOWN ? (
         <button onClick={() => setAll(!all)} className="inline-flex items-center gap-1 text-[15px] font-semibold text-[var(--tk-ink-soft)]">
           <ChevronDown className={cn("h-4 w-4 transition", all && "rotate-180")} /> {all ? "Show fewer" : `Everyone (${queue.length})`}
         </button>

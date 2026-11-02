@@ -412,19 +412,28 @@ export interface StaffLine {
   name: string
   lastSeen: string | null
   daysSince: number | null
+  /** What Oliver wrote after the last talk, if he wrote anything. */
+  lastNote: string | null
 }
 
 export async function getOneOnOneQueue(): Promise<StaffLine[]> {
   const since = new Date(Date.now() - 28 * 86400000)
-  const [shifts, talks] = await Promise.all([
+  const [shifts, talks, notes] = await Promise.all([
     db.labourShift.findMany({
       where: { venue: VENUE, isOpen: false, shiftStart: { gte: since } },
       distinct: ["employeeName"],
       select: { employeeName: true },
     }),
     db.gmOneOnOne.groupBy({ by: ["staffName"], _max: { heldOn: true } }),
+    db.gmOneOnOne.findMany({
+      where: { note: { not: null } },
+      orderBy: [{ heldOn: "desc" }, { createdAt: "desc" }],
+      distinct: ["staffName"],
+      select: { staffName: true, note: true },
+    }),
   ])
   const last = new Map(talks.map((t) => [t.staffName, t._max.heldOn]))
+  const lastNote = new Map(notes.map((n) => [n.staffName, n.note]))
   const today = todayAest()
   const out: StaffLine[] = []
   for (const s of shifts) {
@@ -436,6 +445,7 @@ export async function getOneOnOneQueue(): Promise<StaffLine[]> {
       name,
       lastSeen: held ? dayLabel(held) : null,
       daysSince: held ? Math.round((today.getTime() - held.getTime()) / 86400000) : null,
+      lastNote: lastNote.get(name) ?? null,
     })
   }
   // Never seen first, then longest ago.

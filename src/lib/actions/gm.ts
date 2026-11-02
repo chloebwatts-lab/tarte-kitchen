@@ -31,6 +31,7 @@ import {
   type WeekNumbers,
 } from "@/lib/gm/readings"
 import { buildItems, composeReport, fmt, getGmDays, getGmMissStreaks, short, type BoardItem } from "@/lib/gm/board"
+import { noteProblem, talkNotesOf } from "@/lib/gm/one-on-one"
 
 const DAYS_KEY = "gmDays"
 const EMAIL_KEY = "gmEmail"
@@ -110,7 +111,7 @@ export interface GmBoard {
   numbers: { wages: WeekNumbers; cogs: WeekNumbers }
   reviews: { lines: ReviewLine[]; fiveStarThisMonth: number }
   queue: StaffLine[]
-  talksThisWeek: { id: string; name: string; when: string }[]
+  talksThisWeek: { id: string; name: string; when: string; note: string | null }[]
   sickThisMonth: { id: string; name: string; when: string; today: boolean }[]
   tasks: BoardTask[]
   report: { sent: boolean; sentLabel: string | null; fixed: string; need: string; preview: string }
@@ -172,7 +173,7 @@ export async function getGmBoard(): Promise<GmBoard> {
     numbers,
     reviews,
     queue,
-    talksThisWeek: talks.map((t) => ({ id: t.id, name: t.staffName, when: short(t.heldOn) })),
+    talksThisWeek: talks.map((t) => ({ id: t.id, name: t.staffName, when: short(t.heldOn), note: t.note })),
     sickThisMonth: sick.map((c) => ({ id: c.id, name: c.staffName, when: short(c.calledOn), today: ymd(c.calledOn) === ymd(today) })),
     tasks: tasks.map((t) => ({
       slug: t.slug,
@@ -192,7 +193,7 @@ export async function getGmBoard(): Promise<GmBoard> {
       sentLabel: report ? short(new Date(report.sentAt.getTime() + 10 * 3600000)) : null,
       fixed: report?.fixed ?? "",
       need: report?.need ?? "",
-      preview: report?.body ?? composeReport({ weekLabel, items, numbers, talks: talks.map((t) => t.staffName), fixed: "", need: "" }),
+      preview: report?.body ?? composeReport({ weekLabel, items, numbers, talks: talks.map((t) => t.staffName), talkNotes: talkNotesOf(talks), fixed: "", need: "" }),
     },
   }
 }
@@ -256,11 +257,13 @@ export async function setGmTaskDone(slug: string, done: boolean, note?: string) 
 
 // ─── One-on-ones ─────────────────────────────────────────────────────
 
-export async function logOneOnOne(staffName: string, note?: string) {
+export async function logOneOnOne(staffName: string, note: string) {
   await guard()
   const name = staffName.trim()
   if (!name) throw new Error("Pick a name")
-  await db.gmOneOnOne.create({ data: { staffName: name, heldOn: todayAest(), note: note?.trim() || null } })
+  const problem = noteProblem(note)
+  if (problem) return { ok: false as const, error: problem }
+  await db.gmOneOnOne.create({ data: { staffName: name, heldOn: todayAest(), note: note.trim() } })
   bust()
   return { ok: true as const }
 }
@@ -312,7 +315,7 @@ export async function sendFridayReport(p: { fixed: string; need: string }) {
     getGmMissStreaks(weekStart),
   ])
   const weekLabel = `${short(monday)} to ${short(addDays(monday, 6))}`
-  const report = { weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), sick: sick.map((c) => `${c.staffName} (${short(c.calledOn)})`), fixed, need, priorMisses }
+  const report = { weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), talkNotes: talkNotesOf(talks), sick: sick.map((c) => `${c.staffName} (${short(c.calledOn)})`), fixed, need, priorMisses }
   const body = composeReport(report)
   try {
     await sendHtmlEmail({ to: REPORT_TO, subject: `Oliver's Monday report, ${weekLabel}`, text: body, html: renderGmReportHtml(report) })

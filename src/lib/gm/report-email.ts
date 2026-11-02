@@ -9,6 +9,7 @@ import type { BoardItem } from "./board"
 import type { WeekNumbers } from "./readings"
 import { THEME_LABEL, type GmTheme } from "./plan"
 import { auditGmWeek, auditSummary, type MissStreaks } from "./audit"
+import type { TalkNote } from "./one-on-one"
 
 const DESK = `${APP_URL}/kitchen/gm`
 
@@ -17,6 +18,8 @@ export interface GmReportParams {
   items: BoardItem[]
   numbers: { wages: WeekNumbers; cogs: WeekNumbers }
   talks: string[]
+  /** What Oliver wrote after each talk. */
+  talkNotes?: TalkNote[]
   sick?: string[]
   fixed: string
   need: string
@@ -146,6 +149,10 @@ export function renderGmReportHtml(p: GmReportParams): string {
   const q = get("quality-fix")
   if (q?.note) readings.push({ label: "Quality fix", value: q.note })
   sections.push(section("The week in numbers", rows(readings)))
+
+  if (p.talkNotes && p.talkNotes.length) {
+    sections.push(section("One-on-one notes", list(p.talkNotes.map((t) => ({ text: t.name, detail: t.note, tone: "sage" as const })))))
+  }
 
   // Everything that did get done, compact, so the 18 of 20 is checkable.
   if (done.length) {
