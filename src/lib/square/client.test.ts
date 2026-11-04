@@ -1,7 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import Decimal from "decimal.js"
-import { aestDayRange, aggregateOrders, aggregatePayments, cleanItemName, feeRatePct, isPaidOrder, returnOnlyAmount, type SquareOrder, type SquarePayment } from "./client"
+import { aestDateOf, aestDayRange, aggregateOrders, aggregatePayments, cleanItemName, feeRatePct, isBoppleOrder, isPaidOrder, mergeDayOrders, returnOnlyAmount, type SquareOrder, type SquarePayment } from "./client"
 import { aestDates } from "./sync"
 
 test("aestDayRange: Brisbane midnight to midnight in UTC, no daylight saving", () => {
@@ -153,4 +153,49 @@ test("aggregateOrders: a refund bigger than the day's sales leaves a negative da
   assert.equal(agg.tipsIncGst.toNumber(), 0)
   assert.equal(agg.items.length, 1)
   assert.equal(agg.items[0].revenue.toNumber(), 26.9)
+})
+
+test("aestDateOf: Brisbane calendar day of an instant, null for missing or bad input", () => {
+  assert.equal(aestDateOf("2026-11-01T13:59:59Z"), "2026-11-01") // 23:59:59 AEST
+  assert.equal(aestDateOf("2026-11-01T14:00:00Z"), "2026-11-02") // midnight AEST
+  assert.equal(aestDateOf("2026-10-31T14:00:00.000Z"), "2026-11-01")
+  assert.equal(aestDateOf(undefined), null)
+  assert.equal(aestDateOf("not a date"), null)
+})
+
+test("isBoppleOrder: by Square source name, any case", () => {
+  assert.equal(isBoppleOrder({ id: "a", source: { name: "Bopple" } }), true)
+  assert.equal(isBoppleOrder({ id: "b", source: { name: "BOPPLE online" } }), true)
+  assert.equal(isBoppleOrder({ id: "c", source: { name: "Point of Sale" } }), false)
+  assert.equal(isBoppleOrder({ id: "d" }), false)
+})
+
+test("mergeDayOrders: a Bopple order counts on the day it was placed, whenever it was completed", () => {
+  const m = (d: number) => ({ amount: Math.round(d * 100), currency: "AUD" })
+  const paid = (d: number) => ({ total_money: m(d), tenders: [{ type: "OTHER", amount_money: m(d), other_details: { source: "BOPPLE", status: "CAPTURED" } }], net_amount_due_money: m(0) })
+  // Placed Sun 1 Nov 10:21 AEST, completed by the nightly job on Wed 4 Nov.
+  const late: SquareOrder = { id: "late", state: "COMPLETED", source: { name: "Bopple" }, created_at: "2026-11-01T00:21:11Z", closed_at: "2026-11-04T13:55:00Z", ...paid(23.9) }
+  // Placed and completed on 4 Nov.
+  const same: SquareOrder = { id: "same", state: "COMPLETED", source: { name: "Bopple" }, created_at: "2026-11-04T00:30:00Z", closed_at: "2026-11-04T13:55:00Z", ...paid(48.3) }
+  // Placed 23:59 on 4 Nov, completed the next night: still 4 Nov.
+  const midnight: SquareOrder = { id: "midnight", state: "COMPLETED", source: { name: "Bopple" }, created_at: "2026-11-04T13:59:30Z", closed_at: "2026-11-05T13:55:00Z", ...paid(12) }
+  const till: SquareOrder = { id: "till", state: "COMPLETED", source: { name: "Point of Sale" }, created_at: "2026-11-03T23:00:00Z", closed_at: "2026-11-04T01:00:00Z", total_money: m(26.9) }
+  const openBopple: SquareOrder = { id: "openB", state: "OPEN", source: { name: "Bopple" }, created_at: "2026-11-04T02:00:00Z", ...paid(19.5) }
+  const table: SquareOrder = { id: "table", state: "OPEN", created_at: "2026-11-04T08:00:00Z", total_money: m(180), tenders: [{ type: "CARD", amount_money: m(60) }], net_amount_due_money: m(120) }
+
+  // 4 Nov: closed-in-day search returns late + same + till; created-in-day Bopple search returns same.
+  const nov4 = mergeDayOrders("2026-11-04", [late, same, till], [openBopple, table], [same])
+  assert.deepEqual(nov4.sales.map((o) => o.id).sort(), ["openB", "same", "till"])
+  assert.deepEqual(nov4.openUnpaid.map((o) => o.id), ["table"])
+
+  // 1 Nov, re-synced after the job ran: the late order comes back through the created-in-day search.
+  const nov1 = mergeDayOrders("2026-11-01", [], [], [late])
+  assert.deepEqual(nov1.sales.map((o) => o.id), ["late"])
+
+  // 5 Nov drops the 23:59 order; 4 Nov keeps it.
+  assert.deepEqual(mergeDayOrders("2026-11-05", [midnight], [], []).sales.map((o) => o.id), [])
+  assert.deepEqual(mergeDayOrders("2026-11-04", [], [], [midnight]).sales.map((o) => o.id), ["midnight"])
+
+  // Without the extra search (old callers) nothing is counted twice.
+  assert.deepEqual(mergeDayOrders("2026-11-04", [same, same], [], []).sales.map((o) => o.id), ["same"])
 })

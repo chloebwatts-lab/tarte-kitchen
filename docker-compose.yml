@@ -169,6 +169,10 @@ services:
         # Every 30 min — Square Orders/Payments API: item-level sales +
         # today's running total for the live tracker (yesterday + today).
         7,37 * * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/sync-square-sales?days=2' 2>&1
+        # 23:55 AEST: complete the day's paid Bopple orders in Square so Amaka
+        # sends them to Xero (Amaka only syncs COMPLETED orders). Orders placed
+        # before 1 Nov 2026 are never touched (October is journalled).
+        55 13 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/complete-online-orders 2>&1
         # Every 30 min — Uber Eats daily sales (Manager website endpoints with
         # the pasted session): two closed days + today, per shop.
         19,49 * * * * curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/sync-uber-sales?days=3' 2>&1

@@ -1,7 +1,8 @@
 /**
  * Thin Square Connect v2 client + pure aggregation helpers. Only what the
  * sales sync needs: locations, closed orders for a trading day, payments
- * (for processing fees / card takings). No SDK, plain fetch.
+ * (for processing fees / card takings), plus completing paid Bopple orders
+ * (see complete-online.ts). No SDK, plain fetch.
  */
 import Decimal from "decimal.js"
 
@@ -50,11 +51,25 @@ export interface SquareTender {
   id?: string
   type?: string // CARD, CASH, OTHER, SQUARE_GIFT_CARD, WALLET, ...
   amount_money?: Money
+  /** Bopple pays as OTHER with { source: "BOPPLE", status: "CAPTURED" }. */
+  other_details?: { source?: string; status?: string }
+}
+
+export interface SquareFulfillment {
+  uid?: string
+  type?: string // PICKUP, IN_STORE, DELIVERY, SHIPMENT
+  state?: string // PROPOSED, RESERVED, PREPARED, COMPLETED, CANCELED, FAILED
+  pickup_details?: { pickup_at?: string }
 }
 
 export interface SquareOrder {
   id: string
   location_id?: string
+  /** Needed to update an order (optimistic concurrency). */
+  version?: number
+  /** "Point of Sale", "Bopple", ... */
+  source?: { name?: string }
+  fulfillments?: SquareFulfillment[]
   state?: string
   closed_at?: string
   created_at?: string
@@ -217,9 +232,105 @@ export function isPaidOrder(o: SquareOrder): boolean {
   return tendered >= total
 }
 
+/** The Brisbane calendar date (YYYY-MM-DD) of an instant; null when missing or bad. */
+export function aestDateOf(iso: string | undefined): string | null {
+  if (!iso) return null
+  const t = new Date(iso).getTime()
+  if (!Number.isFinite(t)) return null
+  return new Date(t + 10 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+
+/** Bopple online order: paid when placed, left OPEN until someone completes it. */
+export function isBoppleOrder(o: SquareOrder): boolean {
+  return (o.source?.name ?? "").toLowerCase().includes("bopple")
+}
+
+/**
+ * COMPLETED Bopple orders created within the day, whenever they were
+ * completed. Since Nov 2026 the nightly job completes them (so Amaka sends
+ * them to Xero), sometimes days after they were placed; they still belong
+ * to the day they were placed and paid. See mergeDayOrders.
+ */
+export async function searchCompletedBoppleCreated(
+  accessToken: string,
+  locationId: string,
+  dateStr: string
+): Promise<SquareOrder[]> {
+  const { startAt, endAt } = aestDayRange(dateStr)
+  const out: SquareOrder[] = []
+  let cursor: string | undefined
+  do {
+    const data = await squareFetch<{ orders?: SquareOrder[]; cursor?: string }>(
+      accessToken,
+      "/orders/search",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          location_ids: [locationId],
+          limit: 500,
+          return_entries: false,
+          cursor,
+          query: {
+            filter: {
+              state_filter: { states: ["COMPLETED"] },
+              source_filter: { source_names: ["Bopple"] },
+              date_time_filter: { created_at: { start_at: startAt, end_at: endAt } },
+            },
+            sort: { sort_field: "CREATED_AT", sort_order: "ASC" },
+          },
+        }),
+      }
+    )
+    out.push(...(data.orders ?? []))
+    cursor = data.cursor
+  } while (cursor)
+  return out
+}
+
+/**
+ * Pure. The day's sales from the three searches: orders completed in the
+ * day, orders still open that were created in the day, and Bopple orders
+ * created in the day that were completed later. A Bopple order counts on
+ * the day it was placed (Square's dashboard counts it then, when it is
+ * paid), so one completed on a later day is dropped from that later day.
+ * `openUnpaid` is the open-tables figure (bills opened, not yet settled).
+ */
+export function mergeDayOrders(
+  dateStr: string,
+  completed: SquareOrder[],
+  open: SquareOrder[],
+  boppleCompletedCreated: SquareOrder[] = []
+): { sales: SquareOrder[]; openUnpaid: SquareOrder[] } {
+  const seen = new Set<string>()
+  const sales: SquareOrder[] = []
+  for (const o of completed) {
+    if (seen.has(o.id)) continue
+    if (isBoppleOrder(o)) {
+      const placed = aestDateOf(o.created_at)
+      if (placed && placed !== dateStr) continue
+    }
+    seen.add(o.id)
+    sales.push(o)
+  }
+  for (const o of boppleCompletedCreated) {
+    if (seen.has(o.id)) continue
+    seen.add(o.id)
+    sales.push(o)
+  }
+  const openUnpaid: SquareOrder[] = []
+  for (const o of open) {
+    if (seen.has(o.id)) continue
+    seen.add(o.id)
+    if (isPaidOrder(o)) sales.push(o)
+    else openUnpaid.push(o)
+  }
+  return { sales, openUnpaid }
+}
+
 /**
  * The day's sales as Square's dashboard counts them: COMPLETED orders closed
- * in the day plus OPEN orders created in the day that are fully paid.
+ * in the day plus OPEN orders created in the day that are fully paid, with
+ * Bopple orders always on the day they were placed (mergeDayOrders).
  * `openUnpaid` is the open-tables figure (bills opened, not yet settled).
  */
 export async function fetchDayOrders(
@@ -227,19 +338,71 @@ export async function fetchDayOrders(
   locationId: string,
   dateStr: string
 ): Promise<{ sales: SquareOrder[]; openUnpaid: SquareOrder[] }> {
-  const [completed, open] = await Promise.all([
+  const [completed, open, boppleLate] = await Promise.all([
     searchClosedOrders(accessToken, locationId, dateStr),
     searchOpenOrders(accessToken, locationId, dateStr),
+    searchCompletedBoppleCreated(accessToken, locationId, dateStr),
   ])
-  const seen = new Set(completed.map((o) => o.id))
-  const sales = [...completed]
-  const openUnpaid: SquareOrder[] = []
-  for (const o of open) {
-    if (seen.has(o.id)) continue
-    if (isPaidOrder(o)) sales.push(o)
-    else openUnpaid.push(o)
-  }
-  return { sales, openUnpaid }
+  return mergeDayOrders(dateStr, completed, open, boppleLate)
+}
+
+/** OPEN Bopple orders created from `startAt` (RFC3339) up to now, oldest first. */
+export async function searchOpenBoppleOrders(
+  accessToken: string,
+  locationId: string,
+  startAt: string,
+  endAt: string = new Date().toISOString()
+): Promise<SquareOrder[]> {
+  const out: SquareOrder[] = []
+  let cursor: string | undefined
+  do {
+    const data = await squareFetch<{ orders?: SquareOrder[]; cursor?: string }>(
+      accessToken,
+      "/orders/search",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          location_ids: [locationId],
+          limit: 500,
+          return_entries: false,
+          cursor,
+          query: {
+            filter: {
+              state_filter: { states: ["OPEN"] },
+              source_filter: { source_names: ["Bopple"] },
+              date_time_filter: { created_at: { start_at: startAt, end_at: endAt } },
+            },
+            sort: { sort_field: "CREATED_AT", sort_order: "ASC" },
+          },
+        }),
+      }
+    )
+    out.push(...(data.orders ?? []))
+    cursor = data.cursor
+  } while (cursor)
+  return out
+}
+
+/**
+ * Mark an open order and all its fulfilments COMPLETED (the Square "Picked
+ * up" tap). The idempotency key is tied to the order version, so a retry of
+ * the same run cannot complete anything twice. Throws on any Square error.
+ */
+export async function completeOrder(accessToken: string, order: SquareOrder): Promise<SquareOrder> {
+  const data = await squareFetch<{ order?: SquareOrder }>(accessToken, `/orders/${order.id}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      idempotency_key: `tk-complete-${order.id}-v${order.version ?? 0}`,
+      order: {
+        location_id: order.location_id,
+        version: order.version,
+        state: "COMPLETED",
+        fulfillments: (order.fulfillments ?? []).map((f) => ({ uid: f.uid, state: "COMPLETED" })),
+      },
+    }),
+  })
+  if (data.order?.state !== "COMPLETED") throw new Error(`Square left ${order.id} ${data.order?.state ?? "unknown"}`)
+  return data.order
 }
 
 /** All payments created within the day at one location (any status). */
