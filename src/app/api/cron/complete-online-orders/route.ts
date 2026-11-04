@@ -5,8 +5,8 @@ import { completeOnlineOrders } from "@/lib/square/complete-online"
 /**
  * 23:55 AEST nightly: complete the day's paid Bopple orders in Square so
  * Amaka sends them to Xero (only orders placed on or after 1 Nov 2026; see
- * complete-online.ts). ?dryRun=1 lists what it would complete and changes
- * nothing.
+ * complete-online.ts). ?dryRun=1 (or true) lists what it would complete
+ * and changes nothing.
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization")
@@ -14,7 +14,8 @@ export async function GET(request: Request) {
     return new Response("Unauthorized", { status: 401 })
   }
   const url = new URL(request.url)
-  const dryRun = url.searchParams.get("dryRun") === "1"
+  const flag = (url.searchParams.get("dryRun") ?? "").toLowerCase()
+  const dryRun = flag === "1" || flag === "true" || flag === "yes"
   try {
     const reports = await completeOnlineOrders({ dryRun })
     for (const r of reports) {
