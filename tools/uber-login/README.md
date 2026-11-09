@@ -28,7 +28,7 @@ What runs, three times a day (07:10, 12:10, 17:10 Brisbane, launchd):
    invoices) and the job types it. A window is visible for about a minute;
    Cloudflare only lets a real visible Chrome through Uber's sign-in,
    headless is blocked.
-4. `POST /api/internal/uber-session {cookie}`: Kitchen stores the session
+3. `POST /api/internal/uber-session {cookie}`: Kitchen stores the session
    encrypted and loads the last 14 days, exactly as a paste in Settings >
    Integrations would. The usual 30-minute cron then carries on.
 
