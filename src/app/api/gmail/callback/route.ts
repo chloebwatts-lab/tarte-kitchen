@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic"
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { encrypt } from "@/lib/encryption"
-import { getGmailRedirectUri } from "@/lib/gmail/client"
+import { getGmailRedirectUri, gmailReconnectAllowed } from "@/lib/gmail/client"
 
 /**
  * Behind the Caddy reverse proxy inside docker-compose, Next.js sees the
@@ -70,18 +70,35 @@ export async function GET(request: NextRequest) {
 
     const profile = await profileRes.json()
 
-    // Delete any existing connections (single-tenant)
-    await db.gmailConnection.deleteMany()
+    const existing = await db.gmailConnection.findFirst({ orderBy: { createdAt: "desc" } })
+    if (!gmailReconnectAllowed(existing?.email, String(profile.emailAddress ?? ""))) {
+      console.error(`Gmail OAuth callback refused: signed in as ${profile.emailAddress}, connection is ${existing?.email ?? "(none)"}`)
+      return NextResponse.redirect(
+        absoluteUrl("/settings/integrations?error=wrong_gmail_account", request)
+      )
+    }
 
-    // Store encrypted tokens
-    await db.gmailConnection.create({
-      data: {
-        accessToken: encrypt(tokenData.access_token),
-        refreshToken: encrypt(tokenData.refresh_token),
-        tokenExpiry: new Date(Date.now() + tokenData.expires_in * 1000),
-        email: profile.emailAddress,
-      },
-    })
+    if (existing) {
+      // Same mailbox re-consented (e.g. a new scope): swap the tokens in
+      // place so the invoice scan watermark and settings are kept.
+      await db.gmailConnection.update({
+        where: { id: existing.id },
+        data: {
+          accessToken: encrypt(tokenData.access_token),
+          ...(tokenData.refresh_token && { refreshToken: encrypt(tokenData.refresh_token) }),
+          tokenExpiry: new Date(Date.now() + tokenData.expires_in * 1000),
+        },
+      })
+    } else {
+      await db.gmailConnection.create({
+        data: {
+          accessToken: encrypt(tokenData.access_token),
+          refreshToken: encrypt(tokenData.refresh_token),
+          tokenExpiry: new Date(Date.now() + tokenData.expires_in * 1000),
+          email: profile.emailAddress,
+        },
+      })
+    }
 
     return NextResponse.redirect(
       absoluteUrl("/settings/integrations?gmail_connected=true", request)

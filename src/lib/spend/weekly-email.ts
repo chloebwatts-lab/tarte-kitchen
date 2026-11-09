@@ -363,7 +363,7 @@ export async function runWeeklySpendEmail(
 
   let sent = false
   if (!args.dryRun) {
-    await sendHtmlEmail({ to: args.recipient, ...rendered })
+    await sendHtmlEmail({ to: args.recipient, ...rendered, privateCopy: true }) // spend vs budget: Sent copy leaves accounts@
     sent = true
   }
 

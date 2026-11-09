@@ -1,4 +1,5 @@
 import { getActiveGmailConnection, getValidGmailAccessToken } from "@/lib/gmail/token"
+import { tidyAfterSend } from "@/lib/gmail/sent-tidy"
 import { VENUE_SHORT_LABEL } from "@/lib/venues"
 import type { Venue } from "@/generated/prisma/client"
 import { APP_URL, button, list, para, rows, section, shell, subhead, table, tiles, type ListItem, type Tone } from "@/lib/email/brand"
@@ -12,6 +13,25 @@ const GMAIL_API = "https://www.googleapis.com/gmail/v1/users/me"
  */
 function stripHeaderNewlines(value: string): string {
   return value.replace(/[\r\n]+/g, " ")
+}
+
+export type SentRef = { id?: string; threadId?: string }
+
+/**
+ * Read the sent message id and, for profit or earnings mail, trash the
+ * accounts@ Sent copy (rule 5). The tidy step never throws: the email has
+ * already gone, so a failed tidy is only logged.
+ */
+async function afterSend(res: Response, subject: string, privateCopy?: boolean): Promise<SentRef> {
+  let ref: SentRef = {}
+  try {
+    const j = (await res.json()) as { id?: string; threadId?: string }
+    ref = { id: j.id, threadId: j.threadId }
+  } catch {
+    return ref
+  }
+  await tidyAfterSend({ id: ref.id, subject, via: "kitchen-send", privateCopy })
+  return ref
 }
 
 /**
@@ -29,7 +49,11 @@ export async function sendEmail(params: {
   to: string | string[]
   subject: string
   body: string
-}) {
+  /** Profit or earnings content: trash the accounts@ Sent copy after
+   *  sending. Subjects on the private list (sent-tidy-rules.ts) are
+   *  trashed without this flag too. */
+  privateCopy?: boolean
+}): Promise<SentRef> {
   const connection = await getActiveGmailConnection()
   if (!connection) {
     throw new Error("No Gmail connection, connect in Settings → Integrations")
@@ -68,6 +92,7 @@ export async function sendEmail(params: {
     const text = await res.text()
     throw new Error(`Gmail send failed (${res.status}): ${text}`)
   }
+  return afterSend(res, params.subject, params.privateCopy)
 }
 
 /**
@@ -80,7 +105,9 @@ export async function sendHtmlEmail(params: {
   subject: string
   html: string
   text: string
-}) {
+  /** See sendEmail. */
+  privateCopy?: boolean
+}): Promise<SentRef> {
   const connection = await getActiveGmailConnection()
   if (!connection) {
     throw new Error("No Gmail connection, connect in Settings → Integrations")
@@ -135,6 +162,7 @@ export async function sendHtmlEmail(params: {
     const text = await res.text()
     throw new Error(`Gmail HTML send failed (${res.status}): ${text}`)
   }
+  return afterSend(res, params.subject, params.privateCopy)
 }
 
 /** A call-to-action row, indented to line up with the card text. */

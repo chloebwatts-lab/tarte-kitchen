@@ -61,6 +61,9 @@ services:
       GMAIL_CLIENT_ID: ${GMAIL_CLIENT_ID}
       GMAIL_CLIENT_SECRET: ${GMAIL_CLIENT_SECRET}
       GMAIL_REDIRECT_URI: ${GMAIL_REDIRECT_URI}
+      # accounts@ Sent-copy tidy (src/lib/gmail/sent-tidy.ts): 1 = log
+      # "would trash" only. Blank = live.
+      SENT_TIDY_DRY_RUN: ${SENT_TIDY_DRY_RUN:-}
       # tarte-inbox's Google OAuth client — lets check-service-emails
       # refresh the hello@ token it reads from inbox_oauth_tokens.
       # Values copied on-droplet from /root/tarte-inbox/.env.
@@ -293,6 +296,11 @@ services:
         0 3 * * 1 curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/gm-nudge?kind=report-due' 2>&1
         0 6 * * 1 curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/gm-nudge?kind=wrap' 2>&1
         0 10 * * 2 curl -fsS -m 120 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/gm-nudge?kind=close' 2>&1
+        # Monday 05:00 AEST (19:00 UTC Sun): safety sweep that trashes any
+        # profit or earnings Sent copy left in accounts@ (Chloe's rule 5).
+        # Senders trash their own copy straight after sending; this catches
+        # misses. Subject list: src/lib/gmail/sent-tidy-rules.ts.
+        0 19 * * 0 curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/tidy-sent 2>&1
         CRON
         exec crond -f -l 8 -L /dev/stdout
 

@@ -7,6 +7,8 @@ import {
   extractSenderEmail,
   extractSenderName,
   getGmailRedirectUri,
+  expectedGmailMailbox,
+  gmailReconnectAllowed,
 } from "./client"
 
 type Msg = Parameters<typeof getHeader>[0]
@@ -137,5 +139,24 @@ test("getGmailRedirectUri: production default when env unset", () => {
   } finally {
     if (prev === undefined) delete process.env.GMAIL_REDIRECT_URI
     else process.env.GMAIL_REDIRECT_URI = prev
+  }
+})
+
+test("gmailReconnectAllowed: same mailbox re-consent only", () => {
+  const prev = process.env.GMAIL_EXPECTED_EMAIL
+  delete process.env.GMAIL_EXPECTED_EMAIL
+  try {
+    assert.equal(expectedGmailMailbox(), "accounts@tarte.com.au")
+    assert.equal(gmailReconnectAllowed("accounts@tarte.com.au", "Accounts@Tarte.com.au"), true)
+    // signed in as the owner by mistake: refused, accounts@ stays connected
+    assert.equal(gmailReconnectAllowed("accounts@tarte.com.au", "chloe@tarte.com.au"), false)
+    // first connection must be the shared mailbox
+    assert.equal(gmailReconnectAllowed(null, "accounts@tarte.com.au"), true)
+    assert.equal(gmailReconnectAllowed(undefined, "chloe@tarte.com.au"), false)
+    process.env.GMAIL_EXPECTED_EMAIL = "Other@tarte.com.au"
+    assert.equal(gmailReconnectAllowed(null, "other@tarte.com.au"), true)
+  } finally {
+    if (prev === undefined) delete process.env.GMAIL_EXPECTED_EMAIL
+    else process.env.GMAIL_EXPECTED_EMAIL = prev
   }
 })

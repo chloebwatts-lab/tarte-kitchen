@@ -95,7 +95,7 @@ export async function GET(request: Request) {
     if (kind === "wrap") {
       if (d.reportSent) return Response.json({ ok: true, skipped: "report was sent" })
       const body = `Oliver has not sent his Monday report. This is what the app can see.\n\n${d.compose("(not sent)", "(not sent)")}`
-      if (!preview) await sendHtmlEmail({ to: CHLOE, subject: `No Monday report from Oliver, ${d.weekLabel}`, text: body, html: d.composeHtml("(not sent)", "(not sent)") })
+      if (!preview) await sendHtmlEmail({ to: CHLOE, subject: `No Monday report from Oliver, ${d.weekLabel}`, text: body, html: d.composeHtml("(not sent)", "(not sent)"), privateCopy: true }) // wage and COGS %
       return Response.json({ ok: true, kind, preview, to: CHLOE, body })
     }
 

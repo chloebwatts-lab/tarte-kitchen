@@ -13,6 +13,7 @@ import "dotenv/config"
 import { readFile } from "node:fs/promises"
 import { basename, extname } from "node:path"
 import { getActiveGmailConnection, getValidGmailAccessToken } from "../src/lib/gmail/token"
+import { tidyAfterSend } from "../src/lib/gmail/sent-tidy"
 
 const MIME: Record<string, string> = {
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif",
@@ -29,6 +30,7 @@ function parseArgs(argv: string[]) {
     if (a === "--to") to.push(...argv[++i].split(",").map((s) => s.trim()).filter(Boolean))
     else if (a === "--subject") subject = argv[++i]
     else if (a === "--body-file") bodyFile = argv[++i]
+    else if (a === "--private") privateFlag = true
     else files.push(a)
   }
   if (!to.length || !subject || !bodyFile || !files.length) {
@@ -37,6 +39,8 @@ function parseArgs(argv: string[]) {
   for (const t of to) if (!/^[^@\s]+@tarte\.com\.au$/i.test(t)) throw new Error(`refusing non-Tarte recipient ${t}`)
   return { to, subject, bodyFile, files }
 }
+
+let privateFlag = false
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 const wrap76 = (b64: string) => b64.replace(/(.{76})/g, "$1\r\n")
@@ -129,5 +133,11 @@ async function main() {
   if (!res.ok) throw new Error(`gmail send ${res.status}: ${body}`)
   console.log(`sent to ${to.join(", ")}: "${subject}" with ${parts.length} file(s) (${parts.map((p) => p.name).join(", ")})`)
   console.log(body)
+  // Profit or earnings subjects (venue results, team notes, bookkeeping
+  // report, BAS notes...) get their accounts@ Sent copy trashed (rule 5).
+  // --private forces it for a subject not on the list.
+  let id: string | undefined
+  try { id = (JSON.parse(body) as { id?: string }).id } catch { id = undefined }
+  await tidyAfterSend({ id, subject, via: "send-with-attachments", privateCopy: privateFlag })
 }
 main().catch((e) => { console.error(e); process.exit(1) })

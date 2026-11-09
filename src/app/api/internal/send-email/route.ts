@@ -18,14 +18,14 @@ export async function POST(req: NextRequest) {
     return new Response("Unauthorized", { status: 401 })
   }
 
-  let body: { to?: unknown; subject?: unknown; html?: unknown; text?: unknown; external?: unknown }
+  let body: { to?: unknown; subject?: unknown; html?: unknown; text?: unknown; external?: unknown; privateCopy?: unknown }
   try {
     body = await req.json()
   } catch {
     return Response.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const { to, subject, html, text, external } = body
+  const { to, subject, html, text, external, privateCopy } = body
   if (typeof to !== "string" || typeof subject !== "string" || typeof html !== "string") {
     return Response.json(
       { error: "Required fields: to (string), subject (string), html (string)" },
@@ -61,13 +61,16 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await sendHtmlEmail({
+    // Profit or earnings mail (flagged, or a subject on the private list)
+    // has its accounts@ Sent copy trashed inside sendHtmlEmail.
+    const sent = await sendHtmlEmail({
       to: recipients,
       subject,
       html,
       text: typeof text === "string" && text.length > 0 ? text : subject,
+      privateCopy: privateCopy === true && !allowExternal,
     })
-    return Response.json({ ok: true, to: recipients, subject })
+    return Response.json({ ok: true, to: recipients, subject, id: sent.id })
   } catch (e) {
     return Response.json(
       { error: e instanceof Error ? e.message : String(e) },

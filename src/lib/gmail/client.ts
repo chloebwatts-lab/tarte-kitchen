@@ -1,5 +1,22 @@
 const GMAIL_API = "https://www.googleapis.com/gmail/v1/users/me"
 
+/** The mailbox the Kitchen Gmail connection must be (the shared accounts@). */
+export function expectedGmailMailbox(): string {
+  return (process.env.GMAIL_EXPECTED_EMAIL || "accounts@tarte.com.au").trim().toLowerCase()
+}
+
+/**
+ * May an OAuth callback for `incoming` replace the stored connection?
+ * Re-consenting the same mailbox (new scopes) is fine. A different mailbox
+ * is refused while a connection exists, so a click made while signed in as
+ * another Google account can never point Kitchen at that account's mail.
+ */
+export function gmailReconnectAllowed(existing: string | null | undefined, incoming: string): boolean {
+  const inc = incoming.trim().toLowerCase()
+  if (existing) return existing.trim().toLowerCase() === inc
+  return inc === expectedGmailMailbox()
+}
+
 export function getGmailRedirectUri(): string {
   return (
     process.env.GMAIL_REDIRECT_URI ??

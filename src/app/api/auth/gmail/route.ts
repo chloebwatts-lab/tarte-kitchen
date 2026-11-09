@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic"
 
-import { getGmailRedirectUri } from "@/lib/gmail/client"
+import { expectedGmailMailbox, getGmailRedirectUri } from "@/lib/gmail/client"
 
 export async function POST() {
   const clientId = process.env.GMAIL_CLIENT_ID
@@ -23,11 +23,19 @@ export async function POST() {
     [
       "https://www.googleapis.com/auth/gmail.readonly",
       "https://www.googleapis.com/auth/gmail.send",
+      // Trash only: lets the apps trash their own Sent copies of profit and
+      // earnings emails from the shared accounts@ mailbox (Chloe's rule 5,
+      // 9 Nov 2026). See src/lib/gmail/sent-tidy.ts. Nothing permanently
+      // deletes; Gmail empties Trash after 30 days.
+      "https://www.googleapis.com/auth/gmail.modify",
       "https://www.googleapis.com/auth/spreadsheets.readonly",
     ].join(" ")
   )
   authUrl.searchParams.set("access_type", "offline")
   authUrl.searchParams.set("prompt", "consent") // Force consent to ensure refresh token
+  // Pre-select the shared mailbox so a signed-in owner account is not
+  // picked by mistake (the callback also refuses a different mailbox).
+  authUrl.searchParams.set("login_hint", expectedGmailMailbox())
 
   return Response.json({ url: authUrl.toString() })
 }

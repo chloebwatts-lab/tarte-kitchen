@@ -316,7 +316,7 @@ export async function sendFridayReport(p: { fixed: string; need: string }) {
   const report = { weekLabel, items: built.items, numbers, talks: talks.map((t) => t.staffName), talkNotes: talkNotesOf(talks), sick: sick.map((c) => `${c.staffName} (${short(c.calledOn)})`), fixed, need, priorMisses }
   const body = composeReport(report)
   try {
-    await sendHtmlEmail({ to: REPORT_TO, subject: `Oliver's Monday report, ${weekLabel}`, text: body, html: renderGmReportHtml(report) })
+    await sendHtmlEmail({ to: REPORT_TO, subject: `Oliver's Monday report, ${weekLabel}`, text: body, html: renderGmReportHtml(report), privateCopy: true }) // wage and COGS %
   } catch {
     return { ok: false as const, error: "The email did not send. Try again in a minute, or tell Chloe." }
   }

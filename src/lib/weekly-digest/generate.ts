@@ -208,6 +208,7 @@ export async function runWeeklyDigest(args: RunWeeklyDigestArgs): Promise<{
       subject: `Tarte weekly: ${formatSubjectRange(snapshot.weekStart, snapshot.weekEnd)}`,
       html: digest.body,
       text: fallbackText,
+      privateCopy: true, // P&L, wages, COGS: Sent copy leaves accounts@
     })
     const updated = await db.weeklyDigest.update({
       where: { id: digest.id },
