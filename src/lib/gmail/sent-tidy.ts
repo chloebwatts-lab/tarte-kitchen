@@ -43,16 +43,17 @@ async function getSentMeta(accessToken: string, id: string): Promise<SentMeta | 
   const url = new URL(`${GMAIL_API}/messages/${encodeURIComponent(id)}`)
   url.searchParams.set("format", "metadata")
   for (const h of ["Subject", "From", "To", "Cc"]) url.searchParams.append("metadataHeaders", h)
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } })
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(15_000) })
   if (res.status === 404) return null
   if (!res.ok) throw new Error(`Gmail get ${res.status}: ${(await res.text()).slice(0, 200)}`)
   const m = (await res.json()) as {
     id: string
+    internalDate?: string
     labelIds?: string[]
     payload?: { headers?: Array<{ name: string; value: string }> }
   }
   const h = (n: string) => m.payload?.headers?.find((x) => x.name.toLowerCase() === n.toLowerCase())?.value ?? ""
-  return { id: m.id, labelIds: m.labelIds ?? [], subject: h("Subject"), from: h("From"), to: h("To"), cc: h("Cc") }
+  return { id: m.id, internalDate: Number(m.internalDate ?? 0), labelIds: m.labelIds ?? [], subject: h("Subject"), from: h("From"), to: h("To"), cc: h("Cc") }
 }
 
 function scopeHint(status: number, body: string): string {
@@ -104,6 +105,7 @@ export async function trashPrivateSentCopy(params: {
     const res = await fetch(`${GMAIL_API}/messages/${encodeURIComponent(params.id)}/trash`, {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(15_000),
     })
     if (!res.ok) {
       const r: TidyResult = { id: params.id, action: "failed", subject, reason: scopeHint(res.status, await res.text()) }

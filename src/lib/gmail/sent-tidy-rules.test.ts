@@ -2,6 +2,7 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 import {
   PRIVATE_SENT_PATTERNS,
+  SENT_TIDY_FLOOR_MS,
   addressesIn,
   decideTrash,
   decodeMimeHeader,
@@ -14,8 +15,10 @@ import {
 } from "./sent-tidy-rules"
 
 const ME = "accounts@tarte.com.au"
+const NOV9 = Date.parse("2026-11-09T04:04:53Z")
 const meta = (over: Partial<SentMeta> = {}): SentMeta => ({
   id: "1a1be7afb9566222",
+  internalDate: NOV9,
   labelIds: ["SENT"],
   subject: "Tarte weekly: 28 Oct to 3 Nov",
   from: "Accounts Tarte <accounts@tarte.com.au>",
@@ -121,8 +124,44 @@ test("sweep queries stay inside Sent and outside Trash", () => {
     const q = sweepQuery(p)
     assert.ok(q.startsWith("in:sent -in:trash "), q)
   }
-  assert.equal(sweepQuery(PRIVATE_SENT_PATTERNS[0], 30), 'in:sent -in:trash subject:"Tarte weekly" newer_than:30d')
+  const digest = PRIVATE_SENT_PATTERNS.find((p) => p.key === "weekly-digest")!
+  assert.equal(sweepQuery(digest), 'in:sent -in:trash subject:"Tarte weekly"')
+  assert.equal(sweepQuery(digest, 30, NOV9), `in:sent -in:trash subject:"Tarte weekly" after:${Math.floor((NOV9 - 30 * 86_400_000) / 1000)}`)
   assert.equal(new Set(PRIVATE_SENT_PATTERNS.map((p) => p.key)).size, PRIVATE_SENT_PATTERNS.length)
+})
+
+test("floor: BAS, IAS, payroll tax and team notes never reach before 1 Nov 2026", () => {
+  assert.equal(new Date(SENT_TIDY_FLOOR_MS).toISOString(), "2026-10-31T14:00:00.000Z") // 1 Nov 00:00 AEST
+  const floorSec = Math.floor(SENT_TIDY_FLOOR_MS / 1000)
+  for (const key of ["bas", "ias", "payroll-tax", "team-notes"]) {
+    const p = PRIVATE_SENT_PATTERNS.find((x) => x.key === key)!
+    assert.equal(p.appOnly, undefined, key)
+    assert.ok(sweepQuery(p).endsWith(` after:${floorSec}`), key)
+    // a longer look-back is clamped to the floor, a shorter one is kept
+    assert.ok(sweepQuery(p, 3650, NOV9).endsWith(` after:${floorSec}`), key)
+    assert.ok(sweepQuery(p, 7, NOV9).endsWith(` after:${Math.floor((NOV9 - 7 * 86_400_000) / 1000)}`), key)
+  }
+})
+
+test("floor: Louise-era tax mail is kept, CBK notes since 1 Nov are trashed", () => {
+  const old = meta({ subject: "Payroll Tax Burleigh - $52,594.47 due 21st July", internalDate: Date.parse("2025-07-10T01:00:00Z") })
+  assert.deepEqual(decideTrash(old, ME), { trash: false, reason: "sent before 1 Nov 2026, kept as a record" })
+  assert.deepEqual(decideTrash(meta({ subject: "IAS Nov23 Burleigh 27,128, Currumbin 33,083", internalDate: Date.parse("2023-12-01T00:00:00Z") }), ME).trash, false)
+  // one minute before the floor is kept, the floor itself is not
+  assert.equal(decideTrash(meta({ subject: "October IAS lodged", internalDate: SENT_TIDY_FLOOR_MS - 60_000 }), ME).trash, false)
+  assert.equal(decideTrash(meta({ subject: "October IAS lodged", internalDate: SENT_TIDY_FLOOR_MS }), ME).trash, true)
+  assert.equal(decideTrash(meta({ subject: "September BAS and October IAS: pack for Matt, ready to forward" }), ME).trash, true)
+  // the explicit flag does not lift the floor either
+  assert.equal(decideTrash(meta({ subject: "Set your Tarte Shifts PIN", internalDate: Date.parse("2026-10-01T00:00:00Z") }), ME, { explicit: true }).trash, false)
+  // a missing date counts as old
+  assert.equal(decideTrash(meta({ subject: "September quarter BAS readiness", internalDate: Number.NaN }), ME).trash, false)
+})
+
+test("app-only subjects are trashed whatever their age", () => {
+  const sep = Date.parse("2026-09-21T06:00:00Z")
+  assert.equal(decideTrash(meta({ subject: "Oliver's Monday report, Wed 16 Sep to Tue 22 Sep", internalDate: sep }), ME).trash, true)
+  assert.equal(decideTrash(meta({ subject: "Tarte weekly: 15 to 21 Sep", internalDate: sep }), ME).trash, true)
+  assert.equal(decideTrash(meta({ subject: "Team notes 15 to 21 Sep", internalDate: sep }), ME).trash, false)
 })
 
 test("dry-run flag parsing", () => {

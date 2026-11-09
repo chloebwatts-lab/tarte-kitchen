@@ -23,20 +23,33 @@ export type PrivateSentPattern = {
   re: RegExp
   /** Gmail search terms that find candidates; `re` has the final say. */
   query: string
+  /** Only an app ever writes this exact subject, so a copy of any age is an
+   *  automated send. Patterns without it (BAS, IAS, payroll tax, team notes)
+   *  also match years of human correspondence that the bookkeeping work
+   *  still searches, so they never reach back before SENT_TIDY_FLOOR_MS. */
+  appOnly?: boolean
 }
 
+/**
+ * Nothing sent before 1 Nov 2026 00:00 AEST is touched unless its subject
+ * is app-only. Older private mail was reviewed and trashed by hand on 5 and
+ * 9 Nov 2026; what is left before this date (Louise-era BAS, IAS and payroll
+ * tax correspondence) is kept as records.
+ */
+export const SENT_TIDY_FLOOR_MS = Date.parse("2026-10-31T14:00:00Z")
+
 export const PRIVATE_SENT_PATTERNS: PrivateSentPattern[] = [
-  { key: "weekly-digest", sender: "Kitchen Friday digest", re: /^Tarte weekly: /, query: 'subject:"Tarte weekly"' },
-  { key: "venue-results", sender: "Thursday venue cards task", re: /^Venue results w\/e /, query: 'subject:"Venue results"' },
+  { key: "weekly-digest", sender: "Kitchen Friday digest", re: /^Tarte weekly: /, query: 'subject:"Tarte weekly"', appOnly: true },
+  { key: "venue-results", sender: "Thursday venue cards task", re: /^Venue results w\/e /, query: 'subject:"Venue results"', appOnly: true },
   { key: "team-notes", sender: "Thursday venue cards task", re: /^Team notes\b/, query: 'subject:"Team notes"' },
-  { key: "bookkeeping-week", sender: "CBK Wednesday report task", re: /^Bookkeeping this week, /, query: 'subject:"Bookkeeping this week"' },
-  { key: "owner-daily", sender: "Shifts owner daily", re: /^Tarte today, .*: wages and COGS$/, query: 'subject:"wages and COGS"' },
-  { key: "payroll-check", sender: "Shifts payroll check", re: /^Tarte Shifts payroll check, week ending /, query: 'subject:"payroll check"' },
-  { key: "gm-rosters", sender: "Kitchen GM morning note", re: /^Today: Rosters and wages \(/, query: 'subject:"Rosters and wages"' },
-  { key: "gm-money", sender: "Kitchen GM morning note", re: /^Today: Kitchen and money \(/, query: 'subject:"Kitchen and money"' },
-  { key: "gm-report", sender: "Kitchen GM Monday report", re: /^Oliver's Monday report, /, query: 'subject:"Monday report"' },
-  { key: "gm-no-report", sender: "Kitchen GM Monday wrap", re: /^No Monday report from Oliver, /, query: 'subject:"No Monday report"' },
-  { key: "cogs-tracking", sender: "Kitchen Sunday COGS email", re: /^COGS TRACKING \(/, query: 'subject:"COGS TRACKING"' },
+  { key: "bookkeeping-week", sender: "CBK Wednesday report task", re: /^Bookkeeping this week, /, query: 'subject:"Bookkeeping this week"', appOnly: true },
+  { key: "owner-daily", sender: "Shifts owner daily", re: /^Tarte today, .*: wages and COGS$/, query: 'subject:"wages and COGS"', appOnly: true },
+  { key: "payroll-check", sender: "Shifts payroll check", re: /^Tarte Shifts payroll check, week ending /, query: 'subject:"payroll check"', appOnly: true },
+  { key: "gm-rosters", sender: "Kitchen GM morning note", re: /^Today: Rosters and wages \(/, query: 'subject:"Rosters and wages"', appOnly: true },
+  { key: "gm-money", sender: "Kitchen GM morning note", re: /^Today: Kitchen and money \(/, query: 'subject:"Kitchen and money"', appOnly: true },
+  { key: "gm-report", sender: "Kitchen GM Monday report", re: /^Oliver's Monday report, /, query: 'subject:"Monday report"', appOnly: true },
+  { key: "gm-no-report", sender: "Kitchen GM Monday wrap", re: /^No Monday report from Oliver, /, query: 'subject:"No Monday report"', appOnly: true },
+  { key: "cogs-tracking", sender: "Kitchen Sunday COGS email", re: /^COGS TRACKING \(/, query: 'subject:"COGS TRACKING"', appOnly: true },
   { key: "bas", sender: "CBK BAS notes", re: /\bBAS\b/, query: "subject:BAS" },
   { key: "ias", sender: "CBK IAS notes", re: /\bIAS\b/, query: "subject:IAS" },
   { key: "payroll-tax", sender: "CBK payroll tax notes", re: /\bpayroll tax\b/i, query: 'subject:"payroll tax"' },
@@ -45,7 +58,10 @@ export const PRIVATE_SENT_PATTERNS: PrivateSentPattern[] = [
 /** Decode RFC 2047 encoded words (=?UTF-8?B?...?= / =?UTF-8?Q?...?=). Gmail
  *  normally hands back decoded headers; this is a backstop. */
 export function decodeMimeHeader(value: string): string {
-  return value.replace(/=\?([^?]+)\?([BbQq])\?([^?]*)\?=/g, (whole, _charset: string, enc: string, data: string) => {
+  // Whitespace between two adjacent encoded words is not part of the text
+  // (RFC 2047 section 6.2), so drop it before decoding.
+  const joined = value.replace(/(=\?[^?]+\?[BbQq]\?[^?]*\?=)\s+(?==\?[^?]+\?[BbQq]\?)/g, "$1")
+  return joined.replace(/=\?([^?]+)\?([BbQq])\?([^?]*)\?=/g, (whole, _charset: string, enc: string, data: string) => {
     try {
       if (enc.toUpperCase() === "B") return Buffer.from(data, "base64").toString("utf-8")
       const bytes = data.replace(/_/g, " ").replace(/=([0-9A-Fa-f]{2})/g, (_m, h: string) => String.fromCharCode(parseInt(h, 16)))
@@ -53,7 +69,7 @@ export function decodeMimeHeader(value: string): string {
     } catch {
       return whole
     }
-  }).replace(/\?=\s+=\?/g, "?==?")
+  })
 }
 
 export function matchPrivateSentSubject(subject: string): PrivateSentPattern | null {
@@ -74,6 +90,8 @@ export function addressesIn(header: string | undefined | null): string[] {
 
 export type SentMeta = {
   id: string
+  /** Gmail internalDate, ms since epoch. */
+  internalDate: number
   labelIds: string[]
   subject: string
   from: string
@@ -104,6 +122,9 @@ export function decideTrash(meta: SentMeta, mailbox: string, opts: { explicit?: 
   }
   const pattern = matchPrivateSentSubject(meta.subject)
   if (!pattern && !opts.explicit) return { trash: false, reason: "subject not on the private list" }
+  if (!pattern?.appOnly && !(meta.internalDate >= SENT_TIDY_FLOOR_MS)) {
+    return { trash: false, reason: "sent before 1 Nov 2026, kept as a record" }
+  }
   return { trash: true, pattern }
 }
 
@@ -117,7 +138,15 @@ export function isTruthyFlag(v: string | undefined | null): boolean {
   return !!v && /^(1|true|yes|on)$/i.test(v.trim())
 }
 
-/** Gmail search for the weekly sweep, one per pattern. */
-export function sweepQuery(p: PrivateSentPattern, newerThanDays?: number): string {
-  return `in:sent -in:trash ${p.query}${newerThanDays ? ` newer_than:${newerThanDays}d` : ""}`
+/**
+ * Gmail search for the weekly sweep, one per pattern. App-only subjects are
+ * searched back as far as `newerThanDays` allows (all time by default);
+ * the others never before the floor.
+ */
+export function sweepQuery(p: PrivateSentPattern, newerThanDays?: number, nowMs: number = Date.now()): string {
+  // No look-back (undefined, 0, negative, NaN) = all time, still floored.
+  let afterMs = newerThanDays && newerThanDays > 0 ? nowMs - newerThanDays * 86_400_000 : 0
+  if (!p.appOnly) afterMs = Math.max(afterMs, SENT_TIDY_FLOOR_MS)
+  const after = afterMs > 0 ? ` after:${Math.floor(afterMs / 1000)}` : ""
+  return `in:sent -in:trash ${p.query}${after}`
 }
