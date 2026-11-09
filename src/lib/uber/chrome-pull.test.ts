@@ -17,6 +17,12 @@ test("validateChromeRows: keeps good rows from { rows } or a bare array, rounds 
   const good = { date: "2026-11-05", venue: "BEACH_HOUSE", sales: 1001.534, orders: 18 }
   assert.deepEqual(validateChromeRows({ signedIn: true, rows: [good] }), { rows: [{ ...good, sales: 1001.53 }], rejected: 0 })
   assert.deepEqual(validateChromeRows([good]).rows.length, 1)
+  // the compact tuple the browser script actually sends
+  assert.deepEqual(
+    validateChromeRows({ signedIn: true, rows: [["2026-11-09", "BEACH_HOUSE", 841.68, 17], ["2026-11-09", "BURLEIGH", 0, 0]], errors: [] }),
+    { rows: [{ date: "2026-11-09", venue: "BEACH_HOUSE", sales: 841.68, orders: 17 }, { date: "2026-11-09", venue: "BURLEIGH", sales: 0, orders: 0 }], rejected: 0 },
+  )
+  assert.deepEqual(validateChromeRows({ rows: [["2026-11-09", "BEACH_HOUSE", "841.68", 17], ["2026-11-09"]] }), { rows: [], rejected: 2 })
   assert.deepEqual(validateChromeRows(null), { rows: [], rejected: 0 })
   assert.deepEqual(validateChromeRows({ rows: "nope" }), { rows: [], rejected: 0 })
 })

@@ -4,7 +4,8 @@
 // Brisbane days of daily sales for both Tarte shops, using the same endpoint
 // and body as Kitchen's own sync (src/lib/uber/client.ts fetchDailySales).
 // The browser sends its own login; only the numbers come back.
-// Result: a JSON string {"signedIn":true|false,"rows":[{date,venue,sales,orders}],"errors":[...]}
+// Result: a compact JSON string {"signedIn":true|false,"rows":[[date,venue,sales,orders],...],"errors":[...]}
+// (compact on purpose: Claude in Chrome cuts long results off at about 1,000 characters).
 // Save that string to a file and run: npx tsx scripts/uber-chrome-ingest.ts <file>
 await (async () => {
   const STORES = {
@@ -15,7 +16,7 @@ await (async () => {
   const brisbane = (offsetDays) => new Date(Date.now() + 10 * 3600e3 + offsetDays * 86400e3).toISOString().slice(0, 10)
   const from = brisbane(-6)
   const to = brisbane(0)
-  const out = { signedIn: true, from, to, rows: [], errors: [] }
+  const out = { signedIn: true, rows: [], errors: [] }
   if (location.hostname !== "merchants.ubereats.com") {
     out.signedIn = false
     out.errors.push("not on Uber Eats Manager (signed out?)")
@@ -45,7 +46,7 @@ await (async () => {
       const orders = new Map(((j.data.salesByMetric.ORDER_VOLUME && j.data.salesByMetric.ORDER_VOLUME.current) || []).map((x) => [x.timestamp, x.value]))
       for (const x of sales) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(x.timestamp)) continue
-        out.rows.push({ date: x.timestamp, venue, sales: Math.round((x.value || 0) * 100) / 100, orders: Math.round(orders.get(x.timestamp) || 0) })
+        out.rows.push([x.timestamp, venue, Math.round((x.value || 0) * 100) / 100, Math.round(orders.get(x.timestamp) || 0)])
       }
     } catch (e) {
       out.errors.push(`${venue}: ${String(e).slice(0, 120)}`)

@@ -32,8 +32,10 @@ function realDate(d: string): boolean {
 
 /**
  * Accepts the object the browser script returns ({ rows: [...] }) or a bare
- * array. Keeps only well-formed rows (real date, known venue, sane numbers,
- * one per venue-day) so nothing odd ever reaches the SQL.
+ * array. A row is either the compact tuple the browser sends
+ * ([date, venue, sales, orders]) or an object with those keys. Keeps only
+ * well-formed rows (real date, known venue, sane numbers, one per
+ * venue-day) so nothing odd ever reaches the SQL.
  */
 export function validateChromeRows(raw: unknown): { rows: ChromeUberRow[]; rejected: number } {
   const list: unknown[] = Array.isArray(raw)
@@ -45,7 +47,9 @@ export function validateChromeRows(raw: unknown): { rows: ChromeUberRow[]; rejec
   const seen = new Set<string>()
   let rejected = 0
   for (const item of list) {
-    const x = (item ?? {}) as Record<string, unknown>
+    const x: Record<string, unknown> = Array.isArray(item)
+      ? { date: item[0], venue: item[1], sales: item[2], orders: item[3] }
+      : ((item ?? {}) as Record<string, unknown>)
     const { date, venue, sales, orders } = x
     if (typeof date !== "string" || !realDate(date)) { rejected++; continue }
     if (typeof venue !== "string" || !VENUES.has(venue)) { rejected++; continue }
