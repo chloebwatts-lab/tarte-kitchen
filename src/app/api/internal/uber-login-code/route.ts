@@ -11,7 +11,8 @@ import { pickLoginCode, type LoginCodeCandidate } from "@/lib/uber/login-code"
  * CRON_SECRET. ?since=<ms since epoch> (required, within the last hour):
  * only a code received at or after that moment is returned, so an older
  * attempt's code is never typed. ?dry=1 reports whether a code was found
- * without returning it (for checks by hand).
+ * without returning it (for checks by hand). Only found / receivedAt /
+ * code come back: Uber repeats the code in the subject line.
  */
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization")
@@ -39,6 +40,7 @@ export async function GET(req: NextRequest) {
   }
   const picked = pickLoginCode(candidates, since)
   if (!picked) return Response.json({ found: false, searched: candidates.length })
+  // Uber puts the code in the subject line too, so the subject is never returned.
   const receivedAt = new Date(picked.receivedAt).toISOString()
-  return Response.json(dry ? { found: true, receivedAt, subject: picked.subject } : { found: true, receivedAt, subject: picked.subject, code: picked.code })
+  return Response.json(dry ? { found: true, receivedAt } : { found: true, receivedAt, code: picked.code })
 }
