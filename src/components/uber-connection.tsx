@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Bike, CheckCircle2, XCircle, ExternalLink } from "lucide-react"
 import { connectUber, disconnectUber, updateUberStoreMapping, syncUberNow, type UberStatus } from "@/lib/actions/uber"
 import { VENUE_LABEL, SINGLE_VENUES } from "@/lib/venues"
-import { isDeadSession, UBER_CHROME_SCHEDULE } from "@/lib/uber/chrome-pull"
+import { isDeadSession, UBER_SELF_LOGIN_NOTE } from "@/lib/uber/chrome-pull"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 function HowTo() {
@@ -27,7 +27,7 @@ function HowTo() {
         <li>Click any row that says <span className="font-mono">getTodaySalesMetrics</span> or <span className="font-mono">graphql</span></li>
         <li>Right-click that row, Copy, Copy as cURL, then paste the lot below</li>
       </ol>
-      <p className="text-xs text-muted-foreground">Uber has no sales API for shops, so this is the only live route. The session is stored encrypted and never shown again. When Uber logs that session out, this card and the Sales page say so and you paste a fresh one.</p>
+      <p className="text-xs text-muted-foreground">Uber has no sales API for shops, so this is the only live route. The session is stored encrypted and never shown again. Normally Kitchen signs itself back in when Uber logs the session out; this paste is the fallback.</p>
     </div>
   )
 }
@@ -84,16 +84,17 @@ export function UberConnection({ status }: { status: UberStatus }) {
   }
 
   const healthy = !status.lastError
-  // Uber logged the pasted session out: figures now come from the scheduled Chrome pull (8 Nov 2026).
-  const fromChrome = isDeadSession(status.lastError)
+  // Uber logged the session out; the office Mac signs in again within a few hours (9 Nov 2026).
+  const dead = isDeadSession(status.lastError)
+  const deadForLong = dead && status.lastSyncAt ? Date.now() - new Date(status.lastSyncAt).getTime() > 36 * 3600e3 : false
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2"><Bike className="h-5 w-5" />Uber Eats</CardTitle>
-          <Badge className={healthy || fromChrome ? "border-green-text/20 bg-green-light text-green-text" : "border-red-text/20 bg-red-light text-red-text"}>
-            {healthy || fromChrome ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-            <span className="ml-1">{healthy ? "Connected" : fromChrome ? "Updating from Chrome" : "Needs a fresh session"}</span>
+          <Badge className={healthy || (dead && !deadForLong) ? "border-green-text/20 bg-green-light text-green-text" : "border-red-text/20 bg-red-light text-red-text"}>
+            {healthy || (dead && !deadForLong) ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+            <span className="ml-1">{healthy ? "Connected" : dead && !deadForLong ? "Signing in again" : dead ? "Sign-in overdue" : "Needs a fresh session"}</span>
           </Badge>
         </div>
       </CardHeader>
@@ -126,15 +127,15 @@ export function UberConnection({ status }: { status: UberStatus }) {
         )}
 
         <p className="text-xs text-muted-foreground">
-          {status.connectedAt && <>Session pasted {new Date(status.connectedAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}. </>}
+          {status.connectedAt && <>Signed in {new Date(status.connectedAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}. </>}
           {status.lastSyncAt
-            ? <>Last {fromChrome ? "update from Chrome" : "sync"} {new Date(status.lastSyncAt).toLocaleString("en-AU", { timeZone: "Australia/Brisbane", hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" })}.</>
+            ? <>Last sync {new Date(status.lastSyncAt).toLocaleString("en-AU", { timeZone: "Australia/Brisbane", hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" })}.</>
             : "Not synced yet."}
         </p>
 
-        {fromChrome ? (
+        {dead ? (
           <div className="rounded-lg border border-border bg-muted/50 p-3 text-sm text-muted-foreground">
-            Uber logged the pasted session out, so Claude now reads the figures from Uber Eats Manager in Chloe&apos;s Chrome, {UBER_CHROME_SCHEDULE}. Nothing to paste. If Uber signs Chrome out, sign back in at merchants.ubereats.com and the next run catches up.
+            Uber logged the session out. {UBER_SELF_LOGIN_NOTE}
           </div>
         ) : status.lastError && <div className="rounded-lg border border-red-text/20 bg-red-light p-3 text-sm text-red-text">{status.lastError}</div>}
         {syncNote && <p className="text-xs text-muted-foreground">{syncNote}</p>}

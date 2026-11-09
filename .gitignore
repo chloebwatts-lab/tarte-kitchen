@@ -49,3 +49,6 @@ next-env.d.ts
 .audit-*.json
 .audit-*.md
 MENU-COST-AUDIT-*.md
+
+# Uber self-sign-in job (tools/uber-login) has its own dependency tree
+tools/uber-login/node_modules

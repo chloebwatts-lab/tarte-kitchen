@@ -3,10 +3,10 @@
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import type { Prisma } from "@/generated/prisma/client"
-import { parseCookieInput, hasSessionCookie, fetchTodaySales, KNOWN_UBER_STORES, UberAuthError } from "@/lib/uber/client"
-import { saveUberConnection, getUberStatus, getUberConnection, uberStores, type UberStoreMapping } from "@/lib/uber/token"
+import { parseCookieInput } from "@/lib/uber/client"
+import { getUberStatus, getUberConnection, type UberStoreMapping } from "@/lib/uber/token"
 import { syncUberSales } from "@/lib/uber/sync"
-import { brisbaneNow } from "@/lib/sales/insights"
+import { connectUberCookie } from "@/lib/uber/connect"
 
 export type { UberStatus } from "@/lib/uber/token"
 
@@ -15,28 +15,18 @@ export async function getUberConnectionStatus() {
 }
 
 /**
- * Chloe pastes the cookie line (or a whole Copy-as-cURL) from a logged-in
- * Uber Eats Manager tab. We prove it works with one live call, store it
- * encrypted and map the two known shops to venues. The cookie never comes
- * back to the client.
+ * Manual fallback: a cookie line (or a whole Copy-as-cURL) pasted from a
+ * logged-in Uber Eats Manager tab. Normally the self-sign-in job on the
+ * office Mac feeds the same path through /api/internal/uber-session. One
+ * live call proves the session, then it is stored encrypted and the two
+ * known shops are mapped to venues. The cookie never comes back to the client.
  */
 export async function connectUber(formData: FormData): Promise<{ ok: boolean; error?: string }> {
   const cookie = parseCookieInput(String(formData.get("cookie") ?? ""))
   if (!cookie) return { ok: false, error: "That does not look like a cookie. Paste the whole cookie line (or the Copy as cURL text)." }
-  if (!hasSessionCookie(cookie)) return { ok: false, error: "No sid= in that cookie. Copy it from a request on merchants.ubereats.com while logged in." }
-  try {
-    const probe = KNOWN_UBER_STORES[1]
-    await fetchTodaySales(cookie, probe.uuid, brisbaneNow().date)
-    const existing = uberStores(await getUberConnection())
-    const stores: UberStoreMapping[] = existing.length ? existing : KNOWN_UBER_STORES.map((s) => ({ ...s }))
-    await saveUberConnection(cookie, stores)
-    revalidatePath("/settings/integrations")
-    try { await syncUberSales(14) } catch (err) { console.error("[uber] first sync failed", err) }
-    return { ok: true }
-  } catch (err) {
-    if (err instanceof UberAuthError) return { ok: false, error: "Uber did not accept that session. Copy the cookie again from a tab where Uber Eats Manager is open and logged in." }
-    return { ok: false, error: err instanceof Error ? err.message : "Uber rejected the cookie." }
-  }
+  const r = await connectUberCookie(cookie)
+  revalidatePath("/settings/integrations")
+  return r.ok ? { ok: true } : { ok: false, error: r.error }
 }
 
 export async function disconnectUber() {

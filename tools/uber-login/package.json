@@ -1,0 +1,13 @@
+{
+  "name": "tarte-uber-login",
+  "private": true,
+  "type": "module",
+  "description": "Signs Tarte Kitchen back in to Uber Eats Manager when Uber logs the session out. Runs on the office Mac via launchd.",
+  "scripts": {
+    "check": "node login.mjs",
+    "force": "node login.mjs --force"
+  },
+  "dependencies": {
+    "playwright": "1.52.0"
+  }
+}

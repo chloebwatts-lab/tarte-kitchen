@@ -10,6 +10,14 @@
 export const UBER_CHROME_SCHEDULE = "weekdays at 10:30am, 4:30pm and 8:30pm"
 
 /**
+ * Since 9 Nov 2026 the session signs itself back in: a job on the office Mac
+ * (tools/uber-login) checks three times a day, and when Uber has logged the
+ * stored session out it logs in to Uber Eats Manager as accounts@ with the
+ * emailed code and hands Kitchen the new session. Nobody pastes anything.
+ */
+export const UBER_SELF_LOGIN_NOTE = "Kitchen signs itself back in to Uber Eats Manager (as accounts@tarte.com.au) whenever Uber logs the session out, about monthly. Nothing to paste. If this card says the session is dead for more than a day, the office Mac was off or Uber changed its sign-in page."
+
+/**
  * True when the stored session is dead (the UberAuthError wording). A dead
  * sid never comes back, so Kitchen stops calling Uber with it and reads the
  * table, which the Chrome pull keeps filled. A new paste makes a fresh row
