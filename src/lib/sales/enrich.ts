@@ -17,8 +17,62 @@ import {
 } from "./theoretical-usage"
 
 /**
- * For any DailySales rows on (date, venue) without a dishId, fuzzy-match them
- * against the active Dish catalogue and back-fill dishId. Idempotent.
+ * Till names that the fuzzy matcher cannot reach on its own, mapped to the
+ * recipe card they cost against. Keys are lower-cased, trimmed till names.
+ * The card must exist for the venue (or BOTH) or the alias is ignored.
+ */
+export const TILL_NAME_ALIASES: Record<string, string> = {
+  "chicken sandwich": "Chicken Miso Sandwich",
+  pancakes: "Creme Brulee Pancakes",
+  "steak & frites": "Steak and Frites",
+  "eggs your way": "Poached Eggs on Toast",
+  "grilled barramundi": "Mediterranean Grilled Barramundi",
+  "smash burger": "Beef Burger",
+  "b&e": "B & E Roll",
+  "pea fritters": "Pea & Halloumi Fritters Plated",
+  "sourdough & hot honey": "Hot Honey Sourdough",
+  "wombok chicken salad": "Wombok Miso Chicken Salad",
+  "chopped wombok chicken salad": "Wombok Miso Chicken Salad",
+  "blt sandwich": "BLT",
+  yogurt: "Whipped Yoghurt & Poached Pear",
+  "cheese bagel + soup": "Cheese Bagel & Tomato Soup",
+}
+
+/**
+ * Till names that must never be linked to a card. "Espresso" is a coffee;
+ * the fuzzy matcher was costing it as the Maca Espresso cocktail.
+ */
+export const NEVER_MATCH_TILL_NAMES = new Set(["espresso", "espresso - r", "espresso - tg", "double espresso"])
+
+export function normaliseTillName(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, " ")
+}
+
+type DishRef = { id: string; name: string }
+
+/**
+ * Pick the card for one till name: alias first, then fuzzy, never for the
+ * deny list. `fuzzy` returns the best fuzzy match or null. Pure.
+ */
+export function resolveDishForTillName(
+  tillName: string,
+  dishes: DishRef[],
+  fuzzy: (name: string) => DishRef | null
+): DishRef | null {
+  const key = normaliseTillName(tillName)
+  if (NEVER_MATCH_TILL_NAMES.has(key)) return null
+  const alias = TILL_NAME_ALIASES[key]
+  if (alias) {
+    const hit = dishes.find((d) => d.name.toLowerCase() === alias.toLowerCase())
+    if (hit) return hit
+  }
+  return fuzzy(tillName)
+}
+
+/**
+ * For any DailySales rows on (date, venue) without a dishId, match them
+ * against the active Dish catalogue (alias table first, then fuzzy) and
+ * back-fill dishId. Idempotent.
  */
 export async function matchSalesToDishes(date: Date, venue: Venue) {
   const unmatchedSales = await db.dailySales.findMany({
@@ -42,17 +96,17 @@ export async function matchSalesToDishes(date: Date, venue: Venue) {
     threshold: 0.3,
     includeScore: true,
   })
+  const fuzzy = (name: string): DishRef | null => {
+    const results = fuse.search(name)
+    return results.length > 0 && results[0].score !== undefined && results[0].score < 0.3 ? results[0].item : null
+  }
 
   for (const sale of unmatchedSales) {
-    const results = fuse.search(sale.menuItemName)
-    if (
-      results.length > 0 &&
-      results[0].score !== undefined &&
-      results[0].score < 0.3
-    ) {
+    const dish = resolveDishForTillName(sale.menuItemName, dishes, fuzzy)
+    if (dish) {
       await db.dailySales.update({
         where: { id: sale.id },
-        data: { dishId: results[0].item.id },
+        data: { dishId: dish.id },
       })
     }
   }
