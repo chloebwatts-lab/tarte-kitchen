@@ -2,6 +2,7 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 import { isDeadSession, validateChromeRows, chromeIngestSql } from "./chrome-pull"
 import { UberAuthError } from "./client"
+import { uberSyncOutcome } from "./sync"
 
 test("isDeadSession: both UberAuthError wordings are dead, other errors and null are not", () => {
   assert.equal(isDeadSession(new UberAuthError().message), true)
@@ -56,4 +57,13 @@ test("chromeIngestSql: upserts every row, keeps a stored day with orders from a 
   assert.match(sql, /on conflict \(date, venue\) do update/)
   assert.match(sql, /where not \(excluded\.orders = 0 and "DailyUberSales"\.orders > 0\);/)
   assert.match(sql, /update "UberEatsConnection" set "lastSyncAt" = now\(\);/)
+})
+
+test("uberSyncOutcome: one shop failing is fine, every shop failing is the error", () => {
+  const ok = { venue: "BEACH_HOUSE", name: "Tarte Takeaway", days: 14, sales: 8000, orders: 180 }
+  const bad = { venue: "BURLEIGH", name: "Tarte Bakery Burleigh", days: 0, sales: 0, orders: 0, error: "Uber: request_error" }
+  assert.deepEqual(uberSyncOutcome([bad, ok]), { ok: true, lastError: null })
+  assert.deepEqual(uberSyncOutcome([ok]), { ok: true, lastError: null })
+  assert.deepEqual(uberSyncOutcome([bad]), { ok: false, lastError: "Tarte Bakery Burleigh: Uber: request_error" })
+  assert.deepEqual(uberSyncOutcome([]), { ok: true, lastError: null })
 })

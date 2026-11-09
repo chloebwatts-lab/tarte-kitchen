@@ -29,15 +29,19 @@ export async function GET(req: NextRequest) {
   const status = await getUberStatus()
   let alive: boolean | null = null
   if (status.connected) {
-    try {
-      const conn = await getUberConnection()
-      const store = uberStores(conn)[0]
-      if (store) {
-        await fetchTodaySales(await getUberCookie(), store.uuid, brisbaneNow().date)
+    // Any shop answering proves the session; a shop this login cannot see
+    // answers "request_error" without meaning the session is dead.
+    const conn = await getUberConnection()
+    const cookie = await getUberCookie()
+    for (const store of uberStores(conn)) {
+      try {
+        await fetchTodaySales(cookie, store.uuid, brisbaneNow().date)
         alive = true
+        break
+      } catch (err) {
+        if (err instanceof UberAuthError) { alive = false; break }
+        alive = null
       }
-    } catch (err) {
-      alive = err instanceof UberAuthError ? false : null
     }
   } else {
     alive = false
