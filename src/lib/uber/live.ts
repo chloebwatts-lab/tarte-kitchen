@@ -9,6 +9,7 @@ import { db } from "@/lib/db"
 import type { Venue } from "@/generated/prisma/client"
 import { fetchDailySales, fetchTodaySales, type UberToday } from "./client"
 import { getUberConnection, getUberCookie, uberStores } from "./token"
+import { isDeadSession } from "./chrome-pull"
 
 export interface UberDay {
   sales: number
@@ -31,6 +32,9 @@ export async function uberDay(venue: Venue, date: string, isToday: boolean, opts
     stored ? { sales: Number(stored.salesIncGst), orders: stored.orders, status: "STORED", fetchedAt: stored.updatedAt.toISOString(), error }
            : { sales: 0, orders: 0, status: "NONE", fetchedAt: null, error }
   if (!conn || !store) return fromTable(null)
+  // Dead session (Uber logs it out about monthly): the scheduled Chrome pull
+  // keeps the table filled, so read that and stop calling Uber (8 Nov 2026).
+  if (isDeadSession(conn.lastError)) return fromTable(null)
   if (!isToday) return fromTable(null)
 
   const key = `${venue}:${date}`

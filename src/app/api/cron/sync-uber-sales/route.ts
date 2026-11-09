@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 
 import { syncUberSales } from "@/lib/uber/sync"
 import { getUberConnection } from "@/lib/uber/token"
+import { isDeadSession } from "@/lib/uber/chrome-pull"
 
 /**
  * Uber Eats daily sales poll (Manager website endpoints with the pasted
@@ -14,6 +15,8 @@ export async function GET(request: Request) {
   }
   const conn = await getUberConnection()
   if (!conn) return Response.json({ error: "Uber Eats not connected" }, { status: 400 })
+  // A dead session never revives; the scheduled Chrome pull fills the table instead.
+  if (isDeadSession(conn.lastError)) return Response.json({ skipped: "Uber session expired; figures come from the Chrome pull" })
 
   const url = new URL(request.url)
   const daysParam = parseInt(url.searchParams.get("days") ?? "", 10)

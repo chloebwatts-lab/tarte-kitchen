@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Bike, CheckCircle2, XCircle, ExternalLink } from "lucide-react"
 import { connectUber, disconnectUber, updateUberStoreMapping, syncUberNow, type UberStatus } from "@/lib/actions/uber"
 import { VENUE_LABEL, SINGLE_VENUES } from "@/lib/venues"
+import { isDeadSession, UBER_CHROME_SCHEDULE } from "@/lib/uber/chrome-pull"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 function HowTo() {
@@ -83,14 +84,16 @@ export function UberConnection({ status }: { status: UberStatus }) {
   }
 
   const healthy = !status.lastError
+  // Uber logged the pasted session out: figures now come from the scheduled Chrome pull (8 Nov 2026).
+  const fromChrome = isDeadSession(status.lastError)
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2"><Bike className="h-5 w-5" />Uber Eats</CardTitle>
-          <Badge className={healthy ? "border-green-text/20 bg-green-light text-green-text" : "border-red-text/20 bg-red-light text-red-text"}>
-            {healthy ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-            <span className="ml-1">{healthy ? "Connected" : "Needs a fresh session"}</span>
+          <Badge className={healthy || fromChrome ? "border-green-text/20 bg-green-light text-green-text" : "border-red-text/20 bg-red-light text-red-text"}>
+            {healthy || fromChrome ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+            <span className="ml-1">{healthy ? "Connected" : fromChrome ? "Updating from Chrome" : "Needs a fresh session"}</span>
           </Badge>
         </div>
       </CardHeader>
@@ -125,11 +128,15 @@ export function UberConnection({ status }: { status: UberStatus }) {
         <p className="text-xs text-muted-foreground">
           {status.connectedAt && <>Session pasted {new Date(status.connectedAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}. </>}
           {status.lastSyncAt
-            ? <>Last sync {new Date(status.lastSyncAt).toLocaleString("en-AU", { timeZone: "Australia/Brisbane", hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" })}.</>
+            ? <>Last {fromChrome ? "update from Chrome" : "sync"} {new Date(status.lastSyncAt).toLocaleString("en-AU", { timeZone: "Australia/Brisbane", hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" })}.</>
             : "Not synced yet."}
         </p>
 
-        {status.lastError && <div className="rounded-lg border border-red-text/20 bg-red-light p-3 text-sm text-red-text">{status.lastError}</div>}
+        {fromChrome ? (
+          <div className="rounded-lg border border-border bg-muted/50 p-3 text-sm text-muted-foreground">
+            Uber logged the pasted session out, so Claude now reads the figures from Uber Eats Manager in Chloe&apos;s Chrome, {UBER_CHROME_SCHEDULE}. Nothing to paste. If Uber signs Chrome out, sign back in at merchants.ubereats.com and the next run catches up.
+          </div>
+        ) : status.lastError && <div className="rounded-lg border border-red-text/20 bg-red-light p-3 text-sm text-red-text">{status.lastError}</div>}
         {syncNote && <p className="text-xs text-muted-foreground">{syncNote}</p>}
 
         <div className="flex flex-wrap gap-2">

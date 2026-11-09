@@ -43,8 +43,8 @@ function UberLine({ uber, isToday }: { uber: Data["uber"]; isToday: boolean }) {
       <span className="text-[12px] text-white/55">
         not in the total
         {uber.status === "LIVE" && ` · live ${when}`}
-        {uber.status === "STORED" && isToday && ` · last seen ${when}`}
-        {uber.error && <span className="text-rose-200"> · Uber session expired, paste a fresh one in Settings</span>}
+        {uber.status === "STORED" && isToday && ` · updated ${when}`}
+        {uber.error && <span className="text-rose-200"> · Uber not answering, showing the last figure</span>}
       </span>
     </div>
   )
