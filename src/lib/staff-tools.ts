@@ -3,7 +3,7 @@ import {
   CalendarCheck, ClipboardCheck, ClipboardList, Croissant, Eye, Lock,
   MessageSquarePlus, PackageOpen, PackageSearch, Printer, Scale, ShieldCheck,
   ShoppingBasket, ShoppingCart, Snowflake, Trash2, Wrench, Megaphone, Sunrise,
-  Handshake, GraduationCap, ListChecks, Compass, Tag, BarChart3, PartyPopper, CakeSlice,
+  Handshake, GraduationCap, ListChecks, Compass, Tag, BarChart3, PartyPopper, CakeSlice, House,
 } from "lucide-react"
 
 type Icon = ComponentType<{ className?: string; strokeWidth?: number }>
@@ -102,6 +102,16 @@ export const TOOL_GROUPS: ToolGroup[] = [
     icon: Compass,
     href: "/kitchen/gm",
     locked: true,
+    tools: [],
+  },
+  {
+    // Grand Tarte gingerbread house, build day Wed 11 Nov 2026 (Chloe, 10 Nov): Barb's step-by-step 3D guide on the
+    // iPad. A static page in public/kitchen, so it sits behind the staff sign-in like every /kitchen page.
+    slug: "gingerbread",
+    title: "Gingerbread house",
+    sub: "Grand Tarte build day, step by step",
+    icon: House,
+    href: "/kitchen/gingerbread.html",
     tools: [],
   },
   {
