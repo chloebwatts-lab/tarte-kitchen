@@ -70,6 +70,8 @@ export async function trashPrivateSentCopy(params: {
   id: string
   via: string
   explicit?: boolean
+  /** CLI only: one message named by id after a person checked the record. */
+  includeBeforeFloor?: boolean
   dryRun?: boolean
   accessToken?: string
   mailbox?: string
@@ -91,7 +93,7 @@ export async function trashPrivateSentCopy(params: {
       return r
     }
     subject = meta.subject
-    const decision = decideTrash(meta, mailbox, { explicit: params.explicit })
+    const decision = decideTrash(meta, mailbox, { explicit: params.explicit, includeBeforeFloor: params.includeBeforeFloor })
     if (!decision.trash) {
       const r: TidyResult = { id: params.id, action: "kept", subject, reason: decision.reason }
       console.log(tidyLogLine({ ...r, via: params.via }))

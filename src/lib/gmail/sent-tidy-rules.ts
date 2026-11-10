@@ -55,6 +55,17 @@ export const PRIVATE_SENT_PATTERNS: PrivateSentPattern[] = [
   { key: "payroll-tax", sender: "CBK payroll tax notes", re: /\bpayroll tax\b/i, query: 'subject:"payroll tax"' },
 ]
 
+/**
+ * Never trashed, even when the subject also mentions BAS, IAS or payroll tax
+ * and even when the sender flags the copy private. Coordinator's list,
+ * 10 Nov 2026: payment files are payables (not earnings), and "CBK needs
+ * you" emails are questions for Chloe.
+ */
+export const KEEP_SENT_PATTERNS: Array<{ key: string; re: RegExp }> = [
+  { key: "payment-files", re: /^Payment files Wed\b/ },
+  { key: "cbk-needs-you", re: /^CBK needs you:/ },
+]
+
 /** Decode RFC 2047 encoded words (=?UTF-8?B?...?= / =?UTF-8?Q?...?=). Gmail
  *  normally hands back decoded headers; this is a backstop. */
 export function decodeMimeHeader(value: string): string {
@@ -77,8 +88,13 @@ export function matchPrivateSentSubject(subject: string): PrivateSentPattern | n
   return PRIVATE_SENT_PATTERNS.find((p) => p.re.test(s)) ?? null
 }
 
+export function matchKeepSentSubject(subject: string): string | null {
+  const s = decodeMimeHeader(subject).trim()
+  return KEEP_SENT_PATTERNS.find((p) => p.re.test(s))?.key ?? null
+}
+
 export function isPrivateSentSubject(subject: string): boolean {
-  return matchPrivateSentSubject(subject) !== null
+  return matchKeepSentSubject(subject) === null && matchPrivateSentSubject(subject) !== null
 }
 
 /** Pull bare addresses out of a To/Cc/From header value. */
@@ -107,8 +123,15 @@ export type TrashDecision =
  * Safety checks before trashing one message in the connected mailbox.
  * `explicit` = the sending code itself marked the email private, so the
  * subject list is not required (it still must be a plain Sent copy).
+ * `includeBeforeFloor` = a person named this one message by id (the CLI
+ * --include-before-floor flag) after checking the recipient's copy is the
+ * record. It still needs a subject on the list; the sweep never sets it.
  */
-export function decideTrash(meta: SentMeta, mailbox: string, opts: { explicit?: boolean } = {}): TrashDecision {
+export function decideTrash(
+  meta: SentMeta,
+  mailbox: string,
+  opts: { explicit?: boolean; includeBeforeFloor?: boolean } = {}
+): TrashDecision {
   const me = mailbox.toLowerCase()
   if (!meta.labelIds.includes("SENT")) return { trash: false, reason: "not a Sent message" }
   if (meta.labelIds.includes("TRASH")) return { trash: false, reason: "already in Trash" }
@@ -120,9 +143,12 @@ export function decideTrash(meta: SentMeta, mailbox: string, opts: { explicit?: 
   if ([...addressesIn(meta.to), ...addressesIn(meta.cc)].includes(me)) {
     return { trash: false, reason: "this mailbox is a recipient" }
   }
+  const keep = matchKeepSentSubject(meta.subject)
+  if (keep) return { trash: false, reason: `on the keep list (${keep})` }
   const pattern = matchPrivateSentSubject(meta.subject)
   if (!pattern && !opts.explicit) return { trash: false, reason: "subject not on the private list" }
-  if (!pattern?.appOnly && !(meta.internalDate >= SENT_TIDY_FLOOR_MS)) {
+  const floorLifted = opts.includeBeforeFloor === true && pattern !== null
+  if (!pattern?.appOnly && !floorLifted && !(meta.internalDate >= SENT_TIDY_FLOOR_MS)) {
     return { trash: false, reason: "sent before 1 Nov 2026, kept as a record" }
   }
   return { trash: true, pattern }

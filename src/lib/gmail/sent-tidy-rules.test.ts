@@ -8,6 +8,7 @@ import {
   decodeMimeHeader,
   isPrivateSentSubject,
   isTruthyFlag,
+  matchKeepSentSubject,
   matchPrivateSentSubject,
   sweepQuery,
   tidyLogLine,
@@ -167,4 +168,32 @@ test("app-only subjects are trashed whatever their age", () => {
 test("dry-run flag parsing", () => {
   for (const v of ["1", "true", "TRUE", "yes", " on "]) assert.equal(isTruthyFlag(v), true, v)
   for (const v of [undefined, null, "", "0", "false", "no"]) assert.equal(isTruthyFlag(v), false, String(v))
+})
+
+test("keep list: payment files and CBK needs you stay in Sent, whatever else the subject says", () => {
+  assert.equal(matchKeepSentSubject("Payment files Wed 11 November"), "payment-files")
+  assert.equal(matchKeepSentSubject("CBK needs you: how to pay Iconic"), "cbk-needs-you")
+  for (const s of ["Payment files Wed 11 November: BAS top-up", "CBK needs you: September BAS sign-off", "CBK needs you: payroll tax due 7th"]) {
+    assert.equal(isPrivateSentSubject(s), false, s)
+    assert.deepEqual(decideTrash(meta({ subject: s }), ME), { trash: false, reason: `on the keep list (${matchKeepSentSubject(s)})` }, s)
+    // a sender flag, or a person lifting the floor, does not override the keep list
+    assert.equal(decideTrash(meta({ subject: s }), ME, { explicit: true, includeBeforeFloor: true }).trash, false, s)
+  }
+  // only at the start of the subject
+  assert.equal(matchKeepSentSubject("Re: September BAS (CBK needs you: later)"), null)
+})
+
+test("include-before-floor: one named old tax note can go, nothing else changes", () => {
+  const sep = Date.parse("2026-09-05T10:01:23Z")
+  const louise = meta({ subject: "Burleigh Payroll Tax - August", internalDate: sep })
+  assert.equal(decideTrash(louise, ME).trash, false)
+  assert.equal(decideTrash(louise, ME, { includeBeforeFloor: true }).trash, true)
+  // still needs a subject on the list, even with the sender flag
+  const pin = meta({ subject: "Set your Tarte Shifts PIN", internalDate: sep })
+  assert.equal(decideTrash(pin, ME, { includeBeforeFloor: true }).trash, false)
+  assert.equal(decideTrash(pin, ME, { includeBeforeFloor: true, explicit: true }).trash, false)
+  // and every mailbox check still applies
+  assert.equal(decideTrash({ ...louise, labelIds: ["SENT", "INBOX"] }, ME, { includeBeforeFloor: true }).trash, false)
+  assert.equal(decideTrash({ ...louise, to: "accounts@tarte.com.au" }, ME, { includeBeforeFloor: true }).trash, false)
+  assert.equal(decideTrash({ ...louise, from: "chloe@tarte.com.au" }, ME, { includeBeforeFloor: true }).trash, false)
 })

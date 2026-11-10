@@ -9,6 +9,9 @@
 //   npx tsx scripts/tidy-sent.ts --sweep [--days 30] # trash them
 // --dry-run works with --id too. Scheduled tasks that fall back to the
 // claude.ai Gmail connector pass the connector's message id to --id.
+// --include-before-floor (with --id only): trash one listed copy sent before
+// 1 Nov 2026 (old BAS, IAS or payroll tax note) once its chloe@ copy has
+// been checked. The keep list and every other check still apply.
 import "dotenv/config"
 import { gmailTokenScopes, sweepPrivateSent, trashPrivateSentCopy } from "../src/lib/gmail/sent-tidy"
 
@@ -25,7 +28,7 @@ async function main() {
   }
   const id = val("--id")
   if (id) {
-    const r = await trashPrivateSentCopy({ id, via: val("--via") ?? "cli", dryRun })
+    const r = await trashPrivateSentCopy({ id, via: val("--via") ?? "cli", dryRun, includeBeforeFloor: has("--include-before-floor") })
     console.log(JSON.stringify(r))
     if (r.action === "failed") process.exit(1)
     return
@@ -36,6 +39,6 @@ async function main() {
     console.log(JSON.stringify(s, null, 2))
     return
   }
-  throw new Error("usage: --scopes | --id <gmailMessageId> [--dry-run] | --sweep [--dry-run] [--days N]")
+  throw new Error("usage: --scopes | --id <gmailMessageId> [--dry-run] [--include-before-floor] | --sweep [--dry-run] [--days N]")
 }
 main().catch((e) => { console.error(e); process.exit(1) })

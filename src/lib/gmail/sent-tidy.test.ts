@@ -314,3 +314,40 @@ test("tidy-sent cron: bearer only, ?dry=1 touches nothing", async () => {
   assert.equal(trashed(m.id), false)
   assert.equal(trashCalls().length, 0)
 })
+
+test("includeBeforeFloor: only trashPrivateSentCopy by id honours it; route and sweep cannot set it; keep list always wins", async () => {
+  const old = Date.parse("2026-10-20T01:00:00Z")
+  const oldBas = put({ subject: "Re: September BAS", internalDate: old, headers: { To: "matt@example.com.au" } })
+  const oldBas2 = put({ subject: "Re: September BAS again", internalDate: old, headers: { To: "matt@example.com.au" } })
+  const payFiles = put({ subject: "Payment files Wed 11 Nov (BAS, payroll tax)", headers: { To: CHLOE } })
+  const needsYou = put({ subject: "CBK needs you: IAS question", headers: { To: CHLOE } })
+  const post = (body: unknown) =>
+    trashSentRoute(new Request("http://kitchen-app:3000/api/internal/trash-sent", { method: "POST", headers: { authorization: "Bearer test-cron-secret", "content-type": "application/json" }, body: JSON.stringify(body) }) as unknown as NextRequest)
+
+  // the endpoint ignores a smuggled includeBeforeFloor
+  const viaRoute = await (await post({ id: oldBas.id, includeBeforeFloor: true, explicit: true })).json()
+  assert.equal(viaRoute.action, "kept")
+  assert.equal(trashed(oldBas.id), false)
+
+  // the sweep never lifts the floor
+  await sweepPrivateSent({ dryRun: false })
+  assert.equal(trashed(oldBas.id), false)
+  assert.equal(trashed(oldBas2.id), false)
+  assert.equal(trashed(payFiles.id), false)
+  assert.equal(trashed(needsYou.id), false)
+
+  // the CLI path: one named message, floor lifted for that message only
+  const r = await trashPrivateSentCopy({ id: oldBas.id, via: "cli", includeBeforeFloor: true })
+  assert.equal(r.action, "trashed")
+  assert.equal(trashed(oldBas.id), true)
+  assert.equal(trashed(oldBas2.id), false)
+
+  // keep list refuses even with every override
+  for (const m of [payFiles, needsYou]) {
+    const k = await trashPrivateSentCopy({ id: m.id, via: "cli", includeBeforeFloor: true, explicit: true })
+    assert.equal(k.action, "kept")
+    assert.equal(trashed(m.id), false)
+  }
+  assert.equal(trashCalls().length, 1)
+  assertNothingDestructiveBeyondTrash()
+})
