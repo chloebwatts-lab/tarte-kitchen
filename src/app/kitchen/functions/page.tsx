@@ -84,7 +84,7 @@ export default async function FunctionsPage() {
                   style={{ background: "var(--tk-warn-soft)", color: "var(--tk-warn)" }}
                 >
                   <TriangleAlert className="h-4 w-4 shrink-0" />
-                  More than one {d.clashes.join(" and ")} booking this day. Check they don&apos;t clash.
+                  <span>{`More than one ${d.clashes.join(" and ")} booking this day. Check they don't clash.`}</span>
                 </div>
               )}
               <div className="mt-2 divide-y divide-[var(--tk-line)]">
