@@ -188,11 +188,6 @@ services:
         # the May 2026 incident that lost 30+ invoices over 4 days
         # would have been caught here next morning.
         0 23 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/check-invoices?mode=sweep' 2>&1
-        # Every 30 min — Lightspeed API sales sync for today + yesterday
-        # (?days=2). Keeps the live FOH tracker's revenue side current.
-        # Email source still wins for yesterday once it lands. Cheap: a
-        # couple of API calls per venue per sync.
-        */30 * * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/sync-sales?days=2' 2>&1
         # Every 15 min — pull rosters + timesheets so /labour stays fresh. The
         # route reads LABOUR_SOURCE (Deputy or Tarte Shifts); its old name is
         # kept so this crontab never needs a cron-container recreate.
