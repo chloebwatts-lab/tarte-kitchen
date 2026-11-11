@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic"
 
-import { ArrowUpRight, CalendarDays, PartyPopper, Users } from "lucide-react"
+import { ArrowUpRight, CalendarDays, PartyPopper, TriangleAlert, Users } from "lucide-react"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { FUNCTIONS_APP_URL, getUpcomingFunctions } from "@/lib/functions/calendar"
 
@@ -78,6 +78,15 @@ export default async function FunctionsPage() {
           result.days.map((d) => (
             <div key={d.day} className="rounded-[16px] border border-[var(--tk-line)] bg-white px-5 py-4">
               <div className="text-[15px] font-semibold text-[var(--tk-charcoal)]">{dayHeading(d.day, today)}</div>
+              {d.clashes.length > 0 && (
+                <div
+                  className="mt-2 flex items-center gap-2 rounded-[12px] px-3 py-2 text-[14px] font-semibold"
+                  style={{ background: "var(--tk-warn-soft)", color: "var(--tk-warn)" }}
+                >
+                  <TriangleAlert className="h-4 w-4 shrink-0" />
+                  More than one {d.clashes.join(" and ")} booking this day. Check they don&apos;t clash.
+                </div>
+              )}
               <div className="mt-2 divide-y divide-[var(--tk-line)]">
                 {d.events.map((e) => (
                   <div key={e.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5">
@@ -105,7 +114,7 @@ export default async function FunctionsPage() {
           ))
         )}
         <p className="px-1 text-[13px] leading-snug text-[var(--tk-ink-mute)]">
-          Updates itself every hour from the hello@ inbox and Now Book It. To change a booking, change it there, not here.
+          Functions come straight from the hello@ calendar, plus Now Book It high-tea groups of 10 or more. To change a booking, change it there, not here.
         </p>
       </div>
     </div>
