@@ -106,7 +106,7 @@ async function withFeed(status: number, body: unknown, fn: (calls: FeedCall[]) =
 test("fetchShiftsPayRuns asks for one org from the digest Wednesday with the bearer secret, and revives the dates (w/e 13 Oct 2026 Bakery run)", async () => {
   const feed = {
     ok: true,
-    payRuns: [{ payRunId: "PR-13OCT", weekStart: "2026-10-07", weekEnd: "2026-10-13", paymentDate: "2026-10-15", grossWages: 40937.67, superAmount: 4748.79, totalCost: 45686.46, headcount: 51 }],
+    payRuns: [{ payRunId: "PR-13OCT", status: "POSTED", weekStart: "2026-10-07", weekEnd: "2026-10-13", paymentDate: "2026-10-15", grossWages: 40937.67, superAmount: 4748.79, totalCost: 45686.46, headcount: 51 }],
   }
   await withFeed(200, feed, async (calls) => {
     // A caller passing an instant later in the UTC day must still ask from that date.
@@ -153,4 +153,49 @@ test("payRunForWeek keys on the UTC calendar date: a feed that ever sent a true 
   const aestWed = run({ payRunId: "aest", weekStart: new Date("2026-10-07T00:00:00+10:00"), totalCost: 1 })
   assert.equal(payRunForWeek([aestWed], WED_7_OCT), null)
   assert.equal(payRunForWeek([aestWed], new Date("2026-10-06T00:00:00.000Z"))?.payRunId, "aest")
+})
+
+// 11 Nov 2026: Xero ignored the bare ?PayRunStatus=POSTED, so the Shifts feed
+// sent the w/e 10 Nov DRAFT runs as if posted, with no status. Kitchen now
+// keeps only runs marked POSTED and refuses a feed that carries no status.
+test("postedFeedRuns keeps POSTED runs only and drops drafts", async () => {
+  const { postedFeedRuns } = await import("./payruns")
+  const runs = [
+    { payRunId: "p", status: "POSTED" },
+    { payRunId: "d", status: "DRAFT" },
+    { payRunId: "x", status: "posted" },
+  ]
+  assert.deepEqual(postedFeedRuns("Tarte Bakery", runs).map((r) => r.payRunId), ["p"])
+  assert.deepEqual(postedFeedRuns("Tarte Bakery", []), [])
+})
+
+test("postedFeedRuns refuses a feed without status rather than guessing a draft is posted", async () => {
+  const { postedFeedRuns } = await import("./payruns")
+  assert.throws(
+    () => postedFeedRuns("Tarte Currumbin", [{ payRunId: "p", status: "POSTED" }, { payRunId: "old" }]),
+    /Tarte Currumbin.*no status/
+  )
+})
+
+test("fetchShiftsPayRuns returns only posted runs and strips the status field", async (t) => {
+  const { fetchShiftsPayRuns } = await import("./payruns")
+  t.mock.method(globalThis, "fetch", async () =>
+    new Response(
+      JSON.stringify({
+        ok: true,
+        payRuns: [
+          { payRunId: "p", status: "POSTED", weekStart: "2026-11-04T00:00:00.000Z", weekEnd: "2026-11-10T00:00:00.000Z", paymentDate: "2026-11-11T00:00:00.000Z", grossWages: 90, superAmount: 10, totalCost: 100, headcount: 2 },
+          { payRunId: "d", status: "DRAFT", weekStart: "2026-11-04T00:00:00.000Z", weekEnd: "2026-11-10T00:00:00.000Z", paymentDate: "2026-11-11T00:00:00.000Z", grossWages: 9, superAmount: 1, totalCost: 10, headcount: 1 },
+        ],
+      }),
+      { status: 200 }
+    )
+  )
+  const runs = await fetchShiftsPayRuns("Tarte Bakery", new Date("2026-11-04T00:00:00.000Z"), {
+    SHIFTS_PAYRUNS_URL: "https://shifts.example.test/api/internal/payruns",
+    SHIFTS_SECRET: "made-up",
+  })
+  assert.deepEqual(runs.map((r) => r.payRunId), ["p"])
+  assert.equal("status" in runs[0], false)
+  assert.equal(runs[0].weekStart.toISOString(), "2026-11-04T00:00:00.000Z")
 })

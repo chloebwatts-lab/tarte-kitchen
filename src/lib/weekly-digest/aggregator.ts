@@ -19,11 +19,16 @@ import { lastCompletedTarteWeek } from "@/lib/dates"
 import { TG_PASTRY_REVENUE_SHARE } from "@/lib/labour/buckets"
 import { recodeLabourWeek } from "@/lib/labour/recode"
 import {
-  fetchShiftsPayRuns,
-  payRunForWeek,
   PAY_RUN_ORG_VENUES,
+  postedPayRunTotals,
   shiftsPayRunsConfigured,
 } from "@/lib/labour/payruns"
+import {
+  labourFromPayWeek,
+  loadPayWeekFigures,
+  PAYWEEK_CUTOVER,
+  type PostedTotals,
+} from "@/lib/labour/payweek-figures"
 import { uberSalesExGst } from "@/lib/uber/client"
 import { sharedSplit } from "@/lib/spend/shared-split"
 import { gapDaysLabel } from "@/lib/spend/overdue-gap"
@@ -257,10 +262,15 @@ interface CogsSection {
 
 interface LabourSection {
   weekStartWed: string | null
-  /** "report" = Louise's payroll PDFs for the digest week; "payrun" = the
-   * posted Xero pay runs per entity, provisional, her report not in yet;
+  /** "payweek" = the Xero pay runs placed by venue and department, from the
+   * Thursday venue cards' figures file (the source from w/e 10 Nov 2026);
+   * "report" = Louise's payroll PDFs (weeks before that only); "payrun" =
+   * the posted Xero pay runs per entity, provisional, no venue split yet;
    * null = nothing usable for the week. */
-  source?: "report" | "payrun" | null
+  source?: "payweek" | "report" | "payrun" | null
+  /** Plain sentences about the pay runs' state (draft, not posted, ties to
+   * the posted runs), shown under the wage tables. */
+  notes?: string[]
   perVenue: Array<{
     venue: string
     revenueExGst: number | null
@@ -275,6 +285,11 @@ interface LabourSection {
      * the number to compare against Deputy's view. Standing ask from
      * Chloe 2026-08-28: always show this beside the headline. */
     exAdminPct: number | null
+    /** Line 3: ex admin and ex the payslips' leave, TOIL and backpay lines
+     * (pay-run weeks only). */
+    exAdminLeavePct?: number | null
+    /** Pay-run weeks: the company's run was still a draft when read. */
+    fromDraft?: boolean
     departmentGroups: Array<{
       label: string
       dollars: number
@@ -900,16 +915,36 @@ async function buildCogsFromInvoices(week: DigestWeek): Promise<CogsSection> {
 }
 
 async function buildLabour(week: DigestWeek): Promise<LabourSection> {
-  // Louise's payroll PDFs for THIS digest week only. Until 16 Oct 2026 the
-  // digest took the latest week in the table, so a week whose PDFs had not
-  // arrived went out with the previous week's wage % under the current
-  // week's header (w/e 13 Oct 2026 showed w/e 6 Oct's 36.6% / 35.9%; hers
-  // were 39.1% / 38.2%). Missing PDFs now fall back to the posted Xero pay
-  // runs per entity, labelled provisional.
+  // From w/e Tue 10 Nov 2026 the wages come from the Xero pay runs: the
+  // Thursday venue cards' figures file for this digest week (venue and
+  // department split, three lines), checked against the runs Xero shows as
+  // posted now. Louise's payroll PDFs stopped when she left payroll, and a
+  // week without the cards file never falls back to her old totals: it shows
+  // the posted runs per entity (provisional) or says the run is not posted.
+  const key = dateKey(week.start)
+  const [cards, posted] = await Promise.all([
+    loadPayWeekFigures(key),
+    postedPayRunTotals(week.start),
+  ])
+  if (cards.figures && Object.keys(cards.figures.venues).length > 0) {
+    return labourFromPayWeek(cards.figures, posted)
+  }
+  const cardsNote = cards.problem
+    ? `This week's venue cards file could not be used (${cards.problem}), so the venue and department split is not in.`
+    : cards.figures?.stop
+      ? "The Thursday venue cards ran before every pay run for the week existed, so the venue and department split is not in."
+      : null
+  if (key >= PAYWEEK_CUTOVER) return buildLabourFromPayRuns(week, posted, cardsNote)
+
+  // Weeks before the cutover: Louise's payroll PDFs for THIS digest week
+  // only. Until 16 Oct 2026 the digest took the latest week in the table, so
+  // a week whose PDFs had not arrived went out with the previous week's wage
+  // % under the current week's header (w/e 13 Oct 2026 showed w/e 6 Oct's
+  // 36.6% / 35.9%; hers were 39.1% / 38.2%).
   const rows = await db.labourWeekActual.findMany({
     where: { weekStartWed: week.start },
   })
-  if (rows.length === 0) return buildLabourFromPayRuns(week)
+  if (rows.length === 0) return buildLabourFromPayRuns(week, posted, cardsNote)
 
   // Rebuild dept splits from worked areas where timesheet coverage allows:
   // the bookkeeper's columns code people by home profile, not the area
@@ -1008,41 +1043,64 @@ async function buildLabour(week: DigestWeek): Promise<LabourSection> {
 }
 
 /**
- * Venue wage totals from the posted Xero pay runs (gross + super, Louise's
- * basis: her three venue totals for w/e 13 Oct 2026 summed to the posted
- * runs to the cent) on POS + Uber revenue. Per entity only: Tarte Bakery
- * pays Burleigh, Tarte Currumbin pays Beach House + Tea Garden, and her
- * cross-venue transfers (about $450 that week) are not applied. No dept
- * split: that needs her report.
+ * Venue wage totals from the posted Xero pay runs (gross + super) on POS +
+ * Uber revenue, per entity only: Tarte Bakery pays Burleigh, Tarte Currumbin
+ * pays Beach House + Tea Garden, before salaries are placed by the days
+ * worked. No dept split: that comes from the Thursday venue cards. Every
+ * posted run for the week is summed. A company with nothing posted is named
+ * in the notes; nothing is ever taken from another week.
  */
-async function buildLabourFromPayRuns(week: DigestWeek): Promise<LabourSection> {
-  const empty: LabourSection = { weekStartWed: null, source: null, perVenue: [] }
-  if (!shiftsPayRunsConfigured()) return empty
+async function buildLabourFromPayRuns(
+  week: DigestWeek,
+  posted: PostedTotals,
+  cardsNote: string | null
+): Promise<LabourSection> {
+  const notes: string[] = []
+  const notPosted: string[] = []
+  let unchecked = false
   const revenue = await posPlusUberRevenue(week.start, week.end)
   const perVenue: LabourSection["perVenue"] = []
   for (const o of PAY_RUN_ORG_VENUES) {
-    let run = null
-    try {
-      run = payRunForWeek(await fetchShiftsPayRuns(o.org, week.start), week.start)
-    } catch (e) {
-      console.error("[weekly-digest] pay-run fallback:", e instanceof Error ? e.message : e)
+    const p = posted.get(o.org) ?? null
+    if (p == null) {
+      unchecked = true
       continue
     }
-    if (!run) continue
+    if (p.runs === 0) {
+      notPosted.push(o.org)
+      continue
+    }
     const rev = o.venues.reduce((s, v) => s + (revenue.get(v as Venue) ?? 0), 0)
     perVenue.push({
       venue: o.label,
       revenueExGst: rev > 0 ? Math.round(rev * 100) / 100 : null,
-      grossWages: run.totalCost,
-      overallPct: rev > 0 ? (run.totalCost / rev) * 100 : null,
+      grossWages: p.total,
+      overallPct: rev > 0 ? (p.total / rev) * 100 : null,
       reportedPct: null,
       exAdminPct: null,
       departmentGroups: [],
       provisional: true,
     })
   }
-  if (perVenue.length === 0) return empty
-  return { weekStartWed: dateKey(week.start), source: "payrun", perVenue }
+  const weekLabel = `w/e Tue ${week.end.getUTCDate()} ${week.end.toLocaleString("en-AU", { month: "short", timeZone: "UTC" })}`
+  if (notPosted.length) notes.push(`No posted Xero pay run for ${weekLabel} yet: ${notPosted.join(" and ")}.`)
+  if (unchecked)
+    notes.push(
+      shiftsPayRunsConfigured()
+        ? "Could not reach the Xero pay runs through Tarte Shifts just now."
+        : "The Tarte Shifts pay-runs feed is not set up on this server."
+    )
+  if (perVenue.length)
+    notes.push(cardsNote ?? "The venue and department split comes from the Thursday venue cards, which have not run for this week yet.")
+  else if (cardsNote) notes.push(cardsNote)
+  if (perVenue.length === 0) return { weekStartWed: null, source: null, perVenue: [], notes }
+  return { weekStartWed: dateKey(week.start), source: "payrun", perVenue, notes }
+}
+
+/** The labour section alone for the digest week containing `now` (the
+ * route's ?labour=1 dry run). Read only: no narrative, email or row. */
+export async function buildDigestLabour(now = new Date()): Promise<LabourSection> {
+  return buildLabour(lastCompletedTarteWeek(now))
 }
 
 async function buildTopSellers(

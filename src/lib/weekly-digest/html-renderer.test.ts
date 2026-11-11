@@ -417,7 +417,7 @@ test("wages section says so when nothing is uploaded", () => {
     snapshot({ labour: { weekStartWed: null, perVenue: [{ venue: "Burleigh", revenueExGst: null, grossWages: 0, overallPct: null, exAdminPct: null, departmentGroups: [] }] } }),
     narrative
   )
-  assert.ok(html.includes("No labour data uploaded for this week."))
+  assert.ok(html.includes("No labour figures for this week yet."))
 })
 
 test("COGS delta pills and the BH-only reference row do not pull the tile average", () => {
@@ -628,9 +628,10 @@ test("pay-run fallback renders a provisional wage line per entity, no department
   assert.ok(html.includes("Provisional 38.73%"))
   assert.ok(html.includes("$45,686 posted pay run incl super"))
   assert.ok(html.includes("Beach House + Tea Garden"))
-  assert.ok(html.includes("Louise&#39;s payroll report for this week is not in yet") || html.includes("Louise's payroll report for this week is not in yet"))
-  assert.ok(!html.includes("No labour data uploaded for this week."))
-  assert.ok(html.includes("Provisional until Louise"))
+  assert.ok(html.includes("Provisional: these are the posted Xero pay runs per company"))
+  assert.ok(!/Louise/.test(html), "pay-run weeks no longer point at her PDFs")
+  assert.ok(!html.includes("No labour figures for this week yet."))
+  assert.ok(html.includes("Some figures are provisional, as marked in their sections."))
   const text = renderDigestText(
     snapshot({
       labour: {
@@ -721,7 +722,7 @@ test("invoice fallback: provisional COGS rows render with the caveat, blanks for
   assert.ok(html.includes("$1,204 of invoices have no venue yet and are left out"))
   assert.ok(html.includes("Revenue is POS plus Uber Eats, ex GST."))
   assert.ok(html.includes(">24.1%<"), "COGS tile averages the two provisional rows")
-  assert.match(html, /Labour &amp; COGS reflect Wed 2026-10-07 → Tue 2026-10-13\. Provisional until Louise(&#39;|')s report for that week is uploaded\./)
+  assert.ok(html.includes("Labour &amp; COGS reflect Wed 2026-10-07 → Tue 2026-10-13. Some figures are provisional, as marked in their sections."))
   assert.ok(!/NaN|Infinity|undefined/.test(html))
   const text = renderDigestText(snap, narrative)
   assert.match(text, /Burleigh\s+22\.6%\s+target 28\.0%\s+non-food —/)
@@ -747,7 +748,7 @@ test("labour from her report but COGS from invoices still flags the footer as pr
     snapshot({ labour: { ...base.labour, source: "report" }, cogs: { ...base.cogs, source: "invoices" } }),
     narrative
   )
-  assert.match(html, /Provisional until Louise(&#39;|')s report for that week is uploaded\./)
+  assert.ok(html.includes("Some figures are provisional, as marked in their sections."))
   assert.ok(!html.includes("Provisional 45.00%"), "the wage rows themselves stay as reported")
 })
 
@@ -759,10 +760,10 @@ test("nothing for the week at all: wages section explains both sources are missi
     cogs: { weekStartWed: null, source: null, perVenue: [] },
   })
   const html = renderDigestHtml(nothing, narrative)
-  assert.ok(html.includes("No labour data uploaded for this week."))
-  assert.ok(html.includes("no posted pay run was found for it"))
+  assert.ok(html.includes("No labour figures for this week yet."))
+  assert.ok(html.includes("No posted Xero pay run was found for it."))
   assert.ok(html.includes("Labour &amp; COGS not yet uploaded for this week."))
-  assert.ok(!/Provisional until/.test(html))
+  assert.ok(!/provisional, as marked/.test(html))
   assert.ok(!/NaN|Infinity|undefined/.test(html))
   const text = renderDigestText(nothing, narrative)
   assert.ok(text.includes("WAGES vs TARGET\n\nCOGS\n\n"), "no venue lines under either heading")
@@ -781,7 +782,7 @@ test("pay run posted but no POS revenue on file yet: dollars shown, no percentag
   assert.ok(!html.includes("Provisional —"))
   assert.ok(!/NaN|Infinity|undefined/.test(html))
   const text = renderDigestText(snapshot({ labour }), narrative)
-  assert.ok(text.includes("Burleigh, provisional (posted pay run) —"))
+  assert.ok(text.includes("Burleigh, provisional (posted pay run) n/a"), "placeholder, never an em dash")
 })
 
 test("Louise's headline is not repeated when it matches ours to within half a basis point, or is unknown", () => {
@@ -833,4 +834,93 @@ test("live spend: a digest stored before 23 Oct (no still-to-come fields) still 
   const html = renderDigestHtml(snapshot({ spendPacing: { ...base.spendPacing!, buckets: [stored] } }), narrative)
   assert.match(html, /\$11,200<div[^>]*>67% of cap<\/div>/)
   assert.doesNotMatch(html, /undefined|NaN/)
+})
+
+// ------------------------------------- wages from the Xero pay runs (11 Nov 2026)
+// From w/e Tue 10 Nov 2026 the wage block reads the Thursday venue cards'
+// figures (three lines, departments) and notes on the pay runs' state.
+// Made-up numbers: the repo is public.
+
+const payweekLabour: WeeklyDigestSnapshot["labour"] = {
+  weekStartWed: "2026-11-04",
+  source: "payweek",
+  notes: ["Ties to the posted Xero pay runs to the cent (Tarte Bakery and Tarte Currumbin)."],
+  perVenue: [
+    {
+      venue: "Burleigh",
+      revenueExGst: 100000,
+      grossWages: 30100,
+      overallPct: 30.1,
+      reportedPct: null,
+      exAdminPct: 28.5,
+      exAdminLeavePct: 26.5,
+      fromDraft: false,
+      departmentGroups: [
+        { label: "Chefs + KP", dollars: 11000, pct: 11, target: { min: 11.5, max: 12 }, status: "ok" },
+        { label: "FOH + Barista", dollars: 15000, pct: 15, target: { min: 20.5, max: 21 }, status: "ok" },
+        { label: "Pastry", dollars: 2500, pct: 2.5, target: { min: 4.75, max: 5.25 }, status: "ok" },
+        { label: "Admin", dollars: 1600, pct: 1.6, target: null, status: "no-target" },
+      ],
+    },
+    {
+      venue: "Tea Garden",
+      revenueExGst: 4000,
+      grossWages: 1500,
+      overallPct: 37.5,
+      reportedPct: null,
+      exAdminPct: 37.5,
+      exAdminLeavePct: 30,
+      fromDraft: true,
+      departmentGroups: [{ label: "FOH (incl. Barista)", dollars: 1500, pct: 37.5, target: null, status: "no-target" }],
+    },
+  ],
+}
+
+test("pay-run weeks: three wage lines per venue, the run-state notes, the method line, no Louise and no provisional wording", () => {
+  const html = renderDigestHtml(snapshot({ labourWeekStart: "2026-11-04", labourWeekEnd: "2026-11-10", labour: payweekLabour }), narrative)
+  assert.ok(html.includes("Total 30.10% · ex admin 28.50% · ex admin and leave 26.50% · $30,100 wages on $100,000 revenue"))
+  assert.ok(html.includes("Total 37.50% · ex admin 37.50% · ex admin and leave 30.00% · $1,500 wages on $4,000 revenue · from the draft pay run, not posted yet"))
+  assert.ok(html.includes("Ties to the posted Xero pay runs to the cent (Tarte Bakery and Tarte Currumbin)."))
+  assert.ok(html.includes("the same figures as the Thursday venue cards"))
+  assert.ok(html.includes(">Admin<"))
+  assert.ok(!/Louise/.test(html))
+  assert.ok(!/[Pp]rovisional/.test(html))
+  assert.ok(!html.includes("50% of Tea Garden revenue"), "the cards measure Beach House pastry on Beach House revenue")
+  const wages = html.slice(html.indexOf("Wages vs target"), html.indexOf(">COGS<"))
+  assert.ok(wages.length > 0)
+  assert.ok(!wages.includes("\u2014"), "no em dash anywhere in the wage block")
+  const text = renderDigestText(snapshot({ labour: payweekLabour }), narrative)
+  assert.ok(text.includes("  Burleigh, total 30.1% (ex admin 28.5%, ex admin and leave 26.5%)\n"))
+  assert.ok(text.includes("  Tea Garden, total 37.5% (ex admin 37.5%, ex admin and leave 30.0%), from the draft pay run"))
+  assert.ok(text.includes("    Admin "))
+  assert.ok(text.includes("  Ties to the posted Xero pay runs to the cent"))
+})
+
+test("pay-run weeks with nothing posted: the wage block names the companies and never shows another week", () => {
+  const labour: WeeklyDigestSnapshot["labour"] = {
+    weekStartWed: null,
+    source: null,
+    perVenue: [],
+    notes: ["No posted Xero pay run for w/e Tue 10 Nov yet: Tarte Bakery and Tarte Currumbin."],
+  }
+  const html = renderDigestHtml(snapshot({ labourWeekStart: null, labourWeekEnd: null, labour }), narrative)
+  assert.ok(html.includes("No labour figures for this week yet. No posted Xero pay run for w/e Tue 10 Nov yet: Tarte Bakery and Tarte Currumbin."))
+  assert.ok(!html.includes("No posted Xero pay run was found for it."))
+  const text = renderDigestText(snapshot({ labour }), narrative)
+  assert.ok(text.includes("WAGES vs TARGET\n  No posted Xero pay run for w/e Tue 10 Nov yet"))
+})
+
+test("pay runs posted but the cards not in yet: provisional per company, with the reason under it", () => {
+  const labour: WeeklyDigestSnapshot["labour"] = {
+    weekStartWed: "2026-11-04",
+    source: "payrun",
+    notes: ["The venue and department split comes from the Thursday venue cards, which have not run for this week yet."],
+    perVenue: [
+      { venue: "Burleigh", revenueExGst: 100000, grossWages: 30000, overallPct: 30, reportedPct: null, exAdminPct: null, departmentGroups: [], provisional: true },
+    ],
+  }
+  const html = renderDigestHtml(snapshot({ labour }), narrative)
+  assert.ok(html.includes("Provisional 30.00% · $30,000 posted pay run incl super"))
+  assert.ok(html.includes("which have not run for this week yet."))
+  assert.ok(!/Louise/.test(html))
 })

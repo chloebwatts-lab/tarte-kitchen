@@ -280,12 +280,15 @@ services:
         # 08:00 Lightspeed EOD import so Saturday's takings are included.
         # Renders straight off the live /spend snapshot (no LLM).
         30 22 * * 6 curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/weekly-spend-email 2>&1
-        # Thursday 07:00 AEST (21:00 UTC Wed) — auto-pull Louise's "Reports"
+        # OFF from 11 Nov 2026: Louise left payroll (last run w/e 3 Nov), so no
+        # "Reports" PDFs arrive. The Friday digest reads the Xero pay runs via
+        # the Thursday venue cards' figures (src/lib/labour/payweek-figures.ts).
+        # The route and /labour/upload stay, so old weeks still read.
+        # Thursday 07:00 AEST (21:00 UTC Wed): auto-pull Louise's "Reports"
         # email from accounts@ Gmail (3 PDFs + 2 xlsx) into LabourWeekActual
-        # + WeeklyCogs, so Friday's digest has the actuals without Chloe
-        # having to upload Thursday afternoon. Failure / partial → email
-        # chloe@ with a link to /labour/upload for manual recovery.
-        0 21 * * 3 curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/pull-louise-reports 2>&1
+        # + WeeklyCogs. Failure / partial: email chloe@ with a link to
+        # /labour/upload for manual recovery.
+        # 0 21 * * 3 curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/pull-louise-reports 2>&1
         # GM desk (Oliver's tile). His week is the Wed to Tue trading week; GM days Thu, Fri,
         # Mon. Times are UTC: 20:30 = 6:30am AEST list; 04:00 = 2pm "still
         # open"; Mon 03:00 = 1pm report nudge; Mon 06:00 = 4pm "no report"

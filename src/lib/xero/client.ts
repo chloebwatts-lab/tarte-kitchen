@@ -163,11 +163,15 @@ export async function getPostedPayRuns(
   tenantId: string,
   fromDate?: Date
 ): Promise<ProcessedPayRun[]> {
-  let url = `${XERO_PAYROLL_BASE}/PayRuns?PayRunStatus=POSTED`
+  // Xero ignores a bare ?PayRunStatus=POSTED (11 Nov 2026: drafts came
+  // back as if posted), so the status goes inside where= and each run's own
+  // status is checked below.
+  const conds = ['PayRunStatus=="POSTED"']
   if (fromDate) {
     const d = fromDate
-    url += `&where=PayRunPeriodStartDate >= DateTime(${d.getFullYear()}, ${d.getMonth() + 1}, ${d.getDate()})`
+    conds.push(`PayRunPeriodStartDate >= DateTime(${d.getFullYear()}, ${d.getMonth() + 1}, ${d.getDate()})`)
   }
+  const url = `${XERO_PAYROLL_BASE}/PayRuns?where=${encodeURIComponent(conds.join(" AND "))}`
 
   const res = await fetch(url, {
     headers: {
@@ -183,11 +187,12 @@ export async function getPostedPayRuns(
   }
 
   const data = await res.json()
-  const payRuns: XeroPayRun[] = data.PayRuns ?? []
+  const payRuns: XeroPayRun[] = (data.PayRuns ?? []).filter((r: XeroPayRun) => r.PayRunStatus === "POSTED")
 
   return payRuns.map((run) => {
-    const grossWages = run.Payslips.reduce((sum, p) => sum + (p.GrossEarnings ?? 0), 0)
-    const superAmount = run.Payslips.reduce((sum, p) => sum + (p.SuperAmount ?? 0), 0)
+    const slips = run.Payslips ?? []
+    const grossWages = slips.reduce((sum, p) => sum + (p.GrossEarnings ?? 0), 0)
+    const superAmount = slips.reduce((sum, p) => sum + (p.SuperAmount ?? 0), 0)
 
     return {
       payRunId: run.PayRunID,
@@ -197,7 +202,7 @@ export async function getPostedPayRuns(
       grossWages: Math.round(grossWages * 100) / 100,
       superAmount: Math.round(superAmount * 100) / 100,
       totalCost: Math.round((grossWages + superAmount) * 100) / 100,
-      headcount: run.Payslips.length,
+      headcount: slips.length,
     }
   })
 }
