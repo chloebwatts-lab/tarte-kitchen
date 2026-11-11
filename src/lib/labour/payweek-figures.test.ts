@@ -216,7 +216,7 @@ test("feed down: figures still shown, the note says the runs could not be re-che
   assert.equal(out.perVenue[0].fromDraft, true)
   assert.deepEqual(out.notes, [
     "Tarte Bakery's pay run was still a draft when the cards ran, so its venues can move a little once it is posted.",
-    "Could not re-check the posted runs in Xero just now, so these are as the Thursday pull read them.",
+    "Could not re-check the posted runs in Xero just now for Tarte Bakery and Tarte Currumbin, so these are as the Thursday pull read them.",
   ])
   // A posted org that has vanished from Xero is named, not hidden.
   const gone = labourFromPayWeek(parsed(), new Map([["Tarte Bakery", { total: 0, runs: 0 }], ["Tarte Currumbin", { total: 22000.55, runs: 1 }]]))

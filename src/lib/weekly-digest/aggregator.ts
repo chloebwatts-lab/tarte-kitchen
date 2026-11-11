@@ -1057,13 +1057,13 @@ async function buildLabourFromPayRuns(
 ): Promise<LabourSection> {
   const notes: string[] = []
   const notPosted: string[] = []
-  let unchecked = false
+  const unchecked: string[] = []
   const revenue = await posPlusUberRevenue(week.start, week.end)
   const perVenue: LabourSection["perVenue"] = []
   for (const o of PAY_RUN_ORG_VENUES) {
     const p = posted.get(o.org) ?? null
     if (p == null) {
-      unchecked = true
+      unchecked.push(o.org)
       continue
     }
     if (p.runs === 0) {
@@ -1084,10 +1084,10 @@ async function buildLabourFromPayRuns(
   }
   const weekLabel = `w/e Tue ${week.end.getUTCDate()} ${week.end.toLocaleString("en-AU", { month: "short", timeZone: "UTC" })}`
   if (notPosted.length) notes.push(`No posted Xero pay run for ${weekLabel} yet: ${notPosted.join(" and ")}.`)
-  if (unchecked)
+  if (unchecked.length)
     notes.push(
       shiftsPayRunsConfigured()
-        ? "Could not reach the Xero pay runs through Tarte Shifts just now."
+        ? `Could not reach the Xero pay runs through Tarte Shifts just now for ${unchecked.join(" and ")}.`
         : "The Tarte Shifts pay-runs feed is not set up on this server."
     )
   if (perVenue.length)

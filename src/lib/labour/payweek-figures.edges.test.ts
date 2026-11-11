@@ -188,7 +188,7 @@ test("postedPayRunTotals: one feed call per company, sums that week only, a fail
     const out = labourFromPayWeek(f.figures, posted)
     assert.deepEqual(out.notes, [
       "Ties to the posted Xero pay run to the cent (Tarte Bakery).",
-      "Could not re-check the posted runs in Xero just now, so these are as the Thursday pull read them.",
+      "Could not re-check the posted run in Xero just now for Tarte Currumbin, so its venues are as the Thursday pull read them.",
     ])
   } finally {
     mock.restoreAll()
@@ -357,4 +357,24 @@ test("an org missing from the posted map is treated as could not check, never as
   assert.equal(out.notes[0], "Ties to the posted Xero pay run to the cent (Tarte Bakery).")
   assert.match(out.notes.join(" "), /Could not re-check/)
   assert.ok(!out.notes.join(" ").includes("Tarte Currumbin)"))
+})
+
+test("only the Bakery read held back: the note names Tarte Bakery alone, after the tie, before the venues-sum warning", () => {
+  const f = figures()
+  f.checks = { venuesSumToBothRuns: false }
+  const r = parsePayWeekFigures(f, W)
+  assert.ok(r.ok)
+  if (!r.ok) return
+  const posted: PostedTotals = new Map([["Tarte Bakery", null], ["Tarte Currumbin", { total: 7500.3, runs: 1 }]])
+  const out = labourFromPayWeek(r.figures, posted)
+  assert.deepEqual(out.notes, [
+    "Ties to the posted Xero pay run to the cent (Tarte Currumbin).",
+    "Could not re-check the posted run in Xero just now for Tarte Bakery, so its venues are as the Thursday pull read them.",
+    "The three venues do not add up to the two pay runs in this week's cards file. Check it before relying on the split.",
+  ])
+  // Wording only: the figures and the draft flag are unchanged.
+  assert.equal(out.perVenue.length, 3)
+  assert.ok(out.perVenue.every((v) => v.fromDraft === false))
+  assert.equal(out.perVenue.find((v) => v.venue === "Burleigh")?.grossWages, 10000)
+  assert.ok(!out.notes.join(" ").includes("\u2014"))
 })

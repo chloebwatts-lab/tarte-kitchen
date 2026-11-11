@@ -250,14 +250,14 @@ export function labourFromPayWeek(fig: PayWeekFigures, posted: PostedTotals): Pa
   const notes: string[] = []
   const draftOrgs = new Set<string>()
   const tied: string[] = []
-  let couldNotCheck = false
+  const unchecked: string[] = []
 
   for (const org of PAYWEEK_ORGS) {
     const run = fig.payRuns[org]
     const now = posted.get(org) ?? null
     const pulled = run?.total ?? null
     if (now == null) {
-      couldNotCheck = true
+      unchecked.push(org)
       if (run?.status === "DRAFT") {
         draftOrgs.add(org)
         notes.push(`${org}'s pay run was still a draft when the cards ran, so its venues can move a little once it is posted.`)
@@ -286,8 +286,12 @@ export function labourFromPayWeek(fig: PayWeekFigures, posted: PostedTotals): Pa
         `. These figures are from that pull until the venue cards are re-run for this week.`
     )
   }
-  if (couldNotCheck)
-    notes.push("Could not re-check the posted runs in Xero just now, so these are as the Thursday pull read them.")
+  if (unchecked.length)
+    notes.push(
+      unchecked.length > 1
+        ? `Could not re-check the posted runs in Xero just now for ${unchecked.join(" and ")}, so these are as the Thursday pull read them.`
+        : `Could not re-check the posted run in Xero just now for ${unchecked[0]}, so its venues are as the Thursday pull read them.`
+    )
   if (tied.length)
     notes.unshift(`Ties to the posted Xero pay run${tied.length > 1 ? "s" : ""} to the cent (${tied.join(" and ")}).`)
   if (fig.venuesSumToBothRuns === false)
