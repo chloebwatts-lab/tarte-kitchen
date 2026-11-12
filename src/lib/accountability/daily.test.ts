@@ -2,6 +2,7 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 import {
   renderDailyAccountability,
+  accountabilityHeadline,
   accountabilityRecipients,
   uberEodLine,
   type DailyAccountability,
@@ -48,6 +49,12 @@ const busy: DailyAccountability = {
   groupAgenda: [{ text: "Christmas rosters", who: null, age: "today", flag: null }],
   totals: { agenda: 2, fixes: 2, jobs: 1, orders: 1, unowned: 2 },
 }
+
+test("accountabilityHeadline: the subject's two numbers, for owner-headlines", () => {
+  assert.deepEqual(accountabilityHeadline(busy.totals), { open: 6, unowned: 2 })
+  assert.deepEqual(accountabilityHeadline({ agenda: 0, fixes: 0, jobs: 0, orders: 0, unowned: 0 }), { open: 0, unowned: 0 })
+  assert.deepEqual(accountabilityHeadline({ agenda: 1, fixes: 2, jobs: 3, orders: 4, unowned: 5 }), { open: 10, unowned: 5 })
+})
 
 test("subject counts everything open and how many have nobody on them", () => {
   const { subject } = renderDailyAccountability(busy)
@@ -105,9 +112,10 @@ test("accountabilityRecipients: defaults, blank env, trimmed list", () => {
   const prev = process.env.ACCOUNTABILITY_TO
   try {
     delete process.env.ACCOUNTABILITY_TO
-    assert.deepEqual(accountabilityRecipients(), ["chloe@tarte.com.au", "shawna@tarte.com.au", "hello@tarte.com.au"])
+    // chloe@ off the default list since 12 Nov 2026 (her 17:00 Tarte today email carries the totals).
+    assert.deepEqual(accountabilityRecipients(), ["shawna@tarte.com.au", "hello@tarte.com.au"])
     process.env.ACCOUNTABILITY_TO = " , "
-    assert.deepEqual(accountabilityRecipients(), ["chloe@tarte.com.au", "shawna@tarte.com.au", "hello@tarte.com.au"])
+    assert.deepEqual(accountabilityRecipients(), ["shawna@tarte.com.au", "hello@tarte.com.au"])
     process.env.ACCOUNTABILITY_TO = "chloe@tarte.com.au, oliver@tarte.com.au "
     assert.deepEqual(accountabilityRecipients(), ["chloe@tarte.com.au", "oliver@tarte.com.au"])
   } finally {

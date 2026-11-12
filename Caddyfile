@@ -37,6 +37,8 @@
 		not path /api/internal/trash-sent
 		not path /api/internal/deed-record
 		not path /api/internal/daily-sales /api/internal/live-cogs
+		# Tarte Shifts' 17:00 Tarte today email (12 Nov 2026), same bearer as live-cogs.
+		not path /api/internal/owner-headlines
 		not path /_next/static/*
 		not path /favicon.ico
 		# PWA install assets — the staff home-screen app installs from the

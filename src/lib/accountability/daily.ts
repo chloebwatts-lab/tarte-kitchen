@@ -15,11 +15,14 @@ import { shiftDate } from "@/lib/sales/compare"
  *
  * One email, per venue, four lists, each line with a name and how long it
  * has sat there. Nothing is invented: it reads the same tables the boards
- * read. Recipients from ACCOUNTABILITY_TO (comma list), default Chloe,
- * Shawna and the hello@ inbox.
+ * read. Recipients from ACCOUNTABILITY_TO (comma list), default Shawna and
+ * the hello@ inbox.
  */
 
-const DEFAULT_TO = ["chloe@tarte.com.au", "shawna@tarte.com.au", "hello@tarte.com.au"]
+// Chloe, 12 Nov 2026: only vital emails; folded into the 17:00 Tarte today
+// email. chloe@ is off the default list; her headline numbers come from
+// /api/internal/owner-headlines (accountabilityHeadline below).
+const DEFAULT_TO = ["shawna@tarte.com.au", "hello@tarte.com.au"]
 const VENUES: Venue[] = ["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN"]
 const DAY_MS = 86_400_000
 
@@ -76,7 +79,11 @@ export interface DailyAccountability {
   totals: { agenda: number; fixes: number; jobs: number; orders: number; unowned: number }
 }
 
-export async function getDailyAccountability(now = new Date()): Promise<DailyAccountability> {
+/**
+ * opts.uber = false skips the live Uber Eats pull (slow, and it writes the
+ * day's figure). The owner-headlines endpoint only needs the totals.
+ */
+export async function getDailyAccountability(now = new Date(), opts: { uber?: boolean } = {}): Promise<DailyAccountability> {
   const startOfDay = new Date(now.getTime() + 10 * 3_600_000)
   startOfDay.setUTCHours(0, 0, 0, 0)
   const dayStartUtc = new Date(startOfDay.getTime() - 10 * 3_600_000)
@@ -175,7 +182,7 @@ export async function getDailyAccountability(now = new Date()): Promise<DailyAcc
     weekday: "long", day: "numeric", month: "long", timeZone: "Australia/Brisbane",
   }).format(now)
 
-  return { date, venues, groupAgenda, totals, uber: await uberForDay(now) }
+  return { date, venues, groupAgenda, totals, uber: opts.uber === false ? null : await uberForDay(now) }
 }
 
 /** Chloe, 7 Oct 2026: "add uber to the daily eod email too". Live figure at send time, plus the same weekday last week. */
@@ -216,9 +223,17 @@ function agendaLine(now: Date) {
   })
 }
 
+/**
+ * The two numbers in the subject line ("10 open, 3 with nobody on them").
+ * Pure, tested. Shared by the email and /api/internal/owner-headlines.
+ */
+export function accountabilityHeadline(t: DailyAccountability["totals"]): { open: number; unowned: number } {
+  return { open: t.fixes + t.jobs + t.orders + t.agenda, unowned: t.unowned }
+}
+
 export function renderDailyAccountability(d: DailyAccountability): { subject: string; html: string; text: string } {
   const t = d.totals
-  const open = t.fixes + t.jobs + t.orders + t.agenda
+  const { open } = accountabilityHeadline(t)
   const subject = `End of day ${d.date}: ${open} open, ${t.unowned} with nobody on them`
   const url = baseUrl()
 
