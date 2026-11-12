@@ -97,6 +97,16 @@ services:
       SHIFTS_PAYRUNS_ORGS: ${SHIFTS_PAYRUNS_ORGS:-Tarte Bakery,Tarte Currumbin}
       SHIFTS_PAYRUNS_ORG: ${SHIFTS_PAYRUNS_ORG:-}
       SHIFTS_SECRET: ${SHIFTS_SECRET:-}
+      # Kitchen to Xero DRAFT supplier bills (12 Nov 2026,
+      # src/lib/xero-bills): the Xero calls go through the Tarte Inbox
+      # app's narrow endpoint. Nothing is written to Xero until
+      # XERO_BILLS_LIVE=1 and XERO_BILLS_CUTOFF are set (the CBK
+      # coordinator's go); until then the nightly run is a dry run.
+      INBOX_BILLS_URL: ${INBOX_BILLS_URL:-}
+      INBOX_BILLS_KEY: ${INBOX_BILLS_KEY:-}
+      XERO_BILLS_LIVE: ${XERO_BILLS_LIVE:-}
+      XERO_BILLS_CUTOFF: ${XERO_BILLS_CUTOFF:-}
+      XERO_BILLS_CAP: ${XERO_BILLS_CAP:-40}
       # Where shift-level labour (LabourShift) comes from: "deputy" (default,
       # until Deputy is cancelled) or "shifts" (Tarte Shifts' internal labour
       # feed, docs/shifts-labour-feed.md). Flip + `docker compose up -d app`.
@@ -188,6 +198,10 @@ services:
         # the May 2026 incident that lost 30+ invoices over 4 days
         # would have been caught here next morning.
         0 23 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/check-invoices?mode=sweep' 2>&1
+        # 06:30 AEST: supplier invoices to Xero DRAFT bills, after the 06:00
+        # invoice scan and before the 07:20 morning bill check. Dry run until
+        # XERO_BILLS_LIVE=1 (src/app/api/cron/xero-bills/route.ts).
+        30 20 * * * curl -fsS -m 1500 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/xero-bills 2>&1
         # Every 15 min — pull rosters + timesheets so /labour stays fresh. The
         # route reads LABOUR_SOURCE (Deputy or Tarte Shifts); its old name is
         # kept so this crontab never needs a cron-container recreate.

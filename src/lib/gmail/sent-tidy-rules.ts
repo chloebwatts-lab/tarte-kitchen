@@ -50,6 +50,7 @@ export const PRIVATE_SENT_PATTERNS: PrivateSentPattern[] = [
   { key: "gm-report", sender: "Kitchen GM Monday report", re: /^Oliver's Monday report, /, query: 'subject:"Monday report"', appOnly: true },
   { key: "gm-no-report", sender: "Kitchen GM Monday wrap", re: /^No Monday report from Oliver, /, query: 'subject:"No Monday report"', appOnly: true },
   { key: "cogs-tracking", sender: "Kitchen Sunday COGS email", re: /^COGS TRACKING \(/, query: 'subject:"COGS TRACKING"', appOnly: true },
+  { key: "draft-bills", sender: "Kitchen draft bills summary", re: /^Kitchen draft bills, /, query: 'subject:"Kitchen draft bills"', appOnly: true },
   { key: "bas", sender: "CBK BAS notes", re: /\bBAS\b/, query: "subject:BAS" },
   { key: "ias", sender: "CBK IAS notes", re: /\bIAS\b/, query: "subject:IAS" },
   { key: "payroll-tax", sender: "CBK payroll tax notes", re: /\bpayroll tax\b/i, query: 'subject:"payroll tax"' },

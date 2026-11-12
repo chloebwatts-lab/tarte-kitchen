@@ -95,6 +95,74 @@ export async function sendEmail(params: {
   return afterSend(res, params.subject, params.privateCopy)
 }
 
+export interface EmailAttachment {
+  /** Plain file name, e.g. "draft-bills-2026-11-13.csv" */
+  filename: string
+  mimeType: string
+  content: string | Buffer
+}
+
+/**
+ * The raw MIME for sendHtmlEmail. Without attachments it is the same
+ * multipart/alternative message as always; with them, that message is the
+ * first part of a multipart/mixed one and each file follows, base64.
+ */
+export function buildHtmlMime(p: {
+  to: string
+  from: string
+  subject: string
+  html: string
+  text: string
+  boundary: string
+  attachments?: EmailAttachment[]
+}): string {
+  const alt = (b: string) => [
+    `--${b}`,
+    `Content-Type: text/plain; charset="UTF-8"`,
+    `Content-Transfer-Encoding: 7bit`,
+    ``,
+    p.text,
+    ``,
+    `--${b}`,
+    `Content-Type: text/html; charset="UTF-8"`,
+    `Content-Transfer-Encoding: 7bit`,
+    ``,
+    p.html,
+    ``,
+    `--${b}--`,
+  ]
+  const head = [`To: ${p.to}`, `From: ${p.from}`, `Subject: ${stripHeaderNewlines(p.subject)}`, `MIME-Version: 1.0`]
+  if (!p.attachments?.length)
+    return [...head, `Content-Type: multipart/alternative; boundary="${p.boundary}"`, ``, ...alt(p.boundary), ``].join("\r\n")
+  const mixed = `${p.boundary}_m`
+  const files = p.attachments.flatMap((a) => {
+    const name = stripHeaderNewlines(a.filename).replace(/["\\]/g, "")
+    const b64 = (Buffer.isBuffer(a.content) ? a.content : Buffer.from(a.content, "utf-8")).toString("base64").replace(/(.{76})/g, "$1\r\n")
+    return [
+      `--${mixed}`,
+      `Content-Type: ${stripHeaderNewlines(a.mimeType)}; name="${name}"`,
+      `Content-Disposition: attachment; filename="${name}"`,
+      `Content-Transfer-Encoding: base64`,
+      ``,
+      b64,
+      ``,
+    ]
+  })
+  return [
+    ...head,
+    `Content-Type: multipart/mixed; boundary="${mixed}"`,
+    ``,
+    `--${mixed}`,
+    `Content-Type: multipart/alternative; boundary="${p.boundary}"`,
+    ``,
+    ...alt(p.boundary),
+    ``,
+    ...files,
+    `--${mixed}--`,
+    ``,
+  ].join("\r\n")
+}
+
 /**
  * Send a multipart/alternative email with both an HTML body and a
  * plain-text fallback. Use for richly-formatted reports (weekly digest,
@@ -107,6 +175,8 @@ export async function sendHtmlEmail(params: {
   text: string
   /** See sendEmail. */
   privateCopy?: boolean
+  /** Files to attach (e.g. a CSV of detail behind a short summary). */
+  attachments?: EmailAttachment[]
 }): Promise<SentRef> {
   const connection = await getActiveGmailConnection()
   if (!connection) {
@@ -121,28 +191,15 @@ export async function sendHtmlEmail(params: {
     .toString(36)
     .slice(2)}`
 
-  const raw = [
-    `To: ${toList}`,
-    `From: ${connection.email}`,
-    `Subject: ${stripHeaderNewlines(params.subject)}`,
-    `MIME-Version: 1.0`,
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
-    ``,
-    `--${boundary}`,
-    `Content-Type: text/plain; charset="UTF-8"`,
-    `Content-Transfer-Encoding: 7bit`,
-    ``,
-    params.text,
-    ``,
-    `--${boundary}`,
-    `Content-Type: text/html; charset="UTF-8"`,
-    `Content-Transfer-Encoding: 7bit`,
-    ``,
-    params.html,
-    ``,
-    `--${boundary}--`,
-    ``,
-  ].join("\r\n")
+  const raw = buildHtmlMime({
+    to: toList,
+    from: connection.email,
+    subject: params.subject,
+    html: params.html,
+    text: params.text,
+    boundary,
+    attachments: params.attachments,
+  })
 
   const base64 = Buffer.from(raw, "utf-8")
     .toString("base64")

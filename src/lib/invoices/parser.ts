@@ -43,6 +43,13 @@ export interface ParsedInvoice {
   subtotal: number | null
   gst: number | null
   total: number | null
+  /** Money already paid against THIS invoice as printed ("Amount Received",
+   *  "Paid", "Less payment"); null when none is shown. Kitchen's Xero draft
+   *  bills hold any invoice that shows a payment (12 Nov 2026). */
+  amountReceived?: number | null
+  /** The balance still owing as printed ("Balance Due", "Invoice Balance");
+   *  null when not printed. A balance of 0 means it is already paid. */
+  balanceDue?: number | null
 }
 
 const EXTRACTION_PROMPT = `Extract all line items from this Australian supplier document.
@@ -68,7 +75,9 @@ Return valid JSON only, no other text or markdown fences:
   ],
   "subtotal": number or null,
   "gst": number or null,
-  "total": number or null
+  "total": number or null,
+  "amountReceived": "number or null: money already paid or received against THIS invoice as printed (e.g. 'Amount Received', 'Paid', 'Less payment'); null if the page shows none",
+  "balanceDue": "number or null: the balance still owing printed on THIS invoice (e.g. 'Balance Due', 'Invoice Balance', 'Amount Due'); null if the page does not print one"
 }
 
 documentType rules:

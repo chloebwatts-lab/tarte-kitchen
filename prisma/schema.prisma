@@ -811,6 +811,24 @@ model GmailConnection {
   updatedAt     DateTime  @updatedAt
 }
 
+/// One run of the Kitchen to Xero DRAFT supplier bills job (dry or live):
+/// what was drafted, held and why, and any error. The morning bill check
+/// reads the latest through /api/cron/xero-bills?summary=latest.
+model XeroBillRun {
+  id         String    @id @default(cuid())
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  live       Boolean
+  /// Invoices dated before this are never pushed (yyyy-mm-dd).
+  cutoff     String
+  capPerOrg  Int
+  /// { drafted: { org: n }, held: n, ... } and the per-invoice lists.
+  summary    Json?
+  error      String?
+
+  @@index([startedAt])
+}
+
 model XeroConnection {
   id               String    @id @default(cuid())
   accessToken      String    // Encrypted at rest via TOKEN_ENCRYPTION_KEY
@@ -1152,6 +1170,18 @@ model Invoice {
   processedAt     DateTime?
   approvedAt      DateTime?
   approvedBy      String?
+  /// Kitchen to Xero DRAFT supplier bill (src/lib/xero-bills, from 12 Nov
+  /// 2026). Set once the draft exists in Xero; a row with an id is never
+  /// pushed again.
+  xeroInvoiceId   String?
+  /// "Tarte Bakery" or "Tarte Currumbin"
+  xeroOrg         String?
+  xeroPushedAt    DateTime?
+  /// Last push failure for this invoice, kept until a later push succeeds.
+  xeroPushError   String?
+  /// When the PDF was attached to the Xero draft (null until the
+  /// accounting.attachments grant is in, or if attaching failed).
+  xeroAttachedAt  DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   lineItems       InvoiceLineItem[]
