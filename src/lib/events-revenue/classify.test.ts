@@ -80,3 +80,69 @@ test("an org with no event account yields nothing", () => {
   const rows = eventSalesByDay("Tarte Bakery", [sale({ LineItems: [{ AccountCode: "41000", LineAmount: 1100, TaxAmount: 100 }] })], [{ Code: "41000", Name: "Sales" }])
   assert.deepEqual(rows, [])
 })
+
+// Edges added by the pre-push guard (12 Nov 2026).
+test("exclusive and inclusive invoices on the same day add up ex GST, one count per invoice", () => {
+  const rows = eventSalesByDay("Tarte Currumbin", [
+    sale({ InvoiceID: "inc", LineAmountTypes: "Inclusive", LineItems: [{ AccountCode: "41500", Description: "Hideout high tea 20 pax", LineAmount: 2200, TaxAmount: 200 }] }),
+    sale({
+      InvoiceID: "exc",
+      LineAmountTypes: "Exclusive",
+      LineItems: [
+        { AccountCode: "41500", Description: "Hideout canapes", LineAmount: 1500, TaxAmount: 150 },
+        { AccountCode: "41500", Description: "Hideout room hire", LineAmount: 269, TaxAmount: 26.9 },
+      ],
+    }),
+  ], CURRUMBIN_ACCOUNTS)
+  assert.deepEqual(rows, [{ date: "2026-11-07", venue: "BEACH_HOUSE", exGst: 3769, invoices: 2 }])
+})
+
+test("a partial refund line on the event invoice nets off; the day stays positive", () => {
+  const rows = eventSalesByDay("Tarte Currumbin", [
+    sale({
+      LineItems: [
+        { AccountCode: "41500", Description: "Hideout lunch 30 pax", LineAmount: 2200, TaxAmount: 200 },
+        { AccountCode: "41500", Description: "Less 5 no-shows", LineAmount: -550, TaxAmount: -50 },
+      ],
+    }),
+  ], CURRUMBIN_ACCOUNTS)
+  assert.deepEqual(rows, [{ date: "2026-11-07", venue: "BEACH_HOUSE", exGst: 1500, invoices: 1 }])
+})
+
+test("one invoice with a Tea Garden line and a Hideout line lands on both venues", () => {
+  const rows = eventSalesByDay("Tarte Currumbin", [
+    sale({
+      InvoiceID: "split",
+      LineItems: [
+        { AccountCode: "41500", Description: "Ceremony drinks", Tracking: [{ Name: "Venue", Option: "Tea Garden" }], LineAmount: 1100, TaxAmount: 100 },
+        { AccountCode: "41500", Description: "Reception in The Hideout", LineAmount: 3300, TaxAmount: 300 },
+      ],
+    }),
+  ], CURRUMBIN_ACCOUNTS)
+  assert.deepEqual(rows, [
+    { date: "2026-11-07", venue: "BEACH_HOUSE", exGst: 3000, invoices: 1 },
+    { date: "2026-11-07", venue: "TEA_GARDEN", exGst: 1000, invoices: 1 },
+  ])
+})
+
+test("status case does not matter; a missing status, a datetime or a blank account code is refused, not guessed", () => {
+  const line = { AccountCode: "41500", Description: "Hideout", LineAmount: 1100, TaxAmount: 100 }
+  const rows = eventSalesByDay("Tarte Currumbin", [
+    sale({ InvoiceID: "lower", Status: "authorised", LineItems: [line] }),
+    sale({ InvoiceID: "nostatus", Status: "", LineItems: [line] }),
+    // The Inbox door sends DateString cut to yyyy-mm-dd; a raw Xero datetime is not a trading day.
+    sale({ InvoiceID: "datetime", Date: "2026-11-07T00:00:00", LineItems: [line] }),
+    sale({ InvoiceID: "nocode", LineItems: [{ ...line, AccountCode: "" }] }),
+    sale({ InvoiceID: "nolines", LineItems: [] }),
+  ], CURRUMBIN_ACCOUNTS)
+  assert.deepEqual(rows, [{ date: "2026-11-07", venue: "BEACH_HOUSE", exGst: 1000, invoices: 1 }])
+})
+
+test("Burleigh's event lines are Burleigh whatever they say, and an empty account name is not an event account", () => {
+  const accounts: XeroRevenueAccount[] = [{ Code: "200", Name: "Sales" }, { Code: "210", Name: "Function Room Hire" }, { Code: "220", Name: "" }]
+  assert.deepEqual([...eventAccountCodes(accounts)], ["210"])
+  const rows = eventSalesByDay("Tarte Bakery", [
+    sale({ LineItems: [{ AccountCode: "210", Description: "Tea Garden style high tea at Burleigh", LineAmount: 880, TaxAmount: 80 }, { AccountCode: "220", LineAmount: 500, TaxAmount: 0 }] }),
+  ], accounts)
+  assert.deepEqual(rows, [{ date: "2026-11-07", venue: "BURLEIGH", exGst: 800, invoices: 1 }])
+})

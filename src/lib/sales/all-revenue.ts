@@ -9,10 +9,13 @@
  * Pure. Used by the daily sales feed Tarte Shifts reads for its wage %, the
  * /labour/live tracker and the Friday digest.
  *
- * A day with no till row is left out while it can still report (today, or a
- * day not synced yet): it should stay missing, not read as a day of Uber or
- * events alone. A PAST day with no till row is a closed day, so its event
- * revenue (a private hire on a closed Monday) still counts, with tills 0.
+ * Today with no till row is left out: it can still report, so it should stay
+ * missing (the live tracker forecasts it), not read as a day of Uber or
+ * events alone. A PAST day with no till row is taken as a closed day, so its
+ * event revenue (a private hire on a closed Monday) still counts, with tills
+ * 0 and posMissing set. The Square sync rewrites yesterday every 30 minutes,
+ * so a past day only lacks a till row when the tills were shut, unless that
+ * sync is down; the next read after it recovers corrects the day.
  */
 import { uberSalesExGst } from "@/lib/uber/client"
 
