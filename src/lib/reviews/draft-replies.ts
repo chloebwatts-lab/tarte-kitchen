@@ -9,7 +9,8 @@
  *      positive reviews, fuller apologies + invite-back for negative.
  *   3. Stores the draft + a one-time token on the row.
  *   4. Emails Chloe with the reviews grouped by venue + sentiment, with
- *      one-click Approve / Skip links for each.
+ *      one-click Approve / Skip links for each, only when the batch has a
+ *      negative review (12 Nov 2026). Otherwise they wait on /reviews.
  *
  * When Chloe clicks Approve, /api/reviews/reply?token=xxx&action=approve
  * marks the row APPROVED and (if GBP is connected) posts the reply to
@@ -30,6 +31,7 @@ import { VENUE_SHORT_LABEL } from "@/lib/venues"
 import type { Venue } from "@/generated/prisma/enums"
 import { scrubReply, isUsableName, flagsComp } from "./scrub-reply"
 import { autoPostReply, qualifiesForAutoReply } from "./auto-reply"
+import { batchNeedsOwnerEmail } from "./negative"
 import { APP_URL, BRAND, FONT_BODY, button, callout, para, section, shell, type Tone } from "@/lib/email/brand"
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -387,10 +389,11 @@ export async function draftAndNotifyNewReviews(): Promise<number> {
 
   const ready = freshlyDrafted.filter((r) => !autoPostedIds.has(r.id))
   if (ready.length === 0 && autoPosted.length === 0) return 0
-  if (ready.length === 0) {
-    await sendAutoOnlyEmail(autoPosted)
-    return autoPosted.length
-  }
+  // Chloe, 12 Nov 2026: only vital emails; folded into the 17:00 Tarte today
+  // email. Email her only when a negative review is waiting. Positive-only
+  // batches and "posted for you, nothing to approve" send nothing: the drafts
+  // stay on /reviews and /api/internal/owner-headlines counts them.
+  if (!batchNeedsOwnerEmail(ready)) return ready.length + autoPosted.length
 
   const count = ready.length
   const negCount = ready.filter(r => r.rating <= 3).length
@@ -453,17 +456,6 @@ function autoPostedSection(items: AutoPostedReview[]): { html: string; text: str
     `\n\nPosted for you (5-star, no comment):\n` +
     items.map((r) => `- ${VENUE_SHORT_LABEL[r.venue] ?? r.venue}, ${r.authorName ?? "Anonymous"}: ${r.replyText}`).join("\n")
   return { html, text }
-}
-
-/** When everything this run was auto-posted, a short note rather than an approval email. */
-async function sendAutoOnlyEmail(items: AutoPostedReview[]): Promise<void> {
-  const { html, text } = autoPostedSection(items)
-  await sendHtmlEmail({
-    to: process.env.REVIEW_SUMMARY_RECIPIENT ?? "chloe@tarte.com.au",
-    subject: `[Tarte] ${items.length} five-star thank-you${items.length === 1 ? "" : "s"} posted for you, nothing to approve`,
-    html,
-    text,
-  })
 }
 
 function escapeHtml(s: string): string {
