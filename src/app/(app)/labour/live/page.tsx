@@ -184,8 +184,10 @@ export default async function LiveLabourPage() {
             shifts that haven&apos;t started yet.
           </li>
           <li>
-            Revenue <strong>to date</strong>: Lightspeed daily totals for Wed → yesterday +
-            today&apos;s API-side running total (synced every 30 min).
+            Revenue <strong>to date</strong>: all revenue ex GST. Till totals
+            (Square, Bopple included) for Wed → yesterday + today&apos;s running
+            total (synced every 30 min), plus Uber Eats and Xero event invoices
+            dated that day (synced hourly).
           </li>
           <li>
             Revenue <strong>projected EOW</strong>: + manager&apos;s sales forecast for

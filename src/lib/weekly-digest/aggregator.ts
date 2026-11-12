@@ -691,13 +691,15 @@ async function buildWastage(week: DigestWeek): Promise<WastageSection> {
 
 /**
  * POS revenue (Lightspeed / Square end-of-day, ex GST) plus Uber Eats sales
- * ex GST, per venue, for a date range. This is Louise's revenue basis when
+ * ex GST plus Xero event invoices ex GST, per venue, for a date range. This is Louise's revenue basis when
  * her report is not in yet: for w/e 13 Oct 2026 her Beach House revenue
  * equalled Square + Uber ex GST within 6 cents, Tea Garden to the cent and
  * Burleigh within $70.
  */
 async function posPlusUberRevenue(start: Date, end: Date): Promise<Map<Venue, number>> {
-  const [pos, uber] = await Promise.all([
+  // Plus Xero event invoices dated in the week (Chloe, 12 Nov 2026: the
+  // wage % counts all revenue, events included; DailyEventSales).
+  const [pos, uber, events] = await Promise.all([
     db.dailySalesSummary.findMany({
       where: { date: { gte: start, lte: end } },
       select: { venue: true, totalRevenueExGst: true },
@@ -706,10 +708,15 @@ async function posPlusUberRevenue(start: Date, end: Date): Promise<Map<Venue, nu
       where: { date: { gte: start, lte: end } },
       select: { venue: true, salesIncGst: true },
     }),
+    db.dailyEventSales.findMany({
+      where: { date: { gte: start, lte: end } },
+      select: { venue: true, exGst: true },
+    }),
   ])
   const out = new Map<Venue, number>()
   for (const r of pos) out.set(r.venue, (out.get(r.venue) ?? 0) + Number(r.totalRevenueExGst))
   for (const r of uber) out.set(r.venue, (out.get(r.venue) ?? 0) + uberSalesExGst(Number(r.salesIncGst)))
+  for (const r of events) out.set(r.venue, (out.get(r.venue) ?? 0) + Number(r.exGst))
   return out
 }
 
@@ -908,7 +915,7 @@ async function buildCogsFromInvoices(week: DigestWeek): Promise<CogsSection> {
         spend.CURRUMBIN,
         currumbinRev,
         targetFor(Venue.BEACH_HOUSE),
-        "Same basis. Revenue is POS plus Uber Eats, ex GST."
+        "Same basis. Revenue is POS plus Uber Eats plus Xero event invoices, ex GST."
       ),
     ],
   }

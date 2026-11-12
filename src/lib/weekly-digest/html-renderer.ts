@@ -293,7 +293,7 @@ function wagesSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative
           : `${fmtMoney(v.grossWages)} wages, no revenue on file for the week yet${draft}`
         : v.provisional
         ? v.overallPct != null
-          ? `Provisional ${fmtPct(v.overallPct, { decimals: 2 })} · ${fmtMoney(v.grossWages)} posted pay run incl super on ${fmtMoney(v.revenueExGst ?? 0)} POS + Uber Eats revenue`
+          ? `Provisional ${fmtPct(v.overallPct, { decimals: 2 })} · ${fmtMoney(v.grossWages)} posted pay run incl super on ${fmtMoney(v.revenueExGst ?? 0)} POS, Uber Eats and Xero event revenue`
           : `${fmtMoney(v.grossWages)} posted pay run incl super, no revenue on file for the week yet`
         : v.overallPct != null
           ? `Overall ${fmtPct(v.overallPct, { decimals: 2 })}${v.exAdminPct != null ? ` · ex admin ${fmtPct(v.exAdminPct, { decimals: 2 })}` : ""}${louise} · ${fmtMoney(v.grossWages)} wages on ${fmtMoney(v.revenueExGst ?? 0)} revenue`
@@ -319,10 +319,10 @@ function wagesSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative
     ${venueBlocks}${noteLines}${
       payweek
         ? `
-    <div style="padding:4px 28px 0;color:${C.inkMute};font-size:11px;font-style:italic;">From the Xero pay runs, gross pay plus super, the same figures as the Thursday venue cards: hourly staff at the venue that pays them in their Shifts home department, salaries placed by the days worked, Tea Garden hours carved out. Ex admin and leave also takes out the payslips' own leave, TOIL and backpay lines. Revenue is POS plus Uber Eats, ex GST.</div>`
+    <div style="padding:4px 28px 0;color:${C.inkMute};font-size:11px;font-style:italic;">From the Xero pay runs, gross pay plus super, the same figures as the Thursday venue cards: hourly staff at the venue that pays them in their Shifts home department, salaries placed by the days worked, Tea Garden hours carved out. Ex admin and leave also takes out the payslips' own leave, TOIL and backpay lines. Revenue is POS plus Uber Eats plus Xero event invoices, ex GST.</div>`
         : provisional
         ? `
-    <div style="padding:4px 28px 0;color:${C.inkMute};font-size:11px;font-style:italic;">Provisional: these are the posted Xero pay runs per company (Tarte Bakery pays Burleigh, Tarte Currumbin pays Beach House and Tea Garden) on POS plus Uber Eats revenue, before salaries are placed by the days worked, admin is split out and departments are coded.</div>`
+    <div style="padding:4px 28px 0;color:${C.inkMute};font-size:11px;font-style:italic;">Provisional: these are the posted Xero pay runs per company (Tarte Bakery pays Burleigh, Tarte Currumbin pays Beach House and Tea Garden) on POS, Uber Eats and Xero event revenue, before salaries are placed by the days worked, admin is split out and departments are coded.</div>`
         : `
     <div style="padding:4px 28px 0;color:${C.inkMute};font-size:11px;font-style:italic;">Beach House Pastry % is measured against Beach House revenue plus 50% of Tea Garden revenue, since that pastry team also bakes for Tea Garden.</div>`
     }${

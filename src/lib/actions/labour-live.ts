@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { currentTarteWeekRange, tarteWeekLabel, startOfTarteWeekUtc } from "@/lib/dates"
 import { SINGLE_VENUES, VENUE_LABEL } from "@/lib/venues"
 import { compareSales } from "@/lib/sales/compare"
+import { allRevenueByDay } from "@/lib/sales/all-revenue"
 import {
   bucketFor,
   bucketStatus,
@@ -34,7 +35,7 @@ export interface LiveVenueSnapshot {
   labourToDate: number
   /** Labour: full-week projection = actuals so far + rest-of-week roster. */
   labourProjected: number
-  /** Revenue: locked daily totals Wed → yesterday. */
+  /** Revenue: locked daily totals Wed → yesterday (tills + Uber + Xero events, ex GST). */
   revenueToDate: number
   /** Revenue: + today's running total + forecast for remaining days. */
   revenueProjected: number
@@ -93,7 +94,7 @@ export async function getLiveLabourSnapshot(
   historyStart.setUTCDate(historyStart.getUTCDate() - 28)
 
   // Pull everything for the week in a few targeted queries.
-  const [labourShifts, salesSummaries, forecasts, history, connection] =
+  const [labourShifts, posRows, uberRows, eventRows, forecasts, connection] =
     await Promise.all([
       db.labourShift.findMany({
         where: {
@@ -108,17 +109,23 @@ export async function getLiveLabourSnapshot(
           shiftEnd: true,
         },
       }),
+      // This week and the 4 weeks of history in one go, tills + Uber +
+      // Xero events (all revenue, Chloe 12 Nov 2026), split below.
       db.dailySalesSummary.findMany({
-        where: { date: { gte: weekStart, lt: weekEnd } },
+        where: { date: { gte: historyStart, lt: weekEnd } },
         select: { venue: true, date: true, totalRevenueExGst: true },
+      }),
+      db.dailyUberSales.findMany({
+        where: { date: { gte: historyStart, lt: weekEnd } },
+        select: { venue: true, date: true, salesIncGst: true },
+      }),
+      db.dailyEventSales.findMany({
+        where: { date: { gte: historyStart, lt: weekEnd } },
+        select: { venue: true, date: true, exGst: true },
       }),
       db.managerSalesForecast.findMany({
         where: { weekStartWed: weekStart },
         select: { venue: true, amount: true },
-      }),
-      db.dailySalesSummary.findMany({
-        where: { date: { gte: historyStart, lt: weekStart } },
-        select: { venue: true, date: true, totalRevenueExGst: true },
       }),
       db.deputyConnection.findFirst({
         select: { superRate: true, onCostUpliftRate: true },
@@ -133,6 +140,19 @@ export async function getLiveLabourSnapshot(
     1 +
     Number(connection?.superRate ?? 0.12) +
     Number(connection?.onCostUpliftRate ?? 0)
+
+  // All revenue per venue-day: tills (Bopple inside Square) + Uber Eats ex
+  // GST + Xero event invoices. A day still to report its tills stays
+  // missing so the forecast covers it (allRevenueByDay).
+  const iso = (d: Date) => d.toISOString().split("T")[0]
+  const allRows = allRevenueByDay(
+    posRows.map((r) => ({ date: iso(r.date), venue: r.venue, exGst: Number(r.totalRevenueExGst) })),
+    uberRows.map((r) => ({ date: iso(r.date), venue: r.venue, salesIncGst: Number(r.salesIncGst) })),
+    eventRows.map((r) => ({ date: iso(r.date), venue: r.venue, exGst: Number(r.exGst) })),
+    todayAest,
+  ).map((d) => ({ venue: d.venue as Venue, date: new Date(`${d.date}T00:00:00Z`), totalRevenueExGst: d.totalExGst }))
+  const salesSummaries = allRows.filter((r) => r.date >= weekStart)
+  const history = allRows.filter((r) => r.date < weekStart)
 
   // Daily revenue map: key = "<venue>|<yyyy-mm-dd>" → $
   const revByDay = new Map<string, number>()

@@ -3672,3 +3672,24 @@ model DailyUberSales {
   @@unique([date, venue])
   @@index([venue, date])
 }
+
+/// Event and function revenue from Xero, per venue and day, ex GST (Chloe,
+/// 12 Nov 2026: the wage % counts all revenue, "uber bopple and events from
+/// Xero"). Event invoices are dated the EVENT day (Matt's rule), so the
+/// invoice date is the trading day. Only lines on the org's event revenue
+/// account count, which keeps Amaka's daily Square invoices and the Uber
+/// remittances out (they are already in the POS and Uber figures). Written by
+/// /api/cron/sync-event-sales through the Inbox app's read-only Xero door.
+model DailyEventSales {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date
+  venue     Venue
+  exGst     Decimal  @db.Decimal(12, 2)
+  /// Invoices with an event line that day.
+  invoices  Int      @default(0)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@unique([date, venue])
+  @@index([venue, date])
+}
