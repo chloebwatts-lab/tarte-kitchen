@@ -1426,6 +1426,22 @@ model ChecklistRunPhoto {
   @@index([runId])
 }
 
+/// Staff photos for the "Thank you :)" page that shows when an FOH daily
+/// clean is fully completed (Oliver, 12 Nov 2026). Uploaded from the GM desk
+/// (/kitchen/gm/photos). One is picked at random per finish. A venue with no
+/// photos shows no finishing page. Removing a photo archives it.
+model ThankYouPhoto {
+  id         String   @id @default(cuid())
+  venue      Venue    @default(BURLEIGH)
+  url        String
+  publicId   String
+  uploadedBy String?
+  archived   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([venue, archived])
+}
+
 model ChecklistRunItem {
   id                 String                @id @default(cuid())
   runId              String

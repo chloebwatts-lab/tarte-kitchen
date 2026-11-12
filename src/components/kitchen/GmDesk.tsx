@@ -101,6 +101,8 @@ export function GmDesk({ board }: { board: GmBoard }) {
       {tab === "today" ? <Today board={board} run={run} busy={busy} nextTask={nextTask} /> : null}
       {tab === "week" ? <Week board={board} run={run} busy={busy} /> : null}
       {tab === "tasks" ? <Tasks board={board} run={run} busy={busy} /> : null}
+
+      <KitchenButton href="/kitchen/gm/photos" variant="secondary" size="lg" className="w-full">Thank-you photos for the FOH checklists</KitchenButton>
     </div>
   )
 }

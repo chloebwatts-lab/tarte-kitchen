@@ -38,6 +38,8 @@ export interface ChecklistRunDetail {
   shift: ChecklistShift
   status: ChecklistRunStatus
   isFoodSafety: boolean
+  /** DAILY / WEEKLY / MONTHLY / ON_DEMAND, from the template. */
+  cadence: string
   items: {
     id: string
     label: string
@@ -293,6 +295,7 @@ export async function getChecklistRun(id: string): Promise<ChecklistRunDetail | 
     shift: run.shift,
     status: run.status,
     isFoodSafety: run.template.isFoodSafety,
+    cadence: run.template.cadence,
     items: run.items.map((i) => ({
       id: i.id,
       label: i.templateItem.label,

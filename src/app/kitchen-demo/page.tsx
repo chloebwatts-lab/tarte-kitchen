@@ -46,6 +46,7 @@ async function DemoContent({
             shift: "CLOSE",
             status: "IN_PROGRESS",
             isFoodSafety: true,
+            cadence: "DAILY",
             items: [
               {
                 id: "i1",

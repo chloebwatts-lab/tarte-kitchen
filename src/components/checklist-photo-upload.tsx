@@ -30,7 +30,7 @@ const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
 const MAX_DIMENSION = 1600
 const JPEG_QUALITY = 0.8
 
-async function compressImage(file: File): Promise<Blob> {
+export async function compressImage(file: File): Promise<Blob> {
   try {
     const url = URL.createObjectURL(file)
     try {

@@ -20,6 +20,7 @@ import { ChecklistPhotoUpload } from "@/components/checklist-photo-upload"
 import { KitchenChecklistRow } from "@/components/kitchen/KitchenChecklistRow"
 import { KitchenSignOffRow } from "@/components/kitchen/KitchenSignOffRow"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
+import { KitchenThankYou } from "@/components/kitchen/KitchenThankYou"
 
 const MIN_CLEANING_PHOTOS = 3
 const STAFF_NAME_KEY = "tk-staff-name"
@@ -29,8 +30,11 @@ type Filter = "all" | "todo" | "done"
 
 export function KitchenRunView({
   initial,
+  thankYouPhoto = null,
 }: {
   initial: ChecklistRunDetail
+  /** Staff photo for the FOH "Thank you :)" finishing page, null = no page. */
+  thankYouPhoto?: string | null
 }) {
   const [items, setItems] = useState(initial.items)
   const [by, setBy] = useState<string>("")
@@ -44,6 +48,7 @@ export function KitchenRunView({
   const [isPending, startTransition] = useTransition()
   const [isSubmitting, startSubmitTransition] = useTransition()
   const [submitted, setSubmitted] = useState(initial.status === "COMPLETED")
+  const [showThanks, setShowThanks] = useState(false)
 
   const [photoCount, setPhotoCount] = useState(initial.photos.length)
   const handlePhotosChange = useCallback((n: number) => setPhotoCount(n), [])
@@ -222,9 +227,12 @@ export function KitchenRunView({
   }
 
   function handleForceSubmit() {
+    // Only a fully finished list (every line + the photos) gets the thank-you.
+    const finishedInFull = canComplete
     startSubmitTransition(async () => {
       await forceCompleteRun(initial.id)
       setSubmitted(true)
+      if (finishedInFull && thankYouPhoto) setShowThanks(true)
     })
   }
 
@@ -504,6 +512,21 @@ export function KitchenRunView({
           </div>
         </div>
       </div>
+
+      {/* FOH "Thank you :)" page. The photo is fetched as soon as the list
+          is ready to submit so it is there the moment Complete is tapped. */}
+      {thankYouPhoto && canComplete && !showThanks && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={thankYouPhoto} alt="" aria-hidden className="hidden" />
+      )}
+      {thankYouPhoto && showThanks && (
+        <KitchenThankYou
+          photoUrl={thankYouPhoto}
+          name={by}
+          backHref={listHref}
+          onClose={() => setShowThanks(false)}
+        />
+      )}
 
       {/* After submit: return link */}
       {submitted && (
