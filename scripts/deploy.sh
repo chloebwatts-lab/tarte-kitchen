@@ -55,6 +55,23 @@ if [ -z "${DEPLOY_FORCE:-}" ] \
   && docker image inspect "$app_image" >/dev/null 2>&1; then
   echo "▶ ${head_sha:0:7} is already built and deployed, skipping the rebuild..."
 else
+  # Free disk before building. On 2026-11-12 the 17:28 deploy died
+  # exporting the migrate image with "no space left on device" and the site
+  # stayed on the previous build: every deploy leaves the old app and
+  # migrate images untagged, and the build cache only grows. Untagged
+  # images and old build cache are all this removes (never containers,
+  # volumes or tagged images). Under 8 GB free, all build cache goes.
+  echo "▶ Freeing disk before the build..."
+  df -h / | tail -1 || true
+  docker image prune -f >/dev/null 2>&1 || true
+  docker builder prune -f --filter until=72h >/dev/null 2>&1 || true
+  avail_kb="$(df -Pk / | awk 'NR==2 {print $4}')"
+  if [ -n "$avail_kb" ] && [ "$avail_kb" -lt 8388608 ]; then
+    echo "  under 8 GB free, clearing all build cache..."
+    docker builder prune -af >/dev/null 2>&1 || true
+  fi
+  df -h / | tail -1 || true
+
   echo "▶ Rebuilding app + migrate images..."
   docker compose build app
   docker compose --profile tools build migrate
