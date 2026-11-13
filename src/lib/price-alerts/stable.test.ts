@@ -351,3 +351,140 @@ test("uncoded lines with one description but different billed units are differen
   const keys = productKeys(lines)
   assert.notEqual(keys[0], keys[2])
 })
+
+// Test-guard, second pass 13 Nov 2026: nasty sequences for the run-based seriesMove.
+test("two prices alternating one delivery at a time never fold into a move", () => {
+  // e.g. both venues' invoices landing with no venue, one series, two prices
+  const alt = (prices: number[], dates: string[]) =>
+    findStableMove(prices.map((price, i) => line({ date: dates[i], price, venue: null })), NOW)
+  assert.equal(
+    alt([10, 11, 10, 11, 10, 11], ["2026-10-20", "2026-10-23", "2026-10-27", "2026-10-30", "2026-11-03", "2026-11-06"]),
+    null
+  )
+  assert.equal(alt([11, 10, 11, 10], ["2026-10-20", "2026-10-27", "2026-11-03", "2026-11-10"]), null)
+  // after months at 10, a straggler pattern still waits for the newest price to land twice
+  const lines = [
+    line({ date: "2026-09-01", price: 10 }),
+    line({ date: "2026-10-01", price: 10 }),
+    line({ date: "2026-10-20", price: 11 }),
+    line({ date: "2026-10-27", price: 10 }),
+    line({ date: "2026-11-03", price: 11 }),
+  ]
+  assert.equal(findStableMove(lines, NOW), null)
+  const m = findStableMove([...lines, line({ date: "2026-11-10", price: 11 })], NOW)
+  assert.ok(m)
+  assert.equal(m.prior, 10)
+  assert.equal(m.changedAt.toISOString().slice(0, 10), "2026-10-20")
+})
+
+test("alternating runs of 2+ deliveries each are real price changes", () => {
+  const dates = ["2026-10-17", "2026-10-18", "2026-10-22", "2026-10-23", "2026-10-29", "2026-10-30", "2026-11-05", "2026-11-06"]
+  const prices = [10, 10, 11, 11, 10, 10, 11, 11]
+  const m = findStableMove(prices.map((price, i) => line({ date: dates[i], price })), NOW)
+  assert.ok(m)
+  assert.equal(m.prior, 10)
+  assert.equal(m.changedAt.toISOString().slice(0, 10), "2026-11-05")
+})
+
+test("blips at the very start of the series", () => {
+  // a single early delivery at today's price, then an established old price
+  const a = findStableMove(
+    [
+      line({ date: "2026-10-01", price: 11 }),
+      line({ date: "2026-10-08", price: 10 }),
+      line({ date: "2026-11-03", price: 11 }),
+      line({ date: "2026-11-10", price: 11 }),
+    ],
+    NOW
+  )
+  assert.equal(a, null, "11, 10 (once), 11, 11: the 10 is the blip, nothing moved")
+  // a single early delivery at some third price is just older history
+  const b = findStableMove(
+    [
+      line({ date: "2026-09-01", price: 9 }),
+      line({ date: "2026-10-01", price: 10 }),
+      line({ date: "2026-10-08", price: 10 }),
+      line({ date: "2026-11-03", price: 11 }),
+      line({ date: "2026-11-10", price: 11 }),
+    ],
+    NOW
+  )
+  assert.ok(b)
+  assert.equal(b.prior, 10)
+})
+
+test("two separate one-delivery blips inside the new run both fold in", () => {
+  const m = findStableMove(
+    [
+      line({ date: "2026-09-01", price: 10 }),
+      line({ date: "2026-09-08", price: 10 }),
+      line({ date: "2026-10-20", price: 11 }),
+      line({ date: "2026-10-24", price: 10 }),
+      line({ date: "2026-10-27", price: 11 }),
+      line({ date: "2026-11-01", price: 10 }),
+      line({ date: "2026-11-03", price: 11 }),
+      line({ date: "2026-11-10", price: 11 }),
+    ],
+    NOW
+  )
+  assert.ok(m)
+  assert.equal(m.prior, 10)
+  assert.equal(m.changePct, 10)
+  assert.equal(m.changedAt.toISOString().slice(0, 10), "2026-10-20")
+})
+
+test("a blip on the same invoice date as a current-price line", () => {
+  // old-price line and new-price line on one date (two invoices that day)
+  const base = [line({ date: "2026-10-01", price: 10 }), line({ date: "2026-10-08", price: 10 })]
+  const sameDay = (first: number, second: number, extra: StableLine[] = []) =>
+    findStableMove(
+      [
+        ...base,
+        line({ date: "2026-11-03", price: first }),
+        line({ date: "2026-11-03", price: second }),
+        line({ date: "2026-11-10", price: 11 }),
+        ...extra,
+      ],
+      NOW
+    )
+  // old price first that day: the new price runs 3 Nov to 10 Nov, a move
+  const a = sameDay(10, 11)
+  assert.ok(a)
+  assert.equal(a.prior, 10)
+  assert.equal(a.changedAt.toISOString().slice(0, 10), "2026-11-03")
+  // old price last that day: the newest run is one delivery, so it waits
+  // for one more delivery at 11 (conservative, never a fake move)
+  assert.equal(sameDay(11, 10), null)
+  const b = sameDay(11, 10, [line({ date: "2026-11-12", price: 11 })])
+  assert.ok(b)
+  assert.equal(b.prior, 10)
+  assert.equal(b.current, 11)
+  assert.equal(b.changedAt.toISOString().slice(0, 10), "2026-11-03")
+  // every line on one day: one delivery, not confirmed
+  assert.equal(
+    findStableMove(
+      [
+        ...base,
+        line({ date: "2026-11-03", price: 11 }),
+        line({ date: "2026-11-03", price: 10 }),
+        line({ date: "2026-11-03", price: 11 }),
+      ],
+      NOW
+    ),
+    null
+  )
+})
+
+test("the established-price fallback never flips a rise into a drop", () => {
+  const lines = [
+    line({ date: "2026-08-04", price: 12 }),
+    line({ date: "2026-08-11", price: 12 }),
+    line({ date: "2026-09-15", price: 10 }), // one delivery, the last price paid
+    line({ date: "2026-10-27", price: 11 }),
+    line({ date: "2026-11-03", price: 11 }),
+  ]
+  const m = findStableMove(lines, NOW)
+  assert.ok(m)
+  assert.equal(m.prior, 10)
+  assert.equal(m.changePct, 10)
+})

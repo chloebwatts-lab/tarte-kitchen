@@ -123,6 +123,11 @@ export function seriesMove(
   }
   for (const r of runs) r.days = days(r.first, r.last, r.price)
 
+  // The newest run must stand on its own 2 deliveries before any folding:
+  // otherwise two prices alternating one delivery at a time (two venues on
+  // one unlabelled series, two packs on one key) fold into a fake move.
+  if (runs[0].days < STABLE_CONFIRM_DELIVERIES) return null
+
   // A one-delivery run between two runs of the current price is a blip
   // (an invoice still at the old price, a mis-key): fold it into the
   // current run rather than letting it cancel the move.
@@ -139,10 +144,22 @@ export function seriesMove(
   const changedAt = series[first].invoiceDate
   if (changedAt.getTime() < windowStart) return null
 
-  // Was: the run just before. A one-delivery run there (a promo just
-  // before a rise) gives way to the established price behind it.
+  // Was: the last price paid, the run just before. Exception: a
+  // one-delivery run there (a promo just before a rise) gives way to the
+  // established price behind it, but only when that price sits between
+  // the promo and today's price. That can shrink an overstated move; it
+  // can never flip a rise into a drop (12, 12, 10, 11, 11 is 10 to 11).
   let prior = runs[k]
-  if (prior.days < 2 && k + 1 < runs.length && runs[k + 1].days >= 2) prior = runs[k + 1]
+  const established = k + 1 < runs.length ? runs[k + 1] : null
+  if (
+    prior.days < 2 &&
+    established &&
+    established.days >= 2 &&
+    Math.min(prior.price, current) < established.price &&
+    established.price < Math.max(prior.price, current)
+  ) {
+    prior = established
+  }
   if (samePrice(prior.price, current)) return null
 
   return { current, prior: prior.price, changedAt }
