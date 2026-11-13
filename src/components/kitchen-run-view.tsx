@@ -49,6 +49,10 @@ export function KitchenRunView({
   const [isSubmitting, startSubmitTransition] = useTransition()
   const [submitted, setSubmitted] = useState(initial.status === "COMPLETED")
   const [showThanks, setShowThanks] = useState(false)
+  // Every tick re-renders the server page and re-picks a random photo. Keep
+  // the first one so the photo loaded early is the one shown at the end.
+  const [firstThankYouPhoto] = useState(thankYouPhoto)
+  const thanksPhoto = firstThankYouPhoto ?? thankYouPhoto
 
   const [photoCount, setPhotoCount] = useState(initial.photos.length)
   const handlePhotosChange = useCallback((n: number) => setPhotoCount(n), [])
@@ -232,7 +236,7 @@ export function KitchenRunView({
     startSubmitTransition(async () => {
       await forceCompleteRun(initial.id)
       setSubmitted(true)
-      if (finishedInFull && thankYouPhoto) setShowThanks(true)
+      if (finishedInFull && thanksPhoto) setShowThanks(true)
     })
   }
 
@@ -515,13 +519,13 @@ export function KitchenRunView({
 
       {/* FOH "Thank you :)" page. The photo is fetched as soon as the list
           is ready to submit so it is there the moment Complete is tapped. */}
-      {thankYouPhoto && canComplete && !showThanks && (
+      {thanksPhoto && canComplete && !showThanks && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={thankYouPhoto} alt="" aria-hidden className="hidden" />
+        <img src={thanksPhoto} alt="" aria-hidden className="hidden" />
       )}
-      {thankYouPhoto && showThanks && (
+      {thanksPhoto && showThanks && (
         <KitchenThankYou
-          photoUrl={thankYouPhoto}
+          photoUrl={thanksPhoto}
           name={by}
           backHref={listHref}
           onClose={() => setShowThanks(false)}

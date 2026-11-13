@@ -1,20 +1,22 @@
 import { db } from "@/lib/db"
 import type { Venue } from "@/generated/prisma/client"
-import { pickOne } from "@/lib/checklists/thank-you"
+import { photoPool, pickOne, thankYouDisplayUrl } from "@/lib/checklists/thank-you"
 
 /**
  * Server read for the checklist run page: one random staff photo for the
- * venue's "Thank you :)" page, or null when the venue has none yet (then the
- * finishing page does not show). Never throws: a photo is a nice-to-have and
- * must not break a checklist.
+ * "Thank you :)" page. The venue's own photos first, else any venue's; null
+ * only when there are no photos at all (then the finishing page does not
+ * show). Never throws: a photo is a nice-to-have and must not break a
+ * checklist.
  */
 export async function pickThankYouPhotoUrl(venue: Venue): Promise<string | null> {
   try {
     const rows = await db.thankYouPhoto.findMany({
-      where: { venue, archived: false },
-      select: { url: true },
+      where: { archived: false },
+      select: { url: true, venue: true },
     })
-    return pickOne(rows)?.url ?? null
+    const url = pickOne(photoPool(rows, venue))?.url
+    return url ? thankYouDisplayUrl(url) : null
   } catch {
     return null
   }

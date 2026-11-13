@@ -31,6 +31,30 @@ export function pickOne<T>(pool: readonly T[], rand: number = Math.random()): T 
   return pool[i]
 }
 
+/**
+ * The photos a venue's thank-you page picks from: its own when it has any,
+ * otherwise every venue's (Chloe 13 Nov 2026: one shared pool, so Currumbin
+ * and Tea Garden lists say thank you too before they have photos of their own).
+ */
+export function photoPool<T extends { venue: string }>(all: readonly T[], venue: string): T[] {
+  const own = all.filter((p) => p.venue === venue)
+  return own.length > 0 ? own : [...all]
+}
+
+/**
+ * A lighter copy of the photo for the iPad: Cloudinary resizes it to at most
+ * 1400px tall and picks the best format, so it loads fast on the shop wifi.
+ * Anything that is not a plain Cloudinary upload URL is returned unchanged.
+ */
+export function thankYouDisplayUrl(url: string): string {
+  const marker = "/image/upload/"
+  const i = url.indexOf(marker)
+  if (i < 0 || !url.startsWith("https://res.cloudinary.com/")) return url
+  const rest = url.slice(i + marker.length)
+  if (rest.startsWith("f_auto")) return url
+  return `${url.slice(0, i + marker.length)}f_auto,q_auto,c_limit,h_1400/${rest}`
+}
+
 /** Only Cloudinary image URLs from our own account go in the pool. */
 export function isOurCloudinaryUrl(url: string, cloudName: string | undefined): boolean {
   if (!cloudName) return false

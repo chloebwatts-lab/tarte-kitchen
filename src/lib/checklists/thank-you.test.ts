@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { isFohDailyClean, isOurCloudinaryUrl, pickOne } from "./thank-you"
+import { isFohDailyClean, isOurCloudinaryUrl, photoPool, pickOne, thankYouDisplayUrl } from "./thank-you"
 
 const t = (area: string | null, name: string, cadence = "DAILY", isFoodSafety = false) => ({ area, name, cadence, isFoodSafety })
 
@@ -84,4 +84,37 @@ test("Cloudinary guard rejects lookalike hosts, other accounts and non-image upl
   assert.equal(isOurCloudinaryUrl("https://res.cloudinary.com/tarte/image/upload/x.jpg", ""), false)
   // Real secure_url shape from the upload preset, folder included.
   assert.equal(isOurCloudinaryUrl("https://res.cloudinary.com/tarte/image/upload/v1731380000/tarte-kitchen/thank-you/abc123.jpg", cloud), true)
+})
+
+test("Chloe 13 Nov: FOH Daily Tasks and every Barista Daily Clean get the thank-you, weekly barista does not", () => {
+  assert.equal(isFohDailyClean(t("FOH", "FOH — Daily Tasks")), true)
+  assert.equal(isFohDailyClean(t("Barista", "Barista — Daily Clean")), true)
+  assert.equal(isFohDailyClean(t("Barista", "Barista — Weekly Deep Clean", "WEEKLY")), false)
+})
+
+test("photoPool: a venue's own photos first, otherwise every venue's", () => {
+  const all = [
+    { venue: "BURLEIGH", url: "b1" },
+    { venue: "BURLEIGH", url: "b2" },
+    { venue: "TEA_GARDEN", url: "t1" },
+  ]
+  assert.deepEqual(photoPool(all, "BURLEIGH").map((p) => p.url), ["b1", "b2"])
+  assert.deepEqual(photoPool(all, "TEA_GARDEN").map((p) => p.url), ["t1"])
+  // Currumbin has none of its own yet: it borrows the whole pool.
+  assert.deepEqual(photoPool(all, "BEACH_HOUSE").map((p) => p.url), ["b1", "b2", "t1"])
+  assert.deepEqual(photoPool([], "BURLEIGH"), [])
+  // The caller's list is never changed.
+  const pool = photoPool(all, "BEACH_HOUSE")
+  pool.pop()
+  assert.equal(all.length, 3)
+})
+
+test("thankYouDisplayUrl asks Cloudinary for a lighter copy, once, and leaves other URLs alone", () => {
+  const raw = "https://res.cloudinary.com/tarte/image/upload/v1794530594/tarte-kitchen/thank-you/abc.jpg"
+  const small = "https://res.cloudinary.com/tarte/image/upload/f_auto,q_auto,c_limit,h_1400/v1794530594/tarte-kitchen/thank-you/abc.jpg"
+  assert.equal(thankYouDisplayUrl(raw), small)
+  assert.equal(thankYouDisplayUrl(small), small)
+  assert.equal(thankYouDisplayUrl("https://example.com/image/upload/x.jpg"), "https://example.com/image/upload/x.jpg")
+  assert.equal(thankYouDisplayUrl("https://res.cloudinary.com/tarte/video/upload/x.mp4"), "https://res.cloudinary.com/tarte/video/upload/x.mp4")
+  assert.equal(thankYouDisplayUrl(""), "")
 })

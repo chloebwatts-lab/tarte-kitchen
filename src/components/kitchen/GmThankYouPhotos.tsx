@@ -77,7 +77,7 @@ export function GmThankYouPhotos({
           <div>
             <div className="text-[17px] font-bold text-[var(--tk-ink)]">{venueLabel}: {photos.length} photo{photos.length === 1 ? "" : "s"}</div>
             <div className="mt-0.5 text-[14px] text-[var(--tk-ink-soft)]">
-              {photos.length === 0 ? "No photos yet, so no thank-you page shows here yet." : "Live now on the FOH daily checklists."}
+              {photos.length === 0 ? "No photos of its own yet, so it uses the other venues' photos." : "Live now on the FOH daily checklists."}
             </div>
           </div>
           <input ref={inputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
