@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { findStableMove, productKeys, normaliseDescription, type StableLine } from "./stable"
+import { findStableMove, productKeys, normaliseDescription, settledPrice, type StableLine } from "./stable"
 
 const NOW = new Date("2026-11-13T00:00:00Z")
 const d = (iso: string) => new Date(`${iso}T00:00:00Z`)
@@ -487,4 +487,56 @@ test("the established-price fallback never flips a rise into a drop", () => {
   assert.ok(m)
   assert.equal(m.prior, 10)
   assert.equal(m.changePct, 10)
+})
+
+// settledPrice: a price on 2 of the last 3 delivery days (test-guard, 13 Nov 2026)
+
+test("settledPrice: two lines on one day are one delivery, never a confirmation", () => {
+  // Yarde Farm pats: $8.25 then $8.50, then two lines at $9.25 on one invoice
+  const s = [
+    line({ date: "2026-10-27", price: 0.0165 }),
+    line({ date: "2026-11-03", price: 0.017 }),
+    line({ date: "2026-11-10", price: 0.0185 }),
+    line({ date: "2026-11-10", price: 0.0185 }),
+  ]
+  assert.equal(settledPrice(s), null)
+})
+
+test("settledPrice: same day at two prices, the one also on another recent day is the settled one", () => {
+  const s = [
+    line({ date: "2026-10-27", price: 0.02 }),
+    line({ date: "2026-11-03", price: 0.0165 }),
+    line({ date: "2026-11-10", price: 0.0165 }),
+    line({ date: "2026-11-10", price: 0.0185 }), // one-off line beside the usual one
+  ]
+  assert.equal(settledPrice(s)?.price, 0.0165)
+})
+
+test("settledPrice: fewer than 3 delivery days", () => {
+  assert.equal(settledPrice([]), null)
+  assert.equal(settledPrice([line({ date: "2026-11-10", price: 0.0165 })]), null)
+  assert.equal(settledPrice([line({ date: "2026-11-03", price: 0.0165 }), line({ date: "2026-11-10", price: 0.0165 })])?.price, 0.0165)
+  assert.equal(settledPrice([line({ date: "2026-11-03", price: 0.0165 }), line({ date: "2026-11-10", price: 0.0185 })]), null, "2 days, 2 prices: nothing settled")
+})
+
+test("settledPrice: a run older than the last 3 delivery days never counts", () => {
+  const s = [
+    line({ date: "2026-09-01", price: 0.0165 }),
+    line({ date: "2026-09-08", price: 0.0165 }),
+    line({ date: "2026-11-03", price: 0.0176 }),
+    line({ date: "2026-11-05", price: 0.0185 }),
+    line({ date: "2026-11-10", price: 0.019 }),
+  ]
+  assert.equal(settledPrice(s), null)
+})
+
+test("settledPrice: returns the newest line at the settled price, rounding counts as the same price", () => {
+  const s = [
+    line({ date: "2026-11-03", price: 0.01756, productCode: "first" }),
+    line({ date: "2026-11-06", price: 0.0185 }),
+    line({ date: "2026-11-10", price: 0.01757, productCode: "newest" }), // 0.06% apart: same price
+  ]
+  const r = settledPrice(s)
+  assert.equal(r?.line.productCode, "newest")
+  assert.equal(r?.price, 0.01757)
 })

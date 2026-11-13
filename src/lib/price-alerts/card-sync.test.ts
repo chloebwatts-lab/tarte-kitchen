@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { matchQuote, planCardSync, quoteBasisPrice, type CardIngredient, type QuoteRow, type SyncLine } from "./card-sync"
+import { matchQuote, planCardSync, produceMedian, quoteBasisPrice, type CardIngredient, type QuoteRow, type SyncLine } from "./card-sync"
 
 const NOW = new Date("2026-11-13T00:00:00Z")
 const d = (iso: string) => new Date(`${iso}T00:00:00Z`)
@@ -353,4 +353,30 @@ test("quoteBasisPrice: wine tax on the line total is not an overcharge; a discou
   assert.equal(quoteBasisPrice(11.52, 89.16 / 6), 11.52)
   assert.equal(quoteBasisPrice(10, 9), 9)
   assert.equal(quoteBasisPrice(10, null), 10)
+})
+
+// produceMedian edges (test-guard, 13 Nov 2026)
+
+const avoLine = (date: string, price: number) =>
+  line({ supplierName: "The Provedores", description: "AVOCADO HASS LGE", unit: "EA", date, price, billedPrice: price, lineTotal: price * 40 })
+
+test("produceMedian: an even count averages the middle two, one wild week does not drag it", () => {
+  const r = produceMedian([avoLine("2026-10-20", 2.0), avoLine("2026-10-27", 2.2), avoLine("2026-11-03", 2.4), avoLine("2026-11-10", 4.0)], NOW)
+  assert.ok(r && Math.abs(r.price - 2.3) < 1e-9, String(r?.price))
+  assert.equal(r?.line.invoiceDate.toISOString().slice(0, 10), "2026-11-10", "returns the newest delivery")
+})
+
+test("produceMedian: only the last 28 days count, and a future-dated line never does", () => {
+  // 15 Oct is 29 days before 13 Nov: out. 16 Oct is exactly 28: in.
+  const out = produceMedian([avoLine("2026-10-15", 9), avoLine("2026-10-27", 2.6), avoLine("2026-11-03", 2.2), avoLine("2026-11-10", 2.4)], NOW)
+  assert.equal(out?.price, 2.4)
+  const edge = produceMedian([avoLine("2026-10-16", 9), avoLine("2026-10-27", 2.6), avoLine("2026-11-03", 2.2)], NOW)
+  assert.equal(edge?.price, 2.6)
+  const future = produceMedian([avoLine("2026-10-27", 2.6), avoLine("2026-11-03", 2.2), avoLine("2026-12-10", 50)], NOW)
+  assert.equal(future, null, "a mis-dated December invoice is not the third delivery day")
+})
+
+test("produceMedian: two lines on one day are one delivery day (the later line)", () => {
+  assert.equal(produceMedian([avoLine("2026-11-03", 2.2), avoLine("2026-11-10", 2.4), avoLine("2026-11-10", 2.5)], NOW), null)
+  assert.equal(produceMedian([avoLine("2026-10-27", 2.6), avoLine("2026-11-03", 2.2), avoLine("2026-11-10", 9), avoLine("2026-11-10", 2.4)], NOW)?.price, 2.4)
 })
