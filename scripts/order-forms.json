@@ -736,10 +736,11 @@
      "category": "Oils",
      "name": "Oil Grapeseed (Chefchoice)",
      "packSize": "1 L",
-     "packPrice": 11.5,
-     "unitPrice": 11.5,
+     "packPrice": 14.28,
+     "unitPrice": 14.28,
      "unit": "L",
-     "active": true
+     "active": true,
+     "notes": "13 Nov 2026: was $11.50 with no invoice or quote behind it; invoiced $15.08 Jul, $14.28 Nov."
     },
     {
      "category": "Oils",
