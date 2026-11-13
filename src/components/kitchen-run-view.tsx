@@ -519,7 +519,7 @@ export function KitchenRunView({
 
       {/* FOH "Thank you :)" page. The photo is fetched as soon as the list
           is ready to submit so it is there the moment Complete is tapped. */}
-      {thanksPhoto && canComplete && !showThanks && (
+      {thanksPhoto && canComplete && !submitted && !showThanks && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={thanksPhoto} alt="" aria-hidden className="hidden" />
       )}
