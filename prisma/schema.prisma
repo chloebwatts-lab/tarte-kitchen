@@ -2104,13 +2104,14 @@ model PriceAlert {
   canonicalName       String
   stream              PriceAlertStream
   /// Current invoice-derived price (per currentUnit).
-  currentPrice        Decimal             @db.Decimal(12, 4)
+  currentPrice        Decimal             @db.Decimal(14, 8)
   currentUnit         String
-  /// Last known accepted price (per same unit). For PRODUCE this is the
-  /// trailing-median target; for STABLE this is Ingredient.purchasePrice.
-  priorPrice          Decimal             @db.Decimal(12, 4)
+  /// The price before the move (per same unit). For PRODUCE this is the
+  /// trailing-median target; for STABLE it is what the same supplier charged
+  /// for the same product just before the change (src/lib/price-alerts/stable.ts).
+  priorPrice          Decimal             @db.Decimal(14, 8)
   /// PRODUCE only — 4-week trailing median used as the comparison floor.
-  priorPeriodMedian   Decimal?            @db.Decimal(12, 4)
+  priorPeriodMedian   Decimal?            @db.Decimal(14, 8)
   changePct           Decimal             @db.Decimal(8, 2)
   /// Estimated weekly $ impact — usage rate × delta. Used for digest sort.
   weeklyImpactDollars Decimal?            @db.Decimal(10, 2)

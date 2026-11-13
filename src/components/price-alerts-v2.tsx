@@ -220,8 +220,10 @@ export function PriceAlertsV2({ alerts }: Props) {
       )}
       {activeTab === "STABLE" && (
         <p className="text-xs text-muted-foreground">
-          Stable alerts fire on any ±5% movement vs Ingredient.purchasePrice.
-          Bidfood rebate drops surface here too, not just price rises.
+          Stable alerts fire when a supplier changes a product&apos;s price by 5% or
+          more vs what they charged before, confirmed on 2 deliveries in the
+          last 4 weeks. Drops surface too. Accept writes the new price to the
+          ingredient so recipe costs follow.
         </p>
       )}
     </div>

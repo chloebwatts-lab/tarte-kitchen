@@ -7,11 +7,13 @@
  *     same ingredient. Only flag if ≥25% above median AND confirmed on
  *     ≥2 deliveries (don't fire on a one-off market move).
  *
- *   STABLE, everything else. Compare against Ingredient.purchasePrice.
- *     Flag if delta ≥5% either direction. Drops matter: Bidfood rebate
- *     refreshes go unnoticed otherwise. Group by canonicalName so
- *     "American Burger cheese" Bidfood and "Cheese Slices Hi Melt" Fermex
- *     surface as one alert if the chef switches suppliers between invoices.
+ *   STABLE, everything else. A real supplier price move: the latest price
+ *     for one supplier product vs the price that supplier charged for it
+ *     just before, new price on 2+ deliveries and first seen in the last
+ *     4 weeks, ≥5% either way (see ./stable.ts). Until 13 Nov 2026 this
+ *     compared against Ingredient.purchasePrice, the cost card, which had
+ *     gone stale since the March import, so the digest showed months-old
+ *     card gaps as this week's "price changes".
  *
  * Unit safety: only compare invoice lines where the invoice unit matches
  * the ingredient.purchaseUnit (or has a known SupplierItemMapping.conversionFactor).
@@ -19,9 +21,9 @@
  */
 import { db } from "@/lib/db"
 import Decimal from "decimal.js"
+import { findStableMove, type StableMove } from "./stable"
 import {
   streamForCategory,
-  STABLE_FLAG_THRESHOLD_PCT,
   PRODUCE_FLAG_THRESHOLD_PCT,
   PRODUCE_CONFIRMATION_DELIVERIES,
   PRODUCE_WINDOW_WEEKS,
@@ -41,7 +43,7 @@ function daysAgo(n: number): Date {
 }
 
 type LineWithRels = InvoiceLineItem & {
-  invoice: { supplierName: string; invoiceDate: Date | null } | null
+  invoice: { supplierName: string; invoiceDate: Date | null; venue: string | null } | null
   ingredient:
     | (Pick<
         Ingredient,
@@ -87,7 +89,7 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
       },
     },
     include: {
-      invoice: { select: { supplierName: true, invoiceDate: true } },
+      invoice: { select: { supplierName: true, invoiceDate: true, venue: true } },
       ingredient: {
         select: {
           id: true, name: true, category: true,
@@ -166,8 +168,9 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
     }
 
     const latest = validLines[validLines.length - 1]
-    const currentPrice = new Decimal(latest.normalisedUnitPrice!.toString())
-    const supplierName = latest.invoice?.supplierName ?? null
+    let currentPrice = new Decimal(latest.normalisedUnitPrice!.toString())
+    let supplierName = latest.invoice?.supplierName ?? null
+    let stableMove: StableMove | null = null
 
     let priorPrice: Decimal
     let priorMedian: Decimal | null = null
@@ -218,25 +221,26 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
       })
       triggered = allAbove
     } else {
-      // STABLE, compare against Ingredient.purchasePrice converted to per-unit.
-      const purQty = new Decimal(ing.purchaseQuantity.toString())
-      if (purQty.lte(0)) {
-        counts.dismissed++
-        continue
-      }
-      const referenceUnitPrice = new Decimal(ing.purchasePrice.toString()).div(
-        purQty
+      // STABLE, the same supplier product's previous price paid (./stable.ts).
+      stableMove = findStableMove(
+        validLines.map((l) => ({
+          supplierName: l.invoice?.supplierName ?? null,
+          productCode: l.productCode,
+          description: l.description,
+          venue: l.invoice?.venue ?? null,
+          invoiceDate: l.invoice!.invoiceDate!,
+          price: Number(l.normalisedUnitPrice),
+          lineTotal: l.lineTotal != null ? Number(l.lineTotal) : null,
+        }))
       )
-      if (referenceUnitPrice.lte(0)) {
+      if (!stableMove) {
         counts.dismissed++
         continue
       }
-      priorPrice = referenceUnitPrice
-      const pct = currentPrice
-        .minus(referenceUnitPrice)
-        .div(referenceUnitPrice)
-        .mul(100)
-      triggered = pct.abs().gte(STABLE_FLAG_THRESHOLD_PCT)
+      currentPrice = new Decimal(stableMove.current)
+      priorPrice = new Decimal(stableMove.prior)
+      supplierName = stableMove.supplierName
+      triggered = true
     }
 
     if (!triggered) {
@@ -270,7 +274,7 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
     // line in the window carries a total, the digest sorts those last.
     let volumeBaseUnits = new Decimal(0)
     let hasVolume = false
-    for (const l of validLines) {
+    for (const l of stableMove ? [] : validLines) {
       const t = l.invoice?.invoiceDate
       if (!t || t < fourWeeksAgo) continue
       if (l.lineTotal == null) continue
@@ -281,7 +285,9 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
       )
       hasVolume = true
     }
-    const weeklyImpactDollars = hasVolume
+    const weeklyImpactDollars = stableMove
+      ? stableMove.weeklyImpactDollars
+      : hasVolume
       ? volumeBaseUnits
           .div(PRODUCE_WINDOW_WEEKS)
           .mul(currentPrice.minus(priorPrice))
@@ -310,14 +316,14 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
       ingredient: { connect: { id: ingId } },
       canonicalName: ing.canonicalName ?? ing.name,
       stream,
-      currentPrice: currentPrice.toDecimalPlaces(4).toNumber(),
+      currentPrice: currentPrice.toDecimalPlaces(8).toNumber(),
       // normalisedUnitPrice is per single purchase-unit (per g / ml / piece),
       // so that is the unit the alert must display. The raw invoice label
       // (PKT / CTN / BTL) made every converted row read as nonsense.
       currentUnit: ing.purchaseUnit,
-      priorPrice: priorPrice.toDecimalPlaces(4).toNumber(),
+      priorPrice: priorPrice.toDecimalPlaces(8).toNumber(),
       priorPeriodMedian: priorMedian
-        ? priorMedian.toDecimalPlaces(4).toNumber()
+        ? priorMedian.toDecimalPlaces(8).toNumber()
         : null,
       changePct: changePct.toNumber(),
       weeklyImpactDollars,
@@ -326,9 +332,15 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
     }
 
     if (existing) {
+      // A different "was" means a different move: restart firstSeenAt so the
+      // digest marks it new instead of inheriting an old alert's date.
+      const oldPrior = new Decimal(existing.priorPrice.toString())
+      const newMove =
+        oldPrior.lte(0) || priorPrice.minus(oldPrior).abs().div(oldPrior).gt(0.02)
       await db.priceAlert.update({
         where: { id: existing.id },
         data: {
+          ...(newMove ? { firstSeenAt: new Date() } : {}),
           currentPrice: alertData.currentPrice,
           currentUnit: alertData.currentUnit,
           priorPrice: alertData.priorPrice,

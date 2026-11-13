@@ -64,25 +64,12 @@ export async function acceptAlert(alertId: string) {
   if (alert.status === "ACCEPTED") return { ok: true as const, reason: "Already accepted" }
 
   const ing = alert.ingredient
-  // New purchasePrice = per-unit price × purchaseQuantity. The alert's
-  // currentPrice is Decimal(12,4), for cheap per-g/per-ml ingredients the
-  // 4dp truncation corrupts the price and immediately re-alerts. Recompute
-  // from the most recent triggering line's normalisedUnitPrice (12,6, the
-  // exact value the alert was computed from) when available.
-  const latestLine = await db.invoiceLineItem.findFirst({
-    where: {
-      ingredientId: ing.id,
-      normalisedUnitPrice: { not: null },
-      invoice: {
-        invoiceDate: { not: null },
-        status: { in: ["MATCHED", "EXTRACTED", "APPROVED"] },
-      },
-    },
-    orderBy: { invoice: { invoiceDate: "desc" } },
-    select: { normalisedUnitPrice: true },
-  })
-  const perUnitPrice = latestLine?.normalisedUnitPrice ?? alert.currentPrice
-  const newPrice = new Decimal(perUnitPrice.toString())
+  // New purchasePrice = per-unit price × purchaseQuantity, from exactly the
+  // price the alert shows. Since 13 Nov 2026 currentPrice is Decimal(14,8)
+  // (the old 4dp truncation is gone) and it is the moved supplier product's
+  // price, which can differ from the ingredient's latest line when two
+  // suppliers or pack formats are in play.
+  const newPrice = new Decimal(alert.currentPrice.toString())
     .mul(new Decimal(ing.purchaseQuantity.toString()))
     .toDecimalPlaces(4)
   const oldPrice = new Decimal(ing.purchasePrice.toString())

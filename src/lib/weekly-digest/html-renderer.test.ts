@@ -431,10 +431,14 @@ test("COGS delta pills and the BH-only reference row do not pull the tile averag
 
 // ------------------------------------------------------------- price alerts
 
-test("price alerts: per-base-unit prices, signed change, savings, and 'top N of M'", () => {
+test("price alerts: per-kg prices, signed change, savings, and 'top N of M'", () => {
   const html = renderDigestHtml(snapshot(), narrative)
-  assert.ok(html.includes("$0.0123/g"))
-  assert.ok(html.includes("$0.0141/g"))
+  // per-g alert prices print per kg, the way suppliers quote them
+  assert.ok(html.includes("$12.30/kg"))
+  assert.ok(html.includes("$14.10/kg"))
+  assert.ok(!html.includes("/g<"), "no fractions-of-a-cent per gram")
+  assert.ok(html.includes("$1.50/piece"))
+  assert.ok(html.includes("vs the price paid before"))
   assert.ok(html.includes("+14.6%"))
   assert.ok(html.includes("-10.0%"))
   assert.ok(html.includes("+$88.20/wk"))

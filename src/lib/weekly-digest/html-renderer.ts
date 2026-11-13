@@ -72,12 +72,16 @@ function fmtMoneyFine(n: number | null | undefined) {
   return `$${n.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-// Per-unit alert prices are per base unit (per g / ml / piece), so they are
-// often fractions of a cent: 2dp would render "$0.01 → $0.01 +25.7%".
+// Alert prices are per purchase unit (per g / ml / piece). Per g and per ml
+// read as fractions of a cent ("$0.0176/g"), so show them per kg and per
+// litre, the way suppliers quote them (Chloe, 13 Nov 2026).
 function fmtUnitPrice(n: number | null | undefined, unit: string) {
   if (n == null || Number.isNaN(n)) return "—"
-  const dp = Math.abs(n) < 0.1 ? 4 : 2
-  return `$${n.toLocaleString("en-AU", { minimumFractionDigits: dp, maximumFractionDigits: dp })}/${unit}`
+  const u = unit.trim().toLowerCase()
+  const [value, label] =
+    u === "g" ? [n * 1000, "kg"] : u === "ml" ? [n * 1000, "l"] : [n, unit]
+  const dp = Math.abs(value) < 0.1 ? 4 : 2
+  return `$${value.toLocaleString("en-AU", { minimumFractionDigits: dp, maximumFractionDigits: dp })}/${label}`
 }
 
 function fmtImpact(n: number | null | undefined) {
@@ -646,9 +650,9 @@ function priceSpikesSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNar
   }
   return `
     ${sectionHeader("Supplier price changes", narrative.sectionNotes.prices)}
-    ${priceAlertTable(snapshot.priceSpikes.stable, snapshot.priceSpikes.stableTotal, "Staples", "vs list price, moves of 5% or more")}
+    ${priceAlertTable(snapshot.priceSpikes.stable, snapshot.priceSpikes.stableTotal, "Staples", "vs the price paid before, moves of 5% or more in the last 4 weeks")}
     ${priceAlertTable(snapshot.priceSpikes.produce, snapshot.priceSpikes.produceTotal, "Produce", "25%+ above 4-week median, confirmed on 2+ deliveries")}
-    <div style="padding:8px 28px 0;color:${C.inkMute};font-size:11px;">Prices are per base unit. Est. impact = recent purchase volume at the new price vs the old one; negative is a saving. Review alerts in Kitchen under Suppliers.</div>`
+    <div style="padding:8px 28px 0;color:${C.inkMute};font-size:11px;">Was = what that supplier charged for the same product before the change; staples count once the new price is on 2 deliveries. Est. impact = the last 4 weeks' volume of that product times the change; negative is a saving. Review alerts in Kitchen under Suppliers.</div>`
 }
 
 function topSellersSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative) {
