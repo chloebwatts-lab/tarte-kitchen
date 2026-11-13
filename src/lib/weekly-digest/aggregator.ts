@@ -224,6 +224,31 @@ interface PriceSpikesSection {
   aboveQuoteTotal?: number
   /// Card moves over 50% the sync would not make on its own.
   heldCards?: { ingredient: string; oldPrice: number; newPrice: number; changePct: number }[]
+  /// Bought from a dearer supplier this week when a cheaper one for the
+  /// same product was there (src/lib/price-alerts/dearer-supplier.ts,
+  /// Chloe 13 Nov 2026). Optional so older snapshots still render.
+  dearer?: DearerDigestSection
+}
+
+interface DearerDigestSection {
+  rows: {
+    item: string
+    venue: string
+    boughtFrom: string
+    cheaperFrom: string
+    /// Net per `unit` (per g / ml / piece / kg / L / each).
+    paid: number
+    cheaper: number
+    unit: string
+    pct: number
+    extraWeek: number
+    formSaysElsewhere: boolean
+  }[]
+  weekTotal: number
+  /// Last 8 weeks, and that as a yearly rate.
+  windowTotal: number
+  yearRate: number
+  byVenueWeek: { venue: string; dollars: number }[]
 }
 
 interface AboveQuoteDigestItem {
@@ -602,6 +627,36 @@ async function buildPriceSpikes(week: DigestWeek): Promise<PriceSpikesSection> {
     console.error("[weekly-digest] cost-card audit failed", e)
   }
 
+  // Bought from the dearer supplier this week. Never fails the digest.
+  let dearer: DearerDigestSection | undefined
+  try {
+    const { loadDearerBuys } = await import("@/lib/price-alerts/dearer-supplier-service")
+    const r = await loadDearerBuys(week.start, week.end)
+    const label = (v: string) => VENUE_LABEL[v as Venue] ?? v
+    dearer = {
+      rows: r.rows.slice(0, 10).map((x) => ({
+        item: x.item,
+        venue: label(x.venue),
+        boughtFrom: x.boughtFrom,
+        cheaperFrom: x.cheaperFrom,
+        paid: x.paid,
+        cheaper: x.cheaper,
+        unit: x.unit,
+        pct: x.pct,
+        extraWeek: x.extraWeek,
+        formSaysElsewhere: x.formSaysElsewhere,
+      })),
+      weekTotal: r.weekTotal,
+      windowTotal: r.windowTotal,
+      yearRate: r.yearRate,
+      byVenueWeek: Object.entries(r.byVenueWeek)
+        .map(([v, dollars]) => ({ venue: label(v), dollars }))
+        .sort((a, b) => b.dollars - a.dollars),
+    }
+  } catch (e) {
+    console.error("[weekly-digest] dearer-supplier check failed", e)
+  }
+
   return {
     count: stable.length + produce.length,
     produce,
@@ -611,7 +666,15 @@ async function buildPriceSpikes(week: DigestWeek): Promise<PriceSpikesSection> {
     aboveQuote,
     aboveQuoteTotal,
     heldCards,
+    dearer,
   }
+}
+
+/** The Friday digest's dearer-supplier section on its own (weekly-digest ?dearer=1). */
+export async function buildDigestDearer(now: Date = new Date()) {
+  const week = lastCompletedTarteWeek(now)
+  const { loadDearerBuys } = await import("@/lib/price-alerts/dearer-supplier-service")
+  return { weekStart: week.startKey, weekEnd: week.endKey, ...(await loadDearerBuys(week.start, week.end)) }
 }
 
 async function buildWastage(week: DigestWeek): Promise<WastageSection> {

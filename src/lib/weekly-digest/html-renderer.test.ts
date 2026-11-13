@@ -1062,3 +1062,41 @@ test("pay runs posted but the cards not in yet: provisional per company, with th
   assert.ok(html.includes("which have not run for this week yet."))
   assert.ok(!/Louise/.test(html))
 })
+
+// ------------------------------------------------- bought from dearer supplier
+
+const DEARER = {
+  rows: [
+    { item: "Chicken breast", venue: "Burleigh", boughtFrom: "Marrow Meats", cheaperFrom: "Son Of A Bunn", paid: 12.5, cheaper: 11, unit: "kg", pct: 13.6, extraWeek: 81, formSaysElsewhere: false },
+    { item: "Ghee", venue: "Burleigh", boughtFrom: "Bidfood", cheaperFrom: "The Provedores", paid: 0.01558, cheaper: 0.01495, unit: "g", pct: 4.2, extraWeek: 6.3, formSaysElsewhere: true },
+  ],
+  weekTotal: 301.11,
+  windowTotal: 2149.28,
+  yearRate: 13970,
+  byVenueWeek: [{ venue: "Burleigh", dollars: 232.22 }, { venue: "Beach House", dollars: 68.89 }],
+}
+
+test("dearer supplier: summary, venues, rows and the order-form mark, in HTML and text", () => {
+  const base = snapshot()
+  const s = snapshot({ priceSpikes: { ...base.priceSpikes, dearer: DEARER } })
+  const html = renderDigestHtml(s, narrative)
+  assert.ok(html.includes("Bought from the dearer supplier"))
+  assert.ok(html.includes("$301 extra this week (Burleigh $232, Beach House $69)"))
+  assert.ok(html.includes("$2,149 over 8 weeks, about $13,970 a year"))
+  assert.ok(html.includes("Marrow Meats") && html.includes("$12.50/kg") && html.includes("+$81"))
+  assert.ok(html.includes("$15.58/kg"), "per-g ghee prints per kg")
+  assert.equal((html.match(/\(order form\)/g) ?? []).length, 1)
+  const text = renderDigestText(s, narrative)
+  assert.ok(text.includes("Bought from the dearer supplier: $301 extra this week (Burleigh $232, Beach House $69); $2,149 over 8 weeks, about $13,970 a year"))
+  assert.ok(text.includes("Ghee (Burleigh): Bidfood $15.58/kg, The Provedores $14.95/kg (order form), +$6"))
+})
+
+test("dearer supplier: nothing to show renders nothing; no open alerts still shows the block", () => {
+  const base = snapshot()
+  const none = renderDigestHtml(snapshot({ priceSpikes: { ...base.priceSpikes, dearer: { ...DEARER, rows: [], weekTotal: 0, windowTotal: 0, yearRate: 0, byVenueWeek: [] } } }), narrative)
+  assert.ok(!none.includes("Bought from the dearer supplier"))
+  const quiet = renderDigestHtml(snapshot({ priceSpikes: { count: 0, produce: [], stable: [], produceTotal: 0, stableTotal: 0, dearer: DEARER } }), narrative)
+  assert.ok(quiet.includes("No open price alerts.") && quiet.includes("Bought from the dearer supplier"))
+  const quietText = renderDigestText(snapshot({ priceSpikes: { count: 0, produce: [], stable: [], produceTotal: 0, stableTotal: 0, dearer: DEARER } }), narrative)
+  assert.equal((quietText.match(/SUPPLIER PRICE CHANGES/g) ?? []).length, 1)
+})

@@ -690,9 +690,53 @@ function heldCardsLine(held: NonNullable<WeeklyDigestSnapshot["priceSpikes"]["he
   return `<div style="padding:8px 28px 0;color:${C.inkSoft};font-size:12px;">Cost cards not moved on their own (over 50% at once, check the mapping or pack): ${names}${held.length > 5 ? `, +${held.length - 5} more` : ""}.</div>`
 }
 
+type DearerSection = NonNullable<WeeklyDigestSnapshot["priceSpikes"]["dearer"]>
+
+function fmtDollars(n: number) {
+  return `$${Math.round(n).toLocaleString("en-AU")}`
+}
+
+// Bought from a dearer supplier when a cheaper one for the same product was
+// there (Chloe, 13 Nov 2026). Net of Bidfood's rebate, ex GST.
+function dearerBlock(d: DearerSection | undefined) {
+  if (!d || !(d.weekTotal > 0 || d.windowTotal > 0)) return ""
+  const venues = d.byVenueWeek
+    .filter((v) => v.dollars >= 1)
+    .map((v) => `${escapeHtml(v.venue)} ${fmtDollars(v.dollars)}`)
+    .join(", ")
+  const summary = `${fmtDollars(d.weekTotal)} extra this week${venues ? ` (${venues})` : ""} · ${fmtDollars(d.windowTotal)} over 8 weeks, about ${fmtDollars(d.yearRate)} a year`
+  const th = (label: string, align: "left" | "right") =>
+    `<th style="padding:9px 10px;text-align:${align};font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">${label}</th>`
+  const td = `padding:8px 10px;border-bottom:1px solid ${C.borderSoft};font-size:12px;`
+  const rows = d.rows
+    .map(
+      (r) => `
+        <tr>
+          <td style="${td}font-size:13px;color:${C.ink};">${escapeHtml(r.item)}</td>
+          <td style="${td}color:${C.inkSoft};">${escapeHtml(r.venue)}</td>
+          <td style="${td}color:${C.inkSoft};">${escapeHtml(r.boughtFrom)}<br><span style="color:${C.ink};font-weight:600;font-variant-numeric:tabular-nums;">${fmtUnitPrice(r.paid, r.unit)}</span></td>
+          <td style="${td}color:${C.inkSoft};">${escapeHtml(r.cheaperFrom)}${r.formSaysElsewhere ? ` <span style="color:${C.inkMute};font-size:11px;">(order form)</span>` : ""}<br><span style="font-variant-numeric:tabular-nums;">${fmtUnitPrice(r.cheaper, r.unit)}</span></td>
+          <td style="${td}text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;color:${C.red};font-weight:600;">+${fmtDollars(r.extraWeek)}</td>
+        </tr>`
+    )
+    .join("")
+  const table = d.rows.length
+    ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:14px;border-collapse:collapse;overflow:hidden;">
+        <thead><tr style="background:${C.borderSoft};">${th("Item", "left")}${th("Venue", "left")}${th("Bought from", "left")}${th("Cheaper at", "left")}${th("Extra", "right")}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`
+    : ""
+  return `
+    <div style="padding:14px 18px 0;">
+      <div style="padding:0 2px 6px;font-size:13px;font-weight:600;color:${C.ink};">Bought from the dearer supplier <span style="font-weight:400;color:${C.inkMute};font-size:12px;">· ${summary}</span></div>
+      ${table}
+    </div>
+    <div style="padding:8px 28px 0;color:${C.inkMute};font-size:11px;">Same product cheaper from another supplier on our own invoices, or the order form says buy it there. Net of Bidfood's rebate, ex GST. Rows under $5 for the week are left off the table but count in the totals.</div>`
+}
+
 function priceSpikesSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative) {
   const ps = snapshot.priceSpikes
-  const quoteBlock = `${aboveQuoteTable(ps.aboveQuote ?? [], ps.aboveQuoteTotal ?? 0)}${heldCardsLine(ps.heldCards ?? [])}`
+  const quoteBlock = `${aboveQuoteTable(ps.aboveQuote ?? [], ps.aboveQuoteTotal ?? 0)}${heldCardsLine(ps.heldCards ?? [])}${dearerBlock(ps.dearer)}`
   if (ps.count === 0) {
     return `${sectionHeader("Supplier price changes", narrative.sectionNotes.prices)}
       <div style="padding:8px 28px 0;color:${C.inkMute};font-size:13px;">No open price alerts. One-off produce market moves are filtered out automatically.</div>${quoteBlock}`
@@ -1286,6 +1330,25 @@ export function renderDigestText(
     }
     if (held.length > 0) {
       lines.push(`  Cost cards not moved on their own (over 50%, check mapping or pack): ${held.slice(0, 5).map((h) => h.ingredient).join(", ")}`)
+    }
+  }
+  const dearer = snapshot.priceSpikes.dearer
+  if (dearer && (dearer.weekTotal > 0 || dearer.windowTotal > 0)) {
+    if (snapshot.priceSpikes.count === 0 && aq.length === 0 && held.length === 0) {
+      lines.push(``)
+      lines.push(`SUPPLIER PRICE CHANGES`)
+    }
+    const venues = dearer.byVenueWeek
+      .filter((v) => v.dollars >= 1)
+      .map((v) => `${v.venue} ${fmtDollars(v.dollars)}`)
+      .join(", ")
+    lines.push(
+      `  Bought from the dearer supplier: ${fmtDollars(dearer.weekTotal)} extra this week${venues ? ` (${venues})` : ""}; ${fmtDollars(dearer.windowTotal)} over 8 weeks, about ${fmtDollars(dearer.yearRate)} a year`
+    )
+    for (const r of dearer.rows.slice(0, 6)) {
+      lines.push(
+        `    ${r.item} (${r.venue}): ${r.boughtFrom} ${fmtUnitPrice(r.paid, r.unit)}, ${r.cheaperFrom} ${fmtUnitPrice(r.cheaper, r.unit)}${r.formSaysElsewhere ? " (order form)" : ""}, +${fmtDollars(r.extraWeek)}`
+      )
     }
   }
   lines.push(``)

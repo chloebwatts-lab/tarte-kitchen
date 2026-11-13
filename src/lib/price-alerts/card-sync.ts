@@ -167,7 +167,7 @@ function invoiceTokens(descriptions: string[]): Set<string> {
 }
 
 /** Words that make a different product, so they must be on both sides or neither. */
-const VARIANT_WORDS = new Set([
+export const VARIANT_WORDS = new Set([
   "extra", "virgin", "light", "lite", "lactose", "gluten", "skim", "skinny", "low", "fat", "reduced",
   "organic", "unsalted", "salted", "smoked", "unsweetened", "sweetened", "sliced", "shredded", "grated",
   "ground", "whole", "black", "white", "brown", "dark", "red", "green", "frozen", "dried", "decaf",

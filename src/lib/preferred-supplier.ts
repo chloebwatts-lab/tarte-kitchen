@@ -57,6 +57,16 @@ const STOP = new Set([
   "lt", "gr", "units", "unit", "case", "piece", "pieces",
 ])
 
+/**
+ * Plural to singular so "Raspberries IQF" pairs with "Raspberry Frozen IQF"
+ * (13 Nov 2026: Bidfood frozen raspberries found no Fermex replacement).
+ */
+function singular(w: string): string {
+  if (w.length > 4 && w.endsWith("ies")) return w.slice(0, -3) + "y"
+  if (w.length > 3 && w.endsWith("s") && !w.endsWith("ss")) return w.slice(0, -1)
+  return w
+}
+
 /** Words that identify the product: no brands in parentheses, no pack numbers. */
 export function productTokens(name: string): Set<string> {
   const noBrand = name.replace(/\([^)]*\)/g, " ")
@@ -64,6 +74,7 @@ export function productTokens(name: string): Set<string> {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .split(" ")
+    .map(singular)
     .filter((w) => w && !STOP.has(w) && !/^\d/.test(w))
   return new Set(words)
 }
@@ -75,6 +86,11 @@ const GENERIC = new Set([
   "seeds", "seed", "cups", "lids", "bags", "white", "black", "brown", "pure", "mix",
   "fresh", "organic", "premium", "barista", "flakes", "pieces", "halves", "kernels",
 ])
+
+/** GENERIC lists some words plural ("kernels"); tokens are singular now. */
+function isGeneric(t: string): boolean {
+  return GENERIC.has(t) || GENERIC.has(t + "s") || (t.endsWith("y") && GENERIC.has(t.slice(0, -1) + "ies"))
+}
 
 function unitKey(unit: string | null): string {
   return (unit ?? "").trim().toLowerCase()
@@ -102,7 +118,7 @@ export function bestReplacement(row: FormRow, candidates: FormRow[]): FormRow | 
     // ("Oregano"). Shared category words alone ("cheese shredded", "milk
     // uht", "cups cold") do not make it the same product.
     let specific = 0
-    for (const t of mine) if (theirs.has(t) && !GENERIC.has(t)) specific++
+    for (const t of mine) if (theirs.has(t) && !isGeneric(t)) specific++
     const qualifies = (shared >= 2 && specific >= 1) || (shared === 1 && mine.size === 1 && theirs.size === 1)
     if (!qualifies) continue
     const jaccard = shared / (mine.size + theirs.size - shared)

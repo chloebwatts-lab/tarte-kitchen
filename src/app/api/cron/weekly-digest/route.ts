@@ -37,6 +37,13 @@ export async function GET(req: NextRequest) {
     return Response.json(await buildDigestLabour(now))
   }
 
+  // ?dearer=1 — debug: just the "Bought from the dearer supplier" check
+  // for the last completed digest week, no narrative, no email, no row.
+  if (url.searchParams.get("dearer") === "1") {
+    const { buildDigestDearer } = await import("@/lib/weekly-digest/aggregator")
+    return Response.json(await buildDigestDearer())
+  }
+
   try {
     const result = await runWeeklyDigest({ recipient, forceRegenerate })
     return Response.json({ ok: true, ...result })

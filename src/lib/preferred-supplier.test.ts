@@ -170,3 +170,15 @@ test("zero and rebate arithmetic never divides by zero or drifts", () => {
   assert.equal(second.useInstead, null)
   assert.equal(second.vsPreferredPct, null)
 })
+
+test("plurals: frozen raspberries pair with Fermex raspberry, sunflower kernels never pair with pumpkin kernels", () => {
+  const row = (id: string, supplier: string, name: string, unitPrice: number, active: boolean): FormRow => ({
+    id, supplier, name, packSize: "1 kg", packPrice: unitPrice, unitPrice, unit: "kg", category: null, notes: null, active,
+  })
+  const bf = row("bf", "Bidfood", "Raspberries Iqf (Catchoice)", 17.68, false)
+  const fx = row("fx", "Fermex", "Raspberry Frozen IQF 1kg", 13.6, true)
+  assert.equal(bestReplacement(bf, [bf, fx])?.id, "fx")
+  const sun = row("s", "Bidfood", "Seeds Sunflower Kernels (Catchoice)", 6.49, false)
+  const pum = row("p", "Bidfood", "Seeds Pepitas Kernels Pumpkin (Catchoice)", 15.09, true)
+  assert.equal(bestReplacement(sun, [sun, pum]), null)
+})
