@@ -35,7 +35,7 @@ Schema:
     "wages"?: string,
     "cogs"?: string,
     "wastage"?: string,
-    "prices"?: string,
+    "prices"?: string,          // staples: oldPrice is what the SAME supplier charged for that product before the change (not a list price); prices are per g / ml / piece, so quote per kg or per L
     "topSellers"?: string,
     "reviews"?: string,       // if responseWatch shows unanswered negatives or median response over 2 days, lead with that
     "operations"?: string,  // 1-2 sentences on checklist completion + any temp/cooling breaches. Lead with breaches if any.
