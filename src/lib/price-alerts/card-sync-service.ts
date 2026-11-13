@@ -7,7 +7,7 @@
  */
 import { db } from "@/lib/db"
 import { effectiveUnitPrice } from "@/lib/invoices/units"
-import { planCardSync, type CardSyncPlan, type QuoteRow, type SyncLine } from "./card-sync"
+import { planCardSync, quoteBasisPrice, type CardSyncPlan, type QuoteRow, type SyncLine } from "./card-sync"
 
 const DAY = 86_400_000
 const LINE_WINDOW_DAYS = 90
@@ -44,7 +44,11 @@ export async function planCostCardSync(now: Date = new Date()): Promise<CardSync
   const lines = new Map<string, SyncLine[]>()
   for (const l of raw) {
     if (!l.ingredientId || !l.invoice?.invoiceDate) continue
-    const billed = effectiveUnitPrice(num(l.unitPrice), num(l.quantity), num(l.lineTotal)) ?? num(l.unitPrice) ?? 0
+    // For the quote check, the PRINTED price unless the line total says we
+    // paid less (a discount). A line total ABOVE it is tax on top (Bidfood
+    // adds 29% WET to wine), not an overcharge: prosecco prints $11.52 and
+    // totals $14.86 a bottle.
+    const billed = quoteBasisPrice(num(l.unitPrice) ?? 0, effectiveUnitPrice(num(l.unitPrice), num(l.quantity), num(l.lineTotal)))
     const arr = lines.get(l.ingredientId) ?? []
     arr.push({
       supplierName: l.invoice.supplierName,
@@ -63,7 +67,7 @@ export async function planCostCardSync(now: Date = new Date()): Promise<CardSync
   const ingredients = (
     await db.ingredient.findMany({
       where: { id: { in: [...lines.keys()] } },
-      select: { id: true, name: true, purchasePrice: true, purchaseQuantity: true, purchaseUnit: true },
+      select: { id: true, name: true, category: true, purchasePrice: true, purchaseQuantity: true, purchaseUnit: true },
     })
   ).map((i) => ({
     id: i.id,
@@ -71,11 +75,14 @@ export async function planCostCardSync(now: Date = new Date()): Promise<CardSync
     purchasePrice: num(i.purchasePrice) ?? 0,
     purchaseQuantity: num(i.purchaseQuantity) ?? 0,
     purchaseUnit: i.purchaseUnit,
+    category: i.category,
   }))
 
   const quotes: QuoteRow[] = (
     await db.approvedSupplierItem.findMany({
-      where: { packPrice: { gt: 0 } },
+      // Active order-form lines only: an inactive one is a product the
+      // chefs moved away from, and its price may not have been kept up.
+      where: { packPrice: { gt: 0 }, active: true },
       select: { id: true, name: true, packPrice: true, unit: true, unitPrice: true, supplier: { select: { name: true } } },
     })
   ).map((q) => ({
@@ -113,10 +120,14 @@ export async function syncCostCards(opts: { dry?: boolean; now?: Date } = {}) {
   let applied = 0
   for (const u of plan.updates) {
     // Only if the card still holds the price this plan was made from: a
-    // chef editing it in between wins.
+    // chef editing it in between wins. A tiny band, not equality: Prisma
+    // binds some JS numbers with float noise (8.78 goes out as
+    // "8.779999999999999"), which never equals a card stored as exactly
+    // 8.78, so an equality guard silently skipped those cards. A person's
+    // edit moves the price by at least $0.0001, far outside the band.
     const res = await db.ingredient.updateMany({
-      where: { id: u.ingredientId, purchasePrice: u.oldPrice },
-      data: { purchasePrice: u.newPrice },
+      where: { id: u.ingredientId, purchasePrice: { gte: u.oldPrice - 1e-9, lte: u.oldPrice + 1e-9 } },
+      data: { purchasePrice: u.newPrice.toFixed(4) },
     })
     if (res.count !== 1) continue
     await db.priceHistory.create({

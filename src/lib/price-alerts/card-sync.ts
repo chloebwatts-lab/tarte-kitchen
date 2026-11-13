@@ -21,6 +21,8 @@
  *  - A card a person changed in the last 14 days is left alone.
  */
 import { productKeys, settledPrice, sortByDate, type StableLine } from "./stable"
+import { streamForCategory } from "./classifier"
+import type { IngredientCategory } from "@/generated/prisma/client"
 
 export const SYNC_MIN_CHANGE_PCT = 2
 export const SYNC_MAX_CHANGE_PCT = 50
@@ -53,7 +55,22 @@ export interface CardIngredient {
   purchasePrice: number
   purchaseQuantity: number
   purchaseUnit: string
+  /** Produce (fruit, veg, herbs) follows the 4-week median, not one settled price. */
+  category?: string
 }
+
+/**
+ * The billed price to compare with a quote: the printed unit price, unless
+ * the line total shows we paid less (a discount). A total ABOVE the printed
+ * price is tax on top (29% WET on wine), not an overcharge.
+ */
+export function quoteBasisPrice(printed: number, effective: number | null): number {
+  return effective != null && effective > 0 && effective < printed ? effective : printed
+}
+
+/** Produce cards: median of the last 4 weeks' deliveries, on 3+ delivery days. */
+export const PRODUCE_MEDIAN_DAYS = 28
+export const PRODUCE_MIN_DAYS = 3
 
 export interface QuoteMatch {
   quote: QuoteRow
@@ -149,6 +166,14 @@ function invoiceTokens(descriptions: string[]): Set<string> {
   return out
 }
 
+/** Words that make a different product, so they must be on both sides or neither. */
+const VARIANT_WORDS = new Set([
+  "extra", "virgin", "light", "lite", "lactose", "gluten", "skim", "skinny", "low", "fat", "reduced",
+  "organic", "unsalted", "salted", "smoked", "unsweetened", "sweetened", "sliced", "shredded", "grated",
+  "ground", "whole", "black", "white", "brown", "dark", "red", "green", "frozen", "dried", "decaf",
+  "vegan", "plant", "oat", "almond", "soy", "coconut", "truffle", "garlic", "chilli", "spicy",
+])
+
 /** Order-form brand -> how the supplier prints it on invoices. */
 const BRAND_ALIASES: Record<string, string[]> = {
   catchoice: ["caterers"], // Bidfood "CATERERS C" house brand
@@ -195,12 +220,18 @@ export function matchQuote(
   quotes: QuoteRow[]
 ): QuoteMatch | null {
   if (!(product.billedPrice > 0)) return null
-  const inv = invoiceTokens(Array.isArray(product.description) ? product.description : [product.description])
+  const descs = Array.isArray(product.description) ? product.description : [product.description]
+  const inv = invoiceTokens(descs)
+  const invWords = new Set(descs.flatMap(words))
   let best: { m: QuoteMatch; score: number } | null = null
   for (const q of quotes) {
     if (!sameSupplier(product.supplierName, q.supplierName)) continue
     const qt = quoteTokens(q.name)
     if (qt.length < 2 || !qt.every((t) => covered(t, inv))) continue
+    // Variant words cut both ways: an invoice that adds "extra virgin" or
+    // "lactose free" is a different product from the plain quote.
+    const qw = new Set(words(q.name))
+    if ([...VARIANT_WORDS].some((v) => qw.has(v) !== invWords.has(v))) continue
     const score = qt.length
     const ratios: number[] = []
     if (q.packPrice > 0) ratios.push(product.billedPrice / q.packPrice)
@@ -223,6 +254,27 @@ export function matchQuote(
 }
 
 /**
+ * Produce price: the median of the last 4 weeks' deliveries (latest line
+ * per day), on at least 3 delivery days. Weekly market swings average out
+ * instead of the card chasing each one. Series oldest first.
+ */
+export function produceMedian<T extends StableLine>(series: T[], now: Date): { price: number; line: T } | null {
+  const from = now.getTime() - PRODUCE_MEDIAN_DAYS * DAY
+  const byDay = new Map<number, T>()
+  for (const l of series) {
+    const t = l.invoiceDate.getTime()
+    if (t < from || t > now.getTime()) continue
+    byDay.set(Math.floor(t / DAY), l) // latest line of the day wins
+  }
+  const days = [...byDay.values()]
+  if (days.length < PRODUCE_MIN_DAYS) return null
+  const prices = days.map((l) => l.price).sort((a, b) => a - b)
+  const mid = Math.floor(prices.length / 2)
+  const price = prices.length % 2 ? prices[mid] : (prices[mid - 1] + prices[mid]) / 2
+  return { price, line: days[days.length - 1] }
+}
+
+/**
  * Plan tonight's card changes. `lines` are unit-safe invoice lines for the
  * last 90 days; `manuallyChanged` is ingredient ids a person re-priced in
  * the last 14 days.
@@ -241,6 +293,7 @@ export function planCardSync(input: {
   for (const ing of input.ingredients) {
     const lines = (input.lines.get(ing.id) ?? []).filter((l) => l.price > 0 && Number.isFinite(l.price))
     if (lines.length === 0 || !(ing.purchaseQuantity > 0)) continue
+    const isProduce = ing.category != null && streamForCategory(ing.category as IngredientCategory) === "PRODUCE"
 
     const keys = productKeys(lines)
     const series = new Map<string, SyncLine[]>()
@@ -255,7 +308,7 @@ export function planCardSync(input: {
     const above: AboveQuote[] = []
     for (const s of series.values()) {
       const sorted = sortByDate(s)
-      const settled = settledPrice(sorted)
+      const settled = isProduce ? produceMedian(sorted, now) : settledPrice(sorted)
       if (!settled) continue
       let w8 = 0
       let wAll = 0
@@ -266,7 +319,8 @@ export function planCardSync(input: {
         if (l.invoiceDate.getTime() >= weightFrom) w8 += v
       }
       let price = settled.price
-      const match = matchQuote(
+      // Produce is market-priced: no fixed quote to audit against.
+      const match = isProduce ? null : matchQuote(
         {
           supplierName: settled.line.supplierName,
           description: [...new Set(sorted.map((l) => l.description))],
@@ -282,6 +336,13 @@ export function planCardSync(input: {
         const same = above.find((a) => a.quoteName === match.quote.name && a.supplierName === settled.line.supplierName)
         if (same) {
           if (gap != null) same.weeklyGapDollars = Math.round(((same.weeklyGapDollars ?? 0) + gap) * 100) / 100
+          // Show the worse venue's price; the gap above is the venues' total.
+          const pct = Math.round((match.ratio - 1) * 10000) / 100
+          if (pct > same.pct) {
+            same.pct = pct
+            same.charged = settled.price
+            same.quoted = quoted
+          }
         } else {
           above.push({
             ingredientId: ing.id,

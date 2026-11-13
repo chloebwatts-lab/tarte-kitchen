@@ -497,6 +497,99 @@ test("no open alerts renders the quiet line", () => {
   assert.ok(html.includes("No open price alerts."))
 })
 
+// Cost-card audit against quotes (13 Nov 2026). Prices per g, like the alerts.
+const yardeAboveQuote = {
+  ingredient: "Salted butter",
+  supplier: "Bidfood",
+  quoteName: "Butter Salted Yardefarm 500g",
+  quoted: 0.0165,
+  charged: 0.01756,
+  unit: "g",
+  pct: 6.42,
+  weeklyGapDollars: 2.38,
+}
+
+test("charged above quote with no open alerts: quiet line, then the quote table; text gets one header", () => {
+  const s = snapshot({
+    priceSpikes: {
+      count: 0,
+      produce: [],
+      stable: [],
+      produceTotal: 0,
+      stableTotal: 0,
+      aboveQuote: [yardeAboveQuote, { ...yardeAboveQuote, ingredient: "Prosecco", unit: "ml", quoted: 0.01536, charged: 0.01981, pct: 29, weeklyGapDollars: null }],
+      aboveQuoteTotal: 13,
+      heldCards: [],
+    },
+  })
+  const html = renderDigestHtml(s, narrative)
+  assert.ok(html.includes("No open price alerts."))
+  assert.ok(html.includes("Charged above quote"))
+  assert.ok(html.includes("top 2 of 13"))
+  assert.ok(html.includes("$16.50/kg") && html.includes("$17.56/kg"), "per-g quote and charge print per kg")
+  assert.ok(html.includes("$15.36/L") && html.includes("$19.81/L"))
+  assert.ok(html.includes("+6.4%") && html.includes("+29.0%"))
+  assert.ok(html.includes("+$2.38/wk"))
+  assert.ok(!html.includes("undefined") && !html.includes("NaN"))
+  assert.ok(!html.includes("Cost cards not moved"), "no held line when nothing is held")
+
+  const text = renderDigestText(s, narrative)
+  assert.equal(text.split("SUPPLIER PRICE CHANGES").length - 1, 1)
+  assert.ok(text.includes("Salted butter (Bidfood): quoted $16.50/kg, charged $17.56/kg (+6.4%, ~+$2.38/wk)"))
+  assert.ok(text.includes("Prosecco (Bidfood): quoted $15.36/L, charged $19.81/L (+29.0%)"), "no gap shown when there is no volume")
+  assert.ok(!text.includes("undefined") && !text.includes("NaN"))
+})
+
+test("charged above quote alongside open alerts: the text header is printed once", () => {
+  const base = snapshot()
+  const s = snapshot({ priceSpikes: { ...base.priceSpikes, aboveQuote: [yardeAboveQuote], aboveQuoteTotal: 1 } })
+  const text = renderDigestText(s, narrative)
+  assert.equal(text.split("SUPPLIER PRICE CHANGES").length - 1, 1)
+  assert.ok(text.indexOf("Charged above quote") > text.indexOf("Staples:"))
+  const html = renderDigestHtml(s, narrative)
+  assert.ok(html.includes("Charged above quote") && !html.includes("top 1 of 1"))
+})
+
+test("held cards: $0 cards stored as null change print as new, the list stops at five", () => {
+  // planCardSync gives a $0 card changePct Infinity; the stored snapshot is JSON, so it comes back null.
+  const held = JSON.parse(
+    JSON.stringify([
+      { ingredient: "Vanilla bean paste", oldPrice: 0, newPrice: 17.53, changePct: Infinity },
+      { ingredient: "Bridor croissant", oldPrice: 1.5, newPrice: 3.3, changePct: 120 },
+      { ingredient: "A", oldPrice: 1, newPrice: 2, changePct: 100 },
+      { ingredient: "B", oldPrice: 1, newPrice: 2, changePct: 100 },
+      { ingredient: "C", oldPrice: 1, newPrice: 2, changePct: 100 },
+      { ingredient: "D", oldPrice: 1, newPrice: 2, changePct: 100 },
+      { ingredient: "E", oldPrice: 1, newPrice: 2, changePct: -60 },
+    ])
+  )
+  const s = snapshot({ priceSpikes: { count: 0, produce: [], stable: [], produceTotal: 0, stableTotal: 0, heldCards: held } })
+  const html = renderDigestHtml(s, narrative)
+  assert.ok(html.includes("Vanilla bean paste (new)"))
+  assert.ok(html.includes("Bridor croissant (+120%)"))
+  assert.ok(html.includes("+2 more"))
+  assert.ok(!html.includes("Charged above quote"), "no quote table when nothing is above quote")
+  assert.ok(!html.includes("null") && !html.includes("NaN") && !html.includes("Infinity"))
+  const text = renderDigestText(s, narrative)
+  assert.ok(text.includes("SUPPLIER PRICE CHANGES"))
+  assert.ok(text.includes("Cost cards not moved on their own (over 50%, check mapping or pack): Vanilla bean paste, Bridor croissant, A, B, C"))
+})
+
+test("a digest stored before 13 Nov (no aboveQuote, aboveQuoteTotal or heldCards) still renders", () => {
+  for (const count of [0, 3]) {
+    const base = snapshot()
+    const ps = count === 0 ? { count: 0, produce: [], stable: [], produceTotal: 0, stableTotal: 0 } : base.priceSpikes
+    assert.equal("aboveQuote" in ps, false)
+    const s = snapshot({ priceSpikes: ps })
+    const html = renderDigestHtml(s, narrative)
+    const text = renderDigestText(s, narrative)
+    assert.ok(!html.includes("Charged above quote") && !html.includes("Cost cards not moved"))
+    assert.ok(!text.includes("Charged above quote") && !text.includes("Cost cards not moved"))
+    assert.ok(!html.includes("undefined") && !text.includes("undefined"))
+    assert.equal(text.includes("SUPPLIER PRICE CHANGES"), count > 0, "no empty price header for a quiet week")
+  }
+})
+
 // ------------------------------------------------------------- top sellers
 
 test("top sellers render per venue with risers; empty venues are dropped", () => {

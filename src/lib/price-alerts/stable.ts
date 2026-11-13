@@ -166,22 +166,28 @@ export function seriesMove(
 }
 
 /**
- * The price a series has settled at: the newest run of one price on 2+
- * deliveries. A newer price seen only once (unconfirmed rise, blip) is
- * passed over until it lands a second time. Null when no price has been on
- * 2 deliveries. Series oldest first; returns the run's newest line too.
+ * The price a series has settled at: a price charged on at least 2 of the
+ * last 3 delivery days (the most recent such price). So one odd invoice
+ * (an unconfirmed rise, a blip between two runs) is passed over, but a
+ * price from months ago never outranks a run of newer, different prices:
+ * when the last 3 deliveries are all different the series is in flux and
+ * there is no settled price (test-guard, 13 Nov 2026). Series oldest
+ * first; returns the newest line at that price too.
  */
 export function settledPrice<T extends StableLine>(series: T[]): { price: number; line: T } | null {
-  let k = series.length - 1
-  while (k >= 0) {
-    const price = series[k].price
-    const last = k
-    const days = new Set<number>()
-    while (k >= 0 && samePrice(series[k].price, price)) {
-      days.add(dayKey(series[k].invoiceDate))
-      k--
+  const days: { day: number; lines: T[] }[] = []
+  for (let k = series.length - 1; k >= 0 && days.length <= 3; k--) {
+    const day = dayKey(series[k].invoiceDate)
+    const d = days[days.length - 1]
+    if (d && d.day === day) d.lines.push(series[k])
+    else days.push({ day, lines: [series[k]] })
+  }
+  const recent = days.slice(0, 3) // newest delivery day first
+  for (const d of recent) {
+    for (const l of d.lines) {
+      const onDays = recent.filter((x) => x.lines.some((y) => samePrice(y.price, l.price))).length
+      if (onDays >= STABLE_CONFIRM_DELIVERIES) return { price: l.price, line: l }
     }
-    if (days.size >= STABLE_CONFIRM_DELIVERIES) return { price, line: series[last] }
   }
   return null
 }
