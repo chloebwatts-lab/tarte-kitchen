@@ -355,3 +355,13 @@ test("a bigger pack from the same supplier is a pack choice, not a dearer suppli
   ]
   assert.equal(run(lines, forms).weekTotal, 0)
 })
+
+test("condensed milk: Bidfood cans and the Provedores tub are both deliberate, never flagged", () => {
+  const cm = { ingredientId: "cm", ingredientName: "Condensed Milk Sweetened", purchaseUnit: "g" }
+  const lines = [
+    line({ ...cm, date: "2026-10-28", supplierName: "Bidfood", description: "MILK CONDENSED SWEETENED NESTLE 395gr", unitPrice: 4.16, normalisedPrice: 0.01053 }),
+    line({ ...cm, date: "2026-11-04", supplierName: "Bidfood", description: "MILK CONDENSED SWEETENED NESTLE 395gr", unitPrice: 4.16, normalisedPrice: 0.01053 }),
+    line({ ...cm, date: "2026-11-05", supplierName: "The Provedores", description: "MILK Sweetened Condensed 1.2kg (5)", unitPrice: 13.55, normalisedPrice: 0.01129, qty: 10 }),
+  ]
+  assert.equal(run(lines).weekTotal, 0)
+})

@@ -41,6 +41,7 @@ export const MIN_ROW_DOLLARS = 5
 /** Same-ingredient pairs that are a deliberate quality call, not a mistake. */
 export const KNOWN_CHOICES = new Set([
   "Crab Meat - Spanner", // fresh Fish Factory vs packed Bidfood: quality, Chloe's call (13 Nov 2026)
+  "Condensed Milk Sweetened", // Bidfood cans for dulce de leche, Provedores 1.2kg tub for the rest: "we use both for different reasons" (Chloe 14 Nov 2026)
 ])
 
 /** Words that make a different product for this comparison, on top of VARIANT_WORDS. */
