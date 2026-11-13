@@ -448,6 +448,47 @@ test("price alerts: per-kg prices, signed change, savings, and 'top N of M'", ()
   assert.ok(html.includes(">new<"), "isNew badge")
 })
 
+test("price alerts: per-ml prints per litre, unit case is ignored, kg and ea stay as they are", () => {
+  const item = (unit: string, oldPrice: number, newPrice: number) => ({
+    ingredient: `Item ${unit}`,
+    supplier: "The Provedores",
+    oldPrice,
+    newPrice,
+    unit,
+    changePct: ((newPrice - oldPrice) / oldPrice) * 100,
+    weeklyImpactDollars: null,
+    isNew: false,
+  })
+  const html = renderDigestHtml(
+    snapshot({
+      priceSpikes: {
+        count: 4,
+        produce: [],
+        stable: [
+          item("ml", 0.0165, 0.0224), // creme fraiche $16.50/l to $22.40/l
+          item("G", 0.0165, 0.01756), // Yarde Farm pats $16.50/kg to $17.56/kg
+          item("kg", 12.16, 10.8),
+          item("ea", 0.05, 0.06),
+          item("l", 3.05, 2.78), // oat milk, already per litre
+        ],
+        produceTotal: 0,
+        stableTotal: 5,
+      },
+    }),
+    narrative
+  )
+  // Litres print as "L" so "/l" can't read as "/1"
+  assert.ok(html.includes("$16.50/L"))
+  assert.ok(html.includes("$22.40/L"))
+  assert.ok(html.includes("$3.05/L") && html.includes("$2.78/L"))
+  assert.ok(!html.includes("/l<"))
+  assert.ok(html.includes("$17.56/kg"), "8dp per-g price no longer rounds to $17.60")
+  assert.ok(html.includes("$12.16/kg"))
+  assert.ok(html.includes("$10.80/kg"))
+  assert.ok(html.includes("$0.0500/ea"), "sub-10c per-each prices keep 4dp")
+  assert.ok(!html.includes("/ml<") && !html.includes("/G<"))
+})
+
 test("no open alerts renders the quiet line", () => {
   const html = renderDigestHtml(
     snapshot({ priceSpikes: { count: 0, produce: [], stable: [], produceTotal: 0, stableTotal: 0 } }),

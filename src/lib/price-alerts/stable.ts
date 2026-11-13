@@ -35,6 +35,8 @@ export interface StableLine {
   supplierName: string | null
   productCode: string | null
   description: string
+  /** Billed unit as printed (PAT, BLK, CTN). Keys uncoded products. */
+  unit?: string | null
   venue: string | null
   invoiceDate: Date
   /** Unit-safe price per purchase unit (per g / ml / piece). */
@@ -64,22 +66,29 @@ export function normaliseDescription(d: string): string {
     .trim()
 }
 
-/** One product key per line, aligned with the input. */
+/**
+ * One product key per line, aligned with the input. Coded lines key on the
+ * code. Uncoded lines key on description AND billed unit, so "BUTTER
+ * SALTED" by the pat and "BUTTER SALTED" by the 5kg block never get
+ * compared; they inherit a code only from a coded line with the same
+ * description and unit.
+ */
 export function productKeys(lines: StableLine[]): string[] {
+  const descUnit = (l: StableLine) =>
+    `${normaliseDescription(l.description)}|${(l.unit ?? "").trim().toLowerCase()}`
   const codeByDesc = new Map<string, string | null>()
   for (const l of lines) {
     const code = l.productCode?.trim()
     if (!code) continue
-    const k = `${l.supplierName ?? ""}|${normaliseDescription(l.description)}`
+    const k = `${l.supplierName ?? ""}|${descUnit(l)}`
     const prev = codeByDesc.get(k)
     if (prev === undefined) codeByDesc.set(k, code)
     else if (prev !== null && prev !== code) codeByDesc.set(k, null) // ambiguous: keep by description
   }
   return lines.map((l) => {
     const sup = l.supplierName ?? ""
-    const desc = normaliseDescription(l.description)
-    const code = l.productCode?.trim() || codeByDesc.get(`${sup}|${desc}`) || null
-    return code ? `${sup}|code:${code.toLowerCase()}` : `${sup}|desc:${desc}`
+    const code = l.productCode?.trim() || codeByDesc.get(`${sup}|${descUnit(l)}`) || null
+    return code ? `${sup}|code:${code.toLowerCase()}` : `${sup}|desc:${descUnit(l)}`
   })
 }
 
@@ -97,25 +106,46 @@ export function seriesMove(
   windowStart: number
 ): { current: number; prior: number; changedAt: Date } | null {
   if (series.length === 0) return null
-  const current = series[series.length - 1].price
-  let i = series.length - 1
-  while (i >= 0 && samePrice(series[i].price, current)) i--
-  if (i < 0) return null // one price all window: nothing moved
+  const days = (from: number, to: number, price: number) =>
+    new Set(
+      series
+        .slice(from, to + 1)
+        .filter((l) => samePrice(l.price, price))
+        .map((l) => dayKey(l.invoiceDate))
+    ).size
 
-  const run = series.slice(i + 1)
-  if (new Set(run.map((l) => dayKey(l.invoiceDate))).size < STABLE_CONFIRM_DELIVERIES) return null
-  const changedAt = run[0].invoiceDate
+  // Runs of one price, newest first.
+  const runs: { price: number; first: number; last: number; days: number }[] = []
+  for (let k = series.length - 1; k >= 0; k--) {
+    const r = runs[runs.length - 1]
+    if (r && samePrice(series[k].price, r.price)) r.first = k
+    else runs.push({ price: series[k].price, first: k, last: k, days: 0 })
+  }
+  for (const r of runs) r.days = days(r.first, r.last, r.price)
+
+  // A one-delivery run between two runs of the current price is a blip
+  // (an invoice still at the old price, a mis-key): fold it into the
+  // current run rather than letting it cancel the move.
+  const current = runs[0].price
+  let first = runs[0].first
+  let k = 1
+  while (k + 1 < runs.length && runs[k].days < 2 && samePrice(runs[k + 1].price, current)) {
+    first = runs[k + 1].first
+    k += 2
+  }
+  if (k >= runs.length) return null // one price all window: nothing moved
+
+  if (days(first, series.length - 1, current) < STABLE_CONFIRM_DELIVERIES) return null
+  const changedAt = series[first].invoiceDate
   if (changedAt.getTime() < windowStart) return null
 
-  const prior = series[i].price
-  // A single delivery at the "prior" price sandwiched between runs of the
-  // current price is a blip (promo, mis-key), not the price we used to pay.
-  let j = i
-  while (j >= 0 && samePrice(series[j].price, prior)) j--
-  const priorDays = new Set(series.slice(j + 1, i + 1).map((l) => dayKey(l.invoiceDate))).size
-  if (j >= 0 && priorDays < 2 && samePrice(series[j].price, current)) return null
+  // Was: the run just before. A one-delivery run there (a promo just
+  // before a rise) gives way to the established price behind it.
+  let prior = runs[k]
+  if (prior.days < 2 && k + 1 < runs.length && runs[k + 1].days >= 2) prior = runs[k + 1]
+  if (samePrice(prior.price, current)) return null
 
-  return { current, prior, changedAt }
+  return { current, prior: prior.price, changedAt }
 }
 
 function sortByDate(lines: StableLine[]): StableLine[] {

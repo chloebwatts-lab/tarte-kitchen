@@ -78,8 +78,9 @@ function fmtMoneyFine(n: number | null | undefined) {
 function fmtUnitPrice(n: number | null | undefined, unit: string) {
   if (n == null || Number.isNaN(n)) return "—"
   const u = unit.trim().toLowerCase()
+  // Litres print as "L": a lowercase "/l" reads like "/1".
   const [value, label] =
-    u === "g" ? [n * 1000, "kg"] : u === "ml" ? [n * 1000, "l"] : [n, unit]
+    u === "g" ? [n * 1000, "kg"] : u === "ml" ? [n * 1000, "L"] : u === "l" ? [n, "L"] : [n, unit]
   const dp = Math.abs(value) < 0.1 ? 4 : 2
   return `$${value.toLocaleString("en-AU", { minimumFractionDigits: dp, maximumFractionDigits: dp })}/${label}`
 }

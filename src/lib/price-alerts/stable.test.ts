@@ -10,6 +10,7 @@ function line(p: Partial<StableLine> & { date: string; price: number }): StableL
     supplierName: p.supplierName ?? "Bidfood",
     productCode: p.productCode ?? null,
     description: p.description ?? "BUTTER SALTED YARDE FARM 500gr",
+    unit: p.unit ?? null,
     venue: p.venue ?? "BURLEIGH",
     invoiceDate: d(p.date),
     price: p.price,
@@ -53,8 +54,10 @@ test("salted butter: real +6.4% vs the previous price paid, not the card", () =>
   assert.equal(m.current, 0.01756)
   assert.equal(m.changePct, 6.42)
   assert.equal(m.changedAt.toISOString().slice(0, 10), "2026-11-01")
-  // 4 weeks: 3 pats lines at 8000g each ≈ 24,000g = 6,000g/wk x $0.00106
-  assert.ok(m.weeklyImpactDollars! > 5 && m.weeklyImpactDollars! < 10, String(m.weeklyImpactDollars))
+  // 4 weeks from 16 Oct: 4 pats lines (19 Oct, 29 Oct, 1 Nov, 5 Nov) at
+  // 8,000g each = 32,000g = 8,000g/wk x $0.00106/g = $8.48/wk. The Anchor
+  // block is its own product and adds nothing.
+  assert.equal(m.weeklyImpactDollars, 8.48)
 })
 
 test("a price that has not moved is not an alert, whatever the card says", () => {
@@ -163,4 +166,188 @@ test("the biggest dollar move across suppliers wins", () => {
   const m = findStableMove(lines, NOW)
   assert.ok(m)
   assert.equal(m.supplierName, "Fermex")
+})
+
+// ---------------------------------------------------------- guard additions
+
+test("the same product code at two suppliers is two products, not one flip-flopping series", () => {
+  const lines = [
+    line({ date: "2026-10-20", price: 10, productCode: "125104" }),
+    line({ date: "2026-10-21", price: 11, productCode: "125104", supplierName: "Fermex" }),
+    line({ date: "2026-10-27", price: 10, productCode: "125104" }),
+    line({ date: "2026-10-28", price: 11, productCode: "125104", supplierName: "Fermex" }),
+    line({ date: "2026-11-03", price: 10, productCode: "125104" }),
+    line({ date: "2026-11-04", price: 11, productCode: "125104", supplierName: "Fermex" }),
+  ]
+  assert.equal(findStableMove(lines, NOW), null)
+})
+
+test("two lines on one invoice date are one delivery, so they cannot confirm a move alone", () => {
+  const lines = [
+    line({ date: "2026-10-20", price: 9.4 }),
+    line({ date: "2026-10-27", price: 9.4 }),
+    line({ date: "2026-11-09", price: 10.25 }),
+    line({ date: "2026-11-09", price: 10.25 }),
+  ]
+  assert.equal(findStableMove(lines, NOW), null)
+  // a second delivery date confirms it
+  const m = findStableMove([...lines, line({ date: "2026-11-11", price: 10.25 })], NOW)
+  assert.ok(m)
+  assert.equal(m.prior, 9.4)
+  assert.equal(m.changedAt.toISOString().slice(0, 10), "2026-11-09")
+})
+
+test("the old price can be months back; only the new price must be inside 4 weeks", () => {
+  const lines = [
+    line({ date: "2026-08-20", price: 0.0224, supplierName: "The Provedores", description: "CREME Fraiche 500gm (6)" }),
+    line({ date: "2026-11-02", price: 0.0246, supplierName: "The Provedores", description: "CREME Fraiche 500gm (6)" }),
+    line({ date: "2026-11-09", price: 0.0246, supplierName: "The Provedores", description: "CREME Fraiche 500gm (6)" }),
+  ]
+  const m = findStableMove(lines, NOW)
+  assert.ok(m)
+  assert.equal(m.supplierName, "The Provedores")
+  assert.equal(m.prior, 0.0224)
+  assert.equal(m.changePct, 9.82)
+})
+
+test("rounding jitter under 0.5% is the same price, on either side of the move", () => {
+  // $8.78 per 500g printed as 0.01756 one week and 0.017561 the next
+  const jitter = [
+    line({ date: "2026-10-20", price: 0.01756 }),
+    line({ date: "2026-10-27", price: 0.017561 }),
+    line({ date: "2026-11-03", price: 0.01756 }),
+  ]
+  assert.equal(findStableMove(jitter, NOW), null)
+  const m = findStableMove(
+    [
+      line({ date: "2026-10-01", price: 0.0165 }),
+      line({ date: "2026-10-08", price: 0.016501 }),
+      line({ date: "2026-11-01", price: 0.01756 }),
+      line({ date: "2026-11-05", price: 0.017561 }),
+    ],
+    NOW
+  )
+  assert.ok(m, "jitter inside the new run still confirms on 2 deliveries")
+  assert.equal(m.prior, 0.016501)
+  assert.equal(m.current, 0.017561)
+})
+
+test("exactly 5% is a move, just under 5% is not", () => {
+  const at = (price: number) => [
+    line({ date: "2026-10-01", price: 20 }),
+    line({ date: "2026-11-01", price }),
+    line({ date: "2026-11-08", price }),
+  ]
+  assert.equal(findStableMove(at(21), NOW)?.changePct, 5)
+  assert.equal(findStableMove(at(20.99), NOW), null)
+  assert.equal(findStableMove(at(19), NOW)?.changePct, -5)
+})
+
+test("zero, negative and NaN prices are ignored, not treated as a price", () => {
+  const lines = [
+    line({ date: "2026-10-01", price: 10 }),
+    line({ date: "2026-10-08", price: 10 }),
+    line({ date: "2026-10-30", price: 0 }), // free goods line
+    line({ date: "2026-11-01", price: -10 }), // credit-style line
+    line({ date: "2026-11-02", price: Number.NaN }),
+    line({ date: "2026-11-03", price: 11 }),
+    line({ date: "2026-11-10", price: 11 }),
+  ]
+  const m = findStableMove(lines, NOW)
+  assert.ok(m)
+  assert.equal(m.prior, 10)
+  assert.equal(m.current, 11)
+  assert.equal(m.changedAt.toISOString().slice(0, 10), "2026-11-03")
+  assert.equal(findStableMove([], NOW), null)
+})
+
+test("impact is per week in dollars: units = lineTotal / price, 4-week window only", () => {
+  // Bridor croissant carton of 60, per piece $1.05 to $1.15, 3 cartons in window
+  const lines = [
+    line({ date: "2026-09-01", price: 1.05, description: "Croissant Bridor 60", lineTotal: 63 }), // outside window
+    line({ date: "2026-10-20", price: 1.05, description: "Croissant Bridor 60", lineTotal: 63 }),
+    line({ date: "2026-11-03", price: 1.15, description: "Croissant Bridor 60", lineTotal: 69 }),
+    line({ date: "2026-11-10", price: 1.15, description: "Croissant Bridor 60", lineTotal: 69 }),
+  ]
+  const m = findStableMove(lines, NOW)
+  assert.ok(m)
+  // 180 pieces in window / 4 weeks = 45/wk x $0.10 = $4.50/wk
+  assert.equal(m.weeklyImpactDollars, 4.5)
+  // no line totals at all: impact unknown, not $0
+  const noTotals = findStableMove(lines.map((l) => ({ ...l, lineTotal: null })), NOW)
+  assert.ok(noTotals)
+  assert.equal(noTotals.weeklyImpactDollars, null)
+})
+
+test("a move with dollars attached outranks a bigger % move with no volume", () => {
+  const lines = [
+    line({ date: "2026-10-01", price: 10, description: "A", lineTotal: 100 }),
+    line({ date: "2026-10-30", price: 10.6, description: "A", lineTotal: 106 }),
+    line({ date: "2026-11-06", price: 10.6, description: "A", lineTotal: 106 }),
+    line({ date: "2026-10-01", price: 10, description: "B" }),
+    line({ date: "2026-10-30", price: 14, description: "B" }),
+    line({ date: "2026-11-06", price: 14, description: "B" }),
+  ]
+  const m = findStableMove(lines, NOW)
+  assert.ok(m)
+  assert.equal(m.changePct, 6)
+  // among moves without volume, the bigger % wins
+  const noVol = findStableMove(lines.map((l) => ({ ...l, lineTotal: null })), NOW)
+  assert.ok(noVol)
+  assert.equal(noVol.changePct, 40)
+})
+
+test("a description carried by two codes is ambiguous: uncoded lines keep their own key", () => {
+  const keys = productKeys([
+    line({ date: "2026-08-20", price: 0.0165, description: "BUTTER SALTED" }),
+    line({ date: "2026-09-20", price: 0.0165, description: "BUTTER SALTED", productCode: "125104" }),
+    line({ date: "2026-09-21", price: 0.0178, description: "BUTTER SALTED", productCode: "6957" }),
+  ])
+  assert.equal(keys[0], "Bidfood|desc:butter salted|")
+  assert.equal(keys[1], "Bidfood|code:125104")
+  assert.equal(keys[2], "Bidfood|code:6957")
+})
+
+// Test-guard finds, 13 Nov 2026.
+test("one late invoice at the old price folds into the run; the rise still shows", () => {
+  const lines = [
+    line({ date: "2026-09-29", price: 10 }),
+    line({ date: "2026-10-06", price: 10 }),
+    line({ date: "2026-10-13", price: 10 }),
+    line({ date: "2026-10-20", price: 11 }),
+    line({ date: "2026-10-27", price: 10 }), // billed at the old price once
+    line({ date: "2026-11-03", price: 11 }),
+    line({ date: "2026-11-10", price: 11 }),
+  ]
+  const m = findStableMove(lines, NOW)
+  assert.ok(m, "the rise must not be lost for good")
+  assert.equal(m.prior, 10)
+  assert.equal(m.current, 11)
+  assert.equal(m.changedAt.toISOString().slice(0, 10), "2026-10-20")
+})
+
+test("a one-delivery promo just before a rise is not the Was price", () => {
+  const lines = [
+    line({ date: "2026-10-01", price: 10 }),
+    line({ date: "2026-10-08", price: 10 }),
+    line({ date: "2026-10-22", price: 9 }), // promo
+    line({ date: "2026-10-29", price: 11 }),
+    line({ date: "2026-11-05", price: 11 }),
+  ]
+  const m = findStableMove(lines, NOW)
+  assert.ok(m)
+  assert.equal(m.prior, 10)
+  assert.equal(m.changePct, 10)
+})
+
+test("uncoded lines with one description but different billed units are different products", () => {
+  const lines = [
+    line({ date: "2026-10-20", price: 0.0165, description: "BUTTER SALTED", unit: "PAT" }),
+    line({ date: "2026-10-27", price: 0.0165, description: "BUTTER SALTED", unit: "PAT" }),
+    line({ date: "2026-11-03", price: 0.01777, description: "BUTTER SALTED", unit: "BLK" }),
+    line({ date: "2026-11-10", price: 0.01777, description: "BUTTER SALTED", unit: "BLK" }),
+  ]
+  assert.equal(findStableMove(lines, NOW), null)
+  const keys = productKeys(lines)
+  assert.notEqual(keys[0], keys[2])
 })

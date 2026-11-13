@@ -227,6 +227,7 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
           supplierName: l.invoice?.supplierName ?? null,
           productCode: l.productCode,
           description: l.description,
+          unit: l.unit,
           venue: l.invoice?.venue ?? null,
           invoiceDate: l.invoice!.invoiceDate!,
           price: Number(l.normalisedUnitPrice),
@@ -334,9 +335,12 @@ export async function computePriceAlerts(): Promise<ComputeResult> {
     if (existing) {
       // A different "was" means a different move: restart firstSeenAt so the
       // digest marks it new instead of inheriting an old alert's date.
+      // STABLE only: a PRODUCE "was" is the trailing median, which drifts
+      // nightly, and resetting on it would badge every produce alert new.
       const oldPrior = new Decimal(existing.priorPrice.toString())
       const newMove =
-        oldPrior.lte(0) || priorPrice.minus(oldPrior).abs().div(oldPrior).gt(0.02)
+        stream === "STABLE" &&
+        (oldPrior.lte(0) || priorPrice.minus(oldPrior).abs().div(oldPrior).gt(0.02))
       await db.priceAlert.update({
         where: { id: existing.id },
         data: {
