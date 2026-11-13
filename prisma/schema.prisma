@@ -3694,3 +3694,45 @@ model DailyEventSales {
   @@unique([date, venue])
   @@index([venue, date])
 }
+
+/// Council campaign sign-ons (Burleigh roadside dining fee, Nov 2026), collected
+/// by Oliver on the GM desk. Rows are never deleted: status changes are updates,
+/// and every save also writes a full snapshot to CouncilSignOnEvent.
+model CouncilSignOn {
+  id           String               @id @default(cuid())
+  campaign     String               @default("roadside-dining-2026")
+  name         String
+  sortName     String
+  street       String               @default("")
+  source       String               @default("seed")
+  unsure       Boolean              @default(false)
+  status       String               @default("todo")
+  owner        String               @default("")
+  permit       String               @default("")
+  worksPct     String               @default("")
+  openedPct    String               @default("")
+  nowPct       String               @default("")
+  setupHours   String               @default("")
+  email        String               @default("")
+  note         String               @default("")
+  signature    String?
+  signatureUrl String?
+  signedAt     DateTime?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  events       CouncilSignOnEvent[]
+
+  @@unique([campaign, sortName])
+}
+
+/// Append-only history of every save to a CouncilSignOn (full row, signature included).
+model CouncilSignOnEvent {
+  id        String        @id @default(cuid())
+  signOnId  String
+  signOn    CouncilSignOn @relation(fields: [signOnId], references: [id], onDelete: Restrict)
+  action    String
+  snapshot  Json
+  createdAt DateTime      @default(now())
+
+  @@index([signOnId, createdAt])
+}

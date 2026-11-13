@@ -294,18 +294,25 @@ export const GM_TASK_SEEDS: GmTaskSeed[] = [
     sortOrder: 8,
   },
   {
+    slug: "council-signons",
+    title: "Council sign-ons collected (footpath dining fee)",
+    doneMeans: "Every Burleigh venue with footpath tables visited. Each one marked Signed, Said no or No footpath tables on the Council page. Chloe has the filed copy.",
+    dueOn: "2026-11-27",
+    sortOrder: 9,
+  },
+  {
     slug: "holiday-rosters",
     title: "Christmas and school holiday rosters published",
     doneMeans: "9 Dec to 19 Jan live by 30 Nov, staffed for 1.35 times a normal week. Public holidays covered. Leave requests closed.",
     dueOn: "2026-11-30",
-    sortOrder: 9,
+    sortOrder: 10,
   },
   {
     slug: "quarter-review",
     title: "First quarter review with Chloe",
     doneMeans: "Three monthly sheets side by side. Three biggest wins, three things still broken, 2027 targets agreed.",
     dueOn: "2026-12-14",
-    sortOrder: 10,
+    sortOrder: 11,
   },
 ]
 

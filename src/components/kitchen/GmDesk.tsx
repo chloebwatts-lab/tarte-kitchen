@@ -102,6 +102,11 @@ export function GmDesk({ board }: { board: GmBoard }) {
       {tab === "week" ? <Week board={board} run={run} busy={busy} /> : null}
       {tab === "tasks" ? <Tasks board={board} run={run} busy={busy} /> : null}
 
+      <div className="space-y-2">
+        <p className="tk-caps px-1 text-[var(--tk-ink-soft)]">Council</p>
+        <KitchenButton href="/kitchen/gm/council" variant="secondary" size="lg" className="w-full">Footpath dining fee: script and sign-on list</KitchenButton>
+      </div>
+
       <KitchenButton href="/kitchen/gm/photos" variant="secondary" size="lg" className="w-full">Thank-you photos for the FOH checklists</KitchenButton>
     </div>
   )
