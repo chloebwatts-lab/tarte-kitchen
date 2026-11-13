@@ -23,7 +23,14 @@
  */
 import { matchQuote, quoteBasisPrice, VARIANT_WORDS, type QuoteRow } from "./card-sync"
 import { productKeys, type StableLine } from "./stable"
-import { bestReplacement, netPrice, rebateFor, type FormRow } from "../preferred-supplier"
+import { bestReplacement, rebateFor, type FormRow } from "../preferred-supplier"
+
+/**
+ * Net of the supplier's rebate, unrounded. netPrice() rounds to 4 decimals,
+ * which is a 6-8% step on a per-g or per-ml price ($1.65/kg flour is
+ * 0.00165/g), enough to turn a 1% gap into a 6% one.
+ */
+const net = (gross: number, supplier: string) => gross * (1 - rebateFor(supplier) / 100)
 
 export const DEARER_WINDOW_DAYS = 56
 export const INVOICE_GAP_PCT = 5
@@ -148,7 +155,11 @@ export function findDearerBuys(input: {
     .filter((f) => f.packPrice > 0)
     .map((f) => ({ id: f.id, supplierName: f.supplier, name: f.name, packPrice: f.packPrice, unit: f.unit, unitPrice: f.unitPrice }))
   const formById = new Map(input.forms.map((f) => [f.id, f]))
-  const matched = new Map<string, { form: FormRow; billed: number }>()
+  // perUnit turns a billed price into a price per form unit on the basis the
+  // match was made: per pack (unitPrice / packPrice), or 1 when the supplier
+  // bills per kg / L. Dividing a per-kg bill by the pack size again made a
+  // $15 gap read $103.
+  const matched = new Map<string, { form: FormRow; billed: number; perUnit: number | null }>()
   for (const [k, idx] of byProduct) {
     const ls = idx.map((i) => lines[i])
     const last = ls[ls.length - 1]
@@ -157,10 +168,14 @@ export function findDearerBuys(input: {
       { supplierName: last.supplierName, description: [...new Set(ls.map((l) => l.description))], billedUnit: last.unit, billedPrice: billed },
       quotes
     )
-    if (m) matched.set(k, { form: formById.get(m.quote.id)!, billed })
+    if (!m) continue
+    const form = formById.get(m.quote.id)!
+    const perUnit = form.unitPrice && form.unitPrice > 0 ? (m.ratio * form.unitPrice) / billed : null
+    matched.set(k, { form, billed, perUnit })
   }
-  const actualByForm = new Map<string, number>()
-  for (const v of matched.values()) actualByForm.set(v.form.id, v.billed)
+  /** What we actually pay per form unit, gross, for each form line we buy. */
+  const actualUnitByForm = new Map<string, number>()
+  for (const v of matched.values()) if (v.perUnit) actualUnitByForm.set(v.form.id, v.billed * v.perUnit)
 
   // ---- 1. Same ingredient, cheaper product on our own invoices.
   const productsByIng = new Map<string, string[]>()
@@ -180,7 +195,7 @@ export function findDearerBuys(input: {
         idx,
         supplier: ls[0].supplierName,
         desc: ls[ls.length - 1].description,
-        net: median(ls.map((l) => netPrice(l.normalisedPrice!, rebateFor(l.supplierName)))),
+        net: median(ls.map((l) => net(l.normalisedPrice!, l.supplierName))),
         days: new Set(ls.map((l) => l.invoiceDate.getTime())).size,
         variants: variantWords(ls.map((l) => l.description)),
       }
@@ -201,7 +216,7 @@ export function findDearerBuys(input: {
       if (p.net < cheapest.net * (1 + (formOut ? FORM_GAP_PCT : INVOICE_GAP_PCT) / 100)) continue
       for (const i of p.idx) {
         const l = lines[i]
-        const paid = netPrice(l.normalisedPrice!, rebateFor(l.supplierName))
+        const paid = net(l.normalisedPrice!, l.supplierName)
         if (!(paid > cheapest.net)) continue
         const units = l.lineTotal / l.normalisedPrice!
         extra.set(i, {
@@ -224,14 +239,14 @@ export function findDearerBuys(input: {
   }
 
   // ---- 2. The order form says buy it elsewhere (where the invoices had no comparison).
-  for (const [k, { form }] of matched) {
-    if (form.active || !form.unitPrice || !(form.unitPrice > 0)) continue
+  for (const [k, { form, perUnit }] of matched) {
+    if (form.active || !perUnit) continue
     const rep = bestReplacement(form, input.forms)
     if (!rep || !rep.unitPrice || !(rep.unitPrice > 0)) continue
-    const repUnits = rep.packPrice / rep.unitPrice
-    const repUnitGross = actualByForm.has(rep.id) && repUnits > 0 ? actualByForm.get(rep.id)! / repUnits : rep.unitPrice
-    const repNet = netPrice(repUnitGross, rebateFor(rep.supplier))
-    const unitsPerPack = form.packPrice / form.unitPrice
+    // Supplier choice only: a bigger pack from the same supplier (caster
+    // sugar 15kg vs 25kg) is a pack decision, not a dearer supplier.
+    if (rep.supplier === form.supplier) continue
+    const repNet = net(actualUnitByForm.get(rep.id) ?? rep.unitPrice, rep.supplier)
     for (const i of byProduct.get(k)!) {
       const l = lines[i]
       const already = extra.get(i)
@@ -239,10 +254,10 @@ export function findDearerBuys(input: {
         if (already.row.cheaperFrom === rep.supplier) already.row.formSaysElsewhere = true
         continue
       }
-      const paid = netPrice(quoteBasisPrice(l.unitPrice, l.effectivePrice), rebateFor(l.supplierName)) / unitsPerPack
+      const paid = net(quoteBasisPrice(l.unitPrice, l.effectivePrice) * perUnit, l.supplierName)
       if (paid < repNet * (1 + FORM_GAP_PCT / 100)) continue
       extra.set(i, {
-        amount: (paid - repNet) * unitsPerPack * l.qty,
+        amount: (paid - repNet) * (l.qty / perUnit),
         row: {
           item: l.ingredientName ?? form.name,
           boughtFrom: l.supplierName,

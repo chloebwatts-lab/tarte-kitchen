@@ -1100,3 +1100,17 @@ test("dearer supplier: nothing to show renders nothing; no open alerts still sho
   const quietText = renderDigestText(snapshot({ priceSpikes: { count: 0, produce: [], stable: [], produceTotal: 0, stableTotal: 0, dearer: DEARER } }), narrative)
   assert.equal((quietText.match(/SUPPLIER PRICE CHANGES/g) ?? []).length, 1)
 })
+
+test("dearer supplier: an older snapshot with no dearer key renders as before", () => {
+  const base = snapshot()
+  const ps = { ...base.priceSpikes } as Record<string, unknown>
+  delete ps.dearer
+  const old = snapshot({ priceSpikes: ps as unknown as WeeklyDigestSnapshot["priceSpikes"] })
+  const html = renderDigestHtml(old, narrative)
+  assert.ok(html.includes("</html>"), "renders the whole email")
+  assert.ok(!html.includes("Bought from the dearer supplier"))
+  assert.ok(!renderDigestText(old, narrative).includes("Bought from the dearer supplier"))
+  // Nothing this week but some in the 8 weeks: the block still shows the 8-week rate.
+  const quietWeek = renderDigestHtml(snapshot({ priceSpikes: { ...base.priceSpikes, dearer: { rows: [], weekTotal: 0, windowTotal: 120, yearRate: 780, byVenueWeek: [] } } }), narrative)
+  assert.ok(quietWeek.includes("$0 extra this week · $120 over 8 weeks, about $780 a year"))
+})

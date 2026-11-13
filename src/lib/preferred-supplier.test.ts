@@ -182,3 +182,22 @@ test("plurals: frozen raspberries pair with Fermex raspberry, sunflower kernels 
   const pum = row("p", "Bidfood", "Seeds Pepitas Kernels Pumpkin (Catchoice)", 15.09, true)
   assert.equal(bestReplacement(sun, [sun, pum]), null)
 })
+
+test("plurals: -ss, -us and short words read the same on both sides, never a false pair", () => {
+  const t = (s: string) => [...productTokens(s)].sort().join(" ")
+  assert.equal(t("Glass Jar"), "glass jar", "-ss words stay whole")
+  assert.equal(t("Cress Mustard"), t("CRESS MUSTARD"))
+  assert.equal(t("Sea Bass Fillets"), t("Sea Bass Fillet"))
+  assert.equal(t("Bus Tub Grey"), "bus grey", "3-letter words stay whole")
+  assert.equal(t("Asparagus Green"), t("ASPARAGUS GREEN"), "-us cut the same way on both sides")
+  assert.equal(t("Hummus Classic"), t("hummus classic"))
+  assert.equal(t("Rice Arborio Bags"), "arborio rice", "pack words in the plural are stop words too")
+  const row = (id: string, supplier: string, name: string, unitPrice: number, active: boolean, unit = "kg"): FormRow => ({
+    id, supplier, name, packSize: null, packPrice: unitPrice, unitPrice, unit, category: null, notes: null, active,
+  })
+  const hum = row("h", "Bidfood", "Hummus Classic (Chris)", 12, false)
+  assert.equal(bestReplacement(hum, [hum, row("h2", "Fermex", "Hummus Classic 2kg", 10, true)])?.id, "h2")
+  assert.equal(bestReplacement(hum, [hum, row("a", "Fermex", "Asparagus Classic", 10, true)]), null)
+  const bass = row("b", "Bidfood", "Sea Bass Fillets", 30, false)
+  assert.equal(bestReplacement(bass, [bass, row("g", "Bidfood", "Glass Salt", 5, true)]), null, "no shared product word")
+})
