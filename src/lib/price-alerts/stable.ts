@@ -165,7 +165,28 @@ export function seriesMove(
   return { current, prior: prior.price, changedAt }
 }
 
-function sortByDate(lines: StableLine[]): StableLine[] {
+/**
+ * The price a series has settled at: the newest run of one price on 2+
+ * deliveries. A newer price seen only once (unconfirmed rise, blip) is
+ * passed over until it lands a second time. Null when no price has been on
+ * 2 deliveries. Series oldest first; returns the run's newest line too.
+ */
+export function settledPrice<T extends StableLine>(series: T[]): { price: number; line: T } | null {
+  let k = series.length - 1
+  while (k >= 0) {
+    const price = series[k].price
+    const last = k
+    const days = new Set<number>()
+    while (k >= 0 && samePrice(series[k].price, price)) {
+      days.add(dayKey(series[k].invoiceDate))
+      k--
+    }
+    if (days.size >= STABLE_CONFIRM_DELIVERIES) return { price, line: series[last] }
+  }
+  return null
+}
+
+export function sortByDate<T extends StableLine>(lines: T[]): T[] {
   return lines
     .map((l, idx) => ({ l, idx }))
     .sort((a, b) => a.l.invoiceDate.getTime() - b.l.invoiceDate.getTime() || a.idx - b.idx)

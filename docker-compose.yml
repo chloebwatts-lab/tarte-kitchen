@@ -226,6 +226,9 @@ services:
         # Pricing rebuild (shadow mode): product-level alerts from per-base-unit
         # observations, 10:15 AEST, after the v2 compute so the two can be compared.
         15 0 * * * curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/compute-product-alerts 2>&1
+        # 10:20 AEST — cost cards follow settled invoice prices, never above
+        # the latest quote (order forms), then recipes recost (Chloe 13 Nov 2026).
+        20 0 * * * curl -fsS -m 600 -o /dev/null -w "sync-cost-cards %{http_code}\n" -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/sync-cost-cards 2>&1
         # PAUSED 2026-05-15 per Chloe: too much email noise. Checklist /
         # temp-log status stays visible on the dashboard (DashboardOpsPanel)
         # and will be folded into the Friday weekly digest. To re-enable,

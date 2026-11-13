@@ -644,16 +644,65 @@ function priceAlertTable(
     </div>`
 }
 
+type AboveQuoteRow = NonNullable<WeeklyDigestSnapshot["priceSpikes"]["aboveQuote"]>[number]
+
+// Charged above the latest quote: the nightly cost-card sync holds these
+// cards at the quote (Chloe, 13 Nov 2026), so they are gaps to chase or,
+// if the rise is fair, accept by updating the order-form price.
+function aboveQuoteTable(items: AboveQuoteRow[], total: number) {
+  if (items.length === 0) return ""
+  const countLabel = total > items.length ? `top ${items.length} of ${total}` : `${items.length}`
+  const rows = items
+    .map(
+      (a) => `
+        <tr>
+          <td style="padding:8px 10px;border-bottom:1px solid ${C.borderSoft};font-size:13px;color:${C.ink};">${escapeHtml(a.ingredient)}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid ${C.borderSoft};font-size:12px;color:${C.inkSoft};">${escapeHtml(a.supplier ?? "—")}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid ${C.borderSoft};font-size:12px;color:${C.inkSoft};text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;">${fmtUnitPrice(a.quoted, a.unit)}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid ${C.borderSoft};font-size:12px;color:${C.ink};text-align:right;font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;">${fmtUnitPrice(a.charged, a.unit)}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid ${C.borderSoft};text-align:right;">
+            <span style="display:inline-block;padding:2px 8px;background:${C.redSoft};color:${C.red};border-radius:999px;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;">${fmtPct(a.pct, { signed: true })}</span>
+          </td>
+          <td style="padding:8px 10px;border-bottom:1px solid ${C.borderSoft};font-size:12px;color:${C.inkSoft};text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;">${fmtImpact(a.weeklyGapDollars)}</td>
+        </tr>`
+    )
+    .join("")
+  const th = (label: string, align: "left" | "right") =>
+    `<th style="padding:9px 10px;text-align:${align};font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.inkMute};font-weight:600;">${label}</th>`
+  return `
+    <div style="padding:14px 18px 0;">
+      <div style="padding:0 2px 6px;font-size:13px;font-weight:600;color:${C.ink};">Charged above quote <span style="font-weight:400;color:${C.inkMute};font-size:12px;">· ${escapeHtml(countLabel)} · cost cards held at the quote</span></div>
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:${C.card};border:1px solid ${C.border};border-radius:14px;border-collapse:collapse;overflow:hidden;">
+        <thead>
+          <tr style="background:${C.borderSoft};">${th("Ingredient", "left")}${th("Supplier", "left")}${th("Quote", "right")}${th("Charged", "right")}${th("Over", "right")}${th("Est. gap", "right")}</tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`
+}
+
+function heldCardsLine(held: NonNullable<WeeklyDigestSnapshot["priceSpikes"]["heldCards"]>) {
+  if (held.length === 0) return ""
+  const names = held
+    .slice(0, 5)
+    .map((h) => `${escapeHtml(h.ingredient)} (${Number.isFinite(h.changePct) ? fmtPct(h.changePct, { signed: true, decimals: 0 }) : "new"})`)
+    .join(", ")
+  return `<div style="padding:8px 28px 0;color:${C.inkSoft};font-size:12px;">Cost cards not moved on their own (over 50% at once, check the mapping or pack): ${names}${held.length > 5 ? `, +${held.length - 5} more` : ""}.</div>`
+}
+
 function priceSpikesSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative) {
-  if (snapshot.priceSpikes.count === 0) {
+  const ps = snapshot.priceSpikes
+  const quoteBlock = `${aboveQuoteTable(ps.aboveQuote ?? [], ps.aboveQuoteTotal ?? 0)}${heldCardsLine(ps.heldCards ?? [])}`
+  if (ps.count === 0) {
     return `${sectionHeader("Supplier price changes", narrative.sectionNotes.prices)}
-      <div style="padding:8px 28px 0;color:${C.inkMute};font-size:13px;">No open price alerts. One-off produce market moves are filtered out automatically.</div>`
+      <div style="padding:8px 28px 0;color:${C.inkMute};font-size:13px;">No open price alerts. One-off produce market moves are filtered out automatically.</div>${quoteBlock}`
   }
   return `
     ${sectionHeader("Supplier price changes", narrative.sectionNotes.prices)}
-    ${priceAlertTable(snapshot.priceSpikes.stable, snapshot.priceSpikes.stableTotal, "Staples", "vs the price paid before, moves of 5% or more in the last 4 weeks")}
-    ${priceAlertTable(snapshot.priceSpikes.produce, snapshot.priceSpikes.produceTotal, "Produce", "25%+ above 4-week median, confirmed on 2+ deliveries")}
-    <div style="padding:8px 28px 0;color:${C.inkMute};font-size:11px;">Was = what that supplier charged for the same product before the change; staples count once the new price is on 2 deliveries. Est. impact = the last 4 weeks' volume of that product times the change; negative is a saving. Review alerts in Kitchen under Suppliers.</div>`
+    ${priceAlertTable(ps.stable, ps.stableTotal, "Staples", "vs the price paid before, moves of 5% or more in the last 4 weeks")}
+    ${priceAlertTable(ps.produce, ps.produceTotal, "Produce", "25%+ above 4-week median, confirmed on 2+ deliveries")}
+    ${quoteBlock}
+    <div style="padding:8px 28px 0;color:${C.inkMute};font-size:11px;">Was = what that supplier charged for the same product before the change; staples count once the new price is on 2 deliveries. Est. impact = the last 4 weeks' volume of that product times the change; negative is a saving. Quote = the order-form price; to accept a rise, update it there. Review alerts in Kitchen under Suppliers.</div>`
 }
 
 function topSellersSection(snapshot: WeeklyDigestSnapshot, narrative: DigestNarrative) {
@@ -1218,6 +1267,25 @@ export function renderDigestText(
     if (snapshot.priceSpikes.produce.length > 0) {
       lines.push(`  Produce (confirmed vs 4-week median):`)
       for (const p of snapshot.priceSpikes.produce.slice(0, 4)) lines.push(alertLine(p))
+    }
+  }
+  const aq = snapshot.priceSpikes.aboveQuote ?? []
+  const held = snapshot.priceSpikes.heldCards ?? []
+  if (aq.length > 0 || held.length > 0) {
+    if (snapshot.priceSpikes.count === 0) {
+      lines.push(``)
+      lines.push(`SUPPLIER PRICE CHANGES`)
+    }
+    if (aq.length > 0) {
+      lines.push(`  Charged above quote (cost cards held at the quote):`)
+      for (const a of aq.slice(0, 6)) {
+        lines.push(
+          `    ${a.ingredient} (${a.supplier ?? "—"}): quoted ${fmtUnitPrice(a.quoted, a.unit)}, charged ${fmtUnitPrice(a.charged, a.unit)} (${fmtPct(a.pct, { signed: true })}${a.weeklyGapDollars != null ? `, ~${fmtImpact(a.weeklyGapDollars)}` : ""})`
+        )
+      }
+    }
+    if (held.length > 0) {
+      lines.push(`  Cost cards not moved on their own (over 50%, check mapping or pack): ${held.slice(0, 5).map((h) => h.ingredient).join(", ")}`)
     }
   }
   lines.push(``)

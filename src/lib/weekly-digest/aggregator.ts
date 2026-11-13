@@ -216,6 +216,26 @@ interface PriceSpikesSection {
   /// email says "top N of M" rather than silently truncating.
   produceTotal: number
   stableTotal: number
+  /// Charged above the latest quote (order-form price), from the nightly
+  /// cost-card audit (src/lib/price-alerts/card-sync.ts). The card is held
+  /// at the quote; these are the gaps to chase or accept. Optional so older
+  /// snapshots still render.
+  aboveQuote?: AboveQuoteDigestItem[]
+  aboveQuoteTotal?: number
+  /// Card moves over 50% the sync would not make on its own.
+  heldCards?: { ingredient: string; oldPrice: number; newPrice: number; changePct: number }[]
+}
+
+interface AboveQuoteDigestItem {
+  ingredient: string
+  supplier: string | null
+  quoteName: string
+  /// Per purchase unit (per g / ml / piece), like the alert prices.
+  quoted: number
+  charged: number
+  unit: string
+  pct: number
+  weeklyGapDollars: number | null
 }
 
 interface WastageSection {
@@ -553,12 +573,44 @@ async function buildPriceSpikes(week: DigestWeek): Promise<PriceSpikesSection> {
   const stable = stableAll.map(toItem).sort(byImpact).slice(0, 12)
   const produce = produceAll.map(toItem).sort(byImpact).slice(0, 8)
 
+  // The cost-card audit against quotes, planned dry so the digest shows
+  // exactly what tonight's sync holds back. Never fails the digest.
+  let aboveQuote: AboveQuoteDigestItem[] = []
+  let aboveQuoteTotal = 0
+  let heldCards: PriceSpikesSection["heldCards"] = []
+  try {
+    const { planCostCardSync } = await import("@/lib/price-alerts/card-sync-service")
+    const plan = await planCostCardSync()
+    aboveQuoteTotal = plan.aboveQuote.length
+    aboveQuote = plan.aboveQuote.slice(0, 10).map((a) => ({
+      ingredient: a.ingredient,
+      supplier: a.supplierName,
+      quoteName: a.quoteName,
+      quoted: a.quoted,
+      charged: a.charged,
+      unit: a.unit,
+      pct: a.pct,
+      weeklyGapDollars: a.weeklyGapDollars,
+    }))
+    heldCards = plan.held.slice(0, 8).map((h) => ({
+      ingredient: h.ingredient,
+      oldPrice: h.oldPrice,
+      newPrice: h.newPrice,
+      changePct: h.changePct,
+    }))
+  } catch (e) {
+    console.error("[weekly-digest] cost-card audit failed", e)
+  }
+
   return {
     count: stable.length + produce.length,
     produce,
     stable,
     produceTotal: produceAll.length,
     stableTotal: stableAll.length,
+    aboveQuote,
+    aboveQuoteTotal,
+    heldCards,
   }
 }
 
