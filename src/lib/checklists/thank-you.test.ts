@@ -118,3 +118,31 @@ test("thankYouDisplayUrl asks Cloudinary for a lighter copy, once, and leaves ot
   assert.equal(thankYouDisplayUrl("https://res.cloudinary.com/tarte/video/upload/x.mp4"), "https://res.cloudinary.com/tarte/video/upload/x.mp4")
   assert.equal(thankYouDisplayUrl(""), "")
 })
+
+test("test-guard: a BOTH-venue run borrows the whole pool and gets a real, lighter photo", () => {
+  // Mirrors pickThankYouPhotoUrl: pool, pick, then the display URL.
+  const rows = [
+    { venue: "BURLEIGH", url: "https://res.cloudinary.com/tarte/image/upload/v1794530594/tarte-kitchen/thank-you/b1.jpg" },
+    { venue: "TEA_GARDEN", url: "https://res.cloudinary.com/tarte/image/upload/v1794530595/tarte-kitchen/thank-you/t1.jpg" },
+  ]
+  const pool = photoPool(rows, "BOTH")
+  assert.equal(pool.length, 2)
+  const last = pickOne(pool, 0.9999)
+  assert.ok(last)
+  assert.equal(
+    thankYouDisplayUrl(last.url),
+    "https://res.cloudinary.com/tarte/image/upload/f_auto,q_auto,c_limit,h_1400/v1794530595/tarte-kitchen/thank-you/t1.jpg",
+  )
+  // A venue with one photo of its own never shows another venue's.
+  for (const r of [0, 0.5, 0.9999]) assert.equal(pickOne(photoPool(rows, "TEA_GARDEN"), r)?.url, rows[1].url)
+})
+
+test("test-guard: thankYouDisplayUrl leaves lookalike hosts and plain http alone", () => {
+  const lookalike = "https://res.cloudinary.com.evil.example/tarte/image/upload/x.jpg"
+  assert.equal(thankYouDisplayUrl(lookalike), lookalike)
+  const http = "http://res.cloudinary.com/tarte/image/upload/v1/x.jpg"
+  assert.equal(thankYouDisplayUrl(http), http)
+  // Applying it twice is the same as once (the page re-renders on every tick).
+  const raw = "https://res.cloudinary.com/tarte/image/upload/v1/x.jpg"
+  assert.equal(thankYouDisplayUrl(thankYouDisplayUrl(raw)), thankYouDisplayUrl(raw))
+})
