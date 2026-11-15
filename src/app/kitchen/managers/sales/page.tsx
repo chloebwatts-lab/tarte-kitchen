@@ -4,6 +4,7 @@ import { requireFullManager } from "@/lib/manager-auth"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { SalesNav } from "@/components/kitchen/SalesNav"
+import { maySeeNumbers } from "@/lib/numbers-auth"
 import { SalesInsights } from "@/components/kitchen/SalesInsights"
 import { getSalesInsights } from "@/lib/actions/sales-insights"
 import { brisbaneNow } from "@/lib/sales/insights"
@@ -18,7 +19,7 @@ export default async function SalesInsightsPage({ searchParams }: { searchParams
   return (
     <div className="space-y-5">
       <KitchenBreadcrumb crumbs={[{ label: "Managers", href: "/kitchen/managers" }, { label: "Sales" }]} />
-      <SalesNav current="sales" venue={venue} />
+      <SalesNav current="sales" venue={venue} numbers={await maySeeNumbers()} />
       <VenueSwitch current={venue} />
       <SalesInsights key={venue} initial={initial} view="sales" />
     </div>

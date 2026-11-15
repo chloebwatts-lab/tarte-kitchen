@@ -88,6 +88,11 @@ export default async function LiveLabourPage() {
                   <p className="text-[10px] text-muted-foreground">
                     {fmtMoney(v.labourProjected)} projected EOW
                   </p>
+                  {v.locked.pct != null && (
+                    <p className="text-[10px] text-muted-foreground">
+                      locked {fmtPct(v.locked.pct, { decimals: 1 })} over {v.locked.days} finished day{v.locked.days === 1 ? "" : "s"}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-muted-foreground">Revenue to date</p>
@@ -175,13 +180,19 @@ export default async function LiveLabourPage() {
         <p className="font-medium text-foreground">How this is computed</p>
         <ul className="mt-1 list-disc space-y-0.5 pl-5">
           <li>
+            <strong>Locked</strong>: Wed to yesterday, clocked timesheets and
+            that day&apos;s salaries against all revenue for the same days.
+            Actual against actual, nothing forecast.
+          </li>
+          <li>
             Labour <strong>to date</strong>: <em>timesheet</em> rows for shifts
             that have started this week. In-progress shifts accrue against
             their clock-in time and refresh on each page load.
           </li>
           <li>
-            Labour <strong>projected EOW</strong>: + <em>rostered</em> cost for
-            shifts that haven&apos;t started yet.
+            Labour <strong>projected EOW</strong>: + the part still to run of
+            rostered shifts that are underway, <em>rostered</em> cost for
+            shifts that haven&apos;t started, and the week&apos;s salaries.
           </li>
           <li>
             Revenue <strong>to date</strong>: all revenue ex GST. Till totals
@@ -190,8 +201,10 @@ export default async function LiveLabourPage() {
             dated that day (synced hourly).
           </li>
           <li>
-            Revenue <strong>projected EOW</strong>: + manager&apos;s sales forecast for
-            remaining days, or average of the locked days if no forecast.
+            Revenue <strong>projected EOW</strong>: + the usual rest of today
+            (off this weekday&apos;s hour-by-hour shape) and each remaining
+            day&apos;s weekday median from the last 4 weeks, scaled to how this
+            week is trading. The manager&apos;s forecast is the fallback.
           </li>
           <li>
             Dept status: <strong>ok</strong> when projected % ≤ band max,

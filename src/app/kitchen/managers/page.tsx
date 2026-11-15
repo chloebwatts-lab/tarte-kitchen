@@ -1,17 +1,25 @@
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Percent } from "lucide-react"
 import { isQuietManager, requireManager } from "@/lib/manager-auth"
 import { KitchenLogo } from "@/components/kitchen/KitchenLogo"
 import { ToolGrid } from "@/components/kitchen/ToolGrid"
 import { groupBySlug } from "@/lib/staff-tools"
 import { visibleTools } from "@/lib/manager-quiet"
+import { maySeeNumbers } from "@/lib/numbers-auth"
+import { NUMBERS_HREF } from "@/lib/numbers-access"
 
 export default async function ManagersPage() {
   await requireManager("/kitchen/managers")
   const g = groupBySlug("managers")!
-  const tools = visibleTools(g.tools, await isQuietManager())
+  const base = visibleTools(g.tools, await isQuietManager())
+  // Wages + COGS is not in the shared tile list (staff-tools.ts) on purpose:
+  // it is added here, for Chloe and Shawna only, so no other grid that
+  // reads that list can ever show it (numbers-access.ts).
+  const tools = (await maySeeNumbers())
+    ? [{ title: "Wages + COGS", sub: "Live wage % and COGS for the week. You and Shawna only", href: NUMBERS_HREF, icon: Percent }, ...base]
+    : base
   return (
     <div className="relative min-h-screen overflow-hidden" style={{ background: "var(--tk-sage)" }}>
       <div className="flex items-center justify-between px-8 pt-8 md:px-12">

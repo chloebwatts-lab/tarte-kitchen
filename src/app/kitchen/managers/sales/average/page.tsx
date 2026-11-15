@@ -4,6 +4,7 @@ import { requireFullManager } from "@/lib/manager-auth"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { SalesNav } from "@/components/kitchen/SalesNav"
+import { maySeeNumbers } from "@/lib/numbers-auth"
 import { salesVenue } from "../_venue"
 import { AvgSaleSimple } from "@/components/kitchen/AvgSaleSimple"
 import { getAvgSaleBoard } from "@/lib/actions/avg-sale"
@@ -15,7 +16,7 @@ export default async function AverageSalePage({ searchParams }: { searchParams: 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <KitchenBreadcrumb crumbs={[{ label: "Managers", href: "/kitchen/managers" }, { label: "Average sale" }]} />
-      <SalesNav current="average" venue={venue} />
+      <SalesNav current="average" venue={venue} numbers={await maySeeNumbers()} />
       <VenueSwitch current={venue} />
       <AvgSaleSimple key={venue} initial={initial} />
     </div>

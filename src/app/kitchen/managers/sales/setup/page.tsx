@@ -4,6 +4,7 @@ import { requireFullManager } from "@/lib/manager-auth"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
 import { SalesNav } from "@/components/kitchen/SalesNav"
+import { maySeeNumbers } from "@/lib/numbers-auth"
 import { salesVenue } from "../_venue"
 import { UpsellBoard } from "@/components/kitchen/UpsellBoard"
 import { ChallengeManagers } from "@/components/kitchen/ChallengeManagers"
@@ -16,7 +17,7 @@ export default async function ChallengeSetupPage({ searchParams }: { searchParam
   return (
     <div className="space-y-5">
       <KitchenBreadcrumb crumbs={[{ label: "Managers", href: "/kitchen/managers" }, { label: "Challenge", href: `/kitchen/managers/sales/challenge?venue=${venue}` }, { label: "Set up" }]} />
-      <SalesNav current="challenge" venue={venue} />
+      <SalesNav current="challenge" venue={venue} numbers={await maySeeNumbers()} />
       <VenueSwitch current={venue} />
       <ChallengeManagers key={`m-${venue}`} venue={venue} initial={simple.managers} />
       <UpsellBoard key={venue} initial={upsell} />
