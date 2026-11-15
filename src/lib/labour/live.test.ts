@@ -70,12 +70,11 @@ describe("live wages: locked (finished days, actual against actual)", () => {
     near(v.locked.revenue, 23000)
   })
 
-  test("the old weekly salary row (one row on the Wednesday) is a seventh per finished day, not the whole week", () => {
+  test("a single salary row on the Wednesday is that day's salary, locked in full once Wednesday is done", () => {
     const base = rows()
-    const v = burleigh({ ...base, labourShifts: [...LOCKED.map((d) => sheet(d, "06:00", "14:00", 1000)), salary("2026-11-11", 1400)] })
-    near(v.locked.labour, (4000 + (1400 * 4) / 7) * MULT)
-    // The projection still carries the whole week's salary.
-    near(v.labourProjected, (4000 + 1400) * MULT)
+    const v = burleigh({ ...base, labourShifts: [...LOCKED.map((d) => sheet(d, "06:00", "14:00", 1000)), salary("2026-11-11", 350)] })
+    near(v.locked.labour, (4000 + 350) * MULT)
+    near(v.labourProjected, (4000 + 350) * MULT)
   })
 
   test("today's wages and takings are never in the locked figure", () => {

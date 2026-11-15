@@ -12,8 +12,8 @@ import type { BucketSpendData } from "@/lib/spend/types"
 
 /**
  * Wages + COGS, live (Chloe, 15 Nov 2026). Chloe and Shawna only: the gate
- * is requireNumbers (managers password, then numbers-auth). Read only, no
- * server actions, so nothing here can be called from outside the page.
+ * is requireNumbers (managers password, then numbers-auth), called before
+ * anything is read. Read only: the page has no buttons that write.
  * Same engines as /labour/live and /spend, so the numbers always agree.
  */
 

@@ -260,17 +260,13 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
     }
     const labourProjected = labourToDate + labourRemaining
 
-    // Salary for the completed days. Daily rows count on their day. The
-    // older weekly form is one row on the Wednesday for the whole week: a
-    // seventh of it per completed day, or Thursday would carry seven days.
+    // Salary for the completed days: each row counts on its own day. The
+    // Shifts feed places salaries by the day worked (16 Oct 2026). The old
+    // weekly form (one row on the Wednesday for the whole week) looks the
+    // same as a single salaried Wednesday, so it is not second-guessed: if
+    // it ever came back, locked would read high early in the week, not low.
     let lockedSalary = 0
-    const salaryDays = [...salaryByDay.keys()]
-    const weeklyForm = salaryDays.length === 1 && salaryDays[0] === days[0]
-    if (weeklyForm) {
-      lockedSalary = ((salaryByDay.get(days[0]) ?? 0) * lockedDays.length) / 7
-    } else {
-      for (const [day, cost] of salaryByDay) if (day < todayAest) lockedSalary += cost
-    }
+    for (const [day, cost] of salaryByDay) if (day < todayAest) lockedSalary += cost
     const lockedLabour = lockedHourly + lockedSalary
 
     // ---- Revenue ----
