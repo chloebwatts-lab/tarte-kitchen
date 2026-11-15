@@ -77,8 +77,8 @@ export async function getLiveLabourSnapshot(
     ])
 
   // Labour multiplier: the raw shift cost excludes super + workers' comp /
-  // payroll tax. Louise's report (the figure we project toward) includes
-  // them. Rates from DeputyConnection, as before.
+  // payroll tax. The weekly wage figure we project toward (the Xero pay
+  // runs, src/lib/labour/payweek-figures.ts) includes them. Rates from DeputyConnection, as before.
   const labourMultiplier =
     1 +
     Number(connection?.superRate ?? 0.12) +

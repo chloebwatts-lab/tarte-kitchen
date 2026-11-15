@@ -223,7 +223,7 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
     for (const s of venueShifts) {
       const bucket = bucketFor(venue, s.area)
       // On-cost multiplier (super + workers' comp + payroll tax) so the
-      // figure lines up with Louise's gross-wages report, not raw cost.
+      // figure lines up with the Xero pay runs (payweek-figures.ts), not raw cost.
       const cost = s.cost * labourMultiplier
       const dayKey = aestDateKey(s.shiftStart)
       if (s.source === "TIMESHEET") {

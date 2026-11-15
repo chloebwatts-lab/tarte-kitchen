@@ -18,6 +18,7 @@ import type { BucketSpendData } from "@/lib/spend/types"
  */
 
 const money = (n: number) => `$${Math.round(n).toLocaleString("en-AU")}`
+const signed = (n: number | null) => (n == null ? "n/a" : `${n < 0 ? "-" : ""}${money(Math.abs(n))}`)
 const pct = (n: number | null, d = 1) => (n == null ? "n/a" : `${n.toFixed(d)}%`)
 
 const TONE = {
@@ -129,17 +130,26 @@ function CogsCard({ b }: { b: BucketSpendData }) {
       <div className="mt-4">
         <Row
           label="Spent so far"
-          sub={`${money(b.spentToDate)} invoiced${b.estimatedUninvoiced > 0 ? `, ${money(b.estimatedUninvoiced)} delivered and not invoiced yet` : ""}`}
+          sub={`${money(b.spentToDate)} invoiced${b.estimatedUninvoiced > 0 ? `, ${money(b.estimatedUninvoiced)} already delivered (to yesterday) with the invoice still to land` : ""}`}
           value={money(b.estimatedSpentToDate)}
         />
         {b.overdueGap > 0 && (
           <Row label="Overdue invoices" sub={b.overdueGapRows.slice(0, 3).map((r) => r.supplier).join(", ")} value={money(b.overdueGap)} />
         )}
-        <Row label="Usually still to come" sub="Deliveries that normally land before Tuesday close" value={money(b.usualStillToCome)} />
         <Row
-          label="Left to spend"
-          sub={b.budget != null ? `Budget ${money(b.budget)} at target` : "No budget until there is a forecast"}
-          value={b.leftToSpend == null ? "n/a" : `${b.leftToSpend < 0 ? "-" : ""}${money(Math.abs(b.leftToSpend))}`}
+          label="Room to order, today to Tuesday"
+          sub={b.budget != null ? `Budget ${money(b.budget)} at target, less what has come in` : "No budget until there is a forecast"}
+          value={signed(b.leftBeforeStillToCome)}
+        />
+        <Row
+          label="Normal orders still to land"
+          sub={`Not ordered or delivered yet as far as invoices show: the usual top-ups for today to Tuesday${b.stillToCome.length ? `. ${b.stillToCome.slice(0, 3).map((r) => `${r.supplier} (${r.days.join(", ")})`).join(", ")}` : ""}`}
+          value={money(b.usualStillToCome)}
+        />
+        <Row
+          label="Spare on top of normal orders"
+          sub="Order as usual and this is what is left. Negative means trim the usual orders by this much"
+          value={signed(b.leftToSpend)}
         />
         <Row
           label="Takings counted"
