@@ -368,3 +368,50 @@ describe("shareOfDayDone", () => {
     assert.equal(shareOfDayDone(rows, 8 * 60), 0.1)
   })
 })
+
+describe("live wages: paid leave shown apart (Chloe, 15 Nov 2026)", () => {
+  const leaveRow = (date: string, cost: number): Shift => ({ ...salary(date, cost), leave: true })
+
+  test("a salaried person away all week: still in the old figures, out of the working ones", () => {
+    const base = rows()
+    // $100 a day of the head chef's salary is paid leave, on top of the $200 working salary.
+    const v = burleigh({ ...base, labourShifts: [...base.labourShifts, ...WEEK.map((d) => leaveRow(d, 100))] })
+    near(v.paidLeave, 7 * 100 * MULT) // 784
+    near(v.locked.paidLeave, 4 * 100 * MULT)
+    // Leave in: unchanged meaning.
+    near(v.locked.labour, (4 * 1000 + 4 * 300) * MULT)
+    // Working: exactly what the week reads with no leave rows at all.
+    const plain = burleigh(base)
+    near(v.locked.workingPct, plain.locked.pct!)
+    near(v.workingProjectedPct, plain.overallProjectedPct!)
+    near(v.labourProjected - v.paidLeave, plain.labourProjected)
+    assert.ok(v.overallProjectedPct! > v.workingProjectedPct!)
+    // Team: the leave sits in Chefs + KP only, and the band is judged without it.
+    const chefs = v.buckets.find((b) => b.key === "chefsKp")!
+    near(chefs.paidLeave, 784)
+    near(chefs.workingPct, plain.buckets.find((b) => b.key === "chefsKp")!.projectedPct!)
+    assert.equal(v.buckets.find((b) => b.key === "pastry")!.paidLeave, 0)
+    // Days: every day carries its own leave, and working days add to the working week.
+    assert.ok(v.days.every((d) => Math.abs(d.paidLeave - 112) < 0.011))
+    near(v.days.reduce((s, d) => s + d.labour - d.paidLeave, 0), v.labourProjected - v.paidLeave)
+  })
+
+  test("no leave rows: working figures equal the old ones and paid leave is 0", () => {
+    const v = burleigh(rows())
+    assert.equal(v.paidLeave, 0)
+    assert.equal(v.locked.paidLeave, 0)
+    near(v.workingProjectedPct, v.overallProjectedPct!)
+    near(v.locked.workingPct, v.locked.pct!)
+    for (const b of v.buckets) {
+      assert.equal(b.paidLeave, 0)
+      assert.equal(b.workingStatus, b.status)
+    }
+    for (const d of v.days) assert.equal(d.workingPct, d.pct)
+  })
+
+  test("a leave flag on anything but a salary row is ignored", () => {
+    const base = rows()
+    const v = burleigh({ ...base, labourShifts: [...base.labourShifts, { ...sheet("2026-11-12", "06:00", "10:00", 500), leave: true }] })
+    assert.equal(v.paidLeave, 0)
+  })
+})

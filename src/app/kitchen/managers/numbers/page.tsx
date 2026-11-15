@@ -77,13 +77,23 @@ function WageCard({ v }: { v: LiveVenueSnapshot }) {
   const bandTone = (s: string): Tone => (s === "ok" ? "ok" : s === "amber" ? "amber" : s === "red" ? "red" : "none")
   return (
     <Card title={v.label}>
-      <Big value={pct(v.overallProjectedPct)} caption={`Wage % for the week, forecast. ${money(v.labourProjected)} wages on ${money(v.revenueProjected)}`} />
+      <Big
+        value={pct(v.workingProjectedPct)}
+        caption={`Wage % for the week, forecast. ${money(v.labourProjected - v.paidLeave)} wages on ${money(v.revenueProjected)}. Pay plus super only: no WorkCover, payroll tax or admin`}
+      />
       <div className="mt-4">
+        {v.paidLeave > 0 && (
+          <Row
+            label="With paid leave"
+            sub={`${money(v.paidLeave)} of salary for people away all week on approved leave. Still paid, but not in the figure above or the teams below`}
+            value={pct(v.overallProjectedPct)}
+          />
+        )}
         {v.locked.days > 0 ? (
           <Row
             label={`Locked in, ${dayRange(v.locked.days)}`}
-            sub={`Actual: ${money(v.locked.labour)} wages on ${money(v.locked.revenue)} revenue`}
-            value={pct(v.locked.pct)}
+            sub={`Actual: ${money(v.locked.labour - v.locked.paidLeave)} wages on ${money(v.locked.revenue)} revenue`}
+            value={pct(v.locked.workingPct)}
           />
         ) : (
           <Row label="Locked in" sub="First day of the week. Nothing is final until tomorrow" value="n/a" />
@@ -103,9 +113,9 @@ function WageCard({ v }: { v: LiveVenueSnapshot }) {
                     {d.dayName}
                     {d.state === "today" ? ", now" : d.state === "ahead" ? ", roster" : ""}
                   </td>
-                  <td className="py-1.5 text-right">{money(d.labour)}</td>
+                  <td className="py-1.5 text-right">{money(d.labour - d.paidLeave)}</td>
                   <td className="py-1.5 text-right">{d.revenue > 0 ? money(d.revenue) : "no takings yet"}</td>
-                  <td className="rounded-r-lg py-1.5 pr-2 text-right font-semibold">{pct(d.pct)}</td>
+                  <td className="rounded-r-lg py-1.5 pr-2 text-right font-semibold">{pct(d.workingPct)}</td>
                 </tr>
               ))}
             </tbody>
@@ -114,7 +124,7 @@ function WageCard({ v }: { v: LiveVenueSnapshot }) {
             .filter((d) => d.state === "today" && d.labourSoFar != null)
             .map((d) => (
               <div key={d.date} className="mt-1 text-[13px] text-[var(--tk-ink-soft)]">
-                Today: {money(d.labourSoFar ?? 0)} of the {money(d.labour)} is already in, {money(d.labour - (d.labourSoFar ?? 0))} still rostered to run
+                Today: {money((d.labourSoFar ?? 0) - d.paidLeave)} of the {money(d.labour - d.paidLeave)} is already in, {money(d.labour - (d.labourSoFar ?? 0))} still rostered to run
               </div>
             ))}
         </div>
@@ -124,10 +134,11 @@ function WageCard({ v }: { v: LiveVenueSnapshot }) {
               <div className="text-[16px] font-semibold">{b.label}</div>
               <div className="text-[13px] text-[var(--tk-ink-soft)]">
                 Band {b.target ? `${b.target.min} to ${b.target.max}%` : "not set"}
-                {b.varianceVsBandPct != null && b.varianceVsBandPct > 0 ? `, ${b.varianceVsBandPct.toFixed(1)} over` : ""}
+                {b.workingVarianceVsBandPct != null && b.workingVarianceVsBandPct > 0 ? `, ${b.workingVarianceVsBandPct.toFixed(1)} over` : ""}
+                {b.paidLeave > 0 ? `. ${pct(b.projectedPct)} with ${money(b.paidLeave)} paid leave` : ""}
               </div>
             </div>
-            <Chip tone={bandTone(b.status)}>{pct(b.projectedPct)}</Chip>
+            <Chip tone={bandTone(b.workingStatus)}>{pct(b.workingPct)}</Chip>
           </div>
         ))}
       </div>

@@ -21,6 +21,14 @@
  *     that normally lands after this time of day, off HourlySales);
  *   - wages: clocked so far + shifts not started + the part still to run of
  *     the rostered shifts that are underway.
+ *
+ * Paid leave (15 Nov 2026). Chloe: Burleigh "shouldn't be that high". It
+ * read 41.2% with two department heads away all week on approved leave,
+ * their full salaries (3.3 points) inside it. A salaried person away the
+ * whole week is still paid, but it is not a cost of running the roster, so
+ * the Shifts feed marks it and every figure here now comes two ways: the
+ * existing fields are unchanged (leave in), and the `working` ones leave it
+ * out. Wages are gross plus super only: no WorkCover, payroll tax or admin.
  */
 
 import { SINGLE_VENUES, VENUE_LABEL } from "@/lib/venues"
@@ -42,6 +50,12 @@ export interface LiveBucketRow {
   projectedPct: number | null
   status: "ok" | "amber" | "red" | "no-target"
   varianceVsBandPct: number | null
+  /** Paid leave inside projectedTotal (salaried, away all week). */
+  paidLeave: number
+  /** The same three without the paid leave: what the band is judged on. */
+  workingPct: number | null
+  workingStatus: "ok" | "amber" | "red" | "no-target"
+  workingVarianceVsBandPct: number | null
 }
 
 export interface LiveDayRow {
@@ -63,6 +77,10 @@ export interface LiveDayRow {
   /** Ex GST. Actual for locked, so far for today, forecast for ahead. */
   revenue: number
   pct: number | null
+  /** Paid leave inside `labour` that day. */
+  paidLeave: number
+  /** (labour - paidLeave) / revenue. */
+  workingPct: number | null
 }
 
 export interface LiveVenueSnapshot {
@@ -81,8 +99,12 @@ export interface LiveVenueSnapshot {
   revenueVsLastWeekPct: number | null
   /** Last week's full Wed-to-Tue revenue. */
   revenueLastWeekTotal: number | null
-  /** Headline = labourProjected / revenueProjected × 100. */
+  /** labourProjected / revenueProjected × 100, paid leave in. */
   overallProjectedPct: number | null
+  /** Paid leave inside labourProjected: salaried people away the whole week on approved time off. */
+  paidLeave: number
+  /** Headline: (labourProjected - paidLeave) / revenueProjected × 100. */
+  workingProjectedPct: number | null
   /** Wed to yesterday, actual wages over actual revenue. Null on a Wednesday. */
   locked: {
     /** Clocked timesheets + salary for the completed days, on-costs included. */
@@ -90,6 +112,9 @@ export interface LiveVenueSnapshot {
     revenue: number
     pct: number | null
     days: number
+    /** Paid leave inside `labour`, and the % without it. */
+    paidLeave: number
+    workingPct: number | null
   }
   today: {
     /** True while today's till figure is the intraday one (still trading). */
@@ -125,7 +150,7 @@ export interface LiveSnapshot {
 /** The rows getLiveLabourSnapshot reads, numbers already unwrapped. */
 export interface LiveLabourRows {
   /** LabourShift rows whose shiftStart is inside the trading week. */
-  labourShifts: Array<{ venue: Venue; area: string | null; cost: number; source: string; shiftStart: Date; shiftEnd: Date }>
+  labourShifts: Array<{ venue: Venue; area: string | null; cost: number; source: string; shiftStart: Date; shiftEnd: Date; /** A salary row that is paid leave. */ leave?: boolean }>
   /** Till rows, this week and the 4 weeks before. `source` API on today's row = intraday. */
   pos: Array<{ date: string; venue: Venue; exGst: number; source?: "API" | "EMAIL" }>
   uber: Array<{ date: string; venue: Venue; salesIncGst: number }>
@@ -242,6 +267,8 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
     let todayClocked = 0
     let todayRest = 0
     const salaryByDay = new Map<string, number>()
+    const leaveByDay = new Map<string, number>()
+    const bucketLeave: Record<Bucket, number> = { chefsKp: 0, fohBarista: 0, pastry: 0, other: 0 }
     const clockedByDay = new Map<string, number>()
     const aheadByDay = new Map<string, number>()
     const add = (m: Map<string, number>, k: string, v: number) => m.set(k, (m.get(k) ?? 0) + v)
@@ -249,8 +276,9 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
     const bucketRoster: Record<Bucket, number> = { chefsKp: 0, fohBarista: 0, pastry: 0, other: 0 }
     for (const s of venueShifts) {
       const bucket = bucketFor(venue, s.area)
-      // On-cost multiplier (super + workers' comp + payroll tax) so the
-      // figure lines up with the Xero pay runs (payweek-figures.ts), not raw cost.
+      // Super on top of gross (12% on prod; the uplift for workers' comp
+      // and payroll tax is 0 and stays 0, Chloe 15 Nov 2026), so the figure
+      // lines up with the Xero pay runs (payweek-figures.ts).
       const cost = s.cost * labourMultiplier
       const dayKey = aestDateKey(s.shiftStart)
       if (s.source === "TIMESHEET") {
@@ -268,6 +296,10 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
         labourRemaining += cost
         bucketRoster[bucket] += cost
         salaryByDay.set(dayKey, (salaryByDay.get(dayKey) ?? 0) + cost)
+        if (s.leave) {
+          bucketLeave[bucket] += cost
+          leaveByDay.set(dayKey, (leaveByDay.get(dayKey) ?? 0) + cost)
+        }
         continue
       }
       const startMs = s.shiftStart.getTime()
@@ -298,6 +330,12 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
     let lockedSalary = 0
     for (const [day, cost] of salaryByDay) if (day < todayAest) lockedSalary += cost
     const lockedLabour = lockedHourly + lockedSalary
+    let paidLeave = 0
+    let lockedLeave = 0
+    for (const [day, cost] of leaveByDay) {
+      paidLeave += cost
+      if (day < todayAest) lockedLeave += cost
+    }
 
     // ---- Revenue ----
     const lockedRevenue = lockedDays.reduce((sum, d) => sum + (revByDay.get(`${venue}|${d}`) ?? 0), 0)
@@ -380,6 +418,7 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
       const spent = bucketSpent[t.key]
       const total = spent + bucketRoster[t.key]
       const pct = revenueProjected > 0 ? (total / revenueProjected) * 100 : null
+      const workingPct = revenueProjected > 0 ? ((total - bucketLeave[t.key]) / revenueProjected) * 100 : null
       return {
         key: t.key,
         label: t.label,
@@ -389,6 +428,10 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
         projectedPct: pct,
         status: bucketStatus(pct, t),
         varianceVsBandPct: pct == null ? null : pct - t.max,
+        paidLeave: round2(bucketLeave[t.key]),
+        workingPct,
+        workingStatus: bucketStatus(workingPct, t),
+        workingVarianceVsBandPct: workingPct == null ? null : workingPct - t.max,
       }
     })
 
@@ -402,6 +445,7 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
       // dated wrong) still counts rather than vanishing.
       const labour = state === "locked" ? clocked + sal : clocked + sal + ahead
       const revenue = state === "ahead" ? (forecastByDay.get(date) ?? 0) : (revByDay.get(`${venue}|${date}`) ?? 0)
+      const leave = leaveByDay.get(date) ?? 0
       return {
         date,
         dayName: DAY_NAMES[dowOf(date)],
@@ -410,6 +454,8 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
         ...(state === "today" ? { labourSoFar: round2(clocked + sal) } : {}),
         revenue: round2(revenue),
         pct: revenue > 0 ? (labour / revenue) * 100 : null,
+        paidLeave: round2(leave),
+        workingPct: revenue > 0 ? ((labour - leave) / revenue) * 100 : null,
       }
     })
 
@@ -424,11 +470,15 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
       revenueVsLastWeekPct: compare.weekToDateVsLastWeekPct,
       revenueLastWeekTotal: compare.lastWeekTotal,
       overallProjectedPct,
+      paidLeave: round2(paidLeave),
+      workingProjectedPct: revenueProjected > 0 ? ((labourProjected - paidLeave) / revenueProjected) * 100 : null,
       locked: {
         labour: round2(lockedLabour),
         revenue: round2(lockedRevenue),
         pct: lockedDays.length > 0 && lockedRevenue > 0 ? (lockedLabour / lockedRevenue) * 100 : null,
         days: lockedDays.length,
+        paidLeave: round2(lockedLeave),
+        workingPct: lockedDays.length > 0 && lockedRevenue > 0 ? ((lockedLabour - lockedLeave) / lockedRevenue) * 100 : null,
       },
       today: {
         live: todayLive,

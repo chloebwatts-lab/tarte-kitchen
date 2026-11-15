@@ -80,6 +80,9 @@ export interface FeedSalary {
   /** Daily form: AEST day (YYYY-MM-DD) and that day's gross for the group. */
   day?: string
   gross?: number
+  /** Daily form: the part of `gross` that is paid leave, salaried people
+   * away the whole week on approved time off (15 Nov 2026). Absent = 0. */
+  leaveGross?: number
   weekStartWed?: string
   headcount: number
 }
@@ -178,6 +181,13 @@ export interface LabourRowInput {
 export const SHIFTS_ID_PREFIX = "shifts-"
 /** Salary roll-up rows (weekly or daily) carry this id prefix. */
 export const SALARY_ID_PREFIX = `${SHIFTS_ID_PREFIX}salary-`
+/**
+ * The paid-leave part of a day's salary roll-up is its own row with this
+ * prefix (it starts with SALARY_ID_PREFIX, so every reader that sums salary
+ * rows still gets the full salary). Same placeholder area, so the team does
+ * not change. The live wage % reads the prefix to show leave apart.
+ */
+export const SALARY_LEAVE_ID_PREFIX = `${SALARY_ID_PREFIX}leave-`
 
 /**
  * Deputy priced salaried staff through per-venue "Salary X" placeholder
@@ -313,15 +323,17 @@ export function labourRowsFromFeed(feed: ShiftsLabourFeed, rosterWeeks: Date[], 
   // Salary roll-ups. Daily form: one placeholder row per venue + bucket +
   // day at that day's 00:00 AEST, the salary placed where the people were
   // that day. Weekly form: one row per venue + bucket per roster week.
-  const byDay = new Map<string, { venue: ShiftsVenue; bucket: ShiftsBucket; day: string; gross: number }>()
+  const byDay = new Map<string, { venue: ShiftsVenue; bucket: ShiftsBucket; day: string; gross: number; leave: number }>()
   const byKey = new Map<string, { venue: ShiftsVenue; bucket: ShiftsBucket; gross: number; heads: number }>()
   for (const s of feed.salaries ?? []) {
     if (!VENUES.has(s.venue) || !BUCKETS.has(s.bucket)) continue
     if (typeof s.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s.day)) {
       if (num(s.gross) <= 0) continue
       const key = `${s.venue}|${s.bucket}|${s.day}`
-      const cur = byDay.get(key) ?? { venue: s.venue, bucket: s.bucket, day: s.day, gross: 0 }
+      const cur = byDay.get(key) ?? { venue: s.venue, bucket: s.bucket, day: s.day, gross: 0, leave: 0 }
       cur.gross += num(s.gross)
+      // Never more than the entry's own gross, never negative.
+      cur.leave += Math.min(num(s.gross), Math.max(0, num(s.leaveGross)))
       byDay.set(key, cur)
       continue
     }
@@ -332,19 +344,19 @@ export function labourRowsFromFeed(feed: ShiftsLabourFeed, rosterWeeks: Date[], 
     cur.heads += num(s.headcount)
     byKey.set(key, cur)
   }
-  for (const { venue, bucket, day, gross } of byDay.values()) {
+  for (const { venue, bucket, day, gross, leave } of byDay.values()) {
     const area = SALARY_PLACEHOLDER_AREA[venue][bucket]
     const start = new Date(new Date(`${day}T00:00:00.000Z`).getTime() - 10 * 3600_000)
     if (!Number.isFinite(start.getTime())) continue
-    roster.push({
-      deputyId: `${SALARY_ID_PREFIX}${venue}-${bucket}-${day}`,
+    const row = (deputyId: string, cost: number): LabourRowInput => ({
+      deputyId,
       employeeName: area,
       employeeId: null,
       venue: venue as Venue,
       shiftStart: start,
       shiftEnd: new Date(start.getTime() + 3600_000),
       hours: 0,
-      cost: round2(gross),
+      cost,
       payRate: null,
       area,
       approved: false,
@@ -353,6 +365,11 @@ export function labourRowsFromFeed(feed: ShiftsLabourFeed, rosterWeeks: Date[], 
       published: true,
       salaried: true,
     })
+    // Working salary and paid leave as two rows that add to the day's gross.
+    const leaveCost = round2(leave)
+    const workCost = round2(gross - leaveCost)
+    if (workCost > 0) roster.push(row(`${SALARY_ID_PREFIX}${venue}-${bucket}-${day}`, workCost))
+    if (leaveCost > 0) roster.push(row(`${SALARY_LEAVE_ID_PREFIX}${venue}-${bucket}-${day}`, leaveCost))
   }
   for (const wed of rosterWeeks) {
     const wedIso = aestDateIso(wed)

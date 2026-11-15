@@ -3,6 +3,7 @@
 import { db } from "@/lib/db"
 import { currentTarteWeekRange } from "@/lib/dates"
 import { aestDateKey, buildLiveLabourSnapshot, type LiveSnapshot } from "@/lib/labour/live"
+import { SALARY_LEAVE_ID_PREFIX } from "@/lib/shifts/labour"
 
 export type { LiveBucketRow, LiveDayRow, LiveVenueSnapshot, LiveSnapshot } from "@/lib/labour/live"
 
@@ -47,7 +48,7 @@ export async function getLiveLabourSnapshot(
     await Promise.all([
       db.labourShift.findMany({
         where: { shiftStart: { gte: weekStartInstant, lt: weekEndInstant } },
-        select: { venue: true, area: true, cost: true, source: true, shiftStart: true, shiftEnd: true },
+        select: { deputyId: true, venue: true, area: true, cost: true, source: true, shiftStart: true, shiftEnd: true },
       }),
       // This week and the 4 weeks of history in one go, tills + Uber +
       // Xero events (all revenue, Chloe 12 Nov 2026).
@@ -68,7 +69,7 @@ export async function getLiveLabourSnapshot(
         select: { venue: true, amount: true },
       }),
       db.deputyConnection.findFirst({
-        select: { superRate: true, onCostUpliftRate: true },
+        select: { superRate: true },
       }),
       db.hourlySales.findMany({
         where: { date: { in: sameWeekdays } },
@@ -76,13 +77,11 @@ export async function getLiveLabourSnapshot(
       }),
     ])
 
-  // Labour multiplier: the raw shift cost excludes super + workers' comp /
-  // payroll tax. The weekly wage figure we project toward (the Xero pay
-  // runs, src/lib/labour/payweek-figures.ts) includes them. Rates from DeputyConnection, as before.
-  const labourMultiplier =
-    1 +
-    Number(connection?.superRate ?? 0.12) +
-    Number(connection?.onCostUpliftRate ?? 0)
+  // Labour multiplier: gross plus super, nothing else. Kitchen's
+  // DeputyConnection row was deleted on 12 Nov 2026, so this is 1.12 (the
+  // same 12% super and 0 uplift Tarte Shifts holds). Chloe, 15 Nov 2026:
+  // no WorkCover or payroll tax in the tracker, so the uplift is never read.
+  const labourMultiplier = 1 + Number(connection?.superRate ?? 0.12)
 
   const iso = (d: Date) => d.toISOString().split("T")[0]
   return buildLiveLabourSnapshot(
@@ -94,6 +93,7 @@ export async function getLiveLabourSnapshot(
         source: s.source,
         shiftStart: s.shiftStart,
         shiftEnd: s.shiftEnd,
+        leave: s.deputyId.startsWith(SALARY_LEAVE_ID_PREFIX),
       })),
       pos: posRows.map((r) => ({ date: iso(r.date), venue: r.venue, exGst: Number(r.totalRevenueExGst), source: r.source })),
       uber: uberRows.map((r) => ({ date: iso(r.date), venue: r.venue, salesIncGst: Number(r.salesIncGst) })),

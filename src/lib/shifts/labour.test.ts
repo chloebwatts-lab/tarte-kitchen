@@ -315,3 +315,33 @@ test("salaried flag: absent or non-boolean never flags a row; open shifts are ne
   assert.equal(typeof roster[1].salaried, "boolean")
   assert.equal(timesheets[0].salaried, false)
 })
+
+test("paid leave inside a day's salary roll-up is its own row; the two add to the day's gross (15 Nov 2026)", () => {
+  const f = feed({
+    shifts: [],
+    timesheets: [],
+    salaries: [
+      { venue: "BURLEIGH", bucket: "CHEFS_KP", day: "2026-10-07", gross: 501.36, leaveGross: 219.78, headcount: 2 },
+      { venue: "BURLEIGH", bucket: "PASTRY", day: "2026-10-07", gross: 225.27, leaveGross: 225.27, headcount: 1 }, // all leave: no working row
+      { venue: "BURLEIGH", bucket: "FOH_BARISTA", day: "2026-10-07", gross: 315.38, headcount: 1 }, // older feed, no leaveGross
+      { venue: "BEACH_HOUSE", bucket: "PASTRY", day: "2026-10-07", gross: 100, leaveGross: 250, headcount: 1 }, // leave never exceeds gross
+      { venue: "BEACH_HOUSE", bucket: "FOH_BARISTA", day: "2026-10-07", gross: 100, leaveGross: -40, headcount: 1 }, // negative: none
+    ],
+  })
+  const { roster } = labourRowsFromFeed(f, [WED, NEXT_WED])
+  const cost = (id: string) => roster.find((r) => r.deputyId === id)?.cost
+  assert.equal(cost(`${SHIFTS_ID_PREFIX}salary-BURLEIGH-CHEFS_KP-2026-10-07`), 281.58)
+  assert.equal(cost(`${SHIFTS_ID_PREFIX}salary-leave-BURLEIGH-CHEFS_KP-2026-10-07`), 219.78)
+  assert.equal(cost(`${SHIFTS_ID_PREFIX}salary-BURLEIGH-PASTRY-2026-10-07`), undefined)
+  assert.equal(cost(`${SHIFTS_ID_PREFIX}salary-leave-BURLEIGH-PASTRY-2026-10-07`), 225.27)
+  assert.equal(cost(`${SHIFTS_ID_PREFIX}salary-BURLEIGH-FOH_BARISTA-2026-10-07`), 315.38)
+  assert.equal(cost(`${SHIFTS_ID_PREFIX}salary-leave-BURLEIGH-FOH_BARISTA-2026-10-07`), undefined)
+  assert.equal(cost(`${SHIFTS_ID_PREFIX}salary-leave-BEACH_HOUSE-PASTRY-2026-10-07`), 100)
+  assert.equal(cost(`${SHIFTS_ID_PREFIX}salary-BEACH_HOUSE-FOH_BARISTA-2026-10-07`), 100)
+  // Leave rows keep the same team area and salary prefix, so every reader that sums salary rows is unchanged.
+  const leave = roster.filter((r) => r.deputyId.startsWith(`${SHIFTS_ID_PREFIX}salary-leave-`))
+  assert.equal(leave.length, 3)
+  assert.ok(leave.every((r) => r.deputyId.startsWith(`${SHIFTS_ID_PREFIX}salary-`) && r.salaried && r.hours === 0 && r.area?.startsWith("Salary")))
+  assert.equal(Math.round(roster.reduce((s, r) => s + Number(r.cost), 0) * 100) / 100, 501.36 + 225.27 + 315.38 + 100 + 100)
+  assert.equal(new Set(roster.map((r) => r.deputyId)).size, roster.length)
+})
