@@ -242,6 +242,110 @@ describe("live wages: day by day", () => {
   })
 })
 
+describe("live wages: day by day, edges (test guard, 15 Nov 2026)", () => {
+  const sumAll = (v: ReturnType<typeof burleigh>) => v.days.reduce((s, x) => s + x.labour, 0)
+  const sumLocked = (v: ReturnType<typeof burleigh>) => v.days.filter((x) => x.state === "locked").reduce((s, x) => s + x.labour, 0)
+
+  test("an overnight shift underway (Sat 10 pm to Sun 2 am, now Sun 12:30 am): clocked part stays on Saturday, the rest lands on today, sums hold", () => {
+    const now = at("2026-11-15", "00:30")
+    const v = burleigh(
+      rows({
+        labourShifts: [
+          ...rows().labourShifts,
+          { venue: "BURLEIGH", area: "Bar", cost: 75, source: "TIMESHEET", shiftStart: at("2026-11-14", "22:00"), shiftEnd: at("2026-11-15", "00:30") },
+          { venue: "BURLEIGH", area: "Bar", cost: 120, source: "ROSTER", shiftStart: at("2026-11-14", "22:00"), shiftEnd: at("2026-11-15", "02:00") },
+        ],
+      }),
+      now
+    )
+    const sat = v.days[3]
+    const sun = v.days[4]
+    assert.equal(sat.state, "locked")
+    assert.equal(sun.state, "today")
+    near(sat.labour, (1000 + 200 + 75) * MULT)
+    // 1.5 of the 4 rostered hours still to run = $45, plus Sunday's salary.
+    near(sun.labour, (200 + 45) * MULT)
+    near(sun.labourSoFar ?? null, 200 * MULT)
+    near(sumLocked(v), v.locked.labour)
+    near(sumAll(v), v.labourProjected)
+    near(v.today.labourRestOfDay, 45 * MULT)
+  })
+
+  test("one minute either side of Brisbane midnight: the day flips from today to locked and nothing is counted twice", () => {
+    const r = rows({
+      labourShifts: [...rows().labourShifts, sheet("2026-11-15", "06:00", "14:00", 900), roster("2026-11-15", "06:00", "14:00", 900)],
+      pos: [...rows().pos, { date: "2026-11-15", venue: "BURLEIGH", exGst: 4000, source: "EMAIL" }],
+    })
+    const before = burleigh(r, at("2026-11-15", "23:59"))
+    assert.deepEqual(before.days.map((x) => x.state), ["locked", "locked", "locked", "locked", "today", "ahead", "ahead"])
+    near(before.days[4].labour, (900 + 200) * MULT) // the finished roster row adds nothing
+    near(before.days[4].labourSoFar ?? null, (900 + 200) * MULT)
+
+    const after = burleigh(r, at("2026-11-16", "00:01"))
+    assert.deepEqual(after.days.map((x) => x.state), ["locked", "locked", "locked", "locked", "locked", "today", "ahead"])
+    near(after.days[4].labour, (900 + 200) * MULT)
+    near(after.days[4].pct, ((1100 * MULT) / 4000) * 100)
+    assert.equal(after.days[4].labourSoFar, undefined)
+    for (const v of [before, after]) {
+      near(sumLocked(v), v.locked.labour)
+      near(sumAll(v), v.labourProjected)
+    }
+  })
+
+  test("Wednesday 12:05 am and Tuesday 11:55 pm: still seven rows of the right week", () => {
+    const wed = burleigh(rows({ pos: history() }), at("2026-11-11", "00:05"))
+    assert.deepEqual(wed.days.map((x) => x.date), WEEK)
+    assert.deepEqual(wed.days.map((x) => x.state), ["today", "ahead", "ahead", "ahead", "ahead", "ahead", "ahead"])
+    near(sumLocked(wed), 0)
+    near(wed.locked.labour, 0)
+    near(sumAll(wed), wed.labourProjected)
+
+    const tue = burleigh(rows(), at("2026-11-17", "23:55"))
+    assert.deepEqual(tue.days.map((x) => x.date), WEEK)
+    assert.deepEqual(tue.days.map((x) => x.state), ["locked", "locked", "locked", "locked", "locked", "locked", "today"])
+    near(sumLocked(tue), tue.locked.labour)
+    near(sumAll(tue), tue.labourProjected)
+  })
+
+  test("a finished day with no takings in, and a week with no rows: no %, never Infinity or NaN", () => {
+    const r = rows()
+    r.pos = r.pos.filter((p) => p.date !== "2026-11-13")
+    const fri = burleigh(r).days[2]
+    near(fri.labour, 1200 * MULT)
+    assert.equal(fri.revenue, 0)
+    assert.equal(fri.pct, null)
+
+    const empty = burleigh({ labourShifts: [], pos: [], uber: [], events: [], forecasts: [], labourMultiplier: MULT })
+    assert.equal(empty.days.length, 7)
+    for (const d of empty.days) {
+      assert.equal(d.labour, 0)
+      assert.equal(d.revenue, 0)
+      assert.equal(d.pct, null)
+    }
+  })
+
+  test("days ahead use the same forecast as the week: today so far + rest of today + the ahead rows = revenueProjected", () => {
+    const r = rows({ pos: [...rows().pos.map((p) => (LOCKED.includes(p.date) ? { ...p, exGst: 6000 } : p)), { date: "2026-11-15", venue: "BURLEIGH", exGst: 1500, source: "API" }] })
+    const v = burleigh(r)
+    near(v.days[5].revenue, 6000)
+    near(v.days[6].revenue, 6000)
+    near(v.days.reduce((s, x) => s + x.revenue, 0) + v.today.revenueRestOfDay, v.revenueProjected)
+  })
+
+  test("a credit (negative timesheet correction) on a finished day lowers that day and the sums still hold", () => {
+    const v = burleigh(rows({ labourShifts: [...rows().labourShifts, sheet("2026-11-12", "06:00", "07:00", -50)] }))
+    near(v.days[1].labour, (1000 + 200 - 50) * MULT)
+    near(sumLocked(v), v.locked.labour)
+    near(sumAll(v), v.labourProjected)
+  })
+
+  test("another venue's shifts never leak into Burleigh's days", () => {
+    const base = burleigh(rows())
+    const other = burleigh(rows({ labourShifts: [...rows().labourShifts, { ...sheet("2026-11-12", "06:00", "14:00", 5000), venue: "BEACH_HOUSE" as const }] }))
+    assert.deepEqual(other.days, base.days)
+  })
+})
+
 describe("shareOfDayDone", () => {
   const day = (date: string, hours: Record<number, number>) => Object.entries(hours).map(([h, v]) => ({ date, hour: Number(h), revenueIncGst: v }))
   const two = [...day("2026-11-08", { 7: 100, 8: 300, 9: 600 }), ...day("2026-11-01", { 7: 100, 8: 300, 9: 600 })]
