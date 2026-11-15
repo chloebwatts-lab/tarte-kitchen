@@ -191,6 +191,57 @@ describe("live wages: today counts as a whole day on both sides", () => {
   })
 })
 
+describe("live wages: day by day", () => {
+  const r = (): LiveLabourRows =>
+    rows({
+      labourShifts: [
+        ...rows().labourShifts,
+        sheet("2026-11-15", "06:00", "10:00", 100),
+        roster("2026-11-15", "06:00", "14:00", 200),
+        roster("2026-11-15", "12:00", "16:00", 80),
+        roster("2026-11-16", "06:00", "14:00", 300),
+      ],
+      pos: [...rows().pos, { date: "2026-11-15", venue: "BURLEIGH", exGst: 1500, source: "API" }],
+    })
+
+  test("seven rows Wed to Tue: four locked, today, two ahead", () => {
+    const d = burleigh(r()).days
+    assert.deepEqual(d.map((x) => x.dayName), ["Wed", "Thu", "Fri", "Sat", "Sun", "Mon", "Tue"])
+    assert.deepEqual(d.map((x) => x.state), ["locked", "locked", "locked", "locked", "today", "ahead", "ahead"])
+  })
+
+  test("a finished day is its own timesheets + salary on its own revenue", () => {
+    const thu = burleigh(r()).days[1]
+    near(thu.labour, 1200 * MULT)
+    near(thu.revenue, 5000)
+    near(thu.pct, ((1200 * MULT) / 5000) * 100)
+  })
+
+  test("the locked days add up to the locked figure, and every day to the week", () => {
+    const v = burleigh(r())
+    near(v.days.filter((x) => x.state === "locked").reduce((s, x) => s + x.labour, 0), v.locked.labour)
+    near(v.days.reduce((s, x) => s + x.labour, 0), v.labourProjected)
+  })
+
+  test("today: wages for the whole day (clocked + salary + still to run) on the takings so far", () => {
+    const sun = burleigh(r()).days[4]
+    near(sun.labourSoFar ?? null, (100 + 200) * MULT)
+    near(sun.labour, (100 + 200 + 100 + 80) * MULT) // 537.60
+    near(sun.revenue, 1500)
+    near(sun.pct, ((480 * MULT) / 1500) * 100)
+  })
+
+  test("a day ahead is its roster + salary on its forecast; no takings today yet gives no %", () => {
+    const v = burleigh(r())
+    near(v.days[5].labour, (300 + 200) * MULT)
+    near(v.days[5].revenue, 5000)
+    near(v.days[6].labour, 200 * MULT)
+    const early = burleigh(rows(), at("2026-11-15", "05:30")).days[4]
+    assert.equal(early.revenue, 0)
+    assert.equal(early.pct, null)
+  })
+})
+
 describe("shareOfDayDone", () => {
   const day = (date: string, hours: Record<number, number>) => Object.entries(hours).map(([h, v]) => ({ date, hour: Number(h), revenueIncGst: v }))
   const two = [...day("2026-11-08", { 7: 100, 8: 300, 9: 600 }), ...day("2026-11-01", { 7: 100, 8: 300, 9: 600 })]

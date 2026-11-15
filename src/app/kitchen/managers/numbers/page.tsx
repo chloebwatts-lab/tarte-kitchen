@@ -88,15 +88,36 @@ function WageCard({ v }: { v: LiveVenueSnapshot }) {
         ) : (
           <Row label="Locked in" sub="First day of the week. Nothing is final until tomorrow" value="n/a" />
         )}
-        <Row
-          label="Today so far"
-          sub={
-            v.today.revenueSoFar > 0
-              ? `${money(v.today.labourSoFar)} clocked, ${money(v.today.revenueSoFar)} taken${v.today.live && v.today.shareOfDayDone != null ? `. Usually ${Math.round(v.today.shareOfDayDone * 100)}% of the day is in by now` : ""}`
-              : `${money(v.today.labourSoFar)} clocked. No till figure yet`
-          }
-          value={v.today.revenueSoFar > 0 ? pct((v.today.labourSoFar / v.today.revenueSoFar) * 100) : "n/a"}
-        />
+        <div className="border-t border-[var(--tk-line)] pt-3">
+          <div className="text-[16px] font-semibold">Day by day</div>
+          <div className="text-[13px] leading-snug text-[var(--tk-ink-soft)]">Wages on takings ex GST. Today is the whole day&apos;s wages on takings so far, so it falls as the tills fill</div>
+          <table className="mt-2 w-full text-[15px] tabular-nums">
+            <tbody>
+              {v.days.map((d) => (
+                <tr
+                  key={d.date}
+                  className={d.state === "ahead" ? "text-[var(--tk-ink-mute)]" : ""}
+                  style={d.state === "today" ? { background: "var(--tk-gold-soft)" } : undefined}
+                >
+                  <td className="rounded-l-lg py-1.5 pl-2 font-semibold">
+                    {d.dayName}
+                    {d.state === "today" ? ", now" : d.state === "ahead" ? ", roster" : ""}
+                  </td>
+                  <td className="py-1.5 text-right">{money(d.labour)}</td>
+                  <td className="py-1.5 text-right">{d.revenue > 0 ? money(d.revenue) : "no takings yet"}</td>
+                  <td className="rounded-r-lg py-1.5 pr-2 text-right font-semibold">{pct(d.pct)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {v.days
+            .filter((d) => d.state === "today" && d.labourSoFar != null)
+            .map((d) => (
+              <div key={d.date} className="mt-1 text-[13px] text-[var(--tk-ink-soft)]">
+                Today: {money(d.labourSoFar ?? 0)} of the {money(d.labour)} is already in, {money(d.labour - (d.labourSoFar ?? 0))} still rostered to run
+              </div>
+            ))}
+        </div>
         {v.buckets.map((b) => (
           <div key={b.key} className="flex items-center justify-between gap-3 border-t border-[var(--tk-line)] py-2.5">
             <div className="min-w-0">
@@ -200,7 +221,7 @@ export default async function WagesCogsPage() {
           adds today as a full day plus the roster and the usual takings for the days left. Wages include super and on-costs. Wage revenue is tills, Uber and
           events, ex GST. COGS is invoices against till takings, the same figures as Live spend.
         </p>
-        <p className="mt-1">Clock-ins update every 15 minutes, tills every 30, invoices every 2 hours. A timesheet nobody has clocked is not in the wages until it is fixed in Shifts.</p>
+        <p className="mt-1">Clock-ins update every 15 minutes, tills every 30, invoices every 2 hours, and this page reloads itself every 5. A timesheet nobody has clocked is not in the wages until it is fixed in Shifts.</p>
       </div>
     </div>
   )

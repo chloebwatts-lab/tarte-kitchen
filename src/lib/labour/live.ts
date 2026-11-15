@@ -44,6 +44,27 @@ export interface LiveBucketRow {
   varianceVsBandPct: number | null
 }
 
+export interface LiveDayRow {
+  /** AEST yyyy-mm-dd */
+  date: string
+  dayName: string
+  /**
+   * locked: a finished day, actual wages on actual revenue.
+   * today:  wages for the whole day (clocked + salary + still to run) on
+   *         the takings so far, so the % starts high and falls as the
+   *         tills fill; by mid afternoon it is close to where the day lands.
+   * ahead:  rostered wages + salary on the forecast takings.
+   */
+  state: "locked" | "today" | "ahead"
+  /** On-costs included. */
+  labour: number
+  /** Today only: the part of `labour` already clocked (plus today's salary). */
+  labourSoFar?: number
+  /** Ex GST. Actual for locked, so far for today, forecast for ahead. */
+  revenue: number
+  pct: number | null
+}
+
 export interface LiveVenueSnapshot {
   venue: Venue
   label: string
@@ -83,6 +104,8 @@ export interface LiveVenueSnapshot {
     /** Wages the projection adds for the rest of today (underway + not started). */
     labourRestOfDay: number
   }
+  /** Wed to Tue, one row a day (Chloe, 15 Nov 2026: wages day by day). */
+  days: LiveDayRow[]
   buckets: LiveBucketRow[]
   /** Diagnostic: how much of the projection is real vs forecast. */
   coverage: {
@@ -116,6 +139,7 @@ export interface LiveLabourRows {
 }
 
 const AEST_OFFSET_MS = 10 * 60 * 60 * 1000
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
 /** AEST yyyy-mm-dd of an instant. */
 export function aestDateKey(at: Date): string {
@@ -218,6 +242,9 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
     let todayClocked = 0
     let todayRest = 0
     const salaryByDay = new Map<string, number>()
+    const clockedByDay = new Map<string, number>()
+    const aheadByDay = new Map<string, number>()
+    const add = (m: Map<string, number>, k: string, v: number) => m.set(k, (m.get(k) ?? 0) + v)
     const bucketSpent: Record<Bucket, number> = { chefsKp: 0, fohBarista: 0, pastry: 0, other: 0 }
     const bucketRoster: Record<Bucket, number> = { chefsKp: 0, fohBarista: 0, pastry: 0, other: 0 }
     for (const s of venueShifts) {
@@ -229,6 +256,7 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
       if (s.source === "TIMESHEET") {
         labourToDate += cost
         bucketSpent[bucket] += cost
+        add(clockedByDay, dayKey, cost)
         if (dayKey < todayAest) lockedHourly += cost
         else if (dayKey === todayAest) todayClocked += cost
         continue
@@ -248,6 +276,7 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
         // Not started: all of it is still to come.
         labourRemaining += cost
         bucketRoster[bucket] += cost
+        add(aheadByDay, dayKey, cost)
         if (dayKey === todayAest) todayRest += cost
       } else if (endMs > nowMs && endMs > startMs) {
         // Underway: the timesheet carries the hours so far, the roster the
@@ -255,6 +284,7 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
         const rest = cost * ((endMs - nowMs) / (endMs - startMs))
         labourRemaining += rest
         bucketRoster[bucket] += rest
+        add(aheadByDay, todayAest, rest)
         todayRest += rest
       }
     }
@@ -311,7 +341,12 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
     }
 
     let remainingForecast = 0
-    for (const dateStr of remainingDays) remainingForecast += usualDay(dateStr) ?? fallbackDay()
+    const forecastByDay = new Map<string, number>()
+    for (const dateStr of remainingDays) {
+      const f = usualDay(dateStr) ?? fallbackDay()
+      forecastByDay.set(dateStr, f)
+      remainingForecast += f
+    }
 
     // Today. No till figure yet: forecast the whole day. An intraday
     // figure: add the usual rest of the day. A final figure: nothing.
@@ -357,6 +392,27 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
       }
     })
 
+    const dayRows: LiveDayRow[] = days.map((date) => {
+      const clocked = clockedByDay.get(date) ?? 0
+      const sal = salaryByDay.get(date) ?? 0
+      const ahead = aheadByDay.get(date) ?? 0
+      const state: LiveDayRow["state"] = date < todayAest ? "locked" : date === todayAest ? "today" : "ahead"
+      // A finished day is what was clocked; today and the days ahead add
+      // what is still to run. Anything clocked on a day ahead (a timesheet
+      // dated wrong) still counts rather than vanishing.
+      const labour = state === "locked" ? clocked + sal : clocked + sal + ahead
+      const revenue = state === "ahead" ? (forecastByDay.get(date) ?? 0) : (revByDay.get(`${venue}|${date}`) ?? 0)
+      return {
+        date,
+        dayName: DAY_NAMES[dowOf(date)],
+        state,
+        labour: round2(labour),
+        ...(state === "today" ? { labourSoFar: round2(clocked + sal) } : {}),
+        revenue: round2(revenue),
+        pct: revenue > 0 ? (labour / revenue) * 100 : null,
+      }
+    })
+
     return {
       venue,
       label: VENUE_LABEL[venue],
@@ -382,6 +438,7 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
         revenueRestOfDay: round2(revenueRestOfDay),
         labourRestOfDay: round2(todayRest),
       },
+      days: dayRows,
       buckets,
       coverage: {
         daysLocked: lockedDays.length,

@@ -4,7 +4,7 @@ import { db } from "@/lib/db"
 import { currentTarteWeekRange } from "@/lib/dates"
 import { aestDateKey, buildLiveLabourSnapshot, type LiveSnapshot } from "@/lib/labour/live"
 
-export type { LiveBucketRow, LiveVenueSnapshot, LiveSnapshot } from "@/lib/labour/live"
+export type { LiveBucketRow, LiveDayRow, LiveVenueSnapshot, LiveSnapshot } from "@/lib/labour/live"
 
 const AEST_OFFSET_MS = 10 * 60 * 60 * 1000
 
