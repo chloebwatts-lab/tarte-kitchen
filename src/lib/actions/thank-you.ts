@@ -3,15 +3,15 @@
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { isGmAuthed } from "@/lib/gm-auth"
-import { isOurCloudinaryUrl } from "@/lib/checklists/thank-you"
+import { PHOTO_SITES, isOurCloudinaryUrl, photoSiteOf } from "@/lib/checklists/thank-you"
 import type { Venue } from "@/generated/prisma/client"
 
 /**
- * Staff photos for the FOH "Thank you :)" finishing page. Managed from the
- * GM desk (/kitchen/gm/photos), so the GM gate guards every write.
+ * Staff photos for the checklist "Thank you :)" finishing page. Managed from
+ * the GM desk (/kitchen/gm/photos), so the GM gate guards every write.
+ * Two sets (Oliver 17 Nov 2026): Burleigh, and Currumbin (saved under Beach
+ * House; Tea Garden lists use the same set).
  */
-
-const PHOTO_VENUES: Venue[] = ["BURLEIGH", "BEACH_HOUSE", "TEA_GARDEN"]
 
 export interface ThankYouPhotoRow {
   id: string
@@ -23,14 +23,16 @@ async function guard(): Promise<void> {
   if (!(await isGmAuthed())) throw new Error("Locked. Unlock the GM desk first.")
 }
 
-function venueOf(v: string): Venue {
-  return (PHOTO_VENUES as string[]).includes(v) ? (v as Venue) : "BURLEIGH"
+function siteOf(v: string) {
+  const key = photoSiteOf(v) ?? "BURLEIGH"
+  return PHOTO_SITES.find((s) => s.key === key)!
 }
 
+/** `venue` is a site key (BURLEIGH, CURRUMBIN) or a venue (BEACH_HOUSE...). */
 export async function listThankYouPhotos(venue: string): Promise<ThankYouPhotoRow[]> {
   await guard()
   const rows = await db.thankYouPhoto.findMany({
-    where: { venue: venueOf(venue), archived: false },
+    where: { venue: { in: [...siteOf(venue).venues] as Venue[] }, archived: false },
     orderBy: { createdAt: "desc" },
     select: { id: true, url: true, createdAt: true },
   })
@@ -43,7 +45,7 @@ export async function addThankYouPhoto(p: { venue: string; url: string; publicId
     return { ok: false as const, error: "That photo did not upload properly. Try again." }
   }
   const row = await db.thankYouPhoto.create({
-    data: { venue: venueOf(p.venue), url: p.url, publicId: p.publicId.slice(0, 300), uploadedBy: "GM desk" },
+    data: { venue: siteOf(p.venue).saveAs as Venue, url: p.url, publicId: p.publicId.slice(0, 300), uploadedBy: "GM desk" },
     select: { id: true, url: true, createdAt: true },
   })
   revalidatePath("/kitchen/gm/photos")

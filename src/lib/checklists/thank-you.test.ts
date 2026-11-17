@@ -1,28 +1,34 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { isFohDailyClean, isOurCloudinaryUrl, photoPool, pickOne, thankYouDisplayUrl } from "./thank-you"
+import { getsThankYou, isOurCloudinaryUrl, photoPool, photoSiteOf, pickOne, thankYouDisplayUrl } from "./thank-you"
 
 const t = (area: string | null, name: string, cadence = "DAILY", isFoodSafety = false) => ({ area, name, cadence, isFoodSafety })
 
-test("FOH daily cleans get the thank-you page", () => {
-  assert.equal(isFohDailyClean(t("Market", "Market — Daily Clean")), true)
-  assert.equal(isFohDailyClean(t("FOH", "FOH — Daily Tasks")), true)
-  assert.equal(isFohDailyClean(t("Barista", "Barista — Daily Clean")), true)
-  assert.equal(isFohDailyClean(t("Takeaway", "Takeaway — Daily Clean")), true)
-  assert.equal(isFohDailyClean(t("FOH Cafe", "Cafe — Closing")), true)
-  assert.equal(isFohDailyClean(t("FOH Restaurant", "Restaurant — Opening")), true)
-  assert.equal(isFohDailyClean(t("Bar", "Bar — Closing Clean")), true)
-  assert.equal(isFohDailyClean(t("KP", "FOH KP — Daily Close")), true)
+test("Oliver 17 Nov: every department's daily, weekly and monthly lists get the thank-you page", () => {
+  // Burleigh, from the live template list.
+  assert.equal(getsThankYou(t("Market", "Market — Daily Clean")), true)
+  assert.equal(getsThankYou(t("FOH", "FOH — Daily Tasks")), true)
+  assert.equal(getsThankYou(t("KP", "KP — Daily Close")), true)
+  assert.equal(getsThankYou(t("Kitchen", "Chefs — Daily Clean")), true)
+  assert.equal(getsThankYou(t("Pastry", "Pastry — Daily Clean")), true)
+  assert.equal(getsThankYou(t("Food Safety", "Pest Activity Log")), true)
+  assert.equal(getsThankYou(t("Food Safety", "Temperature Check — AM", "DAILY", true)), true)
+  assert.equal(getsThankYou(t("Barista", "Barista — Weekly Deep Clean", "WEEKLY")), true)
+  assert.equal(getsThankYou(t("Pastry", "Pastry — Monthly Deep Clean", "MONTHLY")), true)
+  // Currumbin (Beach House + Tea Garden).
+  assert.equal(getsThankYou(t("Restaurant Kitchen", "Restaurant Kitchen — Daily Clean")), true)
+  assert.equal(getsThankYou(t("Cafe Kitchen", "Cafe Kitchen — Weekly Deep Clean", "WEEKLY")), true)
+  assert.equal(getsThankYou(t("QC & Standards", "QC — Records & Sign-offs (Lola)")), true)
+  assert.equal(getsThankYou(t("Bar", "Bar — Closing Clean")), true)
+  assert.equal(getsThankYou(t("FOH", "Opening")), true)
+  assert.equal(getsThankYou(t(null, "Anything")), true)
 })
 
-test("kitchen, weekly, monthly and food safety lists do not", () => {
-  assert.equal(isFohDailyClean(t("KP", "KP — Daily Close")), false)
-  assert.equal(isFohDailyClean(t("Kitchen", "Chefs — Daily Clean")), false)
-  assert.equal(isFohDailyClean(t("Pastry", "Pastry — Daily Clean")), false)
-  assert.equal(isFohDailyClean(t("FOH", "FOH — Weekly Clean", "WEEKLY")), false)
-  assert.equal(isFohDailyClean(t("FOH", "FOH — Monthly Tasks", "MONTHLY")), false)
-  assert.equal(isFohDailyClean(t("Market", "Market — Temperature Check AM", "DAILY", true)), false)
-  assert.equal(isFohDailyClean(t(null, "Pest Activity Log")), false)
+test("on-demand records (deliveries, cooling) finish without one", () => {
+  assert.equal(getsThankYou(t("Food Safety", "Delivery Temperature Check", "ON_DEMAND", true)), false)
+  assert.equal(getsThankYou(t("Food Safety", "Cooling Log", "ON_DEMAND", true)), false)
+  assert.equal(getsThankYou(t("FOH", "FOH — Daily Tasks", "ON_DEMAND")), false)
+  assert.equal(getsThankYou(t("FOH", "FOH — Daily Tasks", "")), false)
 })
 
 test("pickOne spreads over the pool and copes with an empty one", () => {
@@ -40,28 +46,6 @@ test("only our own Cloudinary image URLs are accepted", () => {
   assert.equal(isOurCloudinaryUrl("https://evil.example/tarte/image/upload/x.jpg", "tarte"), false)
   assert.equal(isOurCloudinaryUrl("not a url", "tarte"), false)
   assert.equal(isOurCloudinaryUrl("https://res.cloudinary.com/tarte/image/upload/x.jpg", undefined), false)
-})
-
-test("real seeded lists: BH kitchens and on-demand lists stay out, Tea Garden and Currumbin FOH get it", () => {
-  // Beach House kitchen areas contain "Cafe" / "Restaurant" but are not FOH.
-  assert.equal(isFohDailyClean(t("Restaurant Kitchen", "Restaurant Kitchen — Daily Clean")), false)
-  assert.equal(isFohDailyClean(t("Cafe Kitchen", "Cafe Kitchen — Daily Clean")), false)
-  assert.equal(isFohDailyClean(t("Food Safety", "Delivery Temperature Check", "ON_DEMAND", true)), false)
-  assert.equal(isFohDailyClean(t("FOH", "FOH — Daily Tasks", "ON_DEMAND")), false)
-  assert.equal(isFohDailyClean(t("KP", "KP — Daily Close")), false)
-  // Tea Garden opening/closing sit under FOH with plain names.
-  assert.equal(isFohDailyClean(t("FOH", "Opening")), true)
-  assert.equal(isFohDailyClean(t("FOH", "Closing")), true)
-  assert.equal(isFohDailyClean(t("Market", "Currumbin Market — Daily Clean")), true)
-})
-
-test("area casing and stray spaces do not matter, and a name merely starting with 'Fo' is not FOH", () => {
-  assert.equal(isFohDailyClean(t("  market ", "Market — Daily Clean")), true)
-  assert.equal(isFohDailyClean(t("BARISTA", "Barista — Daily Clean")), true)
-  assert.equal(isFohDailyClean(t("KP", "  foh kp — daily close")), true)
-  assert.equal(isFohDailyClean(t("", "Food Prep — Daily Clean")), false)
-  assert.equal(isFohDailyClean(t("   ", "Kitchen — Daily Clean")), false)
-  assert.equal(isFohDailyClean(t("Kitchen", "Fohx list")), false)
 })
 
 test("pickOne never falls off either end of the pool", () => {
@@ -86,27 +70,39 @@ test("Cloudinary guard rejects lookalike hosts, other accounts and non-image upl
   assert.equal(isOurCloudinaryUrl("https://res.cloudinary.com/tarte/image/upload/v1731380000/tarte-kitchen/thank-you/abc123.jpg", cloud), true)
 })
 
-test("Chloe 13 Nov: FOH Daily Tasks and every Barista Daily Clean get the thank-you, weekly barista does not", () => {
-  assert.equal(isFohDailyClean(t("FOH", "FOH — Daily Tasks")), true)
-  assert.equal(isFohDailyClean(t("Barista", "Barista — Daily Clean")), true)
-  assert.equal(isFohDailyClean(t("Barista", "Barista — Weekly Deep Clean", "WEEKLY")), false)
+test("photoSiteOf: Burleigh on its own, Beach House and Tea Garden are Currumbin", () => {
+  assert.equal(photoSiteOf("BURLEIGH"), "BURLEIGH")
+  assert.equal(photoSiteOf("BEACH_HOUSE"), "CURRUMBIN")
+  assert.equal(photoSiteOf("TEA_GARDEN"), "CURRUMBIN")
+  assert.equal(photoSiteOf("CURRUMBIN"), "CURRUMBIN")
+  assert.equal(photoSiteOf(" beach_house "), "CURRUMBIN")
+  assert.equal(photoSiteOf("BOTH"), null)
+  assert.equal(photoSiteOf(undefined), null)
+  assert.equal(photoSiteOf(""), null)
 })
 
-test("photoPool: a venue's own photos first, otherwise every venue's", () => {
+test("photoPool: the site's own photos first, otherwise every venue's", () => {
   const all = [
     { venue: "BURLEIGH", url: "b1" },
     { venue: "BURLEIGH", url: "b2" },
-    { venue: "TEA_GARDEN", url: "t1" },
   ]
   assert.deepEqual(photoPool(all, "BURLEIGH").map((p) => p.url), ["b1", "b2"])
-  assert.deepEqual(photoPool(all, "TEA_GARDEN").map((p) => p.url), ["t1"])
-  // Currumbin has none of its own yet: it borrows the whole pool.
-  assert.deepEqual(photoPool(all, "BEACH_HOUSE").map((p) => p.url), ["b1", "b2", "t1"])
+  // Currumbin has none of its own yet: Beach House and Tea Garden borrow the whole pool.
+  assert.deepEqual(photoPool(all, "BEACH_HOUSE").map((p) => p.url), ["b1", "b2"])
+  assert.deepEqual(photoPool(all, "TEA_GARDEN").map((p) => p.url), ["b1", "b2"])
   assert.deepEqual(photoPool([], "BURLEIGH"), [])
+  // Once Oliver adds Currumbin photos, both Currumbin venues use only those,
+  // and Burleigh never shows them.
+  const withCurrumbin = [...all, { venue: "BEACH_HOUSE", url: "c1" }, { venue: "TEA_GARDEN", url: "t1" }]
+  assert.deepEqual(photoPool(withCurrumbin, "BEACH_HOUSE").map((p) => p.url), ["c1", "t1"])
+  assert.deepEqual(photoPool(withCurrumbin, "TEA_GARDEN").map((p) => p.url), ["c1", "t1"])
+  assert.deepEqual(photoPool(withCurrumbin, "BURLEIGH").map((p) => p.url), ["b1", "b2"])
+  // A site with photos never borrows: Burleigh empty, Currumbin full.
+  assert.deepEqual(photoPool([{ venue: "BEACH_HOUSE", url: "c1" }], "BURLEIGH").map((p) => p.url), ["c1"])
   // The caller's list is never changed.
   const pool = photoPool(all, "BEACH_HOUSE")
   pool.pop()
-  assert.equal(all.length, 3)
+  assert.equal(all.length, 2)
 })
 
 test("thankYouDisplayUrl asks Cloudinary for a lighter copy, once, and leaves other URLs alone", () => {
@@ -133,8 +129,9 @@ test("test-guard: a BOTH-venue run borrows the whole pool and gets a real, light
     thankYouDisplayUrl(last.url),
     "https://res.cloudinary.com/tarte/image/upload/f_auto,q_auto,c_limit,h_1400/v1794530595/tarte-kitchen/thank-you/t1.jpg",
   )
-  // A venue with one photo of its own never shows another venue's.
+  // A site with one photo of its own never shows another site's.
   for (const r of [0, 0.5, 0.9999]) assert.equal(pickOne(photoPool(rows, "TEA_GARDEN"), r)?.url, rows[1].url)
+  for (const r of [0, 0.5, 0.9999]) assert.equal(pickOne(photoPool(rows, "BEACH_HOUSE"), r)?.url, rows[1].url)
 })
 
 test("test-guard: thankYouDisplayUrl leaves lookalike hosts and plain http alone", () => {

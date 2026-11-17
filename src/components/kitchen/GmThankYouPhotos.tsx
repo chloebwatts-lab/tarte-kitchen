@@ -9,14 +9,16 @@ import { addThankYouPhoto, removeThankYouPhoto, type ThankYouPhotoRow } from "@/
 const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
 
-/** Oliver's pool of staff photos for the FOH "Thank you :)" page. */
+/** Oliver's pool of staff photos for the checklist "Thank you :)" page, one set per site. */
 export function GmThankYouPhotos({
   venue,
   venueLabel,
+  otherLabel,
   initial,
 }: {
   venue: string
   venueLabel: string
+  otherLabel: string
   initial: ThankYouPhotoRow[]
 }) {
   const [photos, setPhotos] = useState(initial)
@@ -77,7 +79,7 @@ export function GmThankYouPhotos({
           <div>
             <div className="text-[17px] font-bold text-[var(--tk-ink)]">{venueLabel}: {photos.length} photo{photos.length === 1 ? "" : "s"}</div>
             <div className="mt-0.5 text-[14px] text-[var(--tk-ink-soft)]">
-              {photos.length === 0 ? "No photos of its own yet, so it uses the other venues' photos." : "Live now on the FOH daily checklists."}
+              {photos.length === 0 ? `No ${venueLabel} photos yet, so ${venueLabel} checklists use the ${otherLabel} ones for now.` : `Live now on every ${venueLabel} checklist.`}
             </div>
           </div>
           <input ref={inputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />

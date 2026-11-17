@@ -33,7 +33,7 @@ export function KitchenRunView({
   thankYouPhoto = null,
 }: {
   initial: ChecklistRunDetail
-  /** Staff photo for the FOH "Thank you :)" finishing page, null = no page. */
+  /** Staff photo for the "Thank you :)" finishing page, null = no page. */
   thankYouPhoto?: string | null
 }) {
   const [items, setItems] = useState(initial.items)
@@ -517,7 +517,7 @@ export function KitchenRunView({
         </div>
       </div>
 
-      {/* FOH "Thank you :)" page. The photo is fetched as soon as the list
+      {/* "Thank you :)" page. The photo is fetched as soon as the list
           is ready to submit so it is there the moment Complete is tapped. */}
       {thanksPhoto && canComplete && !submitted && !showThanks && (
         // eslint-disable-next-line @next/next/no-img-element

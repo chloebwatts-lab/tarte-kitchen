@@ -107,7 +107,7 @@ export function GmDesk({ board }: { board: GmBoard }) {
         <KitchenButton href="/kitchen/gm/council" variant="secondary" size="lg" className="w-full">Footpath dining fee: script and sign-on list</KitchenButton>
       </div>
 
-      <KitchenButton href="/kitchen/gm/photos" variant="secondary" size="lg" className="w-full">Thank-you photos for the FOH checklists</KitchenButton>
+      <KitchenButton href="/kitchen/gm/photos" variant="secondary" size="lg" className="w-full">Thank-you photos for the checklists</KitchenButton>
     </div>
   )
 }

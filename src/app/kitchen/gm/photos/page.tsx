@@ -5,13 +5,8 @@ import { requireGm } from "@/lib/gm-auth"
 import { listThankYouPhotos } from "@/lib/actions/thank-you"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { GmThankYouPhotos } from "@/components/kitchen/GmThankYouPhotos"
+import { PHOTO_SITES, photoSiteOf } from "@/lib/checklists/thank-you"
 import { cn } from "@/lib/utils"
-
-const VENUES = [
-  { key: "BURLEIGH", label: "Burleigh" },
-  { key: "BEACH_HOUSE", label: "Beach House" },
-  { key: "TEA_GARDEN", label: "Tea Garden" },
-] as const
 
 export default async function GmPhotosPage({
   searchParams,
@@ -19,10 +14,12 @@ export default async function GmPhotosPage({
   searchParams: Promise<{ venue?: string }>
 }) {
   const sp = await searchParams
-  const venue = VENUES.find((v) => v.key === sp.venue)?.key ?? "BURLEIGH"
+  // Old links said BEACH_HOUSE or TEA_GARDEN: both are the Currumbin set now.
+  const venue = photoSiteOf(sp.venue) ?? "BURLEIGH"
   await requireGm(`/kitchen/gm/photos?venue=${venue}`)
   const photos = await listThankYouPhotos(venue)
-  const label = VENUES.find((v) => v.key === venue)!.label
+  const label = PHOTO_SITES.find((v) => v.key === venue)!.label
+  const otherLabel = PHOTO_SITES.find((v) => v.key !== venue)!.label
 
   return (
     <div className="mx-auto max-w-[860px] space-y-7 pb-16">
@@ -32,12 +29,12 @@ export default async function GmPhotosPage({
           Thank-you photos
         </h1>
         <p className="mt-2 max-w-2xl text-[16px] leading-snug text-[var(--tk-ink-soft)]">
-          When someone finishes an FOH daily checklist in full (every line ticked, photos in, Complete tapped) they get a &ldquo;Thank you :)&rdquo; page with one of these, picked at random. Add as many as you like.
+          When someone finishes any checklist in full (every department, every line ticked, photos in, Complete tapped) they get a &ldquo;Thank you :)&rdquo; page with one of these, picked at random. Burleigh and Currumbin each have their own set. Add as many as you like.
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-1 rounded-[14px] border border-[var(--tk-line)] bg-[var(--tk-card)] p-1">
-        {VENUES.map((v) => (
+      <div className="grid grid-cols-2 gap-1 rounded-[14px] border border-[var(--tk-line)] bg-[var(--tk-card)] p-1">
+        {PHOTO_SITES.map((v) => (
           <Link
             key={v.key}
             href={`/kitchen/gm/photos?venue=${v.key}`}
@@ -51,7 +48,7 @@ export default async function GmPhotosPage({
         ))}
       </div>
 
-      <GmThankYouPhotos key={venue} venue={venue} venueLabel={label} initial={photos} />
+      <GmThankYouPhotos key={venue} venue={venue} venueLabel={label} otherLabel={otherLabel} initial={photos} />
     </div>
   )
 }

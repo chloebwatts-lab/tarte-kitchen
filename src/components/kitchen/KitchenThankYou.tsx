@@ -3,7 +3,7 @@
 import Link from "next/link"
 
 /**
- * Full screen "Thank you :)" shown once an FOH daily clean is fully complete
+ * Full screen "Thank you :)" shown once a checklist is fully complete
  * (Oliver, 12 Nov 2026). One of the staff photos from the GM desk, picked at
  * random, so the team knows they are appreciated.
  *
