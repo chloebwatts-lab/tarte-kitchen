@@ -103,7 +103,8 @@ export function GmDesk({ board }: { board: GmBoard }) {
       {tab === "tasks" ? <Tasks board={board} run={run} busy={busy} /> : null}
 
       <div className="space-y-2">
-        <p className="tk-caps px-1 text-[var(--tk-ink-soft)]">Currumbin</p>
+        <p className="tk-caps px-1 text-[var(--tk-ink-soft)]">Live</p>
+        <KitchenButton href="/kitchen/gm/live" variant="secondary" size="lg" className="w-full">Wages + COGS, live: Burleigh and Currumbin</KitchenButton>
         <KitchenButton href="/kitchen/gm/sales" variant="secondary" size="lg" className="w-full">Currumbin sales: today and the last two weeks</KitchenButton>
       </div>
 
@@ -459,7 +460,7 @@ function Numbers({ board }: { board: GmBoard }) {
     <Section title="The numbers" sub="Worked out for you from payroll and invoices. Percent of sales, no dollars.">
       {wages.tiles.length ? <TileRow label={`Wages, week ${wages.weekLabel}`} tiles={wages.tiles} /> : null}
       {cogs.tiles.length ? <TileRow label={`COGS, week ${cogs.weekLabel}`} tiles={cogs.tiles} /> : null}
-      <KitchenButton href="/kitchen/gm/live" variant="secondary" size="lg" className="w-full">See this week live: spend and wages so far</KitchenButton>
+      <KitchenButton href="/kitchen/gm/live" variant="secondary" size="lg" className="w-full">Wages + COGS, live</KitchenButton>
     </Section>
   )
 }

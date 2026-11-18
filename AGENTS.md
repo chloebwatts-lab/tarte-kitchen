@@ -15,7 +15,7 @@ Read this before quoting a source of truth, a person or a report. Add a line her
 
 - Louise no longer does payroll or weekly reports (left payroll 10 Nov 2026; Chloe confirmed 15 Nov 2026). Never tell Chloe to check a number against "Louise's report". Actual weekly wages are the Xero pay runs: the Thursday venue cards and the Friday digest (`src/lib/labour/payweek-figures.ts`). Older code and comments that name Louise describe history, not who to ask.
 - "Left to spend" on Live spend and Wages + COGS is what is spare AFTER the usual orders for today to Tuesday (`usualStillToCome`), not the total room to order. Never tell Chloe or a chef "$X left to order" from it: the total room is `leftBeforeStillToCome` (Chloe, 15 Nov 2026).
-- Live wages and COGS (`/kitchen/managers/numbers`) are for Chloe and Shawna only (15 Nov 2026, `src/lib/numbers-access.ts`). Do not surface those figures on any other staff page.
+- Live wages and COGS (`/kitchen/managers/numbers`) are for Chloe and Shawna only (15 Nov 2026, `src/lib/numbers-access.ts`). Do not surface those figures on any other staff page. One exception, Chloe 18 Nov 2026: Oliver's GM desk (`/kitchen/gm/live`, behind the GM gate) shows the live wage % and COGS % for Burleigh and Currumbin, percent only, read from the same engines via `src/lib/gm/live-simple.ts`. Keep it simple and percent only; no dollars there.
 
 # How Chloe wants replies (Chloe, 19 Oct 2026)
 Chloe runs Tarte and reads replies on her phone between other things.

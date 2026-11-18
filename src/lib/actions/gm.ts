@@ -14,6 +14,7 @@ import { guardedCheck, LOCKED_MESSAGE } from "@/lib/login-guard"
 import { pushPublicKey, sendGmPush } from "@/lib/gm/push"
 import { getCurrentWeekSpend } from "@/lib/spend/current-week"
 import { buildCurrumbinSales, CURRUMBIN_VENUES, type CurrumbinSales } from "@/lib/gm/currumbin-sales"
+import { buildGmLiveSimple, type GmLiveSimple } from "@/lib/gm/live-simple"
 import { getLiveLabourSnapshot } from "@/lib/actions/labour-live"
 import { CROSS_VENUE_WEEKLY_TOTAL } from "@/lib/labour/recode"
 import {
@@ -513,61 +514,16 @@ export async function getGmTracking(): Promise<TrackWeek[]> {
   })
 }
 
-// ─── Live trackers (Burleigh only) ───────────────────────────────────
+// ─── Live wages + COGS, Burleigh and Currumbin (Chloe, 18 Nov 2026) ──
 
-export interface GmLive {
-  weekLabel: string
-  daysIn: number
-  cogs: {
-    spent: number
-    revenue: number | null
-    revenueDays: number
-    actualPct: number | null
-    targetPct: number
-    budget: number | null
-    daily: { day: string; amount: number }[]
-    suppliers: { supplier: string; amount: number; usual: number | null }[]
-  } | null
-  /** Empty until Tarte Shifts is the source: Deputy's live numbers are not trusted for this. */
-  wages: { label: string; pct: string; target: string; status: "ok" | "amber" | "red" | "none" }[]
-}
-
-export async function getGmLive(): Promise<GmLive> {
+/**
+ * Percent only, from the same engines as Chloe's Wages + COGS page, so the
+ * two always agree. Shifts runs the rosters now, so wages are always on.
+ */
+export async function getGmLive(): Promise<GmLiveSimple> {
   await guard()
-  const spend = await getCurrentWeekSpend()
-  const b = spend.buckets.find((x) => x.bucket === "BURLEIGH")
-  const revenue = b?.revenueToDateExGst ?? null
-  // Only what has actually been invoiced against what has actually been sold.
-  // No projections: early in the week they swing on delivery days and mislead.
-  const actualPct = b && revenue && revenue > 0 ? Math.round((b.spentToDate / revenue) * 1000) / 10 : null
-  let wages: GmLive["wages"] = []
-  if (process.env.GM_LIVE_WAGES === "1") {
-    const labour = await getLiveLabourSnapshot().catch(() => null)
-    const v = labour?.venues.find((x) => x.venue === "BURLEIGH")
-    wages = (v?.buckets ?? []).filter((x) => x.target).map((x) => ({
-      label: x.label,
-      pct: x.projectedPct != null ? `${x.projectedPct.toFixed(1)}%` : "",
-      target: x.target ? `${x.target.min} to ${x.target.max}%` : "",
-      status: x.status === "no-target" ? "none" : x.status,
-    }))
-  }
-  return {
-    weekLabel: `${short(new Date(spend.weekStartWed))} to ${short(new Date(spend.weekEndTue))}`,
-    daysIn: spend.dayOfWeek,
-    cogs: b
-      ? {
-          spent: Math.round(b.spentToDate),
-          revenue: revenue != null ? Math.round(revenue) : null,
-          revenueDays: b.revenueDaysReported,
-          actualPct,
-          targetPct: b.targetPct,
-          budget: b.budget != null ? Math.round(b.budget) : null,
-          daily: b.daily.map((d) => ({ day: d.dayName, amount: Math.round(d.amount) })),
-          suppliers: [...b.suppliers].sort((x, y) => y.amount - x.amount).slice(0, 10).map((x) => ({ supplier: x.supplier, amount: Math.round(x.amount), usual: x.fourWeekAvg != null ? Math.round(x.fourWeekAvg) : null })),
-        }
-      : null,
-    wages,
-  }
+  const [labour, spend] = await Promise.all([getLiveLabourSnapshot(), getCurrentWeekSpend()])
+  return buildGmLiveSimple(labour, spend)
 }
 
 // ─── Currumbin daily sales (Chloe and Oliver, 17 Nov 2026) ───────────
