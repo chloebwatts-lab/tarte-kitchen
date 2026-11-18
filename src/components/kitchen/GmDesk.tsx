@@ -103,6 +103,11 @@ export function GmDesk({ board }: { board: GmBoard }) {
       {tab === "tasks" ? <Tasks board={board} run={run} busy={busy} /> : null}
 
       <div className="space-y-2">
+        <p className="tk-caps px-1 text-[var(--tk-ink-soft)]">Currumbin</p>
+        <KitchenButton href="/kitchen/gm/sales" variant="secondary" size="lg" className="w-full">Currumbin sales: today and the last two weeks</KitchenButton>
+      </div>
+
+      <div className="space-y-2">
         <p className="tk-caps px-1 text-[var(--tk-ink-soft)]">Council</p>
         <KitchenButton href="/kitchen/gm/council" variant="secondary" size="lg" className="w-full">Footpath dining fee: script and sign-on list</KitchenButton>
       </div>

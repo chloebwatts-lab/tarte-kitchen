@@ -13,6 +13,7 @@ import { renderGmReportHtml } from "@/lib/gm/report-email"
 import { guardedCheck, LOCKED_MESSAGE } from "@/lib/login-guard"
 import { pushPublicKey, sendGmPush } from "@/lib/gm/push"
 import { getCurrentWeekSpend } from "@/lib/spend/current-week"
+import { buildCurrumbinSales, CURRUMBIN_VENUES, type CurrumbinSales } from "@/lib/gm/currumbin-sales"
 import { getLiveLabourSnapshot } from "@/lib/actions/labour-live"
 import { CROSS_VENUE_WEEKLY_TOTAL } from "@/lib/labour/recode"
 import {
@@ -567,6 +568,30 @@ export async function getGmLive(): Promise<GmLive> {
       : null,
     wages,
   }
+}
+
+// ─── Currumbin daily sales (Chloe and Oliver, 17 Nov 2026) ───────────
+
+/** Beach House and Tea Garden net sales, today so far and the last 14 days, from Square (synced every half hour). */
+export async function getGmCurrumbinSales(): Promise<CurrumbinSales> {
+  await guard()
+  const today = todayAest()
+  const venues = [...CURRUMBIN_VENUES]
+  const [summaries, channels] = await Promise.all([
+    db.dailySalesSummary.findMany({
+      where: { venue: { in: venues }, date: { gte: addDays(today, -21), lte: today } },
+      select: { date: true, venue: true, totalRevenueExGst: true, totalOrders: true },
+    }),
+    db.dailyChannelSales.findMany({
+      where: { venue: { in: venues }, date: { gte: addDays(today, -1), lte: today } },
+      select: { date: true, venue: true, channel: true, revenueIncGst: true },
+    }),
+  ])
+  return buildCurrumbinSales(
+    summaries.map((r) => ({ date: ymd(r.date), venue: r.venue, exGst: Number(r.totalRevenueExGst), orders: r.totalOrders })),
+    channels.map((r) => ({ date: ymd(r.date), venue: r.venue, channel: r.channel, incGst: Number(r.revenueIncGst) })),
+    ymd(today),
+  )
 }
 
 // ─── Reviews, last 4 weeks ───────────────────────────────────────────
