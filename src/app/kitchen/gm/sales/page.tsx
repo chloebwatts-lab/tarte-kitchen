@@ -5,7 +5,7 @@ import { getGmCurrumbinSales } from "@/lib/actions/gm"
 import { fmtPctChange, weekdayShort } from "@/lib/sales/compare"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 
-const money = (n: number) => `$${n.toLocaleString("en-AU")}`
+const money = (n: number) => `${n < 0 ? "-" : ""}$${Math.abs(n).toLocaleString("en-AU")}`
 const dayLabel = (d: string) =>
   new Date(`${d}T00:00:00Z`).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })
 

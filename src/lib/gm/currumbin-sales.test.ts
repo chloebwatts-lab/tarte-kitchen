@@ -210,12 +210,18 @@ test("Burleigh channel rows alone never make a Currumbin split", () => {
   assert.deepEqual(s.splits, [])
 })
 
-test(
-  "split keeps Tea Garden money out of Beach House lines when Tea Garden's channel rows are missing",
-  { todo: "known gap: channels are scaled to the combined total, so a venue with a summary but no channel rows (breakdown failed or mid-sync) lands in the other venue's lines" },
-  () => {
-    const s = buildCurrumbinSales([sum("2026-11-20", "BEACH_HOUSE", 1000), sum("2026-11-20", "TEA_GARDEN", 1000)], [ch("2026-11-20", "CAFE", 1100)], "2026-11-20")
-    const cafe = s.splits[0]?.lines.find((l) => l.label === "Beach House cafe")
-    assert.equal(cafe?.amount, 1000)
-  },
-)
+test("split keeps Tea Garden money out of Beach House lines when Tea Garden's channel rows are missing", () => {
+  const s = buildCurrumbinSales([sum("2026-11-20", "BEACH_HOUSE", 1000), sum("2026-11-20", "TEA_GARDEN", 1000)], [ch("2026-11-20", "CAFE", 1100)], "2026-11-20")
+  assert.deepEqual(s.splits[0].lines, [
+    { label: "Beach House cafe", amount: 1000 },
+    { label: "Tea Garden", amount: 1000 },
+  ])
+})
+
+test("Beach House with a total but no channel rows shows as one Beach House line", () => {
+  const s = buildCurrumbinSales([sum("2026-11-20", "BEACH_HOUSE", 1500), sum("2026-11-20", "TEA_GARDEN", 300)], [ch("2026-11-20", "CAFE", 330, "TEA_GARDEN")], "2026-11-20")
+  assert.deepEqual(s.splits[0].lines, [
+    { label: "Beach House", amount: 1500 },
+    { label: "Tea Garden", amount: 300 },
+  ])
+})

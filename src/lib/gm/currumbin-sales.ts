@@ -145,23 +145,37 @@ export function buildCurrumbinSales(summaries: SummaryIn[], channels: ChannelIn[
     }
   }
 
-  // Where the money came from, today and yesterday. Channel rows are inc GST;
-  // scale them so they add up to the ex GST total shown above them.
+  // Where the money came from, today and yesterday. Each venue is split
+  // against its own total, so a venue whose channel rows are missing (the
+  // breakdown failed, or mid-sync) shows as one line instead of landing in
+  // the other venue's lines. Channel rows are inc GST; Beach House's are
+  // scaled so they add up to its ex GST total. Tea Garden is one line.
   const splits: ChannelSplit[] = []
   for (const date of [today, shiftDate(today, -1)]) {
-    const total = totalOn(date)
+    const d = byDay.get(date)
     const rows = channels.filter((c) => c.date === date && isCurrumbin(c.venue))
     const incTotal = rows.reduce((a, c) => a + c.incGst, 0)
-    if (total == null || rows.length === 0 || incTotal <= 0) continue
-    const sums = new Map<string, number>()
-    for (const c of rows) {
-      const key = c.venue === "TEA_GARDEN" ? "TEA_GARDEN" : CHANNEL_ORDER.includes(c.channel) ? c.channel : "OTHER"
-      sums.set(key, (sums.get(key) ?? 0) + c.incGst)
+    if (!d || (d.bh == null && d.tg == null) || rows.length === 0 || incTotal <= 0) continue
+    const lines: ChannelSplit["lines"] = []
+    if (d.bh != null) {
+      const bhRows = rows.filter((c) => c.venue === "BEACH_HOUSE")
+      const bhInc = bhRows.reduce((a, c) => a + c.incGst, 0)
+      if (bhRows.length > 0 && bhInc > 0) {
+        const sums = new Map<string, number>()
+        for (const c of bhRows) {
+          const key = CHANNEL_ORDER.includes(c.channel) ? c.channel : "OTHER"
+          sums.set(key, (sums.get(key) ?? 0) + c.incGst)
+        }
+        for (const k of CHANNEL_ORDER) {
+          const v = sums.get(k) ?? 0
+          if (v !== 0) lines.push({ label: LINE_LABEL[k], amount: r0((v / bhInc) * d.bh) })
+        }
+      } else if (r0(d.bh) !== 0) {
+        lines.push({ label: "Beach House", amount: r0(d.bh) })
+      }
     }
-    const lines = [...CHANNEL_ORDER, "TEA_GARDEN"]
-      .filter((k) => (sums.get(k) ?? 0) !== 0)
-      .map((k) => ({ label: LINE_LABEL[k], amount: r0(((sums.get(k) ?? 0) / incTotal) * total) }))
-    splits.push({ date, isToday: date === today, lines })
+    if (d.tg != null && r0(d.tg) !== 0) lines.push({ label: LINE_LABEL.TEA_GARDEN, amount: r0(d.tg) })
+    if (lines.length) splits.push({ date, isToday: date === today, lines })
   }
 
   const todayRow = days[0]
