@@ -115,6 +115,16 @@ export const TOOL_GROUPS: ToolGroup[] = [
     tools: [],
   },
   {
+    // Tea Garden Snow Village build guide (Chloe, 18 Nov 2026: "same lego style to keep it easy"): one job per screen,
+    // tiers, dowels, ramps, tower, snow, houses. Static page in public/kitchen, built by snow-village/build_guide.py.
+    slug: "snow-village",
+    title: "Snow Village",
+    sub: "Tea Garden village build, step by step",
+    icon: Snowflake,
+    href: "/kitchen/snow-village.html",
+    tools: [],
+  },
+  {
     slug: "functions",
     title: "Functions",
     sub: "What is booked, and the functions app",
