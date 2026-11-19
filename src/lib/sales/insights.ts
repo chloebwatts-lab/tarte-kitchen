@@ -180,6 +180,22 @@ export function brisbaneNow(now = new Date()): { date: string; minutes: number }
 }
 
 /**
+ * Whether a venue's open orders count in the big revenue figure (Chloe,
+ * 19 Nov 2026). Burleigh is counter service: an open order there is a
+ * ticket nobody has paid, often never will, so the headline is paid only
+ * and the open orders sit in the line under it. Currumbin's open orders are
+ * restaurant tables still eating, so they stay in.
+ */
+export function openCountsInHeadline(venue: string): boolean {
+  return venue !== "BURLEIGH"
+}
+
+/** The big revenue figure: paid, plus open orders where they count. */
+export function headlineRevenueIncGst(venue: string, paidIncGst: number, openIncGst: number): number {
+  return openCountsInHeadline(venue) ? paidIncGst + openIncGst : paidIncGst
+}
+
+/**
  * Beach House and Tea Garden as one, the way Square's dashboard adds them up
  * on All locations (both sit in the one Square account): each venue's paid
  * plus what is still owing on its open tables. A refund-only day at the

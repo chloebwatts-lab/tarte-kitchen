@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { comparisonDates, compareHourly, fillMissingHourly, headline, typicalChannels, dailySeries, brisbaneNow, currumbinTogether, type HourlyRow } from "./insights"
+import { comparisonDates, compareHourly, fillMissingHourly, headline, headlineRevenueIncGst, openCountsInHeadline, typicalChannels, dailySeries, brisbaneNow, currumbinTogether, type HourlyRow } from "./insights"
 
 test("comparisonDates: same weekday back 1 / 4 / 8 weeks", () => {
   assert.deepEqual(comparisonDates("2026-10-04", "LAST_WEEK"), ["2026-09-27"])
@@ -289,4 +289,19 @@ test("currumbinTogether: a Tea Garden refund nets off, and sums land on whole ce
   assert.deepEqual(r, { total: 0.3, paid: 0.3, open: 0 })
   // A refund-only day at the other venue still comes off, as on Square.
   assert.deepEqual(currumbinTogether({ paidIncGst: 500, openTablesIncGst: 0 }, { paidIncGst: -19, openTablesIncGst: 0 }), { total: 481, paid: 481, open: 0 })
+})
+
+// ─── Burleigh open orders out of the headline (Chloe, 19 Nov 2026) ───
+
+test("headline: Burleigh is paid only, its open orders are left out", () => {
+  assert.equal(openCountsInHeadline("BURLEIGH"), false)
+  assert.equal(headlineRevenueIncGst("BURLEIGH", 3809.45, 412.5), 3809.45)
+  assert.equal(headlineRevenueIncGst("BURLEIGH", 0, 95), 0) // only an open ticket so far: $0, not $95
+})
+
+test("headline: Currumbin keeps open tables in (diners still eating)", () => {
+  assert.equal(openCountsInHeadline("BEACH_HOUSE"), true)
+  assert.equal(openCountsInHeadline("TEA_GARDEN"), true)
+  assert.equal(headlineRevenueIncGst("BEACH_HOUSE", 2602.3, 180), 2782.3)
+  assert.equal(headlineRevenueIncGst("TEA_GARDEN", 1650.11, 0), 1650.11)
 })

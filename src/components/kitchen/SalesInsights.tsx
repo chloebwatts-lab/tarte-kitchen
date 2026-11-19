@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react"
 import { BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart } from "recharts"
 import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react"
 import { getSalesInsights, type SalesInsights as Data, type Range } from "@/lib/actions/sales-insights"
-import type { CompareMode } from "@/lib/sales/insights"
+import { headlineRevenueIncGst, openCountsInHeadline, type CompareMode } from "@/lib/sales/insights"
 import { VENUE_LABEL } from "@/lib/venues"
 import { LIGHTSPEED_AVG_SALE, vsLightspeedPct } from "@/lib/sales/benchmarks"
 
@@ -82,14 +82,16 @@ export function SalesInsights({ initial, view = "sales" }: { initial: Data; view
   const day = data.day
   const paid = day?.paidIncGst ?? 0
   const open = day?.openTablesIncGst ?? 0
-  const total = paid + open
+  // Burleigh's open orders stay out of the big figure and the chart (Chloe, 19 Nov 2026); they show in the line under it.
+  const openIn = openCountsInHeadline(initial.venue)
+  const total = headlineRevenueIncGst(initial.venue, paid, open)
   const nowHour = data.nowMinutes !== null ? Math.floor(data.nowMinutes / 60) : null
   const chart = useMemo(() => {
     const hours = Array.from({ length: 24 }, (_, h) => h)
     const have = hours.filter((h) => (day?.hourly[h] ?? 0) > 0 || data.hourlyCompare.avgHourly[h] > 0)
     const lo = Math.max(0, Math.min(6, ...have)), hi = Math.min(23, Math.max(16, ...have)) + 1
-    return hours.slice(lo, hi).map((h) => ({ hour: hourLabel(h), h, today: (day?.hourly[h] ?? 0) + (h === nowHour ? open : 0), avg: data.hourlyCompare.avgHourly[h] ?? 0 }))
-  }, [day, data.hourlyCompare, nowHour, open])
+    return hours.slice(lo, hi).map((h) => ({ hour: hourLabel(h), h, today: (day?.hourly[h] ?? 0) + (h === nowHour && openIn ? open : 0), avg: data.hourlyCompare.avgHourly[h] ?? 0 }))
+  }, [day, data.hourlyCompare, nowHour, open, openIn])
   const typical = (ch: string) => data.typical.find((t) => t.channel === ch)
   const channelsPaid = (day?.channels.CAFE.sales ?? 0) + (day?.channels.RESTAURANT.sales ?? 0) + (day?.channels.ONLINE.sales ?? 0)
   const share = (n: number) => (channelsPaid > 0 ? (n / channelsPaid) * 100 : 0)
@@ -130,7 +132,9 @@ export function SalesInsights({ initial, view = "sales" }: { initial: Data; view
             <div className="mt-6 text-[12px] font-semibold uppercase tracking-[0.14em] text-white/70">Revenue inc GST</div>
             <div className="mt-1 font-serif text-[52px] font-semibold leading-none tabular-nums">{money0(total)}</div>
             <div className="mt-2 text-[15px] text-white/85">
-              <strong>{money0(paid)}</strong> paid{open > 0 && <> + <strong>{money0(open)}</strong> still owing on {day?.openTables} open table{day?.openTables === 1 ? "" : "s"}</>}
+              <strong>{money0(paid)}</strong> paid{open > 0 && (openIn
+                ? <> + <strong>{money0(open)}</strong> still owing on {day?.openTables} open table{day?.openTables === 1 ? "" : "s"}</>
+                : <> · <strong>{money0(open)}</strong> on {day?.openTables} open order{day?.openTables === 1 ? "" : "s"}, not in the total</>)}
               {day && day.surchargeIncGst > 0 && <> · incl. <strong>{money0(day.surchargeIncGst)}</strong> {day.surchargeName ?? "surcharge"}</>}
             </div>
             {data.currumbin && (
@@ -187,7 +191,7 @@ export function SalesInsights({ initial, view = "sales" }: { initial: Data; view
             )}
 
             <div className="mt-5 divide-y divide-white/10 text-[15px]">
-              <div className="flex justify-between py-2"><span>Open tables, still owing</span><span className="tabular-nums">{data.source === "LIVE" ? `${day?.openTables ?? 0} · ${money0(open)}` : "n/a"}</span></div>
+              <div className="flex justify-between py-2"><span>{openIn ? "Open tables, still owing" : "Open orders, not in the total"}</span><span className="tabular-nums">{data.source === "LIVE" ? `${day?.openTables ?? 0} · ${money0(open)}` : "n/a"}</span></div>
               <div className="flex justify-between py-2"><span>Paid orders</span><span className="tabular-nums">{day?.paidOrders ? day.paidOrders.toLocaleString() : "n/a"}</span></div>
               <div className="flex justify-between py-2"><span>Avg transaction</span><span className="tabular-nums">{day?.avgTransaction ? money2(day.avgTransaction) : "n/a"}</span></div>
             </div>

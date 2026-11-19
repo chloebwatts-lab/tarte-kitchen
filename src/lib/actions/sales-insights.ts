@@ -10,7 +10,7 @@ import { uberDay, uberDailyRows, type UberDay } from "@/lib/uber/live"
 import type { DayBreakdown, Channel } from "@/lib/square/breakdown"
 import { shiftDate, tarteWeekStart } from "@/lib/sales/compare"
 import {
-  brisbaneNow, comparisonDates, compareHourly, fillMissingHourly, headline, typicalChannels, dailySeries, currumbinTogether,
+  brisbaneNow, comparisonDates, compareHourly, fillMissingHourly, headline, headlineRevenueIncGst, typicalChannels, dailySeries, currumbinTogether,
   type CompareMode, type HourlyComparison, type HeadlineComparison, type ChannelTypical,
 } from "@/lib/sales/insights"
 
@@ -128,8 +128,9 @@ export async function getSalesInsights(venue: Venue, date: string, range: Range 
   }
   const hourlyCompare = compareHourly(hr, cmpDates, nowMinutes, exact)
   const lastWeek = compareHourly(hr, lwDates, nowMinutes, exact)
-  // Paid + open tables: the same figure as the card's headline.
-  const todayRevenue = day ? day.paidIncGst + day.openTablesIncGst : 0
+  // The same figure as the card's headline: paid, plus open tables except at
+  // Burleigh, where open orders are left out of it (Chloe, 19 Nov 2026).
+  const todayRevenue = day ? headlineRevenueIncGst(venue, day.paidIncGst, day.openTablesIncGst) : 0
   const head = headline(todayRevenue, day?.surchargeIncGst ?? 0, hourlyCompare, lastWeek)
 
   // ---- Currumbin as one, the way Square's dashboard adds it up ----
