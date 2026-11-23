@@ -56,6 +56,10 @@ export interface LiveBucketRow {
   workingPct: number | null
   workingStatus: "ok" | "amber" | "red" | "no-target"
   workingVarianceVsBandPct: number | null
+  /** Hourly roster still to run in this department (rest of shifts underway
+   *  + shifts not started, today to Tuesday): what a manager can still trim.
+   *  Salaries are not in it. */
+  rosterStillToRun: number
 }
 
 export interface LiveDayRow {
@@ -129,6 +133,11 @@ export interface LiveVenueSnapshot {
     /** Wages the projection adds for the rest of today (underway + not started). */
     labourRestOfDay: number
   }
+  /** Hourly roster still to run, today to Tuesday, on-costs in, salaries
+   *  out: the wages a manager can still trim this week. */
+  rosterStillToRun: number
+  /** Takings the projection still expects: the rest of today + the days ahead. */
+  revenueStillToCome: number
   /** Wed to Tue, one row a day (Chloe, 15 Nov 2026: wages day by day). */
   days: LiveDayRow[]
   buckets: LiveBucketRow[]
@@ -274,6 +283,7 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
     const add = (m: Map<string, number>, k: string, v: number) => m.set(k, (m.get(k) ?? 0) + v)
     const bucketSpent: Record<Bucket, number> = { chefsKp: 0, fohBarista: 0, pastry: 0, other: 0 }
     const bucketRoster: Record<Bucket, number> = { chefsKp: 0, fohBarista: 0, pastry: 0, other: 0 }
+    const bucketToRun: Record<Bucket, number> = { chefsKp: 0, fohBarista: 0, pastry: 0, other: 0 }
     for (const s of venueShifts) {
       const bucket = bucketFor(venue, s.area)
       // Super on top of gross (12% on prod; the uplift for workers' comp
@@ -308,6 +318,7 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
         // Not started: all of it is still to come.
         labourRemaining += cost
         bucketRoster[bucket] += cost
+        bucketToRun[bucket] += cost
         add(aheadByDay, dayKey, cost)
         if (dayKey === todayAest) todayRest += cost
       } else if (endMs > nowMs && endMs > startMs) {
@@ -316,6 +327,7 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
         const rest = cost * ((endMs - nowMs) / (endMs - startMs))
         labourRemaining += rest
         bucketRoster[bucket] += rest
+        bucketToRun[bucket] += rest
         add(aheadByDay, todayAest, rest)
         todayRest += rest
       }
@@ -432,6 +444,7 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
         workingPct,
         workingStatus: bucketStatus(workingPct, t),
         workingVarianceVsBandPct: workingPct == null ? null : workingPct - t.max,
+        rosterStillToRun: round2(bucketToRun[t.key]),
       }
     })
 
@@ -488,6 +501,8 @@ export function buildLiveLabourSnapshot(rows: LiveLabourRows, now: Date): LiveSn
         revenueRestOfDay: round2(revenueRestOfDay),
         labourRestOfDay: round2(todayRest),
       },
+      rosterStillToRun: round2(bucketToRun.chefsKp + bucketToRun.fohBarista + bucketToRun.pastry + bucketToRun.other),
+      revenueStillToCome: round2(remainingForecast),
       days: dayRows,
       buckets,
       coverage: {

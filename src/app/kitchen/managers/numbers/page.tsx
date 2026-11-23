@@ -8,6 +8,7 @@ import { AutoRefresh } from "@/components/kitchen/AutoRefresh"
 import { getLiveLabourSnapshot } from "@/lib/actions/labour-live"
 import { getCurrentWeekSpend } from "@/lib/spend/current-week"
 import type { LiveVenueSnapshot } from "@/lib/labour/live"
+import { recoveryPlan } from "@/lib/labour/recovery"
 import type { BucketSpendData } from "@/lib/spend/types"
 
 /**
@@ -71,6 +72,74 @@ function dayRange(days: number): string {
   const names = ["Wed", "Thu", "Fri", "Sat", "Sun", "Mon", "Tue"]
   if (days <= 0) return ""
   return days === 1 ? "Wed" : `Wed to ${names[Math.min(days, 7) - 1]}`
+}
+
+function restRange(lockedDays: number): string {
+  const names = ["Wed", "Thu", "Fri", "Sat", "Sun", "Mon", "Tue"]
+  const from = Math.min(Math.max(lockedDays, 0), 6)
+  return from === 6 ? "Tue" : `${names[from]} to Tue`
+}
+
+/**
+ * To finish the week on target (Chloe, 23 Nov 2026): how the finished days
+ * went, what the rest of the week is set to do, and if it is over, the two
+ * ways back: cut wages still rostered, or take more than the forecast.
+ */
+function RecoveryBlock({ v }: { v: LiveVenueSnapshot }) {
+  const plan = recoveryPlan(v)
+  if (!plan) return null
+  const target = `${plan.targetPct % 1 === 0 ? plan.targetPct.toFixed(0) : plan.targetPct.toFixed(2)}%`
+  const rest = restRange(v.locked.days)
+  const tone = plan.onTrack ? TONE.ok : TONE.red
+  return (
+    <div className="mt-2 border-t-2 border-[var(--tk-line)] pt-3">
+      <div className="text-[16px] font-semibold">To finish the week on {target}</div>
+      <div className="text-[13px] leading-snug text-[var(--tk-ink-soft)]">Target is the department bands added up. Paid leave out, the same as the big number</div>
+      {plan.soFar && (
+        <Row
+          label={`${dayRange(plan.soFar.days)}, done`}
+          sub={`${money(plan.soFar.wages)} wages on ${money(plan.soFar.revenue)}: ${money(Math.abs(plan.soFar.overTarget))} ${plan.soFar.overTarget > 0 ? "over" : "under"} target`}
+          value={pct(plan.soFar.pct)}
+        />
+      )}
+      <Row
+        label={`${rest}, as rostered`}
+        sub={`${money(plan.rest.wages)} wages on ${money(plan.rest.revenue)} takings, today so far plus the forecast. ${plan.rest.maxWagesForTarget > 0 ? `${money(plan.rest.maxWagesForTarget)} at most keeps the week on ${target}` : `The days done already put the week past ${target}`}`}
+        value={pct(plan.rest.pct)}
+      />
+      <div className="mt-2 rounded-[14px] p-3 text-[15px] leading-snug" style={{ background: tone.bg, color: tone.fg }}>
+        {plan.onTrack ? (
+          <p className="font-semibold">
+            On track, {money(-plan.gap)} to spare. {rest} can carry up to {money(-plan.gap)} more wages and still finish on {target}.
+          </p>
+        ) : (
+          <>
+            <p className="font-semibold">Heading {money(plan.gap)} over. Either one of these gets it back to {target}:</p>
+            <ul className="mt-1.5 list-disc space-y-1 pl-5">
+              <li>
+                Cut {money(plan.wagesToCut ?? 0)} of wages from the {money(plan.stillToRun)} still rostered, {rest}.
+                {plan.wagesOutOfReach ? " That is more than everything left on the roster, so wages alone will not get there." : ""}
+              </li>
+              <li>
+                Or take {money(plan.extraTakings ?? 0)} more than forecast, {rest}
+                {plan.extraTakingsPct != null ? ` (${plan.extraTakingsPct.toFixed(plan.extraTakingsPct < 10 ? 1 : 0)}% above the ${money(v.revenueStillToCome)} still expected)` : ""}.
+              </li>
+            </ul>
+          </>
+        )}
+        {plan.depts.length > 0 && (
+          <div className="mt-2 border-t border-[var(--tk-line)] pt-2 text-[14px]">
+            {plan.depts.map((d) => (
+              <p key={d.label}>
+                <span className="font-semibold">{d.label}</span> is {money(d.over)} over its {d.max}% top. Trim it from the {money(d.stillToRun)} that team still has rostered
+                {d.outOfReach ? ", though that is not enough on its own" : ""}.
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function WageCard({ v }: { v: LiveVenueSnapshot }) {
@@ -141,6 +210,7 @@ function WageCard({ v }: { v: LiveVenueSnapshot }) {
             <Chip tone={bandTone(b.workingStatus)}>{pct(b.workingPct)}</Chip>
           </div>
         ))}
+        <RecoveryBlock v={v} />
       </div>
     </Card>
   )
