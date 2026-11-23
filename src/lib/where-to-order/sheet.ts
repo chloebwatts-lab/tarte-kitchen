@@ -34,7 +34,11 @@ export interface SheetRule {
   product: string
   /** Pack price on the sheet, ex GST, gross. */
   price: number
-  /** Price per kg / L / each on the sheet, the fallback when we have no recent invoice. */
+  /**
+   * Price per kg / L / each on the sheet, ex GST and NET of the supplier's
+   * rebate (Bidfood: pack price x 0.96 / pack size). The fallback when we
+   * have no recent invoice, used as is (audit.ts does not net it again).
+   */
   per?: { price: number; unit: "kg" | "l" | "ea" }
   /** The dearer supplier the sheet names, and by how much. */
   notFrom?: { supplier: string; dearer: string }
@@ -70,7 +74,7 @@ export const SHEET: SheetRule[] = [
   R({ id: "cheese-burger-slices", dept: "Kitchen", section: "Dairy and eggs", item: "Cheese - Slices Burger Hi Melt", orderFrom: "Bidfood", product: "Cheese Slices Burger HI Melt 96'S Pure Dairy 2.27kg", price: 27.79, per: { price: 11.75, unit: "kg" }, match: /hi[\s-]?melt|cheese.*slices?.*burger|burger.*cheese.*slice/i }),
   R({ id: "cheese-red-leicester", dept: "Kitchen", section: "Dairy and eggs", item: "Cheese Red Leicester Slice 1.5", orderFrom: "Son Of A Bunn", product: "Cheese Red Leighster Slice 1.5", price: 28.9, per: { price: 19.28, unit: "kg" }, match: /red\s+lei(c|gh)e?ster/i }),
   R({ id: "cheese-tasty-shredded", dept: "Kitchen", section: "Dairy and eggs", item: "Cheese Tasty Shredded", orderFrom: "The Provedores", product: "Cheese Shredded Tasty 2kg (6)", price: 27.8, per: { price: 13.9, unit: "kg" }, match: /tasty.*shred|shred.*tasty/i }),
-  R({ id: "cream-cheese", dept: "Kitchen", section: "Dairy and eggs", item: "Cream cheese (Philadelphia)", orderFrom: "Bidfood", product: "Philadelphia cream cheese 2kg block", price: 34.63, per: { price: 17.32, unit: "kg" }, note: "Philly only, never Express or another brand. Spreadable tubs ($21.88) for bagel service only.", match: /cream\s*cheese|cheese\s*cream|philadelphia|\bphilly\b/i, not: /frosting|icing|sauce|dip\b/i, only: { match: /philadelphia|\bphilly\b/i, say: "not Philly", generic: /\b(cheese|cream|block)\b/gi } }),
+  R({ id: "cream-cheese", dept: "Kitchen", section: "Dairy and eggs", item: "Cream cheese (Philadelphia)", orderFrom: "Bidfood", product: "Philadelphia cream cheese 2kg block", price: 34.63, per: { price: 16.62, unit: "kg" }, note: "Philly only, never Express or another brand. Spreadable tubs ($21.88) for bagel service only.", match: /cream\s*cheese|cheese\s*cream|philadelphia|\bphilly\b/i, not: /frosting|icing|sauce|dip\b/i, only: { match: /philadelphia|\bphilly\b/i, say: "not Philly", generic: /\b(cheese|cream|block)\b/gi } }),
   R({ id: "creme-fraiche", dept: "Kitchen", section: "Dairy and eggs", item: "Creme fraiche", orderFrom: "The Provedores", product: "Creme Fraiche Tatua 500g", price: 11.2, per: { price: 22.4, unit: "kg" }, note: "Chefs' call (5 Oct): Provedores, even though Bidfood is about 1% cheaper after rebate.", match: /cr[eè]me\s*fra[iî]che/i }),
   R({ id: "ghee", dept: "Kitchen", section: "Dairy and eggs", item: "Ghee", orderFrom: "The Provedores", product: "Ghee Bucket 10KG", price: 149.5, per: { price: 14.95, unit: "kg" }, notFrom: { supplier: "Bidfood", dearer: "+4%" }, switched: true, litreIsKilo: true, match: /\bghee\b/i }),
   R({ id: "haloumi", dept: "Kitchen", section: "Dairy and eggs", item: "Haloumi Cheese", orderFrom: "Gold Coast Premium Foods", product: "Haloumi Cheese", price: 20, per: { price: 20, unit: "kg" }, match: /hal+oum?i/i }),
@@ -140,7 +144,7 @@ export const SHEET: SheetRule[] = [
   R({ id: "tortilla", dept: "Front of house", section: "Bread and pastries", item: "Flour Tortilla", orderFrom: "Bidfood", product: "Tortillas Flour 10\" Caterers C 12's", price: 4.22, match: /tortilla/i, not: /chips?\b|corn/i }),
   R({ id: "banana-iqf", dept: "Front of house", section: "Frozen", item: "Banana", orderFrom: "Bidfood", product: "Banana Chunks IQF Entyce 4x2.5kg", price: 30.72, per: { price: 2.95, unit: "kg" }, match: /banana.*(chunk|iqf|frozen)|(iqf|frozen).*banana/i, not: /slic|bread|chip/i }),
   R({ id: "banana-sliced-iqf", dept: "Front of house", section: "Frozen", item: "Banana (sliced)", orderFrom: "Bidfood", product: "Banana Sliced IQF Speedy Berry 1kg", price: 5.8, per: { price: 5.57, unit: "kg" }, match: /banana.*slic.*(iqf|frozen)|banana.*(iqf|frozen).*slic/i, alsoOk: [{ supplier: "Fermex", when: "Fermex 10kg bulk bag is cheaper per kg when the freezer has room" }] }),
-  R({ id: "blueberry-iqf", dept: "Front of house", section: "Frozen", item: "Blueberry (IQF)", orderFrom: "Bidfood", product: "Blueberries IQF Caterers C 1kg", price: 10.03, per: { price: 10.03, unit: "kg" }, match: /blueberr.*(iqf|frozen)|(iqf|frozen).*blueberr/i, not: /freeze|dried/i }),
+  R({ id: "blueberry-iqf", dept: "Front of house", section: "Frozen", item: "Blueberry (IQF)", orderFrom: "Bidfood", product: "Blueberries IQF Caterers C 1kg", price: 10.03, per: { price: 9.63, unit: "kg" }, match: /blueberr.*(iqf|frozen)|(iqf|frozen).*blueberr/i, not: /freeze|dried/i }),
   R({ id: "raspberry-iqf", dept: "Front of house", section: "Frozen", item: "Raspberry (IQF)", orderFrom: "Fermex", product: "Raspberry Frozen IQF 1kg", price: 13.6, per: { price: 13.6, unit: "kg" }, notFrom: { supplier: "Bidfood", dearer: "+25%" }, switched: true, match: /raspberr.*(iqf|frozen|speedy|ground value)|(iqf|frozen).*raspberr/i, not: /freeze|dried/i }),
   R({ id: "strawberry-iqf", dept: "Front of house", section: "Frozen", item: "Strawberry - XL (IQF)", orderFrom: "Fermex", product: "Strawberry IQF 1kg", price: 7.4, per: { price: 7.4, unit: "kg" }, notFrom: { supplier: "Bidfood", dearer: "+8%" }, switched: true, match: /strawberr.*(iqf|frozen)|(iqf|frozen).*strawberr/i, not: /freeze|dried/i }),
   R({ id: "clingwrap", dept: "Front of house", section: "Packaging and cleaning", item: "Clingwrap Dispenser", orderFrom: "Bidfood", product: "Clingwrap Dispenser Caterers C 600mx45cm", price: 24.3, match: /cling\s*(wrap|film)/i }),

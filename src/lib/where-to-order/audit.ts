@@ -268,7 +268,8 @@ export function referencePrices(lines: AuditLine[], rules: SheetRule[], packs: M
   for (const rule of rules) {
     const m = new Map<Per, RefPrice>()
     for (const [per, xs] of samples.get(rule.id) ?? []) m.set(per, { per, price: median(xs), from: "invoices" })
-    if (rule.per && !m.has(rule.per.unit)) m.set(rule.per.unit, { per: rule.per.unit, price: net(rule.per.price, rule.orderFrom), from: "sheet" })
+    // The sheet's per-unit price is already net of the rebate (Bidfood shown after its 4%).
+    if (rule.per && !m.has(rule.per.unit)) m.set(rule.per.unit, { per: rule.per.unit, price: rule.per.price, from: "sheet" })
     if (m.size) out.set(rule.id, m)
   }
   return out
