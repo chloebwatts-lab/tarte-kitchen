@@ -7,6 +7,9 @@ import { getTier, isCopyQuiet } from "@/lib/tier-auth"
 import { toolsForTier } from "@/lib/access/tiers"
 import { copyVisibleTools } from "@/lib/manager-quiet"
 import { forgetThisDevice, trustThisDevice } from "@/app/staff-login/actions"
+import { BarChart3 } from "lucide-react"
+import { mayOpenBurleighSales } from "@/lib/sales/burleigh-sales-auth"
+import { BURLEIGH_SALES_HREF } from "@/lib/sales/burleigh-sales-access"
 
 export default async function StaffAccessPage() {
   const person = await getPerson()
@@ -27,6 +30,10 @@ export default async function StaffAccessPage() {
     ),
     await isCopyQuiet()
   )
+  // Named grant, not a tier: Burleigh's basic daily sales (Chloe, 23 Nov 2026).
+  if (await mayOpenBurleighSales()) {
+    tiles.push({ title: "Burleigh sales", sub: "Today so far and the last two weeks, from Square", href: BURLEIGH_SALES_HREF, icon: BarChart3, locked: false })
+  }
   return (
     <div className="relative min-h-screen overflow-hidden" style={{ background: "var(--tk-sage)" }}>
       <div className="flex items-center justify-between px-8 pt-8 md:px-12">
