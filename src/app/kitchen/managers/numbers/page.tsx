@@ -90,7 +90,11 @@ function RecoveryBlock({ v }: { v: LiveVenueSnapshot }) {
   if (!plan) return null
   const target = `${plan.targetPct % 1 === 0 ? plan.targetPct.toFixed(0) : plan.targetPct.toFixed(2)}%`
   const rest = restRange(v.locked.days)
-  const tone = plan.onTrack ? TONE.ok : TONE.red
+  // Under a dollar either way reads as on target, never "Heading $0 over".
+  const onTarget = plan.onTrack || Math.round(plan.gap) === 0
+  const tone = onTarget ? TONE.ok : TONE.red
+  // Once trading is done (Tuesday night) more takings are not a way back.
+  const canTakeMore = v.revenueStillToCome > 0
   return (
     <div className="mt-2 border-t-2 border-[var(--tk-line)] pt-3">
       <div className="text-[16px] font-semibold">To finish the week on {target}</div>
@@ -108,22 +112,24 @@ function RecoveryBlock({ v }: { v: LiveVenueSnapshot }) {
         value={pct(plan.rest.pct)}
       />
       <div className="mt-2 rounded-[14px] p-3 text-[15px] leading-snug" style={{ background: tone.bg, color: tone.fg }}>
-        {plan.onTrack ? (
+        {onTarget ? (
           <p className="font-semibold">
-            On track, {money(-plan.gap)} to spare. {rest} can carry up to {money(-plan.gap)} more wages and still finish on {target}.
+            {Math.round(plan.gap) === 0
+              ? `On target to the dollar. Keep ${rest} to the roster as it stands.`
+              : `On track, ${money(-plan.gap)} to spare. ${rest} can carry up to ${money(-plan.gap)} more wages and still finish on ${target}.`}
           </p>
         ) : (
           <>
-            <p className="font-semibold">Heading {money(plan.gap)} over. Either one of these gets it back to {target}:</p>
+            <p className="font-semibold">Heading {money(plan.gap)} over. {canTakeMore ? `Either one of these gets it back to ${target}:` : `To get back to ${target}:`}</p>
             <ul className="mt-1.5 list-disc space-y-1 pl-5">
               <li>
                 Cut {money(plan.wagesToCut ?? 0)} of wages from the {money(plan.stillToRun)} still rostered, {rest}.
                 {plan.wagesOutOfReach ? " That is more than everything left on the roster, so wages alone will not get there." : ""}
               </li>
-              <li>
+              {canTakeMore && <li>
                 Or take {money(plan.extraTakings ?? 0)} more than forecast, {rest}
                 {plan.extraTakingsPct != null ? ` (${plan.extraTakingsPct.toFixed(plan.extraTakingsPct < 10 ? 1 : 0)}% above the ${money(v.revenueStillToCome)} still expected)` : ""}.
-              </li>
+              </li>}
             </ul>
           </>
         )}
