@@ -155,24 +155,37 @@ async function openShifts(): Promise<AutoReading> {
 }
 
 // ── Worked vs rostered hours, last full Wed to Tue week ───────
+// Hourly staff only, and anything out of the ordinary is wrong until fixed
+// (Chloe, 23 Nov 2026). Salaried rows (an open clock-in left running for
+// days, a salaried manager's rostered hours with no clock-ins) skewed the
+// reading. A timesheet over 11 hours is an open clock-in, never real hours:
+// it fails the check, by name, and is left out of the figure.
+
+export interface HoursRow { source: string; hours: number; employeeName: string; shiftStart: Date }
+
+export function hoursVsRosterReading(rows: HoursRow[]): AutoReading {
+  const long = rows.filter((r) => r.source === "TIMESHEET" && r.hours > 11)
+  const worked = rows.filter((r) => r.source === "TIMESHEET" && r.hours <= 11).reduce((a, r) => a + r.hours, 0)
+  const rostered = rows.filter((r) => r.source === "ROSTER").reduce((a, r) => a + r.hours, 0)
+  if (rostered < 100 || worked < 100) return { met: null, detail: `Not enough data for last week. Check ${labourSourceLabel()} and tick it yourself.` }
+  const diff = ((worked - rostered) / rostered) * 100
+  const figure = `Hourly staff worked ${Math.round(worked)}h against ${Math.round(rostered)}h rostered (${diff >= 0 ? "+" : ""}${diff.toFixed(1)}%).`
+  if (long.length) {
+    const names = long.slice(0, 3).map((r) => `${r.employeeName} ${dayLabel(new Date(r.shiftStart.getTime() + AEST_MS))} (${Math.round(r.hours)}h)`)
+    return { met: false, detail: `INCORRECT: ${long.length} timesheet${long.length === 1 ? "" : "s"} over 11 hours, a clock-in left open. Fix in Shifts: ${names.join(", ")}${long.length > 3 ? " and more" : ""}. Without ${long.length === 1 ? "it" : "them"}: ${figure}` }
+  }
+  return { met: diff <= 3, detail: figure }
+}
 
 async function hoursVsRoster(): Promise<AutoReading> {
   const thisWed = startOfTarteWeekUtc(new Date())
   const start = new Date(addDays(thisWed, -7).getTime() - AEST_MS)
   const end = new Date(thisWed.getTime() - AEST_MS)
-  const rows = await db.labourShift.groupBy({
-    by: ["source"],
-    where: { venue: VENUE, isOpen: false, shiftStart: { gte: start, lt: end } },
-    _sum: { hours: true },
+  const rows = await db.labourShift.findMany({
+    where: { venue: VENUE, isOpen: false, salaried: false, shiftStart: { gte: start, lt: end } },
+    select: { source: true, hours: true, employeeName: true, shiftStart: true },
   })
-  const worked = Number(rows.find((r) => r.source === "TIMESHEET")?._sum.hours ?? 0)
-  const rostered = Number(rows.find((r) => r.source === "ROSTER")?._sum.hours ?? 0)
-  if (rostered < 100 || worked < 100) return { met: null, detail: `Not enough data for last week. Check ${labourSourceLabel()} and tick it yourself.` }
-  const diff = ((worked - rostered) / rostered) * 100
-  return {
-    met: diff <= 3,
-    detail: `Worked ${Math.round(worked)}h against ${Math.round(rostered)}h rostered (${diff >= 0 ? "+" : ""}${diff.toFixed(1)}%).`,
-  }
+  return hoursVsRosterReading(rows.map((r) => ({ ...r, hours: Number(r.hours) })))
 }
 
 // ── Checklists, this trading week (Wed to Tue), Burleigh ────────────────
