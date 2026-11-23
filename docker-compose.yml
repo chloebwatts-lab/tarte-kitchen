@@ -290,6 +290,10 @@ services:
         # (reviews + sales + wages + COGS + wastage + supplier price spikes
         # + top sellers) → emailed to chloe@. See tarte_friday_digest.md memory.
         0 22 * * 4 curl -fsS -m 600 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/weekly-digest 2>&1
+        # Wednesday 14:00 AEST (04:00 UTC Wed): did the venues buy each item
+        # on the where-to-order sheet from the supplier on it (Chloe 23 Nov
+        # 2026)? Week just closed, chloe@ only. Preview: ?dry=1 (&html=1).
+        0 4 * * 3 curl -fsS -m 300 -o /dev/null -w "where-to-order-audit %{http_code}\n" -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/where-to-order-audit 2>&1
         # Sunday 08:30 AEST (22:30 UTC Sat) — "how much left to spend this
         # week" per venue → emailed to chloe@. Moved from Sun 17:00 per
         # Chris 2026-07-14 (wants it Sunday morning); 08:30 sits after the

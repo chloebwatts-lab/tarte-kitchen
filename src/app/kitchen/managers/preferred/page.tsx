@@ -6,6 +6,7 @@ import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { PreferredSupplier } from "@/components/kitchen/PreferredSupplier"
 import { requireFullManager } from "@/lib/manager-auth"
 import { requirePage } from "@/lib/tier-auth"
+import { SHEET_DATE, sheetRows } from "@/lib/where-to-order/sheet"
 
 export const metadata: Metadata = { title: "Where to order it · Tarte" }
 
@@ -25,9 +26,10 @@ export default async function PreferredSupplierPage() {
           dearer options we chose not to, with the difference per kilo or litre. Prices are the
           approved order-form prices ex GST. What we were actually charged is on{" "}
           <Link href="/kitchen/prices" className="font-semibold underline">Price check</Link>.
+          Our list of the biggest buys is below; the invoices are checked against it every Wednesday.
         </p>
       </div>
-      <PreferredSupplier />
+      <PreferredSupplier sheet={sheetRows()} sheetDate={SHEET_DATE} />
     </div>
   )
 }

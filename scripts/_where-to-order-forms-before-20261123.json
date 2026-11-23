@@ -1,0 +1,353 @@
+[
+ {
+  "id": "cmp0b0d82265ebaab98d08f56",
+  "supplierId": "cmn8ccc0y000016qz9zc0gwqx",
+  "name": "Blueberries Iqf (Catchoice)",
+  "packSize": "1 kg",
+  "packPrice": "10.03",
+  "unit": "kg",
+  "unitPrice": "10.03",
+  "category": "Frozen",
+  "notes": null,
+  "active": false,
+  "sortOrder": 79,
+  "ingredientId": null,
+  "dept": null,
+  "createdAt": "2026-06-11T06:50:08.546Z",
+  "updatedAt": "2026-10-05T00:08:53.139Z",
+  "pars": [],
+  "supplier": {
+   "name": "Bidfood"
+  }
+ },
+ {
+  "id": "cmp99c9dcd652ba7fcb61bd55",
+  "supplierId": "cmn8ccc0y000016qz9zc0gwqx",
+  "name": "Clingwrap Dispenser (Catchoice)",
+  "packSize": "600M X 45Cm",
+  "packPrice": "24.3",
+  "unit": "roll",
+  "unitPrice": "24.3",
+  "category": "Packaging",
+  "notes": "Invoiced $24.30 x4 to 24 Sep 2026 (down from $26.41)",
+  "active": false,
+  "sortOrder": 108,
+  "ingredientId": null,
+  "dept": null,
+  "createdAt": "2026-06-11T06:50:08.546Z",
+  "updatedAt": "2026-10-05T00:08:55.176Z",
+  "pars": [],
+  "supplier": {
+   "name": "Bidfood"
+  }
+ },
+ {
+  "id": "cmp7c08a3079e7f716a155021",
+  "supplierId": "cmn8ccc0y000016qz9zc0gwqx",
+  "name": "Cups Paper 237Ml 8Oz 90Mm Single Wall White (Catchoice)",
+  "packSize": "50 units",
+  "packPrice": "4.49",
+  "unit": "unit",
+  "unitPrice": "0.0898",
+  "category": "Packaging",
+  "notes": null,
+  "active": false,
+  "sortOrder": 111,
+  "ingredientId": null,
+  "dept": null,
+  "createdAt": "2026-06-11T06:50:08.546Z",
+  "updatedAt": "2026-10-05T00:08:55.368Z",
+  "pars": [],
+  "supplier": {
+   "name": "Bidfood"
+  }
+ },
+ {
+  "id": "cmp4fb848ca67e8a07f855f2b",
+  "supplierId": "cmn8ccc2n000b16qz7h9bdkwv",
+  "name": "Cheese Ricotta Basket 2kg Olympus",
+  "packSize": "2 kg",
+  "packPrice": "20.65",
+  "unit": "kg",
+  "unitPrice": "10.325",
+  "category": "Dairy",
+  "notes": null,
+  "active": true,
+  "sortOrder": 6,
+  "ingredientId": null,
+  "dept": null,
+  "createdAt": "2026-06-11T06:50:08.546Z",
+  "updatedAt": "2026-10-05T00:08:56.790Z",
+  "pars": [],
+  "supplier": {
+   "name": "Fermex"
+  }
+ },
+ {
+  "id": "cmp73299a7da173bc5a4a4808",
+  "supplierId": "cmn8ccc2n000b16qz7h9bdkwv",
+  "name": "Nutella Spread Chocolate Hazelnut 3kg",
+  "packSize": "3 kg",
+  "packPrice": "49.5",
+  "unit": "kg",
+  "unitPrice": "16.5",
+  "category": "Pastry/Baking",
+  "notes": "Bidfood wins this SKU post-rebate",
+  "active": true,
+  "sortOrder": 29,
+  "ingredientId": null,
+  "dept": null,
+  "createdAt": "2026-06-11T06:50:08.546Z",
+  "updatedAt": "2026-10-05T00:08:58.303Z",
+  "pars": [],
+  "supplier": {
+   "name": "Fermex"
+  }
+ },
+ {
+  "id": "cmpa6d3ac3ca26f2ba1904f06",
+  "supplierId": "cmn8ccc2n000b16qz7h9bdkwv",
+  "name": "Blueberries Bulk Frozen IQF 13.61kg",
+  "packSize": "13.61 kg",
+  "packPrice": "135",
+  "unit": "kg",
+  "unitPrice": "9.918",
+  "category": "Frozen",
+  "notes": "S30280 bulk option, chef call on 13.61kg pack vs 1kg ($12.95). Bidfood marginally cheaper at 1kg.",
+  "active": true,
+  "sortOrder": 97,
+  "ingredientId": null,
+  "dept": null,
+  "createdAt": "2026-06-11T06:50:08.546Z",
+  "updatedAt": "2026-10-05T00:09:03.244Z",
+  "pars": [],
+  "supplier": {
+   "name": "Fermex"
+  }
+ },
+ {
+  "id": "cmp02213c11e012ce4e530b93",
+  "supplierId": "cmnb7gwor000101nn33sjhu51",
+  "name": "CHEESE Ricotta Basket Cryovac NSW",
+  "packSize": "2.2kg (4)",
+  "packPrice": "21.4",
+  "unit": "kg",
+  "unitPrice": "9.73",
+  "category": "Dairy",
+  "notes": null,
+  "active": true,
+  "sortOrder": 4,
+  "ingredientId": null,
+  "dept": null,
+  "createdAt": "2026-06-11T06:50:08.546Z",
+  "updatedAt": "2026-10-05T00:09:04.337Z",
+  "pars": [],
+  "supplier": {
+   "name": "The Provedores"
+  }
+ },
+ {
+  "id": "de2c2a53-79d6-4276-899f-01de5b135cbb",
+  "supplierId": "cmnb7gwor000101nn33sjhu51",
+  "name": "Cling wrap",
+  "packSize": "box",
+  "packPrice": "0",
+  "unit": null,
+  "unitPrice": null,
+  "category": "Packaging",
+  "notes": "From Jess's Suppliers Control list (14 Oct 2026). Price to confirm.",
+  "active": true,
+  "sortOrder": 999,
+  "ingredientId": null,
+  "dept": "PASTRY",
+  "createdAt": "2026-10-14T08:09:25.066Z",
+  "updatedAt": "2026-10-14T08:09:25.066Z",
+  "pars": [
+   {
+    "id": "03d651f0-a305-4f26-a84a-86e119b68c20",
+    "venue": "BURLEIGH",
+    "approvedItemId": "de2c2a53-79d6-4276-899f-01de5b135cbb",
+    "par": "1",
+    "updatedBy": "Jess (Suppliers Control list)",
+    "createdAt": "2026-10-14T08:09:25.066Z",
+    "updatedAt": "2026-10-14T08:09:25.066Z"
+   },
+   {
+    "id": "2492832c-9db1-4e89-aeab-c35ecf40d5e5",
+    "venue": "BEACH_HOUSE",
+    "approvedItemId": "de2c2a53-79d6-4276-899f-01de5b135cbb",
+    "par": "1",
+    "updatedBy": "Jess (Suppliers Control list)",
+    "createdAt": "2026-10-14T08:09:25.066Z",
+    "updatedAt": "2026-10-14T08:09:25.066Z"
+   }
+  ],
+  "supplier": {
+   "name": "The Provedores"
+  }
+ },
+ {
+  "id": "cmp2de7ecaa4093d2800e8d9b",
+  "supplierId": "cmn8ccc2n000b16qz7h9bdkwv",
+  "name": "Philadelphia Cream Cheese 2kg",
+  "packSize": "2 kg",
+  "packPrice": "30",
+  "unit": "kg",
+  "unitPrice": "15",
+  "category": "Dairy",
+  "notes": "Listed $30 but not bought since May, confirm before ordering. Bidfood block verified $32.66. Cheapest Philly if honoured",
+  "active": true,
+  "sortOrder": 12,
+  "ingredientId": null,
+  "dept": null,
+  "createdAt": "2026-06-11T06:50:08.546Z",
+  "updatedAt": "2026-10-05T00:08:57.192Z",
+  "pars": [],
+  "supplier": {
+   "name": "Fermex"
+  }
+ },
+ {
+  "id": "cmpab4174b3994225eadb301f",
+  "supplierId": "cmn8ccc2n000b16qz7h9bdkwv",
+  "name": "Maldon Sea Salt Flakes 1.4kg",
+  "packSize": "1.4 kg",
+  "packPrice": "33.1",
+  "unit": "kg",
+  "unitPrice": "23.643",
+  "category": "Spices",
+  "notes": "Replaces Bidfood Cornish Flakes, chef-approved spec, saves 9% vs Cornish effective.",
+  "active": true,
+  "sortOrder": 104,
+  "ingredientId": null,
+  "dept": null,
+  "createdAt": "2026-06-11T06:50:08.546Z",
+  "updatedAt": "2026-10-05T00:09:03.848Z",
+  "pars": [],
+  "supplier": {
+   "name": "Fermex"
+  }
+ },
+ {
+  "id": "cmpa80b7e82932c498f54e3d7",
+  "supplierId": "cmn8ccc0y000016qz9zc0gwqx",
+  "name": "Flour Plain (Gemofthewest)",
+  "packSize": "12.5 kg",
+  "packPrice": "16.17",
+  "unit": "kg",
+  "unitPrice": "1.2936",
+  "category": "Pastry/Baking",
+  "notes": "Invoiced $16.17 on 8 May 2026 (+3.7% vs $15.60)",
+  "active": true,
+  "sortOrder": 28,
+  "ingredientId": null,
+  "dept": null,
+  "createdAt": "2026-06-11T06:50:08.546Z",
+  "updatedAt": "2026-10-05T00:08:49.652Z",
+  "pars": [],
+  "supplier": {
+   "name": "Bidfood"
+  }
+ },
+ {
+  "id": "cmp28fca460ac34811e4ba0c5",
+  "supplierId": "cmn8ccc0y000016qz9zc0gwqx",
+  "name": "Salt Sea Flakes Natural (Cornish)",
+  "packSize": "1 kg",
+  "packPrice": "27",
+  "unit": "kg",
+  "unitPrice": "27",
+  "category": "Pantry",
+  "notes": "Moved to Fermex Maldon Flakes 1.4kg @ $23.64/kg, 9% cheaper, chef-approved spec equivalent.",
+  "active": true,
+  "sortOrder": 64,
+  "ingredientId": null,
+  "dept": "PASTRY",
+  "createdAt": "2026-06-11T06:50:08.546Z",
+  "updatedAt": "2026-10-14T08:09:25.066Z",
+  "pars": [
+   {
+    "id": "cc3ff9ba-4dfe-4d19-8012-fb3e8bcc9c2d",
+    "venue": "BURLEIGH",
+    "approvedItemId": "cmp28fca460ac34811e4ba0c5",
+    "par": "2",
+    "updatedBy": "Jess (Suppliers Control list)",
+    "createdAt": "2026-10-14T08:09:25.066Z",
+    "updatedAt": "2026-10-14T08:09:25.066Z"
+   },
+   {
+    "id": "79c84471-c9ce-408d-909e-d1f295a0fe65",
+    "venue": "BEACH_HOUSE",
+    "approvedItemId": "cmp28fca460ac34811e4ba0c5",
+    "par": "2",
+    "updatedBy": "Jess (Suppliers Control list)",
+    "createdAt": "2026-10-14T08:09:25.066Z",
+    "updatedAt": "2026-10-14T08:09:25.066Z"
+   }
+  ],
+  "supplier": {
+   "name": "Bidfood"
+  }
+ },
+ {
+  "id": "cmp8ef60219dd04f847ff397c",
+  "supplierId": "cmn8ccc2n000b16qz7h9bdkwv",
+  "name": "Raspberry Frozen IQF 1kg",
+  "packSize": "1 kg",
+  "packPrice": "13.6",
+  "unit": "kg",
+  "unitPrice": "13.6",
+  "category": "Frozen",
+  "notes": "S30989: −3.9% vs prior",
+  "active": true,
+  "sortOrder": 101,
+  "ingredientId": null,
+  "dept": "PASTRY",
+  "createdAt": "2026-06-11T06:50:08.546Z",
+  "updatedAt": "2026-10-14T08:09:25.066Z",
+  "pars": [
+   {
+    "id": "ce25f0e0-3e4a-4525-a4da-34612a342f16",
+    "venue": "BURLEIGH",
+    "approvedItemId": "cmp8ef60219dd04f847ff397c",
+    "par": "5",
+    "updatedBy": "Jess (Suppliers Control list)",
+    "createdAt": "2026-10-14T08:09:25.066Z",
+    "updatedAt": "2026-10-14T08:09:25.066Z"
+   },
+   {
+    "id": "b98239d0-c66b-432d-8af2-33ee2fb308bf",
+    "venue": "BEACH_HOUSE",
+    "approvedItemId": "cmp8ef60219dd04f847ff397c",
+    "par": "3",
+    "updatedBy": "Jess (Suppliers Control list)",
+    "createdAt": "2026-10-14T08:09:25.066Z",
+    "updatedAt": "2026-10-14T08:09:25.066Z"
+   }
+  ],
+  "supplier": {
+   "name": "Fermex"
+  }
+ },
+ {
+  "id": "cmp07e1a88fc3a3ccb7730207",
+  "supplierId": "cmnb7gwor000101nn33sjhu51",
+  "name": "Milk Sweetened Condensed 1.2kg (5 pack)",
+  "packSize": "1.2 kg × 5 case",
+  "packPrice": "10.6",
+  "unit": "kg",
+  "unitPrice": "8.833",
+  "category": "Dairy",
+  "notes": "Cheapest per-kg condensed milk for anything that is not dulce de leche (dulce needs the sealed can). Verified 21 May 2026, not bought since 25 Aug",
+  "active": true,
+  "sortOrder": 66,
+  "ingredientId": null,
+  "dept": null,
+  "createdAt": "2026-06-11T06:50:08.546Z",
+  "updatedAt": "2026-10-05T00:09:08.649Z",
+  "pars": [],
+  "supplier": {
+   "name": "The Provedores"
+  }
+ }
+]

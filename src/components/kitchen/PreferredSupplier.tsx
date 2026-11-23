@@ -5,6 +5,8 @@ import { useRef, useState, useTransition } from "react"
 import { Search, X, CheckCircle2, Ban, ArrowRight } from "lucide-react"
 import { searchPreferred } from "@/lib/actions/preferred-supplier"
 import type { RankedRow } from "@/lib/preferred-supplier"
+import type { SheetRow } from "@/lib/where-to-order/sheet"
+import { WhereToOrderSheet, sheetMatches } from "./WhereToOrderSheet"
 
 const QUICK = ["Mozzarella", "Cream cheese", "Caster sugar", "Olive oil", "Butter", "Condensed milk", "Chips"]
 
@@ -82,7 +84,7 @@ function Row({ row, bySupplierOnly }: { row: RankedRow; bySupplierOnly: boolean 
   )
 }
 
-export function PreferredSupplier() {
+export function PreferredSupplier({ sheet = [], sheetDate = "" }: { sheet?: SheetRow[]; sheetDate?: string }) {
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<RankedRow[]>([])
   const [searched, setSearched] = useState(false)
@@ -112,6 +114,7 @@ export function PreferredSupplier() {
   const order = results.filter((r) => r.role === "order")
   const avoid = results.filter((r) => r.role === "avoid")
   const suppliers = new Set(results.map((r) => r.supplier))
+  const sheetHits = q.length >= 2 ? sheet.filter((r) => sheetMatches(r, q)).length : 0
 
   return (
     <div className="space-y-5">
@@ -159,7 +162,9 @@ export function PreferredSupplier() {
         )}
       </div>
 
-      {searched && !isPending && results.length === 0 && (
+      {sheet.length > 0 && <WhereToOrderSheet rows={sheet} query={q} sheetDate={sheetDate} />}
+
+      {searched && !isPending && results.length === 0 && sheetHits === 0 && (
         <div className="rounded-[20px] border border-dashed border-[var(--tk-line)] bg-white p-10 text-center">
           <p className="text-[15px] font-semibold text-[var(--tk-charcoal)]">Nothing on the supplier forms for &ldquo;{q}&rdquo;.</p>
           <p className="mt-2 text-[13px] text-[var(--tk-ink-soft)]">

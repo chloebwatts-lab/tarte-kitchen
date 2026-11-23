@@ -292,8 +292,8 @@
      "packPrice": 16.17,
      "unitPrice": 1.2936,
      "unit": "kg",
-     "active": true,
-     "notes": "Invoiced $16.17 on 8 May 2026 (+3.7% vs $15.60)"
+     "active": false,
+     "notes": "Invoiced $16.17 on 8 May 2026 (+3.7% vs $15.60) 23 Nov 2026: switched off to match the 14 Nov where-to-order sheet (Fermex Manildra plain flour)."
     },
     {
      "category": "Pastry/Baking",
@@ -636,7 +636,7 @@
      "unitPrice": 27.0,
      "unit": "kg",
      "active": false,
-     "notes": "Moved to Fermex Maldon Flakes 1.4kg @ $23.64/kg, 9% cheaper, chef-approved spec equivalent."
+     "notes": "Moved to Fermex Maldon Flakes 1.4kg @ $23.64/kg, 9% cheaper, chef-approved spec equivalent. 23 Nov 2026: kept off: the 14 Nov where-to-order sheet says Fermex Maldon."
     },
     {
      "category": "Pantry",
@@ -778,7 +778,8 @@
      "packPrice": 10.03,
      "unitPrice": 10.03,
      "unit": "kg",
-     "active": false
+     "active": true,
+     "notes": "23 Nov 2026: switched on: the 14 Nov where-to-order sheet buys IQF blueberries here."
     },
     {
      "category": "Frozen",
@@ -1051,8 +1052,8 @@
      "packPrice": 24.3,
      "unitPrice": 24.3,
      "unit": "roll",
-     "active": false,
-     "notes": "Invoiced $24.30 x4 to 24 Sep 2026 (down from $26.41)"
+     "active": true,
+     "notes": "Invoiced $24.30 x4 to 24 Sep 2026 (down from $26.41) 23 Nov 2026: switched on: the 14 Nov where-to-order sheet buys clingwrap here (on Pastry's form)."
     },
     {
      "category": "Packaging",
@@ -1080,7 +1081,8 @@
      "packPrice": 4.49,
      "unitPrice": 0.0898,
      "unit": "unit",
-     "active": false
+     "active": true,
+     "notes": "23 Nov 2026: switched on: the 14 Nov where-to-order sheet buys 8oz paper cups here."
     },
     {
      "category": "Packaging",
@@ -1292,7 +1294,8 @@
      "unitPrice": 10.325,
      "unit": "kg",
      "code": "RICOTTA2KG",
-     "active": true
+     "active": false,
+     "notes": "23 Nov 2026: switched off to match the 14 Nov where-to-order sheet (Bidfood Fresco basket)."
     },
     {
      "category": "Dairy",
@@ -1354,9 +1357,9 @@
      "packPrice": 30.0,
      "unitPrice": 15.0,
      "unit": "kg",
-     "notes": "Listed $30 but not bought since May, confirm before ordering. Bidfood block verified $32.66. Cheapest Philly if honoured",
+     "notes": "Listed $30 but not bought since May, confirm before ordering. Bidfood block verified $32.66. Cheapest Philly if honoured 23 Nov 2026: switched off to match the 14 Nov where-to-order sheet (Bidfood Philly 2kg block); the $30 was never confirmed.",
      "code": "PHILLY",
-     "active": true
+     "active": false
     },
     {
      "category": "Dairy",
@@ -1529,9 +1532,9 @@
      "packPrice": 49.5,
      "unitPrice": 16.5,
      "unit": "kg",
-     "notes": "Bidfood wins this SKU post-rebate",
+     "notes": "Bidfood wins this SKU post-rebate 23 Nov 2026: switched off to match the 14 Nov where-to-order sheet (Bidfood Nutella).",
      "code": "NUTELLA",
-     "active": true
+     "active": false
     },
     {
      "category": "Pastry/Baking",
@@ -2216,8 +2219,8 @@
      "unitPrice": 9.918,
      "unit": "kg",
      "code": "FRBLUE13.6",
-     "notes": "S30280 bulk option, chef call on 13.61kg pack vs 1kg ($12.95). Bidfood marginally cheaper at 1kg.",
-     "active": true
+     "notes": "S30280 bulk option, chef call on 13.61kg pack vs 1kg ($12.95). Bidfood marginally cheaper at 1kg. 23 Nov 2026: switched off to match the 14 Nov where-to-order sheet (Bidfood IQF 1kg, cheaper net of rebate).",
+     "active": false
     },
     {
      "category": "Frozen",
@@ -2260,6 +2263,17 @@
      "unitPrice": 13.6,
      "unit": "kg",
      "notes": "S30989: −3.9% vs prior",
+     "code": "FRRASP1KGFRU",
+     "active": true
+    },
+    {
+     "category": "Frozen",
+     "name": "Raspberry Frozen IQF 1kg (front of house)",
+     "packSize": "1 kg",
+     "packPrice": 13.6,
+     "unitPrice": 13.6,
+     "unit": "kg",
+     "notes": "23 Nov 2026: Front of house copy of the Fermex IQF raspberries (dept FRONT_OF_HOUSE in the app; Pastry's line has the pars).",
      "code": "FRRASP1KGFRU",
      "active": true
     },
@@ -2366,7 +2380,8 @@
      "packPrice": 21.4,
      "unitPrice": 9.73,
      "unit": "kg",
-     "active": true
+     "active": false,
+     "notes": "23 Nov 2026: switched off to match the 14 Nov where-to-order sheet (Bidfood Fresco basket)."
     },
     {
      "category": "Dairy",
