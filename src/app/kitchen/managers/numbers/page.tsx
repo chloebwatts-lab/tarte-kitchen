@@ -91,14 +91,20 @@ function RecoveryBlock({ v }: { v: LiveVenueSnapshot }) {
   const target = `${plan.targetPct % 1 === 0 ? plan.targetPct.toFixed(0) : plan.targetPct.toFixed(2)}%`
   const rest = restRange(v.locked.days)
   // Under a dollar either way reads as on target, never "Heading $0 over".
-  const onTarget = plan.onTrack || Math.round(plan.gap) === 0
-  const tone = onTarget ? TONE.ok : TONE.red
+  const weekOn = plan.onTrack || Math.round(plan.gap) === 0
+  // Clean only when the week is on target AND every team is inside its band:
+  // a strong weekend or one team under must not hide a team that is over.
+  const clean = weekOn && plan.depts.length === 0
+  const tone = clean ? TONE.ok : TONE.red
   // Once trading is done (Tuesday night) more takings are not a way back.
   const canTakeMore = v.revenueStillToCome > 0
+  const weekLine = `Week overall: ${weekOn ? (Math.round(plan.gap) === 0 ? `on ${target} to the dollar` : `${money(-plan.gap)} under ${target}`) : `${money(plan.gap)} over ${target}`}.${
+    plan.soFar ? ` ${dayRange(plan.soFar.days)} ${plan.soFar.overTarget > 0 ? "ran" : "banked"} ${money(Math.abs(plan.soFar.overTarget))} ${plan.soFar.overTarget > 0 ? "over" : "under"};` : ""
+  } ${rest} as rostered runs at ${pct(plan.rest.pct)}.`
   return (
     <div className="mt-2 border-t-2 border-[var(--tk-line)] pt-3">
       <div className="text-[16px] font-semibold">To finish the week on {target}</div>
-      <div className="text-[13px] leading-snug text-[var(--tk-ink-soft)]">Target is the department bands added up. Paid leave out, the same as the big number</div>
+      <div className="text-[13px] leading-snug text-[var(--tk-ink-soft)]">Target is the department bands added up, and every team is held to its own band. Paid leave out, the same as the big number</div>
       {plan.soFar && (
         <Row
           label={`${dayRange(plan.soFar.days)}, done`}
@@ -112,36 +118,43 @@ function RecoveryBlock({ v }: { v: LiveVenueSnapshot }) {
         value={pct(plan.rest.pct)}
       />
       <div className="mt-2 rounded-[14px] p-3 text-[15px] leading-snug" style={{ background: tone.bg, color: tone.fg }}>
-        {onTarget ? (
+        {clean ? (
           <p className="font-semibold">
             {Math.round(plan.gap) === 0
-              ? `On target to the dollar. Keep ${rest} to the roster as it stands.`
-              : `On track, ${money(-plan.gap)} to spare. ${rest} can carry up to ${money(-plan.gap)} more wages and still finish on ${target}.`}
+              ? `On target to the dollar and every team inside its band. Keep ${rest} to the roster as it stands.`
+              : `On track, ${money(-plan.gap)} to spare and every team inside its band. ${rest} can carry up to ${money(-plan.gap)} more wages and still finish on ${target}.`}
           </p>
         ) : (
           <>
-            <p className="font-semibold">Heading {money(plan.gap)} over. {canTakeMore ? `Either one of these gets it back to ${target}:` : `To get back to ${target}:`}</p>
-            <ul className="mt-1.5 list-disc space-y-1 pl-5">
-              <li>
-                Cut {money(plan.wagesToCut ?? 0)} of wages from the {money(plan.stillToRun)} still rostered, {rest}.
+            <p className="font-semibold">
+              Cut {money(plan.cutToFix ?? 0)} of wages, {rest}
+              {plan.depts.length ? ", to get every team inside its band" : ""}
+              {!weekOn ? ` and the week on ${target}` : ""}.
+            </p>
+            {plan.depts.length > 0 && (
+              <ul className="mt-1.5 list-disc space-y-1 pl-5">
+                {plan.depts.map((d) => (
+                  <li key={d.label}>
+                    <span className="font-semibold">{d.label}</span>: {money(d.over)} over its {d.max}% top ({pct(d.pct)}). It still has {money(d.stillToRun)} rostered
+                    {d.outOfReach ? ", not enough to fix it with cuts alone" : ""}.
+                  </li>
+                ))}
+                {!weekOn && plan.gap > plan.teamsOver && <li>Plus {money(plan.gap - plan.teamsOver)} from any team to land the week on {target}.</li>}
+              </ul>
+            )}
+            {plan.depts.length === 0 && (
+              <p className="mt-1">
+                From the {money(plan.stillToRun)} still rostered.
                 {plan.wagesOutOfReach ? " That is more than everything left on the roster, so wages alone will not get there." : ""}
-              </li>
-              {canTakeMore && <li>
-                Or take {money(plan.extraTakings ?? 0)} more than forecast, {rest}
-                {plan.extraTakingsPct != null ? ` (${plan.extraTakingsPct.toFixed(plan.extraTakingsPct < 10 ? 1 : 0)}% above the ${money(v.revenueStillToCome)} still expected)` : ""}.
-              </li>}
-            </ul>
-          </>
-        )}
-        {plan.depts.length > 0 && (
-          <div className="mt-2 border-t border-[var(--tk-line)] pt-2 text-[14px]">
-            {plan.depts.map((d) => (
-              <p key={d.label}>
-                <span className="font-semibold">{d.label}</span> is {money(d.over)} over its {d.max}% top. Trim it from the {money(d.stillToRun)} that team still has rostered
-                {d.outOfReach ? ", though that is not enough on its own" : ""}.
               </p>
-            ))}
-          </div>
+            )}
+            <p className="mt-2 border-t border-[var(--tk-line)] pt-2 text-[14px]">
+              {weekLine}
+              {!weekOn && canTakeMore
+                ? ` Or take ${money(plan.extraTakings ?? 0)} more than forecast${plan.extraTakingsPct != null ? ` (${plan.extraTakingsPct.toFixed(plan.extraTakingsPct < 10 ? 1 : 0)}% above the ${money(v.revenueStillToCome)} still expected)` : ""} to bring the week back to ${target}.`
+                : ""}
+            </p>
+          </>
         )}
       </div>
     </div>

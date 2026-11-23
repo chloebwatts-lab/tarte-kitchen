@@ -80,6 +80,34 @@ test("Chloe's screenshot: Wed to Sun under target, week $55 over, either cut $55
   assert.equal(p.depts[0].outOfReach, false)
 })
 
+test("teams first: Beach House is only $55 over as a week, but Chefs + KP alone is $963 over, so the cut asked for is $963", () => {
+  const p = recoveryPlan(beachHouse())!
+  near(p.teamsOver, 963.36)
+  near(p.cutToFix, 963.36)
+  // A second team over adds on; a team under its band never offsets one over.
+  const two = recoveryPlan(beachHouse({
+    buckets: [
+      bucket({ key: "chefsKp", label: "Chefs + KP", target: { key: "chefsKp", label: "Chefs + KP", min: 12.5, max: 13.5 }, projectedTotal: 0.145 * 96336, workingPct: 14.5 }),
+      bucket({ key: "pastry", label: "Pastry", target: { key: "pastry", label: "Pastry", min: 2.5, max: 3 }, projectedTotal: 0.035 * 96336, workingPct: 3.5 }),
+      bucket({ key: "fohBarista", label: "FOH (incl. Barista)", target: { key: "fohBarista", label: "FOH (incl. Barista)", min: 21.5, max: 22.5 }, projectedTotal: 0.18 * 96336, workingPct: 18 }),
+    ],
+  }))!
+  near(two.teamsOver, 0.015 * 96336)
+  near(two.cutToFix, 0.015 * 96336)
+})
+
+test("the week gap wins when it is bigger than the teams over (overspend outside the bands, e.g. admin)", () => {
+  const p = recoveryPlan(beachHouse({ labourProjected: 40000 + 1508 }))!
+  near(p.gap, 40000 - 0.39 * 96336)
+  near(p.cutToFix, 40000 - 0.39 * 96336)
+})
+
+test("nothing over anywhere: no cut", () => {
+  const p = recoveryPlan(beachHouse({ labourProjected: 36000 + 1508, buckets: [] }))!
+  assert.equal(p.teamsOver, 0)
+  assert.equal(p.cutToFix, null)
+})
+
 test("on track: room to spare, no cut and no extra takings asked for", () => {
   const p = recoveryPlan(beachHouse({ labourProjected: 36000 + 1508 }))!
   assert.equal(p.onTrack, true)

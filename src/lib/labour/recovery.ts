@@ -15,6 +15,14 @@
  * Two ways to close a gap, either one on its own lands the week on target:
  *   wages:   cut `gap` from the hourly roster still to run (today to Tue)
  *   takings: take gap / target more than the forecast for the same days
+ *
+ * Teams first (Chloe, 23 Nov 2026: "I think you're wrong about the only
+ * $55"). The week as a whole nets one team's overspend against another's
+ * underspend and against a strong weekend already banked: Beach House read
+ * $55 over 39% while Chefs + KP alone was $963 over its band. Departments
+ * are held strictly to their own band (Chloe, 12 Nov 2026), so the cut
+ * asked for is every team's overspend added up, never netted, or the week
+ * gap if that is bigger: `cutToFix`.
  */
 import type { Venue } from "@/generated/prisma/client"
 import { bucketTargets } from "@/lib/labour/buckets"
@@ -66,6 +74,10 @@ export interface RecoveryPlan {
   extraTakingsPct: number | null
   /** Departments over their band top, worst dollars first. */
   depts: DeptRecovery[]
+  /** Every department's overspend added up, never netted against a team under its band. */
+  teamsOver: number
+  /** The cut that puts every team inside its band and the week on target: max(teamsOver, gap). Null when nothing is over. */
+  cutToFix: number | null
 }
 
 export function recoveryPlan(v: LiveVenueSnapshot, targetPct: number | null = venueWageTarget(v.venue)): RecoveryPlan | null {
@@ -108,6 +120,8 @@ export function recoveryPlan(v: LiveVenueSnapshot, targetPct: number | null = ve
     })
   }
   depts.sort((a, b) => b.over - a.over)
+  const teamsOver = r2(depts.reduce((sum, d) => sum + d.over, 0))
+  const cut = Math.max(teamsOver, gap)
 
   return {
     targetPct,
@@ -128,5 +142,7 @@ export function recoveryPlan(v: LiveVenueSnapshot, targetPct: number | null = ve
     extraTakings: onTrack ? null : r2(gap / t),
     extraTakingsPct: onTrack || !(v.revenueStillToCome > 0) ? null : (gap / t / v.revenueStillToCome) * 100,
     depts,
+    teamsOver,
+    cutToFix: cut > 0 ? r2(cut) : null,
   }
 }
