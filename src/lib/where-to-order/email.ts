@@ -30,7 +30,7 @@ function day(iso: string): string {
 /** "Wed 12 Nov" from yyyy-mm-dd. */
 function dayLong(iso: string): string {
   const d = new Date(`${iso}T00:00:00Z`)
-  return d.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })
+  return d.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).replace(",", "")
 }
 
 /** "12, 14 and 17 Nov" */
@@ -97,7 +97,7 @@ export function renderWhereToOrderEmail(args: { result: AuditResult; drift: Form
   } else {
     head.push(
       `${r.offLines} of ${r.sheetLines} invoice lines for sheet items came from the wrong supplier (${pctRight}% right).` +
-        (r.extraTotal >= 1 ? ` That cost ${money(r.extraTotal)} extra${r.extraTotal >= 20 ? `, about ${money(r.extraTotal * 52)} a year if it keeps up` : ""}.` : "")
+        (r.extraTotal >= 1 ? ` That cost ${money(r.extraTotal)} extra${r.extraTotal >= 20 ? `, about ${money(Math.round((r.extraTotal * 52) / 100) * 100)} a year at this rate` : ""}.` : "")
     )
     const venues = Object.entries(r.byVenue).sort((a, b) => b[1].extra - a[1].extra || b[1].lines - a[1].lines)
     head.push(venues.map(([v, x]) => `${venue(v)} ${x.lines} ${x.lines === 1 ? "line" : "lines"}${x.extra >= 1 ? ` (${money(x.extra)})` : ""}`).join(", ") + ".")
@@ -124,7 +124,7 @@ export function renderWhereToOrderEmail(args: { result: AuditResult; drift: Form
       body += subhead(dept, extra >= 1 ? `${money(extra)} extra` : undefined, "warn")
       body += list(rows.map(rowItem))
     }
-    if (r.rows.length > shown.length) body += para(`And ${r.rows.length - shown.length} smaller ones, all under ${money(shown[shown.length - 1].extra ?? 0)}.`, { muted: true })
+    if (r.rows.length > shown.length) body += para(`And ${r.rows.length - shown.length} more, smaller or without a comparable price.`, { muted: true })
     sections.push(section("Bought from the wrong supplier", body, { note: "Dearest first, by department, for each department head." }))
   }
 
