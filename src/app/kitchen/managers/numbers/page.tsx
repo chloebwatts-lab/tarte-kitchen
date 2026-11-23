@@ -12,7 +12,7 @@ import { recoveryPlan } from "@/lib/labour/recovery"
 import type { BucketSpendData } from "@/lib/spend/types"
 
 /**
- * Wages + COGS, live (Chloe, 15 Nov 2026). Chloe and Shawna only: the gate
+ * Wages + COGS, live (Chloe, 15 Nov 2026). Chloe, Shawna and Oliver only: the gate
  * is requireNumbers (managers password, then numbers-auth), called before
  * anything is read. Read only: the page has no buttons that write.
  * Same engines as /labour/live and /spend, so the numbers always agree.
@@ -283,7 +283,7 @@ export default async function WagesCogsPage() {
       <div>
         <h1 className="tk-display text-[34px] font-semibold leading-tight" style={{ letterSpacing: "-0.03em" }}>Wages + COGS</h1>
         <p className="mt-1 text-[15px] text-[var(--tk-ink-soft)]">
-          Week {labour.weekLabel}. As of {asOf}, refreshes itself every 5 minutes. Only you and Shawna can open this.
+          Week {labour.weekLabel}. As of {asOf}, refreshes itself every 5 minutes. Only you, Shawna and Oliver can open this.
         </p>
       </div>
 

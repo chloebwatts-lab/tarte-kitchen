@@ -8,8 +8,8 @@ import { NUMBERS_SETTING_KEY, isNumbersPerson } from "@/lib/numbers-access"
 
 /**
  * Who may see live wages and COGS (see numbers-access.ts): the office login,
- * an owner's phone, Chloe and Shawna on their own sign in, and anyone on
- * the `wagesCogsStaff` list.
+ * an owner's phone, Chloe and Shawna on their own sign in, Oliver Warren,
+ * and anyone on the `wagesCogsStaff` list.
  */
 export async function maySeeNumbers(): Promise<boolean> {
   if (await isOwnerSession()) return true

@@ -10,7 +10,7 @@ const TABS = [
 export type SalesTab = (typeof TABS)[number]["key"]
 
 /** The buttons across the top of the sales pages: one page each, no long scroll. */
-export function SalesNav({ current, venue, numbers = false }: { current: SalesTab; venue: string; /** Chloe and Shawna only: a fifth button to Wages + COGS. */ numbers?: boolean }) {
+export function SalesNav({ current, venue, numbers = false }: { current: SalesTab; venue: string; /** Chloe, Shawna and Oliver only: a fifth button to Wages + COGS. */ numbers?: boolean }) {
   return (
     <nav className={`grid gap-2 ${numbers ? "grid-cols-5" : "grid-cols-4"}`} aria-label="Sales pages">
       {TABS.map((t) => (

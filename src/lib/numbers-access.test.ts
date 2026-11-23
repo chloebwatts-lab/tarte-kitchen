@@ -25,6 +25,17 @@ describe("Wages + COGS: who may see it", () => {
     assert.equal(isNumbersPerson("[]", shawna), false)
   })
 
+  test("Oliver Warren is built in (Chloe, 23 Nov 2026); no other Oliver, and no list row needed", () => {
+    const oliver = { id: "stf_warren", name: "Oliver Warren" }
+    assert.equal(isNumbersPerson(null, oliver), true)
+    assert.equal(isNumbersPerson("[]", oliver), true)
+    assert.equal(isNumbersPerson("not json", { id: "x", name: "  oliver   WARREN " }), true)
+    assert.equal(isNumbersPerson(null, { id: "stf_other", name: "Oliver Smith" }), false)
+    assert.equal(isNumbersPerson(null, { id: "stf_w", name: "Jane Warren" }), false)
+    assert.equal(isNumbersPerson(null, georgia), false)
+    assert.equal(isNumbersPerson(null, null), false)
+  })
+
   test("the two owners pass on their own sign in; a Manager and another Owner role do not", () => {
     assert.equal(mayTrustDevice({ role: "OWNER", last: "Watts" }), true)
     assert.equal(mayTrustDevice({ role: "OWNER", last: "Pate" }), true)

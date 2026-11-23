@@ -15,10 +15,10 @@ export default async function ManagersPage() {
   const g = groupBySlug("managers")!
   const base = visibleTools(g.tools, await isQuietManager())
   // Wages + COGS is not in the shared tile list (staff-tools.ts) on purpose:
-  // it is added here, for Chloe and Shawna only, so no other grid that
+  // it is added here, for Chloe, Shawna and Oliver only, so no other grid that
   // reads that list can ever show it (numbers-access.ts).
   const tools = (await maySeeNumbers())
-    ? [{ title: "Wages + COGS", sub: "Live wage % and COGS for the week. You and Shawna only", href: NUMBERS_HREF, icon: Percent }, ...base]
+    ? [{ title: "Wages + COGS", sub: "Live wage % and COGS for the week. You, Shawna and Oliver only", href: NUMBERS_HREF, icon: Percent }, ...base]
     : base
   return (
     <div className="relative min-h-screen overflow-hidden" style={{ background: "var(--tk-sage)" }}>
