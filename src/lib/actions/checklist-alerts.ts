@@ -3,6 +3,17 @@
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { Venue, ChecklistCadence } from "@/generated/prisma/client"
+import { cadenceUsesDays, lineOnDate } from "@/lib/checklists/days"
+
+/** Live lines on a template's list for this AEST date (day-only lines drop off). */
+function linesOnDate(
+  t: { cadence: ChecklistCadence; items: { days: number[]; alsoOnPublicHolidays: boolean }[] },
+  date: Date
+): number {
+  if (!cadenceUsesDays(t.cadence)) return t.items.length
+  const ymd = date.toISOString().split("T")[0]
+  return t.items.filter((i) => lineOnDate(i, ymd)).length
+}
 
 export interface OverdueRun {
   alertId: string | null
@@ -62,7 +73,10 @@ export async function getOverdueChecklists(): Promise<OverdueRun[]> {
       dueByHour: { not: null, lte: currentHour },
     },
     include: {
-      _count: { select: { items: { where: { archived: false } } } },
+      items: {
+        where: { archived: false },
+        select: { days: true, alsoOnPublicHolidays: true },
+      },
       runs: {
         where: { runDate: today },
         include: {
@@ -85,7 +99,7 @@ export async function getOverdueChecklists(): Promise<OverdueRun[]> {
       const completed = run
         ? run.items.filter((i) => i.checkedAt !== null).length
         : 0
-      const total = run?._count.items ?? t._count.items
+      const total = run?._count.items ?? linesOnDate(t, today)
       if (run && completed >= total && total > 0) continue
 
       const minutesOverdue =
@@ -247,7 +261,10 @@ export async function getDailySummaryData(): Promise<{
   const templates = await db.checklistTemplate.findMany({
     where: { isActive: true, dueByHour: { not: null } },
     include: {
-      _count: { select: { items: { where: { archived: false } } } },
+      items: {
+        where: { archived: false },
+        select: { days: true, alsoOnPublicHolidays: true },
+      },
       runs: {
         where: { runDate: today },
         include: {
@@ -271,7 +288,9 @@ export async function getDailySummaryData(): Promise<{
       const completed = run
         ? run.items.filter((i) => i.checkedAt !== null).length
         : 0
-      const total = t._count.items
+      // A started run holds exactly that day's lines; before that, count the
+      // lines on today's list so an off-day line never reads as missing.
+      const total = run ? run.items.length : linesOnDate(t, today)
       const staffNames = run
         ? [...new Set(run.items.map((i) => i.checkedBy).filter(Boolean) as string[])]
         : []
