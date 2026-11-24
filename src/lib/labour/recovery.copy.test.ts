@@ -190,7 +190,7 @@ describe("recoveryCopy: sentences that read wrong (found by test-guard, 24 Nov 2
 
   test("the out-of-reach note never reads as a smaller figure being 'more than' the roster left", () => {
     // Chefs + KP $963 over with $700 rostered, $600 of admin outside the bands,
-    // $1,300 left on the whole roster: the cut is $1,563, the 'Plus' line is $600.
+    // $1,300 left on the whole roster: the cut is $1,563, the 'Plus' line is $863 (Chefs + KP gives its $700).
     const c = copyOf(snap([team("chefsKp", 963, 700), team("fohBarista", 0, 400), team("pastry", 0, 100)], { outside: 600, rosterStillToRun: 1300 }))
     assert.equal(c.headline, "Cut $1,563 of wages, Mon to Tue, to get Chefs + KP as close to its band as its shifts allow and the week on 39%.")
     const i = c.notes.findIndex((n) => /left on the whole roster/.test(n))
@@ -318,4 +318,22 @@ describe("recoveryCopy: third pass on 83107f2, sentences that still read wrong (
       assert.doesNotMatch(c.headline, /is heading with/, c.headline)
     }
   )
+})
+
+describe("recoveryCopy: capped team cuts add up (test-guard, 24 Nov 2026, on 3e22531)", () => {
+  test("one team fixed in full beside one capped at its shifts left, week over: headline is both team cuts plus the 'Plus' line", () => {
+    // Tuesday arvo. Chefs + KP $963 over with $400 left (capped), Pastry $60 over with $100 left (fixed),
+    // $1,500 of admin outside the bands. Week gap $2,523 = $400 + $60 + $2,063. Roster $2,600, so in reach.
+    const c = copyOf(snap([team("chefsKp", 963, 400), team("pastry", 60, 100), team("fohBarista", 0, 1800)], { lockedDays: 6, outside: 1500, revenueStillToCome: 4000 }))
+    assert.equal(c.headline, "Cut $2,523 of wages, Tue, to get Pastry inside its band, Chefs + KP as close to its band as its shifts allow and the week on 39%.")
+    assert.match(c.teams[0], /^Chefs \+ KP: \$963 over .* It still has \$400 rostered, not enough to fix it with cuts alone: cut all of it and it still finishes \$563 over\.$/)
+    assert.match(c.teams[1], /^Pastry: \$60 over its 3% top \(3\.1%\)\. It still has \$100 rostered\.$/)
+    assert.deepEqual(c.notes, ["Plus $2,063 from any team with shifts left to land the week on 39%."])
+  })
+
+  test("'Plus' is the week gap left after the capped team cut, not after the team's whole overspend", () => {
+    // Chefs + KP $963 over with $700 left, $600 admin: gap $1,563, Chefs + KP gives its $700, so Plus is $863 (not $600).
+    const c = copyOf(snap([team("chefsKp", 963, 700), team("fohBarista", 0, 400), team("pastry", 0, 100)], { outside: 600, rosterStillToRun: 1300 }))
+    assert.ok(c.notes.includes("Plus $863 from any team with shifts left to land the week on 39%."), c.notes.join(" | "))
+  })
 })
