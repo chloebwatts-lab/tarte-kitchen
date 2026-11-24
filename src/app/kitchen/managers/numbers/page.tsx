@@ -8,7 +8,7 @@ import { AutoRefresh } from "@/components/kitchen/AutoRefresh"
 import { getLiveLabourSnapshot } from "@/lib/actions/labour-live"
 import { getCurrentWeekSpend } from "@/lib/spend/current-week"
 import type { LiveVenueSnapshot } from "@/lib/labour/live"
-import { recoveryPlan } from "@/lib/labour/recovery"
+import { doneRange, recoveryCopy, recoveryPlan, restRange } from "@/lib/labour/recovery"
 import type { BucketSpendData } from "@/lib/spend/types"
 
 /**
@@ -74,88 +74,47 @@ function dayRange(days: number): string {
   return days === 1 ? "Wed" : `Wed to ${names[Math.min(days, 7) - 1]}`
 }
 
-function restRange(lockedDays: number): string {
-  const names = ["Wed", "Thu", "Fri", "Sat", "Sun", "Mon", "Tue"]
-  const from = Math.min(Math.max(lockedDays, 0), 6)
-  return from === 6 ? "Tue" : `${names[from]} to Tue`
-}
-
 /**
  * To finish the week on target (Chloe, 23 Nov 2026): how the finished days
- * went, what the rest of the week is set to do, and if it is over, the two
- * ways back: cut wages still rostered, or take more than the forecast.
+ * went, what the rest of the week is set to do, and the cut that gets every
+ * team inside its band and the week on target. Wording is recoveryCopy
+ * (src/lib/labour/recovery.ts), tested there.
  */
 function RecoveryBlock({ v }: { v: LiveVenueSnapshot }) {
   const plan = recoveryPlan(v)
   if (!plan) return null
-  const target = `${plan.targetPct % 1 === 0 ? plan.targetPct.toFixed(0) : plan.targetPct.toFixed(2)}%`
+  const copy = recoveryCopy(plan, { lockedDays: v.locked.days, revenueStillToCome: v.revenueStillToCome })
   const rest = restRange(v.locked.days)
-  // Under a dollar either way reads as on target, never "Heading $0 over".
-  const weekOn = plan.onTrack || Math.round(plan.gap) === 0
-  // Clean only when the week is on target AND every team is inside its band:
-  // a strong weekend or one team under must not hide a team that is over.
-  const clean = weekOn && plan.depts.length === 0
-  const tone = clean ? TONE.ok : TONE.red
-  // Once trading is done (Tuesday night) more takings are not a way back.
-  const canTakeMore = v.revenueStillToCome > 0
-  const weekLine = `Week overall: ${weekOn ? (Math.round(plan.gap) === 0 ? `on ${target} to the dollar` : `${money(-plan.gap)} under ${target}`) : `${money(plan.gap)} over ${target}`}.${
-    plan.soFar ? ` ${dayRange(plan.soFar.days)} ${plan.soFar.overTarget > 0 ? "ran" : "banked"} ${money(Math.abs(plan.soFar.overTarget))} ${plan.soFar.overTarget > 0 ? "over" : "under"};` : ""
-  } ${rest} as rostered runs at ${pct(plan.rest.pct)}.`
+  const tone = copy.tone === "ok" ? TONE.ok : TONE.red
   return (
     <div className="mt-2 border-t-2 border-[var(--tk-line)] pt-3">
-      <div className="text-[16px] font-semibold">To finish the week on {target}</div>
+      <div className="text-[16px] font-semibold">To finish the week on {copy.target}</div>
       <div className="text-[13px] leading-snug text-[var(--tk-ink-soft)]">Target is the department bands added up, and every team is held to its own band. Paid leave out, the same as the big number</div>
       {plan.soFar && (
         <Row
-          label={`${dayRange(plan.soFar.days)}, done`}
+          label={`${doneRange(plan.soFar.days)}, done`}
           sub={`${money(plan.soFar.wages)} wages on ${money(plan.soFar.revenue)}: ${money(Math.abs(plan.soFar.overTarget))} ${plan.soFar.overTarget > 0 ? "over" : "under"} target`}
           value={pct(plan.soFar.pct)}
         />
       )}
       <Row
         label={`${rest}, as rostered`}
-        sub={`${money(plan.rest.wages)} wages on ${money(plan.rest.revenue)} takings, today so far plus the forecast. ${plan.rest.maxWagesForTarget > 0 ? `${money(plan.rest.maxWagesForTarget)} at most keeps the week on ${target}` : `The days done already put the week past ${target}`}`}
+        sub={`${money(plan.rest.wages)} wages on ${money(plan.rest.revenue)} takings, today so far plus the forecast. ${plan.rest.maxWagesForTarget > 0 ? `${money(plan.rest.maxWagesForTarget)} at most keeps the week on ${copy.target}` : `The days done already put the week past ${copy.target}`}`}
         value={pct(plan.rest.pct)}
       />
       <div className="mt-2 rounded-[14px] p-3 text-[15px] leading-snug" style={{ background: tone.bg, color: tone.fg }}>
-        {clean ? (
-          <p className="font-semibold">
-            {Math.round(plan.gap) === 0
-              ? `On target to the dollar and every team inside its band. Keep ${rest} to the roster as it stands.`
-              : `On track, ${money(-plan.gap)} to spare and every team inside its band. ${rest} can carry up to ${money(-plan.gap)} more wages and still finish on ${target}.`}
-          </p>
-        ) : (
-          <>
-            <p className="font-semibold">
-              Cut {money(plan.cutToFix ?? 0)} of wages, {rest}
-              {plan.depts.length ? ", to get every team inside its band" : ""}
-              {!weekOn ? ` and the week on ${target}` : ""}.
-            </p>
-            {plan.depts.length > 0 && (
-              <ul className="mt-1.5 list-disc space-y-1 pl-5">
-                {plan.depts.map((d) => (
-                  <li key={d.label}>
-                    <span className="font-semibold">{d.label}</span>: {money(d.over)} over its {d.max}% top ({pct(d.pct)}). It still has {money(d.stillToRun)} rostered
-                    {d.outOfReach ? ", not enough to fix it with cuts alone" : ""}.
-                  </li>
-                ))}
-                {!weekOn && plan.gap > plan.teamsOver && <li>Plus {money(plan.gap - plan.teamsOver)} from any team to land the week on {target}.</li>}
-              </ul>
-            )}
-            {plan.depts.length === 0 && (
-              <p className="mt-1">
-                From the {money(plan.stillToRun)} still rostered.
-                {plan.wagesOutOfReach ? " That is more than everything left on the roster, so wages alone will not get there." : ""}
-              </p>
-            )}
-            <p className="mt-2 border-t border-[var(--tk-line)] pt-2 text-[14px]">
-              {weekLine}
-              {!weekOn && canTakeMore
-                ? ` Or take ${money(plan.extraTakings ?? 0)} more than forecast${plan.extraTakingsPct != null ? ` (${plan.extraTakingsPct.toFixed(plan.extraTakingsPct < 10 ? 1 : 0)}% above the ${money(v.revenueStillToCome)} still expected)` : ""} to bring the week back to ${target}.`
-                : ""}
-            </p>
-          </>
+        <p className="font-semibold">{copy.headline}</p>
+        {copy.teams.length > 0 && (
+          <ul className="mt-1.5 list-disc space-y-1 pl-5">
+            {copy.teams.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
         )}
+        {copy.notes.map((n) => (
+          <p key={n} className="mt-1">{n}</p>
+        ))}
+        {copy.week && <p className="mt-2 border-t border-[var(--tk-line)] pt-2 text-[14px]">{copy.week}</p>}
       </div>
     </div>
   )

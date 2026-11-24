@@ -171,3 +171,72 @@ test("roster still to run: not-started shifts and the rest of shifts underway, n
   near(v.buckets.find((b) => b.key === "fohBarista")!.rosterStillToRun, 500)
   assert.ok(v.revenueStillToCome > 0)
 })
+
+// ---- Wording (recoveryCopy) ----
+import { recoveryCopy } from "./recovery"
+
+const copyOf = (v: LiveVenueSnapshot) => recoveryCopy(recoveryPlan(v)!, { lockedDays: v.locked.days, revenueStillToCome: v.revenueStillToCome })
+
+test("copy, Chloe's screenshot: leads with $963 for Chefs + KP; the week's $55 sits underneath", () => {
+  const c = copyOf(beachHouse())
+  assert.equal(c.tone, "red")
+  assert.equal(c.headline, "Cut $963 of wages, Mon to Tue, to get every team inside its band and the week on 39%.")
+  assert.equal(c.teams.length, 1)
+  assert.match(c.teams[0], /^Chefs \+ KP: \$963 over its 13\.5% top \(14\.5%\)\. It still has \$1,400 rostered\.$/)
+  assert.deepEqual(c.notes, [])
+  assert.match(c.week!, /^Week overall: \$55 over 39%\. Wed to Sun banked \$604 under; Mon to Tue as rostered runs at 42\.2%\. Or take \$141 more than forecast \(1\.5% above the \$9,572 still expected\) to bring the week back to 39%\.$/)
+})
+
+test("copy: no team over but the week over reads 'to get the week on 39%', with what is still rostered", () => {
+  const c = copyOf(beachHouse({ labourProjected: 40000 + 1508, buckets: [] }))
+  assert.equal(c.headline, `Cut $2,429 of wages, Mon to Tue, to get the week on 39%.`)
+  assert.deepEqual(c.notes, ["From the $4,193 still rostered."])
+})
+
+test("copy: a cut bigger than the whole roster left says so, even with a team over", () => {
+  const v = beachHouse({
+    labourProjected: 42500 + 1508,
+    rosterStillToRun: 1000,
+    buckets: [bucket({ key: "chefsKp", label: "Chefs + KP", target: { key: "chefsKp", label: "Chefs + KP", min: 12.5, max: 13.5 }, projectedTotal: 0.145 * 96336, workingPct: 14.5, rosterStillToRun: 1000 })],
+  })
+  const c = copyOf(v)
+  assert.ok(c.notes.some((n) => /^Plus \$/.test(n)), "the rest of the week gap")
+  assert.ok(c.notes.some((n) => n === "That is more than the $1,000 left on the whole roster, so cuts alone will not get there."))
+})
+
+test("copy: a team less than a dollar over its top is inside its band; never 'Cut $0'", () => {
+  const v = beachHouse({
+    labourProjected: 36000 + 1508,
+    buckets: [bucket({ key: "chefsKp", label: "Chefs + KP", target: { key: "chefsKp", label: "Chefs + KP", min: 12.5, max: 13.5 }, projectedTotal: 0.135 * 96336 + 0.3, workingPct: 13.5003 })],
+  })
+  const c = copyOf(v)
+  assert.equal(c.tone, "ok")
+  assert.doesNotMatch(c.headline, /\$0/)
+  assert.deepEqual(c.teams, [])
+})
+
+test("copy: teams over but the week under is still red, with no takings line", () => {
+  const v = beachHouse({
+    labourProjected: 36000 + 1508,
+    buckets: [bucket({ key: "chefsKp", label: "Chefs + KP", target: { key: "chefsKp", label: "Chefs + KP", min: 12.5, max: 13.5 }, projectedTotal: 0.145 * 96336, workingPct: 14.5, rosterStillToRun: 1400 })],
+  })
+  const c = copyOf(v)
+  assert.equal(c.tone, "red")
+  assert.equal(c.headline, "Cut $963 of wages, Mon to Tue, to get every team inside its band.")
+  assert.doesNotMatch(c.week!, /Or take/)
+})
+
+test("copy: Tuesday night, nothing left to trade, no 'take more' line", () => {
+  const v = beachHouse({ locked: { labour: 28913 + 1293, revenue: 75684, pct: null, days: 6, paidLeave: 1293, workingPct: null }, rosterStillToRun: 0, revenueStillToCome: 0 })
+  const c = copyOf(v)
+  assert.match(c.headline, /, Tue, /)
+  assert.doesNotMatch(c.week!, /Or take/)
+  assert.ok(c.notes.some((n) => /cuts alone will not get there/.test(n)))
+})
+
+test("copy: all clean is green with no week line", () => {
+  const c = copyOf(beachHouse({ labourProjected: 36000 + 1508, buckets: [] }))
+  assert.equal(c.tone, "ok")
+  assert.match(c.headline, /^On track, \$1,571 to spare and every team inside its band\./)
+  assert.equal(c.week, null)
+})

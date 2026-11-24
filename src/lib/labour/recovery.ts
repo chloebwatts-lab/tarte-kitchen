@@ -78,6 +78,8 @@ export interface RecoveryPlan {
   teamsOver: number
   /** The cut that puts every team inside its band and the week on target: max(teamsOver, gap). Null when nothing is over. */
   cutToFix: number | null
+  /** True when cutToFix is more than everything still rostered. */
+  cutOutOfReach: boolean
 }
 
 export function recoveryPlan(v: LiveVenueSnapshot, targetPct: number | null = venueWageTarget(v.venue)): RecoveryPlan | null {
@@ -144,5 +146,95 @@ export function recoveryPlan(v: LiveVenueSnapshot, targetPct: number | null = ve
     depts,
     teamsOver,
     cutToFix: cut > 0 ? r2(cut) : null,
+    cutOutOfReach: cut > 0 && cut > stillToRun,
+  }
+}
+
+// ---- Wording for the "To finish the week on target" box ----
+
+const money = (n: number) => `$${Math.round(n).toLocaleString("en-AU")}`
+const pct1 = (n: number | null) => (n == null ? "n/a" : `${n.toFixed(1)}%`)
+const DAY = ["Wed", "Thu", "Fri", "Sat", "Sun", "Mon", "Tue"]
+
+/** "Wed to Sun" for the finished days. */
+export function doneRange(days: number): string {
+  if (days <= 0) return ""
+  return days === 1 ? "Wed" : `Wed to ${DAY[Math.min(days, 7) - 1]}`
+}
+
+/** "Mon to Tue" for today to the end of the week; "Tue" on a Tuesday. */
+export function restRange(lockedDays: number): string {
+  const from = Math.min(Math.max(lockedDays, 0), 6)
+  return from === 6 ? "Tue" : `${DAY[from]} to Tue`
+}
+
+export interface RecoveryCopy {
+  target: string
+  tone: "ok" | "red"
+  headline: string
+  /** One line per team over its top by at least a dollar. */
+  teams: string[]
+  /** Lines under the teams: the rest of the week gap, out of reach. */
+  notes: string[]
+  /** Week overall: banked, pace of the days left, the takings alternative. Null when clean. */
+  week: string | null
+}
+
+/**
+ * The box's wording, pure so every case is tested. Under a dollar either
+ * way counts as on target, for the week and for each team (never "Cut $0").
+ */
+export function recoveryCopy(plan: RecoveryPlan, opts: { lockedDays: number; revenueStillToCome: number }): RecoveryCopy {
+  const target = `${plan.targetPct % 1 === 0 ? plan.targetPct.toFixed(0) : plan.targetPct.toFixed(2)}%`
+  const rest = restRange(opts.lockedDays)
+  const weekOn = plan.onTrack || Math.round(plan.gap) === 0
+  const teams = plan.depts.filter((d) => Math.round(d.over) >= 1)
+  const teamsOver = teams.reduce((s, d) => s + d.over, 0)
+  const cut = Math.max(teamsOver, weekOn ? 0 : plan.gap)
+
+  if (weekOn && teams.length === 0) {
+    return {
+      target,
+      tone: "ok",
+      headline:
+        Math.round(plan.gap) === 0
+          ? `On target to the dollar and every team inside its band. Keep ${rest} to the roster as it stands.`
+          : `On track, ${money(-plan.gap)} to spare and every team inside its band. ${rest} can carry up to ${money(-plan.gap)} more wages and still finish on ${target}.`,
+      teams: [],
+      notes: [],
+      week: null,
+    }
+  }
+
+  const why =
+    teams.length && !weekOn
+      ? `to get every team inside its band and the week on ${target}`
+      : teams.length
+        ? "to get every team inside its band"
+        : `to get the week on ${target}`
+  const teamLines = teams.map(
+    (d) => `${d.label}: ${money(d.over)} over its ${d.max}% top (${pct1(d.pct)}). It still has ${money(d.stillToRun)} rostered${d.outOfReach ? ", not enough to fix it with cuts alone" : ""}.`
+  )
+  const notes: string[] = []
+  if (teams.length && !weekOn && plan.gap - teamsOver >= 1) notes.push(`Plus ${money(plan.gap - teamsOver)} from any team to land the week on ${target}.`)
+  if (cut > plan.stillToRun) notes.push(`That is more than the ${money(plan.stillToRun)} left on the whole roster, so cuts alone will not get there.`)
+  else if (!teams.length) notes.push(`From the ${money(plan.stillToRun)} still rostered.`)
+
+  const banked = plan.soFar
+    ? ` ${doneRange(plan.soFar.days)} ${plan.soFar.overTarget > 0 ? "ran" : "banked"} ${money(Math.abs(plan.soFar.overTarget))} ${plan.soFar.overTarget > 0 ? "over" : "under"};`
+    : ""
+  const weekState = weekOn ? (Math.round(plan.gap) === 0 ? `on ${target} to the dollar` : `${money(-plan.gap)} under ${target}`) : `${money(plan.gap)} over ${target}`
+  const takeMore =
+    !weekOn && opts.revenueStillToCome > 0 && plan.extraTakings != null
+      ? ` Or take ${money(plan.extraTakings)} more than forecast${plan.extraTakingsPct != null ? ` (${plan.extraTakingsPct.toFixed(plan.extraTakingsPct < 10 ? 1 : 0)}% above the ${money(opts.revenueStillToCome)} still expected)` : ""} to bring the week back to ${target}.`
+      : ""
+
+  return {
+    target,
+    tone: "red",
+    headline: `Cut ${money(cut)} of wages, ${rest}, ${why}.`,
+    teams: teamLines,
+    notes,
+    week: `Week overall: ${weekState}.${banked} ${rest} as rostered runs at ${pct1(plan.rest.pct)}.${takeMore}`,
   }
 }
