@@ -282,6 +282,8 @@ export function auditWeek(input: {
   /** Invoices received after this count as late arrivals for the 3 weeks before. */
   lateSince: Date
   rules?: SheetRule[]
+  /** Judge only this venue's lines (e.g. "BURLEIGH"). Reference prices and packs still use every venue. */
+  venue?: string
 }): AuditResult {
   const rules = input.rules ?? SHEET
   const ws = input.weekStart.getTime()
@@ -308,6 +310,7 @@ export function auditWeek(input: {
   for (const l of good) {
     const late = isLate(l)
     if (!inWeek(l) && !late) continue
+    if (input.venue && (l.venue ?? "Unknown") !== input.venue) continue
     const rule = ruleFor(l.description, rules)
     if (!rule) continue
     sheetLines++

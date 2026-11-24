@@ -272,3 +272,72 @@ test("email: headline subject, no em dashes, venues by name", () => {
   const clean = renderWhereToOrderEmail({ result: run([line({ date: "2026-11-12", supplierName: "The Provedores", description: "GHEE Bucket 10KG", unit: "TUB", unitPrice: 149.5 })]), drift: [] })
   assert.equal(clean.subject, "Where to order, week to Tue 17 Nov: all from the right supplier")
 })
+
+test("one venue (Chloe, 25 Nov 2026): judges only that venue's lines, prices from both", () => {
+  const lines = [
+    // The right supplier's price comes from Currumbin's invoice.
+    line({ date: "2026-11-03", supplierName: "The Provedores", description: "GHEE Bucket 10KG", unit: "TUB", unitPrice: 149.5, venue: "BEACH_HOUSE" }),
+    line({ date: "2026-11-12", supplierName: "Bidfood", description: "GHEE NEW ZEALAND PURE SOUL 10lt", unit: "BKT", unitPrice: 162.29, venue: "BURLEIGH" }),
+    line({ date: "2026-11-13", supplierName: "Bidfood", description: "GHEE NEW ZEALAND PURE SOUL 10lt", unit: "BKT", unitPrice: 162.29, venue: "BEACH_HOUSE" }),
+    line({ date: "2026-11-14", supplierName: "The Provedores", description: "GHEE Bucket 10KG", unit: "TUB", unitPrice: 149.5, venue: "BEACH_HOUSE" }),
+  ]
+  const one = (venue: string) => auditWeek({ lines, weekStart: WEEK_START, weekEnd: WEEK_END, lateSince: LATE_SINCE, venue })
+  const b = one("BURLEIGH")
+  assert.equal(b.sheetLines, 1)
+  assert.equal(b.offLines, 1)
+  assert.deepEqual(b.rows.map((x) => x.venue), ["BURLEIGH"])
+  assert.equal(Math.round(b.extraTotal), 6)
+  const c = one("BEACH_HOUSE")
+  assert.equal(c.sheetLines, 2)
+  assert.equal(c.rightLines, 1)
+  assert.deepEqual(c.rows.map((x) => x.venue), ["BEACH_HOUSE"])
+  // Both venues together still add up to the whole.
+  const all = run(lines)
+  assert.equal(all.offLines, b.offLines + c.offLines)
+  assert.equal(all.sheetLines, b.sheetLines + c.sheetLines)
+
+  const eb = renderWhereToOrderEmail({ result: b, drift: [], venue: "BURLEIGH" })
+  assert.equal(eb.subject, "Burleigh: where to order, week to Tue 17 Nov: 1 item from the wrong supplier, $6 extra")
+  assert.ok(!eb.text.includes("Currumbin") && !eb.text.includes("Beach House"))
+  assert.ok(eb.text.includes("1 of 1 Burleigh invoice lines"))
+  assert.ok(!eb.html.includes("—") && !eb.text.includes("—"))
+  const ec = renderWhereToOrderEmail({ result: c, drift: [], venue: "BEACH_HOUSE" })
+  assert.ok(ec.subject.startsWith("Currumbin: where to order, week to Tue 17 Nov: 1 item"))
+  assert.ok(!ec.text.includes("Burleigh"))
+  const none = renderWhereToOrderEmail({ result: one("TEA_GARDEN"), drift: [], venue: "TEA_GARDEN" })
+  assert.equal(none.subject, "Tea Garden: where to order, week to Tue 17 Nov: all from the right supplier")
+  assert.ok(none.text.includes("No Tea Garden invoice lines"))
+})
+
+test("one venue: no-venue and late invoices still land in exactly one venue's email", () => {
+  const ghee = (p: Partial<AuditLine> & { date: string }) =>
+    line({ supplierName: "Bidfood", description: "GHEE NEW ZEALAND PURE SOUL 10lt", unit: "BKT", unitPrice: 162.29, ...p })
+  const lines: AuditLine[] = [
+    // The right price comes from a Tea Garden invoice, a venue with no email of its own.
+    line({ date: "2026-11-12", supplierName: "The Provedores", description: "GHEE Bucket 10KG", unit: "TUB", unitPrice: 149.5, venue: "TEA_GARDEN" }),
+    ghee({ date: "2026-11-13", venue: "BURLEIGH" }),
+    { ...ghee({ date: "2026-11-14" }), venue: null },
+    // Dated the week before, reached us after last Wednesday's run.
+    ghee({ date: "2026-11-05", venue: "BEACH_HOUSE", receivedAt: new Date("2026-11-20T01:00:00Z") }),
+    // Outside the week and not late: in no email.
+    ghee({ date: "2026-11-05", venue: "BURLEIGH", receivedAt: new Date("2026-11-06T01:00:00Z") }),
+  ]
+  const all = run(lines)
+  assert.equal(all.offLines, 3)
+  const names = ["BURLEIGH", "BEACH_HOUSE", ...Object.keys(all.byVenue).filter((v) => v !== "BURLEIGH" && v !== "BEACH_HOUSE")]
+  assert.deepEqual(names, ["BURLEIGH", "BEACH_HOUSE", "Unknown"])
+  const each = names.map((venue) => auditWeek({ lines, weekStart: WEEK_START, weekEnd: WEEK_END, lateSince: LATE_SINCE, venue }))
+  assert.deepEqual(each.map((r) => r.offLines), [1, 1, 1])
+  assert.equal(each.reduce((s, r) => s + r.offLines, 0), all.offLines)
+  assert.equal(each.reduce((s, r) => s + r.rows.length, 0), all.rows.length)
+  assert.equal(Math.round(each.reduce((s, r) => s + r.extraTotal, 0) * 100), Math.round(all.extraTotal * 100))
+  // Every venue priced against the Tea Garden invoice.
+  for (const r of each) assert.ok(r.extraTotal > 6 && r.extraTotal < 7, `extra ${r.extraTotal}`)
+  assert.equal(each[1].rows[0].late, true)
+  assert.equal(each[2].rows[0].venue, "Unknown")
+  // Tea Garden's right buy is in the whole but in no venue email (only right buys there).
+  assert.equal(all.sheetLines, each.reduce((s, r) => s + r.sheetLines, 0) + 1)
+  const unknown = renderWhereToOrderEmail({ result: each[2], drift: [], venue: "Unknown" })
+  assert.ok(unknown.subject.startsWith("Venue not on invoice: where to order"))
+  assert.ok(!unknown.text.includes("—"))
+})
