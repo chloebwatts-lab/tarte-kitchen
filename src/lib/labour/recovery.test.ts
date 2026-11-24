@@ -229,7 +229,7 @@ test("copy: teams over but the week under is still red, with no takings line", (
 test("copy: Tuesday night, nothing left to trade, no 'take more' line", () => {
   const v = beachHouse({ locked: { labour: 28913 + 1293, revenue: 75684, pct: null, days: 6, paidLeave: 1293, workingPct: null }, rosterStillToRun: 0, revenueStillToCome: 0 })
   const c = copyOf(v)
-  assert.equal(c.headline, "Nothing left on the roster to cut, so the week finishes with a team over its band.")
+  assert.equal(c.headline, "Nothing left on the roster to cut, so Chefs + KP stays over its band this week.")
   assert.match(c.teams[0], /Take it up with the team for next week\.$/)
   assert.doesNotMatch(c.week!, /Or take/)
   for (const l of [c.headline, ...c.teams, ...c.notes, c.week!]) assert.doesNotMatch(l, /\$0\b/, l)

@@ -211,30 +211,38 @@ export function recoveryCopy(plan: RecoveryPlan, opts: { lockedDays: number; rev
     }
   }
 
-  // A team with nothing left rostered cannot be brought back this week:
-  // cutting another team's shifts does not put it inside its own band
-  // (each team is held to its own band, Chloe 12 Nov 2026).
-  const fixable = nothingLeft ? [] : teams.filter((d) => Math.round(d.stillToRun) > 0)
-  const stuck = teams.filter((d) => !fixable.includes(d))
+  // Each team is held to its own band (Chloe 12 Nov 2026), so a team's
+  // overspend can only come off that team's own shifts still to run:
+  //   full    over <= what it has left: cut the overspend, back inside its band
+  //   partial over > what it has left: cut all it has left, still over
+  //   stuck   nothing left rostered: no cut this week helps it
+  // Cutting another team's shifts never brings a team inside its band; only
+  // the week gap still standing after the team cuts ("Plus") may come off any team.
   const dollarsOf = (d: DeptRecovery) => Math.max(1, Math.round(d.over))
+  const leftOf = (d: DeptRecovery) => (nothingLeft ? 0 : Math.round(d.stillToRun))
+  const full = teams.filter((d) => leftOf(d) > 0 && dollarsOf(d) <= leftOf(d))
+  const partial = teams.filter((d) => leftOf(d) > 0 && dollarsOf(d) > leftOf(d))
+  const stuck = teams.filter((d) => leftOf(d) === 0)
   // Whole dollars that add up: the headline is the sum of the lines under it.
-  const fixDollars = fixable.reduce((sum, d) => sum + dollarsOf(d), 0)
-  const plusDollars = !nothingLeft && !weekOn ? Math.max(0, Math.round(plan.gap - fixable.reduce((sum, d) => sum + d.over, 0))) : 0
-  const cutDollars = fixDollars + plusDollars
+  const teamCut = full.reduce((sum, d) => sum + dollarsOf(d), 0) + partial.reduce((sum, d) => sum + leftOf(d), 0)
+  const plusDollars = !nothingLeft && !weekOn ? Math.max(0, Math.round(plan.gap) - teamCut) : 0
+  const cutDollars = teamCut + plusDollars
   const names = (list: DeptRecovery[]) => (list.length === 1 ? list[0].label : `${list.slice(0, -1).map((d) => d.label).join(", ")} and ${list[list.length - 1].label}`)
+  const and = (parts: string[]) => (parts.length <= 1 ? parts.join("") : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`)
 
   let headline: string
   if (nothingLeft) {
-    const how = teams.length
-      ? `with ${teams.length === 1 ? "a team over its band" : `${teams.length} teams over their bands`}`
-      : `${money(Math.round(plan.gap))} over ${target}`
-    headline = `Nothing left on the roster to cut, so the week ${takingsLeft ? "is heading" : "finishes"} ${how}.`
+    headline = teams.length
+      ? `Nothing left on the roster to cut, so ${teams.length === 1 ? `${teams[0].label} stays over its band` : `${names(teams)} stay over their bands`} this week.`
+      : `Nothing left on the roster to cut, so the week ${takingsLeft ? "is set to finish" : "finishes"} ${money(Math.round(plan.gap))} over ${target}.`
   } else if (cutDollars === 0) {
     headline = `No cut fixes it this week: ${names(stuck)} ${stuck.length === 1 ? "has" : "have"} nothing left rostered. Take it up with the team for next week.`
   } else {
-    const teamPart = fixable.length ? (stuck.length ? `${names(fixable)} inside ${fixable.length === 1 ? "its" : "their"} band` : "every team inside its band") : ""
-    const weekPart = !weekOn ? `the week on ${target}` : ""
-    headline = `Cut ${money(cutDollars)} of wages, ${rest}, to get ${[teamPart, weekPart].filter(Boolean).join(" and ")}.`
+    const goals: string[] = []
+    if (full.length) goals.push(full.length === teams.length ? "every team inside its band" : `${names(full)} inside ${full.length === 1 ? "its band" : "their bands"}`)
+    if (partial.length) goals.push(`${names(partial)} as close to ${partial.length === 1 ? "its band as its" : "their bands as their"} shifts allow`)
+    if (!weekOn) goals.push(`the week on ${target}`)
+    headline = `Cut ${money(cutDollars)} of wages, ${rest}, to get ${and(goals)}.`
   }
 
   // A team's % to as many places as it takes to read above its top (13.501%, not 13.5%).
@@ -246,29 +254,31 @@ export function recoveryCopy(plan: RecoveryPlan, opts: { lockedDays: number; rev
     const head = `${d.label}: ${money(dollarsOf(d))} over its ${d.max}% top (${teamPct(d)}).`
     if (nothingLeft) return `${head} Take it up with the team for next week.`
     if (stuck.includes(d)) return `${head} Nothing left rostered in this team: take it up with the team for next week.`
-    const left = Math.round(d.stillToRun)
-    return `${head} It still has ${money(left)} rostered${dollarsOf(d) > left ? ", not enough to fix it with cuts alone" : ""}.`
+    if (partial.includes(d))
+      return `${head} It still has ${money(leftOf(d))} rostered, not enough to fix it with cuts alone: cut all of it and it still finishes ${money(dollarsOf(d) - leftOf(d))} over.`
+    return `${head} It still has ${money(leftOf(d))} rostered.`
   })
 
   const notes: string[] = []
   if (!nothingLeft) {
-    if (plusDollars >= 1 && fixable.length) notes.push(`Plus ${money(plusDollars)} from any team to land the week on ${target}.`)
+    if (plusDollars >= 1 && teamCut > 0) notes.push(`Plus ${money(plusDollars)} from any team with shifts left to land the week on ${target}.`)
     if (cutDollars > roster) notes.push(`The ${money(cutDollars)} cut is more than the ${money(roster)} left on the whole roster, so cuts alone will not get there.`)
-    else if (cutDollars > 0 && !fixable.length) notes.push(`From the ${money(roster)} still rostered.`)
+    else if (cutDollars > 0 && teamCut === 0) notes.push(`From the ${money(roster)} still rostered.`)
   }
 
-  let banked = ""
+  const clauses: string[] = []
   if (plan.soFar) {
     const d = Math.round(plan.soFar.overTarget)
-    banked = d === 0 ? ` ${doneRange(plan.soFar.days)} landed on target;` : ` ${doneRange(plan.soFar.days)} ${d > 0 ? "ran" : "banked"} ${money(Math.abs(d))} ${d > 0 ? "over" : "under"};`
+    clauses.push(d === 0 ? `${doneRange(plan.soFar.days)} landed on target` : `${doneRange(plan.soFar.days)} ${d > 0 ? "ran" : "banked"} ${money(Math.abs(d))} ${d > 0 ? "over" : "under"}`)
   }
+  if (!(nothingLeft && !takingsLeft)) clauses.push(`${rest} as rostered runs at ${pct1(plan.rest.pct)}`)
   const weekState = weekOn ? (Math.round(plan.gap) === 0 ? `on ${target} to the dollar` : `${money(-plan.gap)} under ${target}`) : `${money(plan.gap)} over ${target}`
   const above =
     plan.extraTakingsPct != null && plan.extraTakingsPct >= 0.1
       ? ` (${plan.extraTakingsPct.toFixed(plan.extraTakingsPct < 10 ? 1 : 0)}% above the ${money(opts.revenueStillToCome)} still expected)`
       : ""
   const takeMore = !weekOn && takingsLeft && plan.extraTakings != null ? ` Or take ${money(plan.extraTakings)} more than forecast${above} to bring the week back to ${target}.` : ""
-  const restPace = nothingLeft && !takingsLeft ? "" : ` ${rest} as rostered runs at ${pct1(plan.rest.pct)}.`
+  const week = `Week overall: ${weekState}.${clauses.length ? ` ${clauses.join("; ")}.` : ""}${takeMore}`
 
   return {
     target,
@@ -276,6 +286,6 @@ export function recoveryCopy(plan: RecoveryPlan, opts: { lockedDays: number; rev
     headline,
     teams: teamLines,
     notes,
-    week: `Week overall: ${weekState}.${banked}${restPace}${takeMore}`,
+    week,
   }
 }

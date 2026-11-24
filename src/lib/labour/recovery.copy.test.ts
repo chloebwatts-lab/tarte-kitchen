@@ -129,7 +129,7 @@ describe("recoveryCopy: day ranges at the ends of the week", () => {
     assert.equal(c.target, "38.25%")
     assert.equal(c.headline, "Cut $1,200 of wages, Mon to Tue, to get every team inside its band and the week on 38.25%.")
     assert.match(c.teams[0], /^Chefs \+ KP: \$700 over its 12% top \(12\.9%\)\./)
-    assert.deepEqual(c.notes, ["Plus $500 from any team to land the week on 38.25%."])
+    assert.deepEqual(c.notes, ["Plus $500 from any team with shifts left to land the week on 38.25%."])
   })
 })
 
@@ -137,8 +137,9 @@ describe("recoveryCopy: the three fixes from the 11cb7b6 NO-GO", () => {
   test("(1) out of reach is said with a team over even when the week itself is under", () => {
     const c = copyOf(snap([team("chefsKp", 1500, 600), team("fohBarista", -2500, 300)], { rosterStillToRun: 1000 }))
     assert.equal(c.tone, "red")
-    assert.match(c.headline, /^Cut \$1,500 of wages, Mon to Tue, to get every team inside its band\.$/)
-    assert.ok(c.notes.some((n) => /left on the whole roster, so cuts alone will not get there/.test(n)), c.notes.join(" | "))
+    // Chefs + KP is $1,500 over with $600 left: only its own $600 helps it (corrected after the 83107f2 guard run).
+    assert.match(c.headline, /^Cut \$600 of wages, Mon to Tue, to get Chefs \+ KP as close to its band as its shifts allow\.$/)
+    assert.match(c.teams[0], /not enough to fix it with cuts alone: cut all of it and it still finishes \$900 over\.$/)
   })
 
   test("(2) a team under a dollar over and the week over reads 'to get the week on 39%', no team listed", () => {
@@ -191,7 +192,7 @@ describe("recoveryCopy: sentences that read wrong (found by test-guard, 24 Nov 2
     // Chefs + KP $963 over with $700 rostered, $600 of admin outside the bands,
     // $1,300 left on the whole roster: the cut is $1,563, the 'Plus' line is $600.
     const c = copyOf(snap([team("chefsKp", 963, 700), team("fohBarista", 0, 400), team("pastry", 0, 100)], { outside: 600, rosterStillToRun: 1300 }))
-    assert.equal(c.headline, "Cut $1,563 of wages, Mon to Tue, to get every team inside its band and the week on 39%.")
+    assert.equal(c.headline, "Cut $1,563 of wages, Mon to Tue, to get Chefs + KP as close to its band as its shifts allow and the week on 39%.")
     const i = c.notes.findIndex((n) => /left on the whole roster/.test(n))
     assert.ok(i >= 0, "out of reach is said")
     const note = c.notes[i]
@@ -208,7 +209,7 @@ describe("recoveryCopy: second pass on 439e6f4, sentences that still read wrong 
   test("Tuesday night with admin outside the bands too: nothing left to cut, so no 'Plus $X from any team'", () => {
     // Chefs + KP $3,395 over, $600 of admin wages outside every band, every shift done, trading done.
     const c = copyOf(snap([team("chefsKp", 3395, 0), team("fohBarista", 0, 0), team("pastry", 0, 0)], { lockedDays: 6, outside: 600, rosterStillToRun: 0, revenueStillToCome: 0 }))
-    assert.equal(c.headline, "Nothing left on the roster to cut, so the week finishes with a team over its band.")
+    assert.equal(c.headline, "Nothing left on the roster to cut, so Chefs + KP stays over its band this week.")
     for (const n of c.notes) assert.doesNotMatch(n, /^Plus \$|from any team/, `nothing is left to cut, yet: "${n}"`)
   })
 
@@ -281,4 +282,40 @@ describe("recoveryCopy: second pass on 439e6f4, sentences that still read wrong 
     const c = copyOf(snap([team("chefsKp", 0, 0)], { lockedDays: 6, outside: 400, rosterStillToRun: 0, revenueStillToCome: 3000 }))
     if (/finishes/.test(c.headline)) assert.doesNotMatch(c.week!, /Or take/, `${c.headline} | ${c.week}`)
   })
+})
+
+describe("recoveryCopy: third pass on 83107f2, sentences that still read wrong (test-guard, 24 Nov 2026)", () => {
+  test(
+    "Tuesday arvo: a team over by more than it still has rostered is not promised 'inside its band', and the others are not cut for it",
+    () => {
+      // Chefs + KP $963 over with only $400 of today's shifts left; FOH $1,445 under its top with $1,800 left.
+      // Cutting FOH does not bring Chefs + KP's % down, so the most worth cutting is the $400 Chefs + KP has left,
+      // which also covers the $55 the week is over in the second case.
+      const buckets = () => [team("chefsKp", 963, 400), team("fohBarista", -1445, 1800), team("pastry", -400, 100)]
+      const weekUnder = copyOf(snap(buckets(), { lockedDays: 6, revenueStillToCome: 4000 }))
+      const weekOver = copyOf(snap(buckets(), { lockedDays: 6, outside: 937, revenueStillToCome: 4000 }))
+      for (const c of [weekUnder, weekOver]) {
+        assert.match(c.teams[0], /not enough to fix it with cuts alone/, "precondition: the team line says it cannot be fixed")
+        assert.doesNotMatch(c.headline, /every team inside its band|Chefs \+ KP[^.]* inside/, `${c.headline} | ${c.teams[0]}`)
+        const m = /^Cut (\$[\d,]+)/.exec(c.headline)
+        if (m) assert.ok(dollars(m[1]) <= 400, `asks for more than Chefs + KP has left to cut: ${c.headline}`)
+      }
+    }
+  )
+
+  test(
+    "Tuesday night, every shift and every sale done: the week line ends on a full stop, not a dangling ';'",
+    () => {
+      const c = copyOf(snap([team("chefsKp", 3395, 0), team("fohBarista", -400, 0), team("pastry", -69, 0)], { lockedDays: 6, rosterStillToRun: 0, revenueStillToCome: 0 }))
+      assert.match(c.week!, /\.$/, c.week!)
+    }
+  )
+
+  test(
+    "shifts done but takings still to come: the headline reads as English, not 'the week is heading with a team over its band'",
+    () => {
+      const c = copyOf(snap([team("chefsKp", 3395, 0), team("fohBarista", -400, 0)], { lockedDays: 6, rosterStillToRun: 0, revenueStillToCome: 1500 }))
+      assert.doesNotMatch(c.headline, /is heading with/, c.headline)
+    }
+  )
 })
