@@ -364,8 +364,21 @@ export function KitchenRunView({
 
       {/* Items */}
       <div className="space-y-2.5">
-        {visibleItems.map((item) => (
+        {visibleItems.map((item, idx) => (
           <div key={item.id}>
+            {/* Section heading ("Setup", "Lock up") above the first line of
+                each run of lines that share one. */}
+            {item.section &&
+              item.section !== visibleItems[idx - 1]?.section && (
+                <h2
+                  className={cn(
+                    "mb-2 text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--tk-ink-soft)]",
+                    idx > 0 && "mt-6"
+                  )}
+                >
+                  {item.section}
+                </h2>
+              )}
             <KitchenChecklistRow
               label={stripContextPrefix(item.label)}
               instructions={item.instructions}

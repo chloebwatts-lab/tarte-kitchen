@@ -1387,6 +1387,16 @@ model ChecklistTemplateItem {
   hotCheck     Boolean           @default(false)
   /// Retired items keep their run history but are excluded from new runs.
   archived     Boolean           @default(false)
+  /// Heading shown above this line on the run screen ("Setup", "Lock up").
+  /// Consecutive lines with the same section sit under one heading.
+  section      String?
+  /// AEST weekdays this line is on a daily list, 0 = Sunday to 6 = Saturday.
+  /// Empty = every day. Weekly and monthly lists ignore it (one run spans
+  /// many days). Currumbin cafe sheets, Chloe 24 Nov 2026.
+  days         Int[]             @default([])
+  /// Also on the list on a QLD public holiday, whatever the weekday
+  /// (the surcharge lines: Sunday 5%, public holiday 17%).
+  alsoOnPublicHolidays Boolean   @default(false)
 
   runItems ChecklistRunItem[]
   createdAt DateTime @default(now())

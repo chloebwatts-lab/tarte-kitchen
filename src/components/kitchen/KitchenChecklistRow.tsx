@@ -107,7 +107,7 @@ export function KitchenChecklistRow({
             {label}
           </div>
           {instructions && (
-            <div className="mt-1 text-[14px] leading-snug text-[var(--tk-ink-soft)]">
+            <div className="mt-1 whitespace-pre-line text-[14px] leading-snug text-[var(--tk-ink-soft)]">
               {instructions}
             </div>
           )}

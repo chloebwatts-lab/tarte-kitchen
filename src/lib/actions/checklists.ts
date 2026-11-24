@@ -10,6 +10,7 @@ import {
 } from "@/generated/prisma/client"
 import Decimal from "decimal.js"
 import { sendFoodSafetyEmail } from "@/lib/gmail/send"
+import { cadenceUsesDays, lineOnDate } from "@/lib/checklists/days"
 
 export interface ChecklistTemplateSummary {
   id: string
@@ -44,6 +45,8 @@ export interface ChecklistRunDetail {
     id: string
     label: string
     instructions: string | null
+    /** Heading this line sits under on the run screen, null = none. */
+    section?: string | null
     requireTemp: boolean
     requireNote: boolean
     hotCheck: boolean
@@ -122,7 +125,12 @@ export async function listChecklistTemplates(params?: {
   const templates = await db.checklistTemplate.findMany({
     where: { isActive: true, ...venueFilter },
     include: {
-      _count: { select: { items: { where: { archived: false } } } },
+      // Day rules of every live line, so a daily tile counts only the lines
+      // on today's list ("Order alcohol" is not on a Thursday's).
+      items: {
+        where: { archived: false },
+        select: { days: true, alsoOnPublicHolidays: true },
+      },
       runs: {
         // Pull runs for every cadence's current anchor (today / this Monday /
         // the 1st); each template then picks the one matching its own cadence.
@@ -141,6 +149,7 @@ export async function listChecklistTemplates(params?: {
     orderBy: [{ cadence: "asc" }, { name: "asc" }],
   })
 
+  const todayYmd = ymd(todayAest())
   return templates.map((t) => {
     const anchor = cycleAnchor(t.cadence)
     // The run for THIS cadence's current cycle (weekly/monthly stay open all
@@ -166,7 +175,9 @@ export async function listChecklistTemplates(params?: {
       cadence: t.cadence,
       shift: t.shift,
       isFoodSafety: t.isFoodSafety,
-      itemCount: t._count.items,
+      itemCount: cadenceUsesDays(t.cadence)
+        ? t.items.filter((i) => lineOnDate(i, todayYmd)).length
+        : t.items.length,
       todayRun: currentRun
         ? {
             id: currentRun.id,
@@ -237,7 +248,8 @@ export async function startChecklistRun(params: {
     where: { id: params.templateId },
     select: { cadence: true },
   })
-  const date = cycleAnchor(template?.cadence ?? "DAILY")
+  const cadence = template?.cadence ?? "DAILY"
+  const date = cycleAnchor(cadence)
   const shift = params.shift ?? "ANY"
   const existing = await db.checklistRun.findUnique({
     where: {
@@ -252,11 +264,16 @@ export async function startChecklistRun(params: {
   if (existing) {
     return existing.id
   }
-  const items = await db.checklistTemplateItem.findMany({
+  const allItems = await db.checklistTemplateItem.findMany({
     where: { templateId: params.templateId, archived: false },
     orderBy: { sortOrder: "asc" },
-    select: { id: true },
+    select: { id: true, days: true, alsoOnPublicHolidays: true },
   })
+  // A daily run carries only the lines that apply on its date, so progress,
+  // completion and the council folder never wait on an off-day line.
+  const items = cadenceUsesDays(cadence)
+    ? allItems.filter((i) => lineOnDate(i, ymd(date)))
+    : allItems
   const run = await db.checklistRun.create({
     data: {
       templateId: params.templateId,
@@ -300,6 +317,7 @@ export async function getChecklistRun(id: string): Promise<ChecklistRunDetail | 
       id: i.id,
       label: i.templateItem.label,
       instructions: i.templateItem.instructions,
+      section: i.templateItem.section,
       requireTemp: i.templateItem.requireTemp,
       requireNote: i.templateItem.requireNote,
       hotCheck: i.templateItem.hotCheck,

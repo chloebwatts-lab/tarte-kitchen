@@ -27,6 +27,7 @@ import {
   readingFor,
   checkNote,
 } from "./seed-generators"
+import { cadenceUsesDays, lineOnDate } from "../checklists/days"
 
 export type Exec = (sql: string, params: unknown[]) => Promise<Record<string, unknown>[]>
 
@@ -106,11 +107,23 @@ export async function seedDay(exec: Exec, opts: SeedDayOptions): Promise<SeedDay
 
     const runVenues =
       t.venue === "BOTH" ? [...SINGLE_VENUES] : [String(t.venue)]
-    const items = await exec(
-      `SELECT id, label, "requireTemp", "requireNote", "hotCheck"
+    const allItems = await exec(
+      `SELECT id, label, "requireTemp", "requireNote", "hotCheck", days, "alsoOnPublicHolidays"
          FROM "ChecklistTemplateItem" WHERE "templateId" = $1 AND archived = false ORDER BY "sortOrder"`,
       [t.id]
     )
+    // Same day rules as a live run: an off-day line is not on that date's list.
+    const items = cadenceUsesDays(cadence)
+      ? allItems.filter((it) =>
+          lineOnDate(
+            {
+              days: (it.days as number[] | null) ?? [],
+              alsoOnPublicHolidays: Boolean(it.alsoOnPublicHolidays),
+            },
+            date
+          )
+        )
+      : allItems
     const dueHour = (t.dueByHour as number | null) ?? SHIFT_HOUR[String(t.shift)] ?? 11
 
     for (const venue of runVenues) {
