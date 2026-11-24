@@ -201,7 +201,7 @@ test("copy: a cut bigger than the whole roster left says so, even with a team ov
   })
   const c = copyOf(v)
   assert.ok(c.notes.some((n) => /^Plus \$/.test(n)), "the rest of the week gap")
-  assert.ok(c.notes.some((n) => n === "That is more than the $1,000 left on the whole roster, so cuts alone will not get there."))
+  assert.ok(c.notes.some((n) => /^The \$[\d,]+ cut is more than the \$1,000 left on the whole roster, so cuts alone will not get there\.$/.test(n)), c.notes.join(" | "))
 })
 
 test("copy: a team less than a dollar over its top is inside its band; never 'Cut $0'", () => {
@@ -229,9 +229,10 @@ test("copy: teams over but the week under is still red, with no takings line", (
 test("copy: Tuesday night, nothing left to trade, no 'take more' line", () => {
   const v = beachHouse({ locked: { labour: 28913 + 1293, revenue: 75684, pct: null, days: 6, paidLeave: 1293, workingPct: null }, rosterStillToRun: 0, revenueStillToCome: 0 })
   const c = copyOf(v)
-  assert.match(c.headline, /, Tue, /)
+  assert.equal(c.headline, "Nothing left on the roster to cut, so the week finishes with a team over its band.")
+  assert.match(c.teams[0], /Take it up with the team for next week\.$/)
   assert.doesNotMatch(c.week!, /Or take/)
-  assert.ok(c.notes.some((n) => /cuts alone will not get there/.test(n)))
+  for (const l of [c.headline, ...c.teams, ...c.notes, c.week!]) assert.doesNotMatch(l, /\$0\b/, l)
 })
 
 test("copy: all clean is green with no week line", () => {
