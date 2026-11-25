@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import Link from "next/link"
-import { ArrowRight, CakeSlice, Croissant, Images, PackageSearch, ShoppingCart, SprayCan, Thermometer } from "lucide-react"
+import { ArrowRight, CakeSlice, Croissant, FileText, House, Images, ListOrdered, PackageSearch, ShoppingCart, SprayCan, Thermometer } from "lucide-react"
 import { KitchenBreadcrumb } from "@/components/kitchen/KitchenBreadcrumb"
 import { KitchenVenuePicker } from "@/components/kitchen-venue-picker"
 import { VenueSwitch } from "@/components/kitchen/VenueSwitch"
@@ -111,6 +111,70 @@ function Tile({ title, sub, href, icon }: { title: string; sub: string; href: st
   )
 }
 
+// Gingerbread builds for Jess (Chloe, 25 Nov 2026): the picture guide (one job per screen) and a PDF to print, for each.
+// Static files in public/kitchen, written by ~/C/gingerbread-house-2026 (publish_pastry_app.py, snow-village/build_guide.py).
+const GINGERBREAD_BUILDS = [
+  {
+    title: "Snow Village",
+    sub: "Tea Garden village: tiers, ramps, clock tower, houses. 24 steps.",
+    guide: "/kitchen/snow-village.html",
+    pdf: "/kitchen/snow-village.pdf",
+  },
+  {
+    title: "Burleigh shopfront",
+    sub: "The Burleigh window, all gingerbread. 25 steps.",
+    guide: "/kitchen/burleigh-gingerbread.html",
+    pdf: "/kitchen/burleigh-gingerbread.pdf",
+  },
+]
+
+function GingerbreadCard() {
+  return (
+    <div className="rounded-[18px] border border-[var(--tk-line)] bg-white">
+      <div className="flex items-center gap-3 px-5 pt-4 pb-3">
+        <div
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]"
+          style={{ background: "var(--tk-sage-soft)", color: "var(--tk-done)" }}
+        >
+          <House className="h-5 w-5" strokeWidth={1.8} />
+        </div>
+        <h2 className="tk-display text-[24px] leading-none text-[var(--tk-charcoal)]" style={{ fontWeight: 600, letterSpacing: "-0.02em" }}>
+          Gingerbread builds
+        </h2>
+      </div>
+      <div className="border-t border-[var(--tk-line)]">
+        {GINGERBREAD_BUILDS.map((b) => (
+          <div key={b.guide} className="flex flex-wrap items-center gap-3 border-t border-[var(--tk-line)] px-5 py-3 first:border-t-0">
+            <div className="min-w-[180px] flex-1">
+              <div className="text-[17px] font-semibold leading-snug text-[var(--tk-charcoal)]">{b.title}</div>
+              <div className="text-[13px] text-[var(--tk-ink-soft)]">{b.sub}</div>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <a
+                href={b.guide}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-full px-4 text-[14px] font-semibold text-white"
+                style={{ background: "var(--tk-charcoal)" }}
+              >
+                <ListOrdered className="h-4 w-4" strokeWidth={2} />
+                Step by step
+              </a>
+              <a
+                href={b.pdf}
+                target="_blank"
+                rel="noopener"
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[var(--tk-line)] bg-white px-4 text-[14px] font-semibold text-[var(--tk-charcoal)]"
+              >
+                <FileText className="h-4 w-4" strokeWidth={2} />
+                PDF
+              </a>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default async function PastrySectionPage({
   searchParams,
 }: {
@@ -185,6 +249,8 @@ export default async function PastrySectionPage({
           empty="No pastry cleaning list is set up for this venue yet."
         />
       </div>
+
+      <GingerbreadCard />
 
       <div className="grid gap-3 md:grid-cols-2">
         <Tile
