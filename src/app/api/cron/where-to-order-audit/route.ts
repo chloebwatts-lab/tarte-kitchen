@@ -5,6 +5,7 @@ import { OWNER_EMAIL } from "@/lib/email/owner"
 import { sendHtmlEmail } from "@/lib/gmail/send"
 import { runWhereToOrderAudit } from "@/lib/where-to-order/audit-service"
 import { renderWhereToOrderEmail } from "@/lib/where-to-order/email"
+import { HEAD_CHEFS, renderChefWhatsApp } from "@/lib/where-to-order/whatsapp"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 300
@@ -22,6 +23,8 @@ export const maxDuration = 300
  *   ?venue=BURLEIGH with html: which venue (default the first)
  *   ?week=YYYY-MM-DD  any day in the week to check (default: last closed week)
  *   ?force=1        send even if that week's email already went
+ *   ?whatsapp=1     send nothing; return each head chef's WhatsApp message
+ *                   (no spend figures), for the Wednesday WhatsApp send
  */
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization")
@@ -46,6 +49,12 @@ export async function GET(req: NextRequest) {
 
   try {
     const { drift, venues } = await runWhereToOrderAudit({ weekStart, weekEnd })
+    if (url.searchParams.get("whatsapp") === "1") {
+      const messages = venues
+        .filter((v) => HEAD_CHEFS[v.venue])
+        .map((v) => ({ venue: v.venue, chef: HEAD_CHEFS[v.venue], week: `${v.result.weekStartKey} to ${v.result.weekEndKey}`, text: renderChefWhatsApp({ result: v.result, venue: v.venue }) }))
+      return Response.json({ ok: true, messages })
+    }
     const emails = venues
       // Burleigh and Currumbin always get theirs; another venue only with a wrong buy.
       .filter((v) => v.venue === "BURLEIGH" || v.venue === "BEACH_HOUSE" || v.result.offLines > 0)

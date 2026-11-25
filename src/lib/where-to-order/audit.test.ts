@@ -341,3 +341,74 @@ test("one venue: no-venue and late invoices still land in exactly one venue's em
   assert.ok(unknown.subject.startsWith("Venue not on invoice: where to order"))
   assert.ok(!unknown.text.includes("—"))
 })
+
+test("head chef WhatsApp (Chloe, 25 Nov 2026): no spend, cheaper buys left out, suppliers merged per item", async () => {
+  const { renderChefWhatsApp, weekLabel } = await import("./whatsapp")
+  const lines = [
+    // Right supplier's prices (Provedores ghee, Fermex raspberries) from earlier weeks.
+    line({ date: "2026-11-03", supplierName: "The Provedores", description: "GHEE Bucket 10KG", unit: "TUB", unitPrice: 149.5 }),
+    line({ date: "2026-11-04", supplierName: "Fermex", description: "RASPBERRY FROZEN IQF 1KG", unit: "BAG", unitPrice: 13.6 }),
+    // The week: raspberries from two wrong suppliers, ghee cheaper at Bidfood, Express cream cheese.
+    line({ date: "2026-11-12", supplierName: "Bidfood", description: "RASPBERRIES IQF CATERERS C 1kg", unit: "BAG", unitPrice: 17.68, qty: 3 }),
+    line({ date: "2026-11-13", supplierName: "The Provedores", description: "RASPBERRIES Speedyberry 1kg (10)", unit: "EA", unitPrice: 15.15, qty: 6 }),
+    line({ date: "2026-11-14", supplierName: "Bidfood", description: "GHEE NEW ZEALAND PURE SOUL 10lt", unit: "BKT", unitPrice: 140 }),
+    line({ date: "2026-11-15", supplierName: "Bidfood", description: "CHEESE CREAM EXPRESS 2KG", unit: "EA", unitPrice: 30 }),
+    line({ date: "2026-11-15", supplierName: "Fermex", description: "RASPBERRY FROZEN IQF 1KG", unit: "BAG", unitPrice: 13.6 }),
+  ]
+  const r = auditWeek({ lines, weekStart: WEEK_START, weekEnd: WEEK_END, lateSince: LATE_SINCE, venue: "BURLEIGH" })
+  const t = renderChefWhatsApp({ result: r, venue: "BURLEIGH" })
+  assert.ok(t.startsWith("Hi Vinicius, here's the where to order check for last week (Wed 11 to Tue 17 Nov) at Burleigh."))
+  assert.ok(t.includes("• Raspberry (IQF): Fermex, not Bidfood or The Provedores ($"), t)
+  assert.ok(!t.toLowerCase().includes("ghee"), "cheaper than the sheet supplier is Chloe's call, not the chef's")
+  assert.ok(t.includes("Wrong product:\n• Cream cheese (Philadelphia): 1 order was not Philly. Order Philadelphia cream cheese 2kg block from Bidfood."), t)
+  assert.ok(!/spent/i.test(t) && !t.includes("—"))
+  assert.equal(weekLabel("2026-11-25", "2026-12-01"), "Wed 25 Nov to Tue 1 Dec")
+
+  const clean = renderChefWhatsApp({ result: auditWeek({ lines: lines.slice(-1), weekStart: WEEK_START, weekEnd: WEEK_END, lateSince: LATE_SINCE, venue: "BEACH_HOUSE" }), venue: "BEACH_HOUSE" })
+  assert.equal(clean, "Hi Jose, here's the where to order check for last week (Wed 11 to Tue 17 Nov) at Currumbin. There were no orders of items on the list.\n\nThanks!")
+})
+
+test("head chef WhatsApp: the extra in the chef's headline is the email's extra for that venue", async () => {
+  const { renderChefWhatsApp } = await import("./whatsapp")
+  const lines = [
+    line({ date: "2026-11-04", supplierName: "Fermex", description: "RASPBERRY FROZEN IQF 1KG", unit: "BAG", unitPrice: 13.6 }),
+    line({ date: "2026-11-03", supplierName: "The Provedores", description: "GHEE Bucket 10KG", unit: "TUB", unitPrice: 149.5 }),
+    line({ date: "2026-11-12", supplierName: "Bidfood", description: "RASPBERRIES IQF CATERERS C 1kg", unit: "BAG", unitPrice: 17.68, qty: 3 }),
+    line({ date: "2026-11-13", supplierName: "The Provedores", description: "RASPBERRIES Speedyberry 1kg (10)", unit: "EA", unitPrice: 15.15, qty: 6 }),
+    // Cheaper at Bidfood: in neither total.
+    line({ date: "2026-11-14", supplierName: "Bidfood", description: "GHEE NEW ZEALAND PURE SOUL 10lt", unit: "BKT", unitPrice: 140 }),
+  ]
+  const r = auditWeek({ lines, weekStart: WEEK_START, weekEnd: WEEK_END, lateSince: LATE_SINCE, venue: "BURLEIGH" })
+  assert.ok(r.extraTotal >= 1 && r.cheaperTotal >= 1)
+  const dollars = `$${Math.round(r.extraTotal).toLocaleString("en-AU")}`
+  const email = renderWhereToOrderEmail({ result: r, drift: [], venue: "BURLEIGH" })
+  assert.ok(email.subject.endsWith(`, ${dollars} extra`), email.subject)
+  assert.ok(renderChefWhatsApp({ result: r, venue: "BURLEIGH" }).includes(`cost us ${dollars} extra.`))
+})
+
+test("head chef WhatsApp: only cheaper wrong buys is not 'all right'; a late and an on-time wrong product are one bullet", async () => {
+  const { renderChefWhatsApp } = await import("./whatsapp")
+  const cheaperOnly = auditWeek({
+    lines: [
+      line({ date: "2026-11-03", supplierName: "The Provedores", description: "GHEE Bucket 10KG", unit: "TUB", unitPrice: 149.5 }),
+      line({ date: "2026-11-14", supplierName: "Bidfood", description: "GHEE NEW ZEALAND PURE SOUL 10lt", unit: "BKT", unitPrice: 140 }),
+    ],
+    weekStart: WEEK_START, weekEnd: WEEK_END, lateSince: LATE_SINCE, venue: "BURLEIGH",
+  })
+  assert.equal(cheaperOnly.offLines, 1)
+  const t = renderChefWhatsApp({ result: cheaperOnly, venue: "BURLEIGH" })
+  assert.ok(!t.includes("Every order"), t)
+  assert.ok(t.endsWith("at Burleigh. Nothing to change on the list this week. Thanks!"), t)
+
+  const twoCreamCheese = auditWeek({
+    lines: [
+      line({ date: "2026-11-08", supplierName: "Bidfood", description: "CHEESE CREAM EXPRESS 2KG", unit: "EA", unitPrice: 30, receivedAt: new Date("2026-11-20T01:00:00Z") }),
+      line({ date: "2026-11-15", supplierName: "Bidfood", description: "CHEESE CREAM EXPRESS 2KG", unit: "EA", unitPrice: 30 }),
+    ],
+    weekStart: WEEK_START, weekEnd: WEEK_END, lateSince: LATE_SINCE, venue: "BURLEIGH",
+  })
+  assert.equal(twoCreamCheese.rows.length, 2, "late and on-time are separate rows in Chloe's email")
+  const c = renderChefWhatsApp({ result: twoCreamCheese, venue: "BURLEIGH" })
+  assert.equal(c.split("Cream cheese").length - 1, 1, c)
+  assert.ok(c.includes("2 orders were not Philly"), c)
+})
