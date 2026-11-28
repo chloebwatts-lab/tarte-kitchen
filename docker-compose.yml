@@ -324,6 +324,11 @@ services:
         # Senders trash their own copy straight after sending; this catches
         # misses. Subject list: src/lib/gmail/sent-tidy-rules.ts.
         0 19 * * 0 curl -fsS -m 300 -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/tidy-sent 2>&1
+        # Cake orders (Shawna, 26 Nov 2026): every 10 min, website orders from
+        # hello@ into /kitchen/pastry/cakes + alerts, then the 2-hour "not
+        # opened" reminder; 20:00 UTC = 6am AEST list of today's pickups.
+        3,13,23,33,43,53 * * * * curl -fsS -m 300 -o /dev/null -w "cake-orders %{http_code}\n" -H "Authorization: Bearer $$CRON_SECRET" http://kitchen-app:3000/api/cron/cake-orders 2>&1
+        0 20 * * * curl -fsS -m 120 -o /dev/null -w "cake-orders morning %{http_code}\n" -H "Authorization: Bearer $$CRON_SECRET" 'http://kitchen-app:3000/api/cron/cake-orders?kind=morning' 2>&1
         CRON
         exec crond -f -l 8 -L /dev/stdout
 

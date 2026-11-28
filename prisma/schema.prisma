@@ -3746,3 +3746,101 @@ model CouncilSignOnEvent {
 
   @@index([signOnId, createdAt])
 }
+
+// ============================================================
+// Cake orders (Shawna, 26 Nov 2026): every cake, pie, tart and pre-order a
+// customer is picking up, in one list pastry can see and get alerts from.
+// Website orders come in by themselves from the Squarespace order emails in
+// hello@ (src/lib/cakes/import.ts); staff add counter, phone and function
+// orders by hand. One row per item to make, because one website order can
+// hold items for different days. Nothing is ever deleted: Cancel keeps it.
+// ============================================================
+
+enum CakeOrderSource {
+  WEBSITE
+  STAFF
+}
+
+enum CakeOrderStatus {
+  /// Nobody in pastry has opened it yet.
+  NEW
+  /// Pastry tapped "Got it".
+  SEEN
+  /// Made and ready for pickup.
+  READY
+  /// Gone out the door.
+  COLLECTED
+  CANCELLED
+}
+
+model CakeOrder {
+  id            String          @id @default(cuid())
+  /// Where the customer picks it up.
+  venue         Venue
+  /// Null when the website order had no date we could read: someone has to
+  /// set it (shown first, in red).
+  pickupDate    DateTime?       @db.Date
+  /// "13:00", 24 hour, or null.
+  pickupTime    String?
+  customerName  String
+  customerEmail String?
+  customerPhone String?
+  /// "Tarte Signature Celebration Cake"
+  product       String
+  /// Size, flavour, filling in one line: "6 Inch / Raspberries / Dulce De Leche".
+  details       String?
+  quantity      Int             @default(1)
+  /// Writing on the cake.
+  message       String?
+  /// Allergies and dietaries, shown in red.
+  dietary       String?
+  notes         String?
+  paid          Boolean         @default(false)
+  source        CakeOrderSource @default(STAFF)
+  /// Squarespace order number ("03032"), shared by the items of one order.
+  orderRef      String?
+  /// "<order number>-<item>" for website rows, so an import never doubles.
+  sourceRef     String?         @unique
+  /// Why a person should look before it is made (date unclear, pickup place
+  /// differs, short notice). Cleared when someone edits and saves the order.
+  checkNote     String?
+  status        CakeOrderStatus @default(NEW)
+  statusBy      String?
+  statusAt      DateTime?
+  /// The one "still not opened" reminder went out.
+  remindedAt    DateTime?
+  createdBy     String?
+  updatedBy     String?
+  /// When the customer ordered (the email time for website orders).
+  orderedAt     DateTime        @default(now())
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([pickupDate])
+  @@index([status, pickupDate])
+  @@index([orderRef])
+}
+
+/// Every Squarespace order email the import has looked at, cake or not, so
+/// it never fetches the same email twice.
+model CakeOrderImport {
+  id             String   @id @default(cuid())
+  gmailMessageId String   @unique
+  orderRef       String?
+  /// created | skipped | error
+  outcome        String
+  detail         String?
+  createdAt      DateTime @default(now())
+}
+
+/// Phones and iPads that turned on cake order alerts on /kitchen/pastry/cakes.
+model CakePushSub {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  label     String?
+  /// Who turned it on, for the list on the page.
+  person    String?
+  createdAt DateTime @default(now())
+}

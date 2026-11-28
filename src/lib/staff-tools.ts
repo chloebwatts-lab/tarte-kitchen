@@ -64,6 +64,15 @@ export const TOOL_GROUPS: ToolGroup[] = [
     tools: [],
   },
   {
+    // Shawna, 26 Nov 2026: one list of cake and pre-orders for pastry and the counter.
+    slug: "cakes",
+    title: "Cake orders",
+    sub: "Add a cake order, see what is being picked up and when",
+    icon: CakeSlice,
+    href: "/kitchen/pastry/cakes",
+    tools: [],
+  },
+  {
     slug: "spotted",
     title: "Broken or spotted",
     sub: "Report it in ten seconds",

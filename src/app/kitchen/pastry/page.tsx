@@ -9,6 +9,7 @@ import { PastryNotes } from "@/components/kitchen/PastryNotes"
 import { PastryPrepList } from "@/components/kitchen/PastryPrepList"
 import { listChecklistTemplates, type ChecklistTemplateSummary } from "@/lib/actions/checklists"
 import { countOpenOrderRequests } from "@/lib/actions/order-requests"
+import { getCakeSummary } from "@/lib/actions/cake-orders"
 import { getPastrySection, listPastryGallery } from "@/lib/actions/pastry-section"
 import { longDay } from "@/lib/high-tea/prep"
 import { PREP_LISTS } from "@/lib/pastry/section"
@@ -183,12 +184,22 @@ export default async function PastrySectionPage({
   const venue = await pastryVenue(await searchParams)
   if (!venue) return <KitchenVenuePicker />
 
-  const [section, templates, products, openRequests] = await Promise.all([
+  const [section, templates, products, openRequests, cakes] = await Promise.all([
     getPastrySection(venue),
     listChecklistTemplates({ venue }),
     listPastryGallery(venue),
     countOpenOrderRequests(venue, "PASTRY"),
+    getCakeSummary(),
   ])
+  // Cake orders (Shawna, 26 Nov 2026): all venues, so the counts are not per venue.
+  const cakeSub = [
+    cakes.today ? `${cakes.today} out today` : null,
+    `${cakes.nextWeek} in the next 7 days`,
+    cakes.unopened ? `${cakes.unopened} not opened yet` : null,
+    cakes.needsCheck ? `${cakes.needsCheck} to check` : null,
+  ]
+    .filter(Boolean)
+    .join(", ")
   const pastry = templates.filter((t) => `${t.area ?? ""} ${t.name}`.toLowerCase().includes("pastry"))
   const temps = pastry.filter((t) => t.isFoodSafety)
   const cleaning = pastry.filter((t) => !t.isFoodSafety)
@@ -212,6 +223,13 @@ export default async function PastrySectionPage({
           <VenueSwitch current={venue} />
         </div>
       </div>
+
+      <Tile
+        title="Cake orders"
+        sub={`${cakeSub}. Website orders come in by themselves.`}
+        href="/kitchen/pastry/cakes"
+        icon={<CakeSlice className="h-6 w-6" strokeWidth={1.8} />}
+      />
 
       <PastryNotes venue={venue} notes={section.notes} />
 
