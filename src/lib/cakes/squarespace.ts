@@ -193,6 +193,8 @@ function splitFields(text: string): { head: string; fields: Record<string, strin
 }
 
 const BEFORE_ORDER = "That date is before the order was placed."
+/** A pickup further out than this from the order is probably the wrong year. */
+const FAR_AHEAD_DAYS = 183
 /** How old an order with no usable date may be and still come in. */
 const UNDATED_DAYS = 30
 
@@ -306,6 +308,10 @@ export function parseWebsiteOrder(raw: string, orderDay: string, subject = ""): 
       checkNotes.push(requestedDateRaw ? `No pickup date we could read. The customer wrote: "${requestedDateRaw}".` : "No pickup date on the order.")
     }
     if (pickupDate && pickupDate < orderDay) checkNotes.push(BEFORE_ORDER)
+    // The wrong year in the date picker ("12/24/2027" for this Christmas) would hide it a year out.
+    if (pickupDate && (Date.parse(`${pickupDate}T00:00:00Z`) - Date.parse(`${orderDay}T00:00:00Z`)) / 86_400_000 > FAR_AHEAD_DAYS) {
+      checkNotes.push("That date is more than six months after the order was placed. Check the year with the customer.")
+    }
 
     return {
       product,

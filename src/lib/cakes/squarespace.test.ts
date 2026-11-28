@@ -282,3 +282,21 @@ test("names: accents, a Lot address, a payment word with no address", () => {
   )!
   assert.equal(pay.customerName, "Jane Citizen")
 })
+
+test("a pickup more than six months after the order is flagged: probably the wrong year", () => {
+  const body =
+    HEAD("02964", "Libby Example 1 Sample St Tugun, QLD, 4224 Australia Apple Pay libby@example.com", ...CURRUMBIN) +
+    "Tarte Signature Celebration Cake SQ2490270 Name: Libby Example Date: 10/3/2027 Time: 8:00am Number: 0400000009 Location: Tarte Beach House, Currumbin. Raspberries / 6 Inch / Dulce De Leche 1 A$165.00 A$165.00" +
+    TAIL("3/10/2027", "08:00", "")
+  const it = parseWebsiteOrder(body, "2026-09-30")!.items[0]
+  assert.equal(it.pickupDate, "2027-10-03")
+  assert.ok(it.checkNotes.some((n) => /more than six months/.test(n)))
+  // Christmas ordered in November is fine.
+  const xmas = parseWebsiteOrder(
+    HEAD("03034", "Jo Example 1 Sample St Tugun, QLD, 4224 Australia Apple Pay jo@example.com", ...BURLEIGH) +
+      "Cherry Pie SQ5193880 BAKED Location: Tarte Bakery, Burleigh Heads. Date: 24 DEC 2026 Pick up Time: 8:00am 1 A$85.00 A$85.00" +
+      TAIL("24/12/2026", "08:00", ""),
+    "2026-11-24"
+  )!.items[0]
+  assert.deepEqual(xmas.checkNotes, [])
+})
