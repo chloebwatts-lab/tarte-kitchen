@@ -147,3 +147,14 @@ test("reminder: once, after 2 hours, only 7am to 3pm Brisbane", () => {
   // 6pm Brisbane: wait for the morning.
   assert.equal(dueForReminder({ status: "NEW", createdAt: created, remindedAt: null }, at("2026-11-26T08:00:00Z")), false)
 })
+
+test("a collected order with no date leaves the red no-date group", () => {
+  const groups = groupUpcoming(
+    [
+      { id: "a", pickupDate: null, pickupTime: null, status: "COLLECTED" as const, orderRef: null },
+      { id: "b", pickupDate: null, pickupTime: null, status: "NEW" as const, orderRef: null },
+    ],
+    "2026-11-28"
+  )
+  assert.deepEqual(groups.map((g) => [g.key, g.orders.map((o) => o.id)]), [["nodate", ["b"]]])
+})

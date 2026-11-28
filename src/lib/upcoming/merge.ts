@@ -10,10 +10,12 @@
  *  - tarte-inbox's function invoices (inbox_invoices), one per email thread;
  *  - the team's hand-written entries on hello@'s own calendar.
  * A calendar entry on the invoice's day that names the customer (first or
- * last name, 3+ letters, whole word) is the same function: the invoice item
- * stays and says onCalendar true. If a day has exactly one unmatched invoice
- * and one unclaimed calendar entry (not a TBC hold, not a different space),
- * they are the same too ("EMMA EVOKE FUNCTION" is Gemma's invoice).
+ * last name, 3+ letters, whole word; best match first) is the same function:
+ * the invoice item stays and says onCalendar true. If a day has exactly one
+ * unmatched invoice and one unclaimed calendar entry, they are the same too
+ * when something ties them ("EMMA EVOKE FUNCTION" is Gemma's invoice: EMMA
+ * is inside Gemma) and nothing is against it (TBC hold, other space, other
+ * numbers). Otherwise both stay: shown twice beats hidden.
  * Everything else on the calendar comes through as its own item.
  */
 
@@ -114,6 +116,20 @@ export function clockText(min: number): string {
 export function startMinutesOf(label: string | null | undefined): number | null {
   if (!label) return null
   const ap = label.match(/\b(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)\b/i)
+  // "11-2pm", "2 to 5pm": the first hour has no am/pm of its own.
+  const range = label.match(/\b(\d{1,2})(?:[:.](\d{2}))?\s*(?:-|to|\u2013)\s*(\d{1,2})(?:[:.]\d{2})?\s*(am|pm)\b/i)
+  if (range && ap && (range.index ?? 0) <= (ap.index ?? 0)) {
+    let h = Number(range[1])
+    const m = range[2] ? Number(range[2]) : 0
+    const end = Number(range[3])
+    if (h < 1 || h > 12 || m > 59) return null
+    const endPm = range[4].toLowerCase() === "pm"
+    // Same half of the day as the end unless that would put the start after it ("11-2pm" is 11am).
+    const pm = endPm && h !== 12 && end !== 12 && h <= end
+    if (pm) h += 12
+    else if (h === 12 && !endPm) h = 0
+    return h * 60 + m
+  }
   if (ap) {
     let h = Number(ap[1])
     const m = ap[2] ? Number(ap[2]) : 0
@@ -142,7 +158,7 @@ export function spaceOf(text: string | null | undefined): string | null {
 }
 
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null)
-/** Display text without long dashes (house rule): "Venue Hire – High Tea" reads "Venue Hire, High Tea". */
+/** Display text without long dashes (house rule): an en or em dash between words reads as a comma. */
 const plain = (t: string): string => t.replace(/\s*[\u2013\u2014]\s*/g, ", ").replace(/\s+/g, " ").trim()
 const num = (v: unknown): number | null => {
   const n = typeof v === "number" ? v : typeof v === "string" && v.trim() ? Number(v) : NaN
@@ -154,9 +170,27 @@ export function nameWords(name: string | null | undefined): string[] {
   return [...new Set((name ?? "").toLowerCase().split(/[^a-zÀ-ɏ]+/).filter((w) => w.length >= 3))]
 }
 
-function namesIn(title: string, words: string[]): boolean {
-  const t = ` ${title.toLowerCase().replace(/[^a-zÀ-ɏ]+/g, " ")} `
-  return words.some((w) => t.includes(` ${w} `))
+function titleWords(title: string): string[] {
+  return title.toLowerCase().split(/[^a-z\u00c0-\u024f]+/).filter(Boolean)
+}
+
+/**
+ * How strongly a calendar title names the customer: each name word found as
+ * a whole word scores 1, the last name a little more (the team often writes
+ * "Nadeen hideout lunch", sometimes only a surname). 0 is no match.
+ */
+export function nameScore(title: string, words: string[]): number {
+  const t = new Set(titleWords(title))
+  return words.reduce((n, w, i) => n + (t.has(w) ? (i === words.length - 1 && words.length > 1 ? 1.5 : 1) : 0), 0)
+}
+
+/**
+ * A loose link for the one-each-side pairing: a title word of 4+ letters
+ * inside a name word or the other way round ("EMMA" in "Gemma").
+ */
+export function looseNameLink(title: string, words: string[]): boolean {
+  const t = titleWords(title).filter((w) => w.length >= 4)
+  return words.some((n) => n.length >= 4 && t.some((w) => n.includes(w) || w.includes(n)))
 }
 
 const RANK: Record<"booked" | "deposit_paid" | "paid", number> = { booked: 0, deposit_paid: 1, paid: 2 }
@@ -164,6 +198,8 @@ const RANK: Record<"booked" | "deposit_paid" | "paid", number> = { booked: 0, de
 interface InvoiceFn {
   item: FeedItem
   words: string[]
+  /** Every invoice number on the thread (an entry quoting one is certainly this function). */
+  numbers: string[]
   space: string | null
   /** Standard invoice id, for "latest thread wins" between duplicates. */
   rank: number
@@ -224,6 +260,7 @@ export function functionsFromInvoices(rows: InvoiceRowIn[], range: FeedRange): I
         onCalendar: false,
       },
       words: nameWords(name),
+      numbers: list.map((r) => r.invoiceNumber),
       space: spaceOf(space),
       rank: list.filter((r) => r.kind === "standard")[0]?.id ?? main.id,
     })
@@ -243,6 +280,8 @@ export function functionsFromInvoices(rows: InvoiceRowIn[], range: FeedRange): I
 interface CalEntry {
   item: FeedItem
   title: string
+  /** Title and description, for invoice numbers the inbox's calendar guard writes in. */
+  text: string
   tbc: boolean
   space: string | null
 }
@@ -282,6 +321,7 @@ export function calendarEntries(events: RawCalendarEvent[], range: FeedRange): C
         onCalendar: true,
       },
       title: fe.title,
+      text: both,
       tbc,
       space,
     })
@@ -306,11 +346,29 @@ export function mergeFunctions(invoices: InvoiceFn[], calendar: CalEntry[], cale
   }
 
   const sorted = [...invoices].sort((a, b) => a.item.date.localeCompare(b.item.date) || (a.item.startMinutes ?? -1) - (b.item.startMinutes ?? -1))
+  // Best name matches first, so "Emma Jones" takes "Emma Jones TG" and leaves "Emma W" alone.
+  const pairs: { f: InvoiceFn; c: CalEntry; score: number }[] = []
   for (const f of sorted) {
-    const c = calendar.find((x) => !claimed.has(x) && x.item.date === f.item.date && namesIn(x.title, f.words))
-    if (c) claim(f, c)
+    for (const c of calendar) {
+      if (c.item.date !== f.item.date) continue
+      const quoted = f.numbers.some((n) => c.text.includes(n))
+      const score = (quoted ? 10 : 0) + nameScore(c.title, f.words)
+      if (score <= 0) continue
+      // One name word alone ("Emma") is not enough against a different space or head count.
+      if (!quoted && score < 2) {
+        if (f.space && c.space && f.space !== c.space) continue
+        if (f.item.guests !== null && c.item.guests !== null && f.item.guests !== c.item.guests) continue
+      }
+      pairs.push({ f, c, score })
+    }
   }
-  // One left on each side on a day: the same function written differently.
+  pairs.sort((a, b) => b.score - a.score)
+  for (const { f, c } of pairs) if (!matched.has(f) && !claimed.has(c)) claim(f, c)
+
+  // One left on each side on a day: the same function written differently,
+  // but only with something tying them together (a name inside a name, the
+  // same numbers or the same start) and nothing against it. Otherwise both
+  // stay: a function shown twice is better than one hidden.
   for (const day of new Set(sorted.map((f) => f.item.date))) {
     const fs = sorted.filter((f) => f.item.date === day && !matched.has(f))
     const cs = calendar.filter((c) => c.item.date === day && !claimed.has(c))
@@ -318,6 +376,10 @@ export function mergeFunctions(invoices: InvoiceFn[], calendar: CalEntry[], cale
     const [f, c] = [fs[0], cs[0]]
     if (c.tbc) continue
     if (f.space && c.space && f.space !== c.space) continue
+    const sameGuests = f.item.guests !== null && c.item.guests !== null && f.item.guests === c.item.guests
+    const sameStart = f.item.startMinutes !== null && c.item.startMinutes !== null && f.item.startMinutes === c.item.startMinutes
+    if (!looseNameLink(c.title, f.words) && !sameGuests && !sameStart) continue
+    if (f.item.guests !== null && c.item.guests !== null && !sameGuests) continue
     claim(f, c)
   }
 

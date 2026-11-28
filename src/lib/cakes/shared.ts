@@ -117,7 +117,7 @@ const byTime = <T extends GroupableOrder>(a: T, b: T) =>
  * cancelled orders from before today drop off (the "Past" view has them).
  */
 export function groupUpcoming<T extends GroupableOrder>(orders: T[], today: string): DayGroup<T>[] {
-  const noDate = orders.filter((o) => !o.pickupDate && o.status !== "CANCELLED")
+  const noDate = orders.filter((o) => !o.pickupDate && o.status !== "CANCELLED" && o.status !== "COLLECTED")
   const overdue = orders.filter(
     (o) => o.pickupDate && o.pickupDate < today && o.status !== "COLLECTED" && o.status !== "CANCELLED"
   )

@@ -192,6 +192,35 @@ function splitFields(text: string): { head: string; fields: Record<string, strin
   return { head, fields }
 }
 
+const BEFORE_ORDER = "That date is before the order was placed."
+/** How old an order with no usable date may be and still come in. */
+const UNDATED_DAYS = 30
+
+/**
+ * What the import does with one item. A date before the order was placed is
+ * a misread (US style "12/5/2026", last year's date typed in January): it
+ * comes in with no date, in red, so a person sets it. A real date already
+ * gone (a catch-up run) stays out. No date at all comes in when the order is
+ * from the last 30 days.
+ */
+export function importDecision(
+  it: Pick<WebsiteItem, "pickupDate" | "checkNotes">,
+  orderDay: string,
+  today: string
+): { keep: boolean; pickupDate: string | null; checkNotes: string[] } {
+  // Undated items from a long catch-up: only orders from the last 30 days, not two months of old ones.
+  const recent = (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${orderDay}T00:00:00Z`)) / 86_400_000 <= UNDATED_DAYS
+  if (it.pickupDate && it.pickupDate < orderDay) {
+    return {
+      keep: recent,
+      pickupDate: null,
+      checkNotes: [...it.checkNotes.filter((n) => n !== BEFORE_ORDER), `We read the pickup date as ${it.pickupDate}, before the order was placed. Set the right date.`],
+    }
+  }
+  if (it.pickupDate && it.pickupDate < today) return { keep: false, pickupDate: it.pickupDate, checkNotes: it.checkNotes }
+  return { keep: it.pickupDate ? true : recent, pickupDate: it.pickupDate, checkNotes: it.checkNotes }
+}
+
 /** Gift cards are not made by anyone, so they never reach the cake list. */
 export function isMadeToOrder(product: string): boolean {
   return !/gift ?card|e-?gift|voucher/i.test(product)
@@ -214,7 +243,9 @@ export function parseWebsiteOrder(raw: string, orderDay: string, subject = ""): 
   const customerEmail = billedBody.match(/[\w.+'-]+@[\w-]+(?:\.[\w-]+)+/)?.[0]?.toLowerCase() ?? null
   // The name runs up to the address: a house number, "P.O.Box 93", "Unit 4", or the email when there is no address.
   const nameRaw =
-    billedBody.match(/^([A-Za-z][A-Za-z'&. -]*?)(?=\s+\d|\s+(?:[Pp]\.?\s?[Oo]\.?\s?[Bb]ox|Unit|Suite|Shop|Level|Locked Bag)\b|\s+[\w.+'-]+@|$)/)?.[1]?.trim() ?? ""
+    billedBody.match(
+      /^(\p{L}[\p{L}'&. -]*?)(?=\s+\d|\s+[Pp]\.?\s?[Oo]\.?\s?[Bb]ox\b|\s+(?:Unit|Suite|Shop|Lot|Level|Locked Bag)\s+\d|\s+(?:Apple Pay|Google Pay|CC:)|\s+[\w.+'-]+@|$)/u
+    )?.[1]?.trim() ?? ""
   const pickupAddress = text.match(/Pickup Information:?\s*(.{0,90})/i)?.[1] ?? ""
   // The place name just before "Pickup Information" ("Currumbin Beach House"), then the address after it.
   const placeName = billed.split(/\s+/).slice(-3).join(" ")
@@ -274,7 +305,7 @@ export function parseWebsiteOrder(raw: string, orderDay: string, subject = ""): 
     } else {
       checkNotes.push(requestedDateRaw ? `No pickup date we could read. The customer wrote: "${requestedDateRaw}".` : "No pickup date on the order.")
     }
-    if (pickupDate && pickupDate < orderDay) checkNotes.push("That date is before the order was placed.")
+    if (pickupDate && pickupDate < orderDay) checkNotes.push(BEFORE_ORDER)
 
     return {
       product,

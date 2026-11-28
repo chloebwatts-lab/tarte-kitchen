@@ -14,7 +14,7 @@ import { db } from "@/lib/db"
 import type { CakeOrder } from "@/generated/prisma/client"
 import { getHelloAccessToken } from "@/lib/gmail/hello-token"
 import { extractPlainTextBody, getHeader, getMessage, searchMessages } from "@/lib/gmail/client"
-import { isMadeToOrder, isPlainDate, parseWebsiteOrder } from "./squarespace"
+import { importDecision, isMadeToOrder, isPlainDate, parseWebsiteOrder } from "./squarespace"
 import { brisbaneDay, dueForReminder, morningAlert, newOrderAlert, niceTime, shortDay, CAKE_VENUE_LABEL, type AlertOrder, type CakeVenue } from "./shared"
 import { CAKES_PATH, sendCakePush } from "./push"
 
@@ -92,11 +92,13 @@ export async function importWebsiteCakeOrders(opts: { days?: number; dryRun?: bo
       continue
     }
 
+    const orderDay = brisbaneDay(emailAt)
     const rows = order.items
-      .map((it, i) => ({ it, ref: `${order.orderNo}-${i + 1}` }))
+      .map((it, i) => ({ it, ref: `${order.orderNo}-${i + 1}`, d: importDecision(it, orderDay, today) }))
       .filter(({ it }) => isMadeToOrder(it.product))
       // Pickups already gone come in only from a catch-up; leave them out.
-      .filter(({ it }) => (it.pickupDate ? it.pickupDate >= today : now.getTime() - emailAt.getTime() < 7 * 86_400_000))
+      .filter(({ d }) => d.keep)
+      .map(({ it, ref, d }) => ({ it: { ...it, pickupDate: d.pickupDate, checkNotes: d.checkNotes }, ref }))
     if (!rows.length) {
       report.skipped++
       await record("skipped", "gift cards only, or every pickup has been", order.orderNo)

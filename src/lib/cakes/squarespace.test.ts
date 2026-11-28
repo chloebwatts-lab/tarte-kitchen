@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { datesInText, flatten, isMadeToOrder, isPlainDate, parseItemDate, parseTime, parseWebsiteOrder, venueFromText } from "./squarespace"
+import { datesInText, flatten, importDecision, isMadeToOrder, isPlainDate, parseItemDate, parseTime, parseWebsiteOrder, venueFromText } from "./squarespace"
 
 // Layouts copied from real hello@ order emails (Nov 2026); every name, email,
 // address and phone number is made up.
@@ -247,4 +247,38 @@ test("plain date pickup boxes need no person; anything more does", () => {
   assert.equal(isPlainDate("Tuesday, 17 November 2026"), true)
   assert.equal(isPlainDate("Friday 27/11/26 8.30 am at Tarte Currumbin - blueberries please"), false)
   assert.equal(isPlainDate("Currumbin Tarte"), false)
+})
+
+test("import: a date before the order was placed comes in with no date, flagged; a real past date stays out", () => {
+  // "12/5/2026" typed US style for 5 Dec reads as 12 May.
+  const misread = importDecision({ pickupDate: "2026-05-12", checkNotes: ["That date is before the order was placed."] }, "2026-11-28", "2026-11-28")
+  assert.equal(misread.keep, true)
+  assert.equal(misread.pickupDate, null)
+  assert.deepEqual(misread.checkNotes, ["We read the pickup date as 2026-05-12, before the order was placed. Set the right date."])
+  // Ordered 24 Nov for 26 Nov, imported on 28 Nov by a catch-up: gone, leave it out.
+  assert.equal(importDecision({ pickupDate: "2026-11-26", checkNotes: [] }, "2026-11-24", "2026-11-28").keep, false)
+  // Today and later, and no date at all, always come in.
+  assert.equal(importDecision({ pickupDate: "2026-11-28", checkNotes: [] }, "2026-11-24", "2026-11-28").keep, true)
+  assert.equal(importDecision({ pickupDate: null, checkNotes: ["No pickup date on the order."] }, "2026-11-01", "2026-11-28").keep, true)
+  // A two-month catch-up leaves old undated orders out.
+  assert.equal(importDecision({ pickupDate: null, checkNotes: [] }, "2026-10-01", "2026-11-28").keep, false)
+  assert.equal(importDecision({ pickupDate: "2026-05-12", checkNotes: [] }, "2026-10-01", "2026-11-28").keep, false)
+})
+
+test("names: accents, a Lot address, a payment word with no address", () => {
+  const accent = parseWebsiteOrder(
+    HEAD("03103", "Zoë Renée 4 Sample St Tugun, QLD, 4224 Australia Apple Pay zoe@example.com", ...CURRUMBIN) + "Cherry Pie SQ5193880 BAKED 1 A$85.00 A$85.00" + TAIL("24/12/2026", "09:00", ""),
+    "2026-11-28"
+  )!
+  assert.equal(accent.customerName, "Zoë Renée")
+  const lot = parseWebsiteOrder(
+    HEAD("03104", "Jane Citizen Lot 5 Sample Rd Tallebudgera, QLD, 4228 Australia Apple Pay jane@example.com", ...BURLEIGH) + "Cherry Pie SQ5193880 BAKED 1 A$85.00 A$85.00" + TAIL("24/12/2026", "09:00", ""),
+    "2026-11-28"
+  )!
+  assert.equal(lot.customerName, "Jane Citizen")
+  const pay = parseWebsiteOrder(
+    HEAD("03105", "Jane Citizen Apple Pay jane@example.com", ...BURLEIGH) + "Cherry Pie SQ5193880 BAKED 1 A$85.00 A$85.00" + TAIL("24/12/2026", "09:00", ""),
+    "2026-11-28"
+  )!
+  assert.equal(pay.customerName, "Jane Citizen")
 })

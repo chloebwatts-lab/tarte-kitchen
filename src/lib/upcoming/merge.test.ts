@@ -364,3 +364,61 @@ test("times and days", () => {
   assert.equal(validDay("2026-02-30"), null)
   assert.equal(validDay("2026-12-24"), "2026-12-24")
 })
+
+test("best name match wins: Emma Jones takes her own entry, not Emma W's", () => {
+  const rows = [inv("TARTE-2026-00095", "t-ej", { event_date: "2026-12-03", customer_name: "Emma Jones", venue_space: "Tea Garden" }, { amount: 900 })]
+  const items = buildFeed({
+    range: RANGE,
+    invoices: rows,
+    calendar: [allDay("w", "2026-12-03", "Emma W TG high tea deposit paid"), allDay("j", "2026-12-03", "Emma Jones TG high tea")],
+    cakes: [],
+  })
+  assert.equal(byId(items, "fn:TARTE-2026-00095").onCalendar, true)
+  assert.ok(byId(items, "cal:w"))
+  assert.equal(items.find((i) => i.id === "cal:j"), undefined)
+})
+
+test("one each on a day but nothing ties them: both stay, the invoice says not on the calendar", () => {
+  const liz = INVOICES.filter((r) => r.threadId === "t-liz")
+  const items = buildFeed({ range: RANGE, invoices: liz, calendar: [allDay("s", "2026-11-28", "Smith hideout lunch 14pax")], cakes: [] })
+  assert.equal(byId(items, "fn:TARTE-2026-00078").onCalendar, false)
+  assert.equal(byId(items, "fn:TARTE-2026-00078").guests, 12)
+  assert.equal(byId(items, "cal:s").guests, 14)
+  // Same numbers tie them when the name does not.
+  const same = buildFeed({ range: RANGE, invoices: liz, calendar: [allDay("x", "2026-11-28", "Hideout lunch 12pax")], cakes: [] })
+  assert.equal(byId(same, "fn:TARTE-2026-00078").onCalendar, true)
+  assert.equal(same.length, 1)
+})
+
+test("a range typed without am/pm on the first hour", () => {
+  assert.equal(startMinutesOf("11-2pm"), 660)
+  assert.equal(startMinutesOf("2-5pm"), 840)
+  assert.equal(startMinutesOf("12-3pm"), 720)
+  assert.equal(startMinutesOf("11-12pm"), 660)
+  assert.equal(startMinutesOf("9 to 11am"), 540)
+  assert.equal(startMinutesOf("12:00pm - 2:00pm"), 720)
+})
+
+test("an entry quoting the invoice number is that function, whatever the title says", () => {
+  const liz = INVOICES.filter((r) => r.threadId === "t-liz")
+  const items = buildFeed({
+    range: RANGE,
+    invoices: liz,
+    calendar: [
+      allDay("other", "2026-11-28", "Webber family TBC"),
+      timed("guard", "2026-11-28T12:00:00+10:00", "2026-11-28T14:00:00+10:00", "BOOKED Hideout lunch 12pax", { description: "Invoice: TARTE-2026-00078 Guests: 12" }),
+    ],
+    cakes: [],
+  })
+  assert.equal(byId(items, "fn:TARTE-2026-00078").onCalendar, true)
+  assert.equal(items.find((i) => i.id === "cal:guard"), undefined)
+  assert.equal(byId(items, "cal:other").status, "tbc")
+})
+
+test("a first name alone never claims an entry in another space or with other numbers", () => {
+  const rows = [inv("TARTE-2026-00096", "t-ej2", { event_date: "2026-12-03", customer_name: "Emma Jones", venue_space: "The Hideout", guests: 12 }, { amount: 900 })]
+  const items = buildFeed({ range: RANGE, invoices: rows, calendar: [allDay("w2", "2026-12-03", "Emma W TG high tea 20pax deposit paid")], cakes: [] })
+  assert.equal(byId(items, "fn:TARTE-2026-00096").onCalendar, false)
+  assert.equal(byId(items, "fn:TARTE-2026-00096").guests, 12)
+  assert.equal(byId(items, "cal:w2").guests, 20)
+})
