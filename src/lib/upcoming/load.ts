@@ -7,6 +7,7 @@
 import { db } from "@/lib/db"
 import { Prisma } from "@/generated/prisma/client"
 import { getTeamCalendarEvents } from "@/lib/functions/calendar"
+import { pastryFeedRows, type PastryFeedRow, type PastryLine } from "@/lib/pastry-orders/shared"
 import { buildFeed, type CakeRowIn, type FeedItem, type FeedRange, type InvoiceRowIn } from "./merge"
 
 interface InvoiceSql {
@@ -69,6 +70,7 @@ export async function readCakePickups(range: FeedRange): Promise<CakeRowIn[]> {
     },
     select: {
       id: true,
+      orderRef: true,
       venue: true,
       pickupDate: true,
       pickupTime: true,
@@ -84,13 +86,28 @@ export async function readCakePickups(range: FeedRange): Promise<CakeRowIn[]> {
   return rows.map((r) => ({ ...r, pickupDate: r.pickupDate ? r.pickupDate.toISOString().slice(0, 10) : null }))
 }
 
+/** Pastry Orders still to be picked up in range, plus the order numbers they carry (to drop doubles). */
+export async function readPastryOrders(range: FeedRange): Promise<{ rows: PastryFeedRow[]; orderNumbers: string[] }> {
+  const inRange = await db.pastryOrder.findMany({ where: { date: { gte: range.from, lte: range.to } } })
+  const rows = pastryFeedRows(inRange as unknown as PastryLine[], range.from, range.to)
+  // Only an order that is really in the feed may stand in for its website
+  // cake row: a pastry line with no date (or another day) hides nothing.
+  return { rows, orderNumbers: [...new Set(rows.map((r) => r.id.split(":")[1]))] }
+}
+
 export async function loadUpcomingFeed(range: FeedRange): Promise<{ items: FeedItem[]; warnings: string[] }> {
   const warnings: string[] = []
-  const [invoices, calendar, cakes] = await Promise.all([
+  const [invoices, calendar, cakes, pastry] = await Promise.all([
     readFunctionInvoices(range),
     getTeamCalendarEvents(range.from, range.to).catch(() => null),
     readCakePickups(range),
+    // Pastry Orders must never take the functions down with it.
+    readPastryOrders(range).catch((e) => {
+      console.error("[upcoming-events] pastry orders", e instanceof Error ? e.message : e)
+      return null
+    }),
   ])
+  if (pastry === null) warnings.push("pastry orders not readable this time")
   if (calendar === null) warnings.push("hello@ calendar not readable this time: calendar-only entries missing, onCalendar is null")
-  return { items: buildFeed({ range, invoices, calendar, cakes }), warnings }
+  return { items: buildFeed({ range, invoices, calendar, cakes, pastry: pastry?.rows, pastryOrderNumbers: pastry?.orderNumbers }), warnings }
 }

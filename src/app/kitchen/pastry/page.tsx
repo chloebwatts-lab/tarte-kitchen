@@ -231,6 +231,15 @@ export default async function PastrySectionPage({
         icon={<CakeSlice className="h-6 w-6" strokeWidth={1.8} />}
       />
 
+      {/* Shawna's Pastry Orders tracker, rebuilt here (28 Nov 2026). On trial
+          beside Cake orders for a week; she decides when this tile takes over. */}
+      <Tile
+        title="Pastry Orders (on trial)"
+        sub="Every pastry and cake order from the inbox, with pickups, flags and the To make list."
+        href="/kitchen/pastry/orders"
+        icon={<CakeSlice className="h-6 w-6" strokeWidth={1.8} />}
+      />
+
       <PastryNotes venue={venue} notes={section.notes} />
 
       <div className="space-y-3">

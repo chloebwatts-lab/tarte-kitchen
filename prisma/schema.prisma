@@ -3844,3 +3844,85 @@ model CakePushSub {
   person    String?
   createdAt DateTime @default(now())
 }
+
+/// Pastry Orders (Shawna, 28 Nov 2026): the Claude tracker rebuilt inside
+/// Staff tools. One row per ORDER LINE, with the tracker's own field names
+/// and ids ("03035-2", "Helen-1", "M" + 6 characters, "NBI-<ref>") so old
+/// and new line up. Text fields hold the tracker's values as they are (dates
+/// "YYYY-MM-DD" or empty, times "HH:MM" or empty). Rows are NEVER deleted:
+/// cancel and refund are staffStatus. The inbox scan writes the order
+/// fields; staff-owned fields (pickedUp..., flagResolved..., staffStatus...,
+/// changeNote, payment, takenBy, channel) are written only by the app.
+model PastryOrder {
+  id              String   @id
+  order           String
+  customer        String   @default("")
+  /// "Burleigh" or "Currumbin"
+  venue           String   @default("")
+  /// "YYYY-MM-DD" Brisbane day, or "" when not known yet
+  date            String   @default("")
+  /// "HH:MM" 24 hour, or ""
+  time            String   @default("")
+  item            String   @default("")
+  qty             Float    @default(1)
+  price           Float    @default(0)
+  contact         String   @default("")
+  notes           String   @default("")
+  flag            String   @default("")
+  /// check | venue | date | closed
+  flagKind        String   @default("")
+  /// active | cancelled (the customer cancelled by email)
+  status          String   @default("active")
+  /// Squarespace | Email or form | Manual | Now Book It
+  source          String   @default("")
+  channel         String   @default("")
+  payment         String   @default("")
+  takenBy         String   @default("")
+  /// "" | cancelled | refunded | notcollected
+  staffStatus     String   @default("")
+  staffStatusBy   String   @default("")
+  staffStatusAt   String   @default("")
+  staffStatusNote String   @default("")
+  changeNote      String   @default("")
+  pickedUp        Boolean  @default(false)
+  pickedUpBy      String   @default("")
+  pickedUpAt      String   @default("")
+  flagResolved    Boolean  @default(false)
+  resolvedBy      String   @default("")
+  resolvedAt      String   @default("")
+  resolvedNote    String   @default("")
+  /// ISO 8601 with +10:00, as the tracker writes it
+  updatedAt       String   @default("")
+  createdAt       DateTime @default(now())
+
+  @@index([date])
+  @@index([order])
+  @@map("pastry_orders")
+}
+
+/// Pastry Orders activity log. Never edited, never deleted. Id as the
+/// tracker makes it: (9999999999999 minus Unix ms, 13 digits) + "-" + order,
+/// so the newest sorts first.
+model PastryLog {
+  id        String   @id
+  /// ISO 8601 with +10:00
+  at        String
+  order     String   @default("")
+  customer  String   @default("")
+  action    String
+  detail    String   @default("")
+  by        String   @default("")
+  byId      String   @default("")
+  createdAt DateTime @default(now())
+
+  @@map("pastry_log")
+}
+
+/// The tracker's scan/latest doc: when the inbox was last checked.
+model PastryScan {
+  id        String   @id
+  label     String   @default("")
+  updatedAt DateTime @updatedAt
+
+  @@map("pastry_scan")
+}

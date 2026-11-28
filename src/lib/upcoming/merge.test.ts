@@ -423,6 +423,26 @@ test("a first name alone never claims an entry in another space or with other nu
   assert.equal(byId(items, "cal:w2").guests, 20)
 })
 
+test("pastry orders join the feed as cake items and replace the same website cake order", () => {
+  const cake = (id: string, orderRef: string | null) => ({ id, orderRef, venue: "BEACH_HOUSE", pickupDate: "2026-11-29", pickupTime: "13:00", customerName: "Pat Placeholder", product: "Tarte Signature Celebration Cake", quantity: 1, details: null, message: null, dietary: null, status: "NEW" })
+  const items = buildFeed({
+    range: { from: "2026-11-28", to: "2026-12-12" },
+    invoices: [],
+    calendar: [],
+    cakes: [cake("c1", "90032"), cake("c2", null)],
+    pastry: [{ id: "pastry:90032:2026-11-29", venue: "BEACH_HOUSE", date: "2026-11-29", time: "13:00", title: "Pat Placeholder, 1x Celebration cake 6in", notes: null, flagged: false }],
+    pastryOrderNumbers: ["90032"],
+  })
+  assert.deepEqual(items.map((i) => i.id).sort(), ["cake:c2", "pastry:90032:2026-11-29"])
+  const p = items.find((i) => i.id.startsWith("pastry:"))!
+  assert.equal(p.kind, "cake")
+  assert.equal(p.source, "pastry_order")
+  assert.equal(p.time, "1:00pm")
+  assert.equal(p.title, "Cake pickup: Pat Placeholder, 1x Celebration cake 6in")
+  // Without pastry orders the feed is exactly as before.
+  assert.equal(buildFeed({ range: { from: "2026-11-28", to: "2026-12-12" }, invoices: [], calendar: [], cakes: [cake("c1", "90032")] }).length, 1)
+})
+
 // 28 Nov 2026, Chloe: "show them as tbc". An invoiced quote the customer has
 // not said yes to comes through as tbc once the invoice was seen in hello@ Sent.
 const JAN = { from: "2027-01-01", to: "2027-01-31" }

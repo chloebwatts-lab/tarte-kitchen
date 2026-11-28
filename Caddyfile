@@ -41,6 +41,9 @@
 		not path /api/internal/owner-headlines
 		# Tarte Shifts' event and cake alerts (28 Nov 2026), same bearer.
 		not path /api/internal/upcoming-events
+		# Pastry Orders intake from Shawna's inbox scan (28 Nov 2026). Its own
+		# bearer token is checked in the route.
+		not path /api/internal/pastry-orders
 		not path /_next/static/*
 		not path /favicon.ico
 		# PWA install assets — the staff home-screen app installs from the

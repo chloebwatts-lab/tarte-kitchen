@@ -20,12 +20,13 @@
  */
 
 import { isTeamBooking, toFunctionEvent, type RawCalendarEvent } from "@/lib/functions/calendar"
+import type { PastryFeedRow } from "@/lib/pastry-orders/shared"
 
 export type FeedVenue = "BEACH_HOUSE" | "TEA_GARDEN" | "BURLEIGH"
 export type FeedStatus = "booked" | "deposit_paid" | "paid" | "tbc" | "new" | "seen" | "ready"
 
 export interface FeedItem {
-  /** "fn:<TARTE invoice number>" | "cal:<google event id>" | "cake:<CakeOrder.id>" */
+  /** "fn:<TARTE invoice number>" | "cal:<google event id>" | "cake:<CakeOrder.id>" | "pastry:<order number>:<day>" */
   id: string
   kind: "function" | "cake"
   venue: FeedVenue
@@ -40,7 +41,7 @@ export interface FeedItem {
   space: string | null
   status: FeedStatus
   notes: string | null
-  source: "invoice" | "calendar" | "cake_order"
+  source: "invoice" | "calendar" | "cake_order" | "pastry_order"
   /** Invoice functions: was a matching hello@ calendar entry found. Calendar items true, cakes null. */
   onCalendar: boolean | null
 }
@@ -62,6 +63,8 @@ export interface InvoiceRowIn {
 
 export interface CakeRowIn {
   id: string
+  /** Squarespace order number, when it came from the website. */
+  orderRef?: string | null
   venue: string
   /** YYYY-MM-DD */
   pickupDate: string | null
@@ -434,6 +437,41 @@ export function cakeItems(rows: CakeRowIn[], range: FeedRange): FeedItem[] {
   return out
 }
 
+/**
+ * Pastry Orders (Shawna's tracker, rebuilt 28 Nov 2026) as feed items. Kind
+ * stays "cake" so Tarte Shifts shows them to pastry with no change there.
+ */
+export function pastryItems(rows: PastryFeedRow[]): FeedItem[] {
+  return rows.map((r) => {
+    const start = startMinutesOf(r.time)
+    return {
+      id: r.id,
+      kind: "cake" as const,
+      venue: r.venue,
+      date: r.date,
+      time: start === null ? null : clockText(start),
+      startMinutes: start,
+      title: plain(`Cake pickup: ${r.title}`),
+      guests: null,
+      space: null,
+      status: r.flagged ? ("new" as const) : ("seen" as const),
+      notes: r.notes,
+      source: "pastry_order" as const,
+      onCalendar: null,
+    }
+  })
+}
+
+/**
+ * One list, not two: a website cake order that Pastry Orders also holds
+ * (same Squarespace order number) is left out of the cake rows, and the
+ * Pastry Orders item carries it.
+ */
+export function cakesNotInPastry(cakes: CakeRowIn[], pastryOrderNumbers: Iterable<string>): CakeRowIn[] {
+  const held = new Set(pastryOrderNumbers)
+  return cakes.filter((c) => !c.orderRef || !held.has(c.orderRef))
+}
+
 /** Day, then time (no time first, like an all-day entry), functions before cakes. */
 export function sortFeed(items: FeedItem[]): FeedItem[] {
   return [...items].sort(
@@ -451,11 +489,15 @@ export function buildFeed(input: {
   invoices: InvoiceRowIn[]
   calendar: RawCalendarEvent[] | null
   cakes: CakeRowIn[]
+  /** Pastry Orders rows in range, and every order number Pastry Orders holds. */
+  pastry?: PastryFeedRow[]
+  pastryOrderNumbers?: Iterable<string>
 }): FeedItem[] {
   const fns = mergeFunctions(
     functionsFromInvoices(input.invoices, input.range),
     calendarEntries(input.calendar ?? [], input.range),
     input.calendar !== null
   )
-  return sortFeed([...fns, ...cakeItems(input.cakes, input.range)])
+  const cakes = cakesNotInPastry(input.cakes, input.pastryOrderNumbers ?? [])
+  return sortFeed([...fns, ...cakeItems(cakes, input.range), ...pastryItems(input.pastry ?? [])])
 }
