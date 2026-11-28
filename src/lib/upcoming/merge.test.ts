@@ -422,3 +422,64 @@ test("a first name alone never claims an entry in another space or with other nu
   assert.equal(byId(items, "fn:TARTE-2026-00096").guests, 12)
   assert.equal(byId(items, "cal:w2").guests, 20)
 })
+
+// 28 Nov 2026, Chloe: "show them as tbc". An invoiced quote the customer has
+// not said yes to comes through as tbc once the invoice was seen in hello@ Sent.
+const JAN = { from: "2027-01-01", to: "2027-01-31" }
+const fionaRow = (over: Partial<InvoiceRowIn> = {}, ed: Record<string, unknown> = {}): InvoiceRowIn => ({
+  ...inv("TARTE-2026-00031", "19ff958308de94db", { event_date: "2027-01-06", customer_name: "Fiona Green", guests: 17, venue_space: "The Hideout", time_label: "12:00pm - 2:00pm", package_name: "Private Lunch in The Hideout", customer_confirmed: false, ...ed }, { amount: 1513 }),
+  sentSeen: true,
+  ...over,
+})
+const guardTbc = allDay("tarteguard202600031", "2027-01-06", "TBC Fiona Green Hideout private lunch 17pax", "Invoice: TARTE-2026-00031\nGuests: 17\nAdded automatically because this booking was not on the calendar.")
+
+test("invoiced, emailed, not confirmed: status tbc", () => {
+  const items = buildFeed({ range: JAN, invoices: [fionaRow()], calendar: [], cakes: [] })
+  assert.equal(items.length, 1)
+  assert.equal(items[0].id, "fn:TARTE-2026-00031")
+  assert.equal(items[0].status, "tbc")
+  assert.equal(items[0].guests, 17)
+})
+
+test("not confirmed and the invoice was never seen in Sent: left out", () => {
+  assert.equal(buildFeed({ range: JAN, invoices: [fionaRow({ sentSeen: false })], calendar: [], cakes: [] }).length, 0)
+  assert.equal(buildFeed({ range: JAN, invoices: [fionaRow({ sentSeen: undefined })], calendar: [], cakes: [] }).length, 0)
+})
+
+test("a cancelled unconfirmed quote is never shown", () => {
+  assert.equal(buildFeed({ range: JAN, invoices: [fionaRow({ bookingState: "cancelled" })], calendar: [], cakes: [] }).length, 0)
+})
+
+test("the guard's TBC calendar entry and its invoice are one item, not two", () => {
+  const items = buildFeed({ range: JAN, invoices: [fionaRow()], calendar: [guardTbc], cakes: [] })
+  assert.equal(items.length, 1)
+  assert.equal(items[0].status, "tbc")
+  assert.equal(items[0].onCalendar, true)
+})
+
+test("the guard's TBC entry pairs by invoice number even if the name is typed differently", () => {
+  const odd = allDay("tarteguard202600031", "2027-01-06", "TBC Hideout lunch", "Invoice: TARTE-2026-00031")
+  const items = buildFeed({ range: JAN, invoices: [fionaRow()], calendar: [odd], cakes: [] })
+  assert.equal(items.length, 1)
+})
+
+test("once she confirms the same invoice is booked, then deposit paid", () => {
+  const booked = buildFeed({ range: JAN, invoices: [fionaRow({}, { customer_confirmed: true })], calendar: [], cakes: [] })
+  assert.equal(booked[0].status, "booked")
+  const dep = buildFeed({ range: JAN, invoices: [fionaRow({}, { customer_confirmed: true, amount_paid: 500 })], calendar: [], cakes: [] })
+  assert.equal(dep[0].status, "deposit_paid")
+})
+
+test("a team TBC entry for the same quote also pairs and stays tbc", () => {
+  const team = allDay("team-fiona", "2027-01-06", "TBC Fiona Hideout")
+  const items = buildFeed({ range: JAN, invoices: [fionaRow()], calendar: [team], cakes: [] })
+  assert.equal(items.length, 1)
+  assert.equal(items[0].status, "tbc")
+})
+
+test("a confirmed duplicate thread beats an unconfirmed one for the same customer and day", () => {
+  const dup = { ...inv("TARTE-2026-00099", "t-fiona-2", { event_date: "2027-01-06", customer_name: "Fiona Green", guests: 17, venue_space: "The Hideout" }, { amount: 1513, id: 99 }), sentSeen: true }
+  const items = buildFeed({ range: JAN, invoices: [fionaRow(), dup], calendar: [], cakes: [] })
+  assert.equal(items.length, 1)
+  assert.equal(items[0].status, "booked")
+})

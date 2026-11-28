@@ -56,6 +56,8 @@ export interface InvoiceRowIn {
   editable: Record<string, unknown> | null
   /** Latest inbox_bookings.state for the thread ("cancelled" when the cancel label was applied). */
   bookingState: string | null
+  /** inbox_invoices.sent_seen_at is set: tarte-inbox saw this invoice emailed from hello@ (Sent). */
+  sentSeen?: boolean
 }
 
 export interface CakeRowIn {
@@ -193,7 +195,7 @@ export function looseNameLink(title: string, words: string[]): boolean {
   return words.some((n) => n.length >= 4 && t.some((w) => n.includes(w) || w.includes(n)))
 }
 
-const RANK: Record<"booked" | "deposit_paid" | "paid", number> = { booked: 0, deposit_paid: 1, paid: 2 }
+const RANK: Record<"tbc" | "booked" | "deposit_paid" | "paid", number> = { tbc: -1, booked: 0, deposit_paid: 1, paid: 2 }
 
 interface InvoiceFn {
   item: FeedItem
@@ -207,8 +209,10 @@ interface InvoiceFn {
 
 /**
  * One function per email thread: the standard invoice (latest one if the
- * thread has several), or the latest row when there is no standard. Only
- * confirmed bookings, never a cancelled one. amount_paid is often missing
+ * thread has several), or the latest row when there is no standard. Confirmed
+ * bookings, plus (28 Nov 2026, Chloe: "show them as tbc") quotes whose invoice
+ * was emailed from hello@ but the customer has not said yes yet, as status
+ * "tbc". An unsent, unconfirmed invoice is left out. Never a cancelled one. amount_paid is often missing
  * when the deposit went straight into Xero, so nothing is ever "unpaid":
  * booked is the neutral word.
  */
@@ -223,7 +227,9 @@ export function functionsFromInvoices(rows: InvoiceRowIn[], range: FeedRange): I
     list.sort((a, b) => b.id - a.id)
     const main = list.find((r) => r.kind === "standard") ?? list[0]
     const ed = main.editable ?? {}
-    if (ed.customer_confirmed !== true) continue
+    const confirmed = ed.customer_confirmed === true
+    // Invoice emailed (seen in hello@ Sent) but no yes yet: a TBC hold.
+    if (!confirmed && !list.some((r) => r.sentSeen === true)) continue
     if (list.some((r) => r.bookingState === "cancelled")) continue
     const date = validDay(str(ed.event_date))
     if (!inRange(date, range)) continue
@@ -231,11 +237,13 @@ export function functionsFromInvoices(rows: InvoiceRowIn[], range: FeedRange): I
     const paid = Math.max(0, ...list.map((r) => num(r.editable?.amount_paid) ?? 0))
     const amount = Math.max(main.amount, ...list.map((r) => r.amount))
     const saveTheDate = (num(ed.flat_deposit_amount) ?? 0) > 0 && !((num(ed.per_person_price) ?? 0) > 0 && (num(ed.guests) ?? 0) > 0)
-    let status: "booked" | "deposit_paid" | "paid" = paid > 0 && paid >= amount - 0.005 ? "paid" : paid > 0 ? "deposit_paid" : "booked"
+    let status: "tbc" | "booked" | "deposit_paid" | "paid" = paid > 0 && paid >= amount - 0.005 ? "paid" : paid > 0 ? "deposit_paid" : "booked"
     // A save-the-date invoice paid in full is still only the deposit.
     if (status === "paid" && saveTheDate) status = "deposit_paid"
     // The booking says a deposit landed even when amount_paid was never typed.
     if (status === "booked" && ["deposit_paid", "balance_invoiced", "paid"].includes(main.bookingState ?? "")) status = "deposit_paid"
+    // Not confirmed and no money in: TBC. (Money in means they said yes in practice.)
+    if (!confirmed && status === "booked") status = "tbc"
 
     const name = str(ed.customer_name) ?? str(main.customerName) ?? "Function"
     const space = str(ed.venue_space)
@@ -272,7 +280,7 @@ export function functionsFromInvoices(rows: InvoiceRowIn[], range: FeedRange): I
     const key = `${f.item.date}|${f.item.title.split(",")[0].toLowerCase().trim()}`
     const kept = byKey.get(key)
     if (!kept) byKey.set(key, f)
-    else if (RANK[f.item.status as keyof typeof RANK] > RANK[kept.item.status as keyof typeof RANK]) kept.item.status = f.item.status
+    else if ((RANK[f.item.status as keyof typeof RANK] ?? 0) > (RANK[kept.item.status as keyof typeof RANK] ?? 0)) kept.item.status = f.item.status
   }
   return [...byKey.values()]
 }
