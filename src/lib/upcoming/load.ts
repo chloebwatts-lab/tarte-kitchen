@@ -20,6 +20,7 @@ interface InvoiceSql {
   editable: Record<string, unknown> | null
   booking_state: string | null
   sent_seen_at: Date | string | null
+  guard_state: string | null
 }
 
 /**
@@ -33,6 +34,7 @@ export async function readFunctionInvoices(range: FeedRange): Promise<InvoiceRow
   try {
     rows = await db.$queryRaw<InvoiceSql[]>(Prisma.sql`
       SELECT i.id, i.invoice_number, i.kind, i.thread_id, i.customer_name, i.amount, i.editable, i.sent_seen_at,
+             (SELECT g.state FROM inbox_calendar_guard g WHERE g.thread_id = i.thread_id) AS guard_state,
              (SELECT b.state FROM inbox_bookings b WHERE b.thread_id = i.thread_id ORDER BY b.id DESC LIMIT 1) AS booking_state
         FROM inbox_invoices i
        WHERE i.invoice_number <> 'PENDING'
@@ -59,6 +61,7 @@ export async function readFunctionInvoices(range: FeedRange): Promise<InvoiceRow
     editable: r.editable,
     bookingState: r.booking_state,
     sentSeen: r.sent_seen_at !== null,
+    guardState: r.guard_state,
   }))
 }
 

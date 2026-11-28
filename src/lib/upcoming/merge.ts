@@ -59,6 +59,8 @@ export interface InvoiceRowIn {
   bookingState: string | null
   /** inbox_invoices.sent_seen_at is set: tarte-inbox saw this invoice emailed from hello@ (Sent). */
   sentSeen?: boolean
+  /** inbox_calendar_guard.state for the thread: "live" while tarte-inbox's calendar guard holds it as an open TBC (or booked) entry; "declined" / "dropped" once it left the tier. */
+  guardState?: string | null
 }
 
 export interface CakeRowIn {
@@ -232,7 +234,8 @@ export function functionsFromInvoices(rows: InvoiceRowIn[], range: FeedRange): I
     const ed = main.editable ?? {}
     const confirmed = ed.customer_confirmed === true
     // Invoice emailed (seen in hello@ Sent) but no yes yet: a TBC hold.
-    if (!confirmed && !list.some((r) => r.sentSeen === true)) continue
+    // And the calendar guard must still hold it as open (hello@ wrote last, invoice under 30 days old, no decline in the thread): a declined or aged-out quote is never shown.
+    if (!confirmed && !(list.some((r) => r.sentSeen === true) && list.some((r) => r.guardState === "live"))) continue
     if (list.some((r) => r.bookingState === "cancelled")) continue
     const date = validDay(str(ed.event_date))
     if (!inRange(date, range)) continue

@@ -449,6 +449,7 @@ const JAN = { from: "2027-01-01", to: "2027-01-31" }
 const fionaRow = (over: Partial<InvoiceRowIn> = {}, ed: Record<string, unknown> = {}): InvoiceRowIn => ({
   ...inv("TARTE-2026-00031", "19ff958308de94db", { event_date: "2027-01-06", customer_name: "Fiona Green", guests: 17, venue_space: "The Hideout", time_label: "12:00pm - 2:00pm", package_name: "Private Lunch in The Hideout", customer_confirmed: false, ...ed }, { amount: 1513 }),
   sentSeen: true,
+  guardState: "live",
   ...over,
 })
 const guardTbc = allDay("tarteguard202600031", "2027-01-06", "TBC Fiona Green Hideout private lunch 17pax", "Invoice: TARTE-2026-00031\nGuests: 17\nAdded automatically because this booking was not on the calendar.")
@@ -498,8 +499,16 @@ test("a team TBC entry for the same quote also pairs and stays tbc", () => {
 })
 
 test("a confirmed duplicate thread beats an unconfirmed one for the same customer and day", () => {
-  const dup = { ...inv("TARTE-2026-00099", "t-fiona-2", { event_date: "2027-01-06", customer_name: "Fiona Green", guests: 17, venue_space: "The Hideout" }, { amount: 1513, id: 99 }), sentSeen: true }
+  const dup = { guardState: "live", ...inv("TARTE-2026-00099", "t-fiona-2", { event_date: "2027-01-06", customer_name: "Fiona Green", guests: 17, venue_space: "The Hideout" }, { amount: 1513, id: 99 }), sentSeen: true }
   const items = buildFeed({ range: JAN, invoices: [fionaRow(), dup], calendar: [], cakes: [] })
   assert.equal(items.length, 1)
   assert.equal(items[0].status, "booked")
+})
+
+test("a declined or aged-out quote (Fiona Green, declined 19 Aug 2026) is never tbc, whatever the guard cannot see", () => {
+  for (const guardState of ["declined", "dropped", null, undefined]) {
+    assert.equal(buildFeed({ range: JAN, invoices: [fionaRow({ guardState })], calendar: [], cakes: [] }).length, 0, String(guardState))
+  }
+  // a confirmed booking never needs the guard's say
+  assert.equal(buildFeed({ range: JAN, invoices: [fionaRow({ guardState: null }, { customer_confirmed: true })], calendar: [], cakes: [] })[0].status, "booked")
 })
