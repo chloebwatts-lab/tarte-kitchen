@@ -24,6 +24,7 @@ export interface RawCalendarEvent {
   id?: string
   status?: string
   summary?: string
+  description?: string
   eventType?: string
   organizer?: { email?: string; self?: boolean }
   start?: { dateTime?: string; date?: string }
@@ -190,4 +191,38 @@ export async function getUpcomingFunctions(daysAhead = 90): Promise<FunctionsCal
     teamEvents.map((e) => toFunctionEvent(e)?.id).filter((id): id is string => Boolean(id))
   )
   return { ok: true, days: groupByDay([...teamEvents, ...autoEvents], teamIds) }
+}
+
+/**
+ * The team's own entries on hello@'s calendar (isTeamBooking) for Brisbane
+ * days fromDay to toDay inclusive. Read only. Null when Google or the hello@
+ * token is not available. Used by /api/internal/upcoming-events.
+ */
+export async function getTeamCalendarEvents(fromDay: string, toDay: string): Promise<RawCalendarEvent[] | null> {
+  const token = await getHelloAccessToken("upcoming-events")
+  if (!token) return null
+  const timeMin = new Date(`${fromDay}T00:00:00+10:00`)
+  const timeMax = new Date(new Date(`${toDay}T00:00:00+10:00`).getTime() + 86_400_000)
+  const out: RawCalendarEvent[] = []
+  let pageToken: string | undefined
+  for (let page = 0; page < 5; page++) {
+    const params = new URLSearchParams({
+      timeMin: timeMin.toISOString(),
+      timeMax: timeMax.toISOString(),
+      singleEvents: "true",
+      orderBy: "startTime",
+      maxResults: "500",
+    })
+    if (pageToken) params.set("pageToken", pageToken)
+    const r = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(TEAM_CALENDAR_ID)}/events?${params}`,
+      { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }
+    )
+    if (!r.ok) return null
+    const data = (await r.json()) as { items?: RawCalendarEvent[]; nextPageToken?: string }
+    out.push(...(data.items ?? []))
+    if (!data.nextPageToken) break
+    pageToken = data.nextPageToken
+  }
+  return out.filter(isTeamBooking)
 }
